@@ -48,6 +48,17 @@ if ARM_TARGET_LIB:
 else:
   ARM_LINK_FLAGS = []
 
+# SH4_TARGET_LIB is the path to the dynamic library to use on the target
+# machine while cross-compiling.
+# You must also set the appropriate cross-compiling environment variables
+SH4_TARGET_LIB = os.environ.get('SH4_TARGET_LIB')
+if SH4_TARGET_LIB:
+  SH4_LINK_FLAGS = ['-Wl,-rpath=' + SH4_TARGET_LIB + '/lib:' +
+                     SH4_TARGET_LIB + '/usr/lib',
+                    '-Wl,--dynamic-linker=/lib/ld-linux.so.2']
+else:
+  SH4_LINK_FLAGS = []
+
 GCC_EXTRA_CCFLAGS = []
 GCC_DTOA_EXTRA_CCFLAGS = []
 
@@ -174,6 +185,9 @@ LIBRARY_FLAGS = {
     'simulator:arm': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32'],
+    },
+    'arch:sh4': {
+      'CPPDEFINES':   ['V8_TARGET_ARCH_SH4']
     },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
@@ -431,6 +445,9 @@ CCTEST_EXTRA_FLAGS = {
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS
     },
+    'arch:sh4': {
+      'LINKFLAGS':   SH4_LINK_FLAGS
+    },
   },
   'msvc': {
     'all': {
@@ -510,6 +527,9 @@ SAMPLE_FLAGS = {
           'CCFLAGS':     ['-mfloat-abi=hard'],
         }
       }
+    },
+    'arch:sh4': {
+      'LINKFLAGS':   SH4_LINK_FLAGS
     },
     'arch:ia32': {
       'CCFLAGS':      ['-m32'],
@@ -821,6 +841,9 @@ D8_FLAGS = {
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS
     },
+    'arch:sh4': {
+      'LINKFLAGS':   SH4_LINK_FLAGS
+    },
     'compress_startup_data:bz2': {
       'CPPDEFINES':   ['COMPRESS_STARTUP_DATA_BZ2'],
       'os:linux': {
@@ -946,7 +969,7 @@ def GuessStrictAliasing(env):
 
 PLATFORM_OPTIONS = {
   'arch': {
-    'values': ['arm', 'ia32', 'x64', 'mips'],
+    'values': ['arm', 'ia32', 'x64', 'mips', 'sh4'],
     'guess': GuessArch,
     'help': 'the architecture to build for'
   },
