@@ -86,6 +86,10 @@ namespace internal {
 #elif defined(__MIPSEL__)
 #define V8_HOST_ARCH_MIPS 1
 #define V8_HOST_ARCH_32_BIT 1
+#elif defined(__SH4__)
+#define V8_HOST_ARCH_SH4
+#define V8_HOST_ARCH_32_BIT 1
+//#define V8_HOST_CAN_READ_UNALIGNED 1 SH4 cannot read unaligned memory
 #else
 #error Host architecture was not detected as supported by v8
 #endif
@@ -94,7 +98,8 @@ namespace internal {
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
 #if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_IA32) && \
-    !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_MIPS)
+    !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_MIPS) && \
+    !defined(V8_TARGET_ARCH_SH4)
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
 #elif defined(_M_IX86) || defined(__i386__)
@@ -103,6 +108,8 @@ namespace internal {
 #define V8_TARGET_ARCH_ARM 1
 #elif defined(__MIPSEL__)
 #define V8_TARGET_ARCH_MIPS 1
+#elif defined(__SH4__)
+#define V8_TARGET_ARCH_SH4 1
 #else
 #error Target architecture was not detected as supported by v8
 #endif
@@ -123,6 +130,10 @@ namespace internal {
     !(defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_MIPS)))
 #error Target architecture mips is only supported on mips and ia32 host
 #endif
+#if defined(V8_TARGET_ARCH_SH4) && !defined(V8_HOST_ARCH_SH4)
+#error Target architecture sh4 is only supported on sh4 host
+#endif
+
 
 // Determine whether we are running in a simulated environment.
 // Setting USE_SIMULATOR explicitly from the build script will force
@@ -146,7 +157,7 @@ namespace internal {
 #if CAN_USE_UNALIGNED_ACCESSES
 #define V8_TARGET_CAN_READ_UNALIGNED 1
 #endif
-#elif V8_TARGET_ARCH_MIPS
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_SH4
 #else
 #error Target architecture is not supported by v8
 #endif
