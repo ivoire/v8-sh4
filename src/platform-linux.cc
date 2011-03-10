@@ -425,6 +425,9 @@ void OS::DebugBreak() {
 # endif
 #elif defined(__mips__)
   asm("break");
+#elif defined(__sh__)
+  //FIXME: STM
+  asm("trapa #3");
 #else
   asm("int $3");
 #endif
@@ -939,6 +942,8 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample.pc = reinterpret_cast<Address>(mcontext.pc);
   sample.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
   sample.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
+#elif defined(V8_HOST_ARCH_SH4)
+  UNIMPLEMENTED();
 #endif
   sampler->SampleStack(sample);
   sampler->Tick(sample);

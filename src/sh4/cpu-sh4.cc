@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
+#include "v8.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
-#endif
+#if defined(V8_TARGET_ARCH_SH4)
 
-#endif  // V8_SIMULATOR_H_
+#include "cpu.h"
+#include "macro-assembler.h"
+
+namespace v8 {
+namespace internal {
+
+void CPU::Setup() {
+  UNIMPLEMENTED();
+}
+
+
+void CPU::FlushICache(void* start, size_t size) {
+  UNIMPLEMENTED();
+}
+
+
+void CPU::DebugBreak() {
+  UNIMPLEMENTED();
+}
+
+} }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_SH4

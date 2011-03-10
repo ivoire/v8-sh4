@@ -25,21 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
-#endif
+#ifndef V8_SH4_CODEGEN_SH4_INL_H_
+#define V8_SH4_CODEGEN_SH4_INL_H_
 
-#endif  // V8_SIMULATOR_H_
+namespace v8 {
+namespace internal {
+
+#define __ ACCESS_MASM(masm_)
+
+// Platform-specific inline functions.
+
+void DeferredCode::Jump() { UNIMPLEMENTED(); }
+void DeferredCode::Branch(Condition cc) { UNIMPLEMENTED(); }
+
+#undef __
+
+} }  // namespace v8::internal
+
+#endif  // V8_SH4_CODEGEN_SH4_INL_H_

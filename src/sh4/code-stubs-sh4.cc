@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,62 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
+#include "v8.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
-#endif
+#if defined(V8_TARGET_ARCH_SH4)
 
-#endif  // V8_SIMULATOR_H_
+#include "code-stubs.h"
+
+namespace v8 {
+namespace internal {
+
+#define __ ACCESS_MASM(masm)
+
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
+  UNIMPLEMENTED();
+}
+
+
+Handle<Code> GetTypeRecordingBinaryOpStub(int key,
+                        TRBinaryOpIC::TypeInfo type_info,
+                        TRBinaryOpIC::TypeInfo result_type_info) {
+  UNIMPLEMENTED();
+}
+
+
+Register InstanceofStub::left() {
+  UNIMPLEMENTED();
+}
+
+
+Register InstanceofStub::right() {
+  UNIMPLEMENTED();
+}
+
+
+void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
+  UNIMPLEMENTED();
+}
+
+
+void StackCheckStub::Generate(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+#undef __
+
+} }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_SH4
