@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,74 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
+#include "v8.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
-#endif
+#if defined(V8_TARGET_ARCH_SH4)
 
-#endif  // V8_SIMULATOR_H_
+#include "disasm.h"
+
+namespace disasm {
+
+
+int Disassembler::ConstantPoolSizeAt(byte* instruction) {
+  UNIMPLEMENTED();
+  return -1;
+}
+
+
+Disassembler::Disassembler(const NameConverter& converter)
+                : converter_(converter) {
+  UNIMPLEMENTED();
+}
+
+
+int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+                                    byte* instruction) {
+  UNIMPLEMENTED();
+}
+
+
+Disassembler::~Disassembler() {
+  UNIMPLEMENTED();
+}
+
+
+const char* NameConverter::NameOfAddress(byte* addr) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+const char* NameConverter::NameOfConstant(byte* addr) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+const char* NameConverter::NameOfCPURegister(int reg) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+const char* NameConverter::NameOfByteCPURegister(int reg) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+const char* NameConverter::NameOfXMMRegister(int reg) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+const char* NameConverter::NameInCode(byte* addr) const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+}  // namespace disasm
+
+#endif  // V8_TARGET_ARCH_SH4

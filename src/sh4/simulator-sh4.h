@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,48 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
+#ifndef V8_SH4_SIMULATOR_SH4_H_
+#define V8_SH4_SIMULATOR_SH4_H_
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
-#endif
+#include "allocation.h"
 
-#endif  // V8_SIMULATOR_H_
+namespace v8 {
+namespace internal {
+
+// Since there is no simulator for the ia32 architecture the only thing we can
+// do is to call the entry directly.
+#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
+  (entry(p0, p1, p2, p3, p4))
+
+
+typedef int (*regexp_matcher)(String*, int, const byte*,
+                              const byte*, int*, Address, int, Isolate*);
+
+// Call the generated regexp code directly. The code at the entry address should
+// expect eight int/pointer sized arguments and return an int.
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
+  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7))
+
+
+#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
+  (reinterpret_cast<TryCatch*>(try_catch_address))
+
+// The stack limit beyond which we will throw stack overflow errors in
+// generated code. Because generated code on ia32 uses the C stack, we
+// just use the C stack limit.
+class SimulatorStack : public v8::internal::AllStatic {
+ public:
+  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
+    return c_limit;
+  }
+
+  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+    return try_catch_address;
+  }
+
+  static inline void UnregisterCTryCatch() { }
+};
+
+} }  // namespace v8::internal
+
+#endif  // V8_SH4_SIMULATOR_SH4_H_

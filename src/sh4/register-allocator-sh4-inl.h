@@ -25,21 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
+#ifndef V8_SH4_REGISTER_ALLOCATOR_SH4_INL_H_
+#define V8_SH4_REGISTER_ALLOCATOR_SH4_INL_H_
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
-#endif
+#include "v8.h"
 
-#endif  // V8_SIMULATOR_H_
+namespace v8 {
+namespace internal {
+
+// -------------------------------------------------------------------------
+// RegisterAllocator implementation.
+
+bool RegisterAllocator::IsReserved(Register reg) {
+  UNIMPLEMENTED();
+}
+
+
+// The register allocator uses small integers to represent the
+// non-reserved assembler registers.  The mapping is:
+
+// eax <-> 0, ebx <-> 1, ecx <-> 2, edx <-> 3, edi <-> 4.
+
+int RegisterAllocator::ToNumber(Register reg) {
+  UNIMPLEMENTED();
+}
+
+
+Register RegisterAllocator::ToRegister(int num) {
+  UNIMPLEMENTED();
+}
+
+
+void RegisterAllocator::Initialize() {
+  UNIMPLEMENTED();
+}
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_SH4_REGISTER_ALLOCATOR_SH4_INL_H_

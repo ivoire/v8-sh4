@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,102 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
+#include "v8.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
-#endif
+#if defined(V8_TARGET_ARCH_SH4)
 
-#endif  // V8_SIMULATOR_H_
+#include "disassembler.h"
+#include "macro-assembler.h"
+#include "serialize.h"
+
+namespace v8 {
+namespace internal {
+
+void Assembler::Align(int m) {
+  UNIMPLEMENTED();
+}
+
+
+Assembler::Assembler(void* buffer, int buffer_size)
+    : AssemblerBase(Isolate::Current()),
+      positions_recorder_(this) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::GetCode(CodeDesc* desc) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::RecordComment(const char* msg, bool force) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::bind(Label* L) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::call(Label* L) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::db(uint8_t data) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::dd(uint32_t data) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::jmp(Label* L) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::nop() {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::pop(Register dst) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::push(Register src) {
+  UNIMPLEMENTED();
+}
+
+
+Assembler::~Assembler() {
+  UNIMPLEMENTED();
+}
+
+
+CpuFeatures::CpuFeatures() {
+  UNIMPLEMENTED();
+}
+
+
+const int RelocInfo::kApplyMask = 0;
+
+bool RelocInfo::IsCodedSpecially() {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_SH4

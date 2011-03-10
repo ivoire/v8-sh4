@@ -58,7 +58,7 @@ namespace internal {
 #define V8_HOST_ARCH_MIPS 1
 #define V8_HOST_ARCH_32_BIT 1
 #elif defined(__SH4__)
-#define V8_HOST_ARCH_SH4
+#define V8_HOST_ARCH_SH4 1
 #define V8_HOST_ARCH_32_BIT 1
 //#define V8_HOST_CAN_READ_UNALIGNED 1 SH4 cannot read unaligned memory
 #else

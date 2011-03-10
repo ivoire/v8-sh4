@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,65 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
+#include "v8.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
+#if defined(V8_TARGET_ARCH_SH4)
+
+#include "bootstrapper.h"
+#include "codegen-inl.h"
+#include "debug.h"
+#include "runtime.h"
+#include "serialize.h"
+
+namespace v8 {
+namespace internal {
+
+
+void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
+  UNIMPLEMENTED();
+}
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void MacroAssembler::DebugBreak() {
+  UNIMPLEMENTED();
+}
 #endif
 
-#endif  // V8_SIMULATOR_H_
+
+void MacroAssembler::Drop(int stack_elements) {
+  UNIMPLEMENTED();
+}
+
+
+MacroAssembler::MacroAssembler(void* buffer, int size)
+    : Assembler(buffer, size) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::Move(Register dst, Register src) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::PopTryHandler() {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::PushTryHandler(CodeLocation try_location,
+                                    HandlerType type) {
+  UNIMPLEMENTED();
+}
+
+
+int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_IA32

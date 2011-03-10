@@ -45,6 +45,8 @@
 #include "arm/lithium-codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-codegen-mips.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/lithium-codegen-sh4.h"
 #else
 #error Unsupported target architecture.
 #endif

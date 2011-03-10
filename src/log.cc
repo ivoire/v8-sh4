@@ -1376,6 +1376,8 @@ void Logger::LogCodeInfo() {
   const char arch[] = "x64";
 #elif V8_TARGET_ARCH_ARM
   const char arch[] = "arm";
+#elif V8_TARGET_ARCH_SH4
+  const char arch[] = "sh4";
 #else
   const char arch[] = "unknown";
 #endif

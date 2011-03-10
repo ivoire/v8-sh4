@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,67 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_H_
-#define V8_SIMULATOR_H_
+#include "v8.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/simulator-mips.h"
-#elif V8_TARGET_ARCH_SH4
-#include "sh4/simulator-sh4.h"
-#else
-#error Unsupported target architecture.
-#endif
+#if defined(V8_TARGET_ARCH_SH4)
 
-#endif  // V8_SIMULATOR_H_
+#include "codegen.h"
+#include "deoptimizer.h"
+#include "full-codegen.h"
+#include "safepoint-table.h"
+
+namespace v8 {
+namespace internal {
+
+
+int Deoptimizer::table_entry_size_ = 10;
+
+
+void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
+                                 int frame_index) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::DoComputeOsrOutputFrame() {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::EntryGenerator::Generate() {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
+                                        Code* check_code,
+                                        Code* replacement_code) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
+                                         Code* check_code,
+                                         Code* replacement_code) {
+  UNIMPLEMENTED();
+}
+
+
+int Deoptimizer::patch_size() {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
+  UNIMPLEMENTED();
+}
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_SH4
