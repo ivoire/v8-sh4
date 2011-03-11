@@ -301,11 +301,19 @@ LIBRARY_FLAGS = {
 V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
-      'WARNINGFLAGS': ['-Wall',
-                       '-Werror',
-                       '-W',
-                       '-Wno-unused-parameter',
-                       '-Wnon-virtual-dtor']
+      'mode:release': {
+        'WARNINGFLAGS': ['-Wall',
+                         '-W',
+                         '-Wno-unused-parameter',
+                         '-Wnon-virtual-dtor']
+      },
+      'mode:debug': {
+        'WARNINGFLAGS': ['-Wall',
+                         '-Werror',
+                         '-W',
+                         '-Wno-unused-parameter',
+                         '-Wnon-virtual-dtor']
+      },
     },
     'os:win32': {
       'WARNINGFLAGS': ['-pedantic', '-Wno-long-long']
