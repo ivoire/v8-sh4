@@ -348,6 +348,7 @@ V8_EXTRA_FLAGS = {
     'all': {
       'mode:release': {
         'WARNINGFLAGS': ['-Wall',
+                         '-Wno-return-type',
                          '-W',
                          '-Wno-unused-parameter',
                          '-Wnon-virtual-dtor']
@@ -355,6 +356,7 @@ V8_EXTRA_FLAGS = {
       'mode:debug': {
         'WARNINGFLAGS': ['-Wall',
                          '-Werror',
+                         '-Wno-return-type',
                          '-W',
                          '-Wno-unused-parameter',
                          '-Wnon-virtual-dtor']
