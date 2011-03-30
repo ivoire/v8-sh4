@@ -408,6 +408,8 @@ class CpuFeatures {
 };
 
 
+typedef uint16_t Instr;
+
 class Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
@@ -499,13 +501,513 @@ class Assembler : public AssemblerBase {
 
   // ---------------------------------------------------------------------------
   // Code generation
+  void addc(Register Ry, Register Rx);
+
+  void add_imm(int imm, Register Rx);
+
+  void add(Register Ry, Register Rx);
+
+  void addv(Register Ry, Register Rx);
+
+  void andb_imm_dispR0GBR(int imm);
+
+  void and_imm_R0(int imm);
+
+  void and_(Register Ry, Register Rx);
+
+  void bf(int imm);
+
+  void bfs(int imm);
+
+  void braf(Register Rx);
+
+  void bra(int imm);
+
+  void bsrf(Register Rx);
+
+  void bsr(int imm);
+
+  void bt(int imm);
+
+  void bts(int imm);
+
+  void clrmac();
+
+  void clrs();
+
+  void clrt();
+
+  void cmpeq_imm_R0(int imm);
+
+  void cmpeq(Register Ry, Register Rx);
+
+  void cmpge(Register Ry, Register Rx);
+
+  void cmpgt(Register Ry, Register Rx);
+
+  void cmphi(Register Ry, Register Rx);
+
+  void cmphs(Register Ry, Register Rx);
+
+  void cmppl(Register Rx);
+
+  void cmppz(Register Rx);
+
+  void cmpstr(Register Ry, Register Rx);
+
+  void div0s(Register Ry, Register Rx);
+
+  void div0u();
+
+  void div1(Register Ry, Register Rx);
+
+  void dmulsl(Register Ry, Register Rx);
+
+  void dmulul(Register Ry, Register Rx);
+
+  void dt(Register Rx);
+
+  void extsb(Register Ry, Register Rx);
+
+  void extsw(Register Ry, Register Rx);
+
+  void extub(Register Ry, Register Rx);
+
+  void extuw(Register Ry, Register Rx);
+
+  void fabs_double(Register Rx);
+
+  void fabs(Register Rx);
+
+  void fadd_double(Register Ry, Register Rx);
+
+  void fadd(Register Ry, Register Rx);
+
+  void fcmpeq_double(Register Ry, Register Rx);
+
+  void fcmpeq(Register Ry, Register Rx);
+
+  void fcmpgt_double(Register Ry, Register Rx);
+
+  void fcmpgt(Register Ry, Register Rx);
+
+  void fcnvds_double_FPUL(Register Rx);
+
+  void fcnvsd_FPUL_double(Register Rx);
+
+  void fdiv_double(Register Ry, Register Rx);
+
+  void fdiv(Register Ry, Register Rx);
+
+  void fipr(Register Ry, Register Rx);
+
+  void fldi0(Register Rx);
+
+  void fldi1(Register Rx);
+
+  void flds_FPUL(Register Rx);
+
+  void float_FPUL_double(Register Rx);
+
+  void float_FPUL(Register Rx);
+
+  void fmac(Register Ry, Register Rx);
+
+  void fmovd_dispR0Ry_Xdouble(Register Ry, Register Rx);
+
+  void fmov_decRx(Register Ry, Register Rx);
+
+  void fmovd_incRy_Xdouble(Register Ry, Register Rx);
+
+  void fmovd_indRy_Xdouble(Register Ry, Register Rx);
+
+  void fmov_dispR0Rx(Register Ry, Register Rx);
+
+  void fmov_dispR0Ry(Register Ry, Register Rx);
+
+  void fmov_dispR0Ry_Xdouble(Register Ry, Register Rx);
+
+  void fmovd_Xdouble_decRx(Register Ry, Register Rx);
+
+  void fmovd_Xdouble_dispR0Rx(Register Ry, Register Rx);
+
+  void fmovd_Xdouble_indRx(Register Ry, Register Rx);
+
+  void fmov_incRy(Register Ry, Register Rx);
+
+  void fmov_incRy_Xdouble(Register Ry, Register Rx);
+
+  void fmov_indRx(Register Ry, Register Rx);
+
+  void fmov_indRy(Register Ry, Register Rx);
+
+  void fmov_indRy_Xdouble(Register Ry, Register Rx);
+
+  void fmov(Register Ry, Register Rx);
+
+  void fmovs_decRx(Register Ry, Register Rx);
+
+  void fmovs_dispR0Rx(Register Ry, Register Rx);
+
+  void fmovs_dispR0Ry(Register Ry, Register Rx);
+
+  void fmovs_incRy(Register Ry, Register Rx);
+
+  void fmovs_indRx(Register Ry, Register Rx);
+
+  void fmovs_indRy(Register Ry, Register Rx);
+
+  void fmov_Xdouble_decRx(Register Ry, Register Rx);
+
+  void fmov_Xdouble_dispR0Rx(Register Ry, Register Rx);
+
+  void fmov_Xdouble_indRx(Register Ry, Register Rx);
+
+  void fmov_Xdouble_Xdouble(Register Ry, Register Rx);
+
+  void fmul_double(Register Ry, Register Rx);
+
+  void fmul(Register Ry, Register Rx);
+
+  void fneg_double(Register Rx);
+
+  void fneg(Register Rx);
+
+  void fpchg();
+
+  void frchg();
+
+  void fsca_FPUL_double(Register Rx);
+
+  void fschg();
+
+  void fsqrt_double(Register Rx);
+
+  void fsqrt(Register Rx);
+
+  void fsrra(Register Rx);
+
+  void fsts_FPUL(Register Rx);
+
+  void fsub_double(Register Ry, Register Rx);
+
+  void fsub(Register Ry, Register Rx);
+
+  void ftrc_double_FPUL(Register Rx);
+
+  void ftrc_FPUL(Register Rx);
+
+  void ftrv(Register Rx);
+
+  void icbi_indRx(Register Rx);
+
+  void jmp_indRx(Register Rx);
+
+  void jsr_indRx(Register Rx);
+
+  void ldc_bank(Register Rx, int imm);
+
+  void ldc_DBR(Register Rx);
+
+  void ldc_GBR(Register Rx);
+
+  void ldcl_incRx_bank(Register Rx, int imm);
+
+  void ldcl_incRx_DBR(Register Rx);
+
+  void ldcl_incRx_GBR(Register Rx);
+
+  void ldcl_incRx_SGR(Register Rx);
+
+  void ldcl_incRx_SPC(Register Rx);
+
+  void ldcl_incRx_SR(Register Rx);
+
+  void ldcl_incRx_SSR(Register Rx);
+
+  void ldcl_incRx_VBR(Register Rx);
+
+  void ldc_SGR(Register Rx);
+
+  void ldc_SPC(Register Rx);
+
+  void ldc_SR(Register Rx);
+
+  void ldc_SSR(Register Rx);
+
+  void ldc_VBR(Register Rx);
+
+  void lds_FPSCR(Register Ry);
+
+  void lds_FPUL(Register Ry);
+
+  void ldsl_incRx_MACH(Register Rx);
+
+  void ldsl_incRx_MACL(Register Rx);
+
+  void ldsl_incRx_PR(Register Rx);
+
+  void ldsl_incRy_FPSCR(Register Ry);
+
+  void ldsl_incRy_FPUL(Register Ry);
+
+  void lds_MACH(Register Rx);
+
+  void lds_MACL(Register Rx);
+
+  void lds_PR(Register Rx);
+
+  void ldtlb();
+
+  void macl_incRy_incRx(Register Ry, Register Rx);
+
+  void macw_incRy_incRx(Register Ry, Register Rx);
+
+  void mova_dispPC_R0(int imm);
+
+  void movb_decRx(Register Ry, Register Rx);
+
+  void movb_dispGBR_R0(int imm);
+
+  void movb_dispR0Rx(Register Ry, Register Rx);
+
+  void movb_dispR0Ry(Register Ry, Register Rx);
+
+  void movb_dispRy_R0(int imm, Register Ry);
+
+  void movb_incRy(Register Ry, Register Rx);
+
+  void movb_indRx(Register Ry, Register Rx);
+
+  void movb_indRy(Register Ry, Register Rx);
+
+  void movb_R0_dispGBR(int imm);
+
+  void movb_R0_dispRx(int imm, Register Rx);
+
+  void movcal_R0_indRx(Register Rx);
+
+  void movcol_R0_indRx(Register Rx);
+
+  void mov_imm(int imm, Register Rx);
+
+  void movl_decRx(Register Ry, Register Rx);
+
+  void movl_dispGBR_R0(int imm);
+
+  void movl_dispPC(int imm, Register Rx);
+
+  void movl_dispR0Rx(Register Ry, Register Rx);
+
+  void movl_dispR0Ry(Register Ry, Register Rx);
+
+  void movl_dispRx(Register Ry, int imm, Register Rx);
+
+  void movl_dispRy(int imm, Register Ry, Register Rx);
+
+  void movlil_indRy_R0(Register Ry);
+
+  void movl_incRy(Register Ry, Register Rx);
+
+  void movl_indRx(Register Ry, Register Rx);
+
+  void movl_indRy(Register Ry, Register Rx);
+
+  void movl_R0_dispGBR(int imm);
+
+  void mov(Register Ry, Register Rx);
+
+  void movt(Register Rx);
+
+  void movual_incRy_R0(Register Ry);
+
+  void movual_indRy_R0(Register Ry);
+
+  void movw_decRx(Register Ry, Register Rx);
+
+  void movw_dispGBR_R0(int imm);
+
+  void movw_dispPC(int imm, Register Rx);
+
+  void movw_dispR0Rx(Register Ry, Register Rx);
+
+  void movw_dispR0Ry(Register Ry, Register Rx);
+
+  void movw_dispRy_R0(int imm, Register Ry);
+
+  void movw_incRy(Register Ry, Register Rx);
+
+  void movw_indRx(Register Ry, Register Rx);
+
+  void movw_indRy(Register Ry, Register Rx);
+
+  void movw_R0_dispGBR(int imm);
+
+  void movw_R0_dispRx(int imm, Register Rx);
+
+  void mull(Register Ry, Register Rx);
+
+  void muls(Register Ry, Register Rx);
+
+  void mulsw(Register Ry, Register Rx);
+
+  void mulu(Register Ry, Register Rx);
+
+  void muluw(Register Ry, Register Rx);
+
+  void negc(Register Ry, Register Rx);
+
+  void neg(Register Ry, Register Rx);
+
+  void nop();
+
+  void not_(Register Ry, Register Rx);
+
+  void ocbi_indRx(Register Rx);
+
+  void ocbp_indRx(Register Rx);
+
+  void ocbwb_indRx(Register Rx);
+
+  void orb_imm_dispR0GBR(int imm);
+
+  void or_imm_R0(int imm);
+
+  void or_(Register Ry, Register Rx);
+
+  void prefi_indRx(Register Rx);
+
+  void pref_indRx(Register Rx);
+
+  void rotcl(Register Rx);
+
+  void rotcr(Register Rx);
+
+  void rotl(Register Rx);
+
+  void rotr(Register Rx);
+
+  void rte();
+
+  void rts();
+
+  void sets();
+
+  void sett();
+
+  void shad(Register Ry, Register Rx);
+
+  void shal(Register Rx);
+
+  void shar(Register Rx);
+
+  void shld(Register Ry, Register Rx);
+
+  void shll16(Register Rx);
+
+  void shll2(Register Rx);
+
+  void shll8(Register Rx);
+
+  void shll(Register Rx);
+
+  void shlr16(Register Rx);
+
+  void shlr2(Register Rx);
+
+  void shlr8(Register Rx);
+
+  void shlr(Register Rx);
+
+  void sleep();
+
+  void stc_bank(int imm, Register Rx);
+
+  void stc_DBR(Register Rx);
+
+  void stc_GBR(Register Rx);
+
+  void stcl_bank_decRx(int imm, Register Rx);
+
+  void stcl_DBR_decRx(Register Rx);
+
+  void stcl_GBR_decRx(Register Rx);
+
+  void stcl_SGR_decRx(Register Rx);
+
+  void stcl_SPC_decRx(Register Rx);
+
+  void stcl_SR_decRx(Register Rx);
+
+  void stcl_SSR_decRx(Register Rx);
+
+  void stcl_VBR_decRx(Register Rx);
+
+  void stc_SGR(Register Rx);
+
+  void stc_SPC(Register Rx);
+
+  void stc_SR(Register Rx);
+
+  void stc_SSR(Register Rx);
+
+  void stc_VBR(Register Rx);
+
+  void sts_FPSCR(Register Rx);
+
+  void sts_FPUL(Register Rx);
+
+  void stsl_FPSCR_decRx(Register Rx);
+
+  void stsl_FPUL_decRx(Register Rx);
+
+  void stsl_MACH_decRx(Register Rx);
+
+  void stsl_MACL_decRx(Register Rx);
+
+  void stsl_PR_decRx(Register Rx);
+
+  void sts_MACH(Register Rx);
+
+  void sts_MACL(Register Rx);
+
+  void sts_PR(Register Rx);
+
+  void subc(Register Ry, Register Rx);
+
+  void sub(Register Ry, Register Rx);
+
+  void subv(Register Ry, Register Rx);
+
+  void swapb(Register Ry, Register Rx);
+
+  void swapw(Register Ry, Register Rx);
+
+  void synco();
+
+  void tasb_indRx(Register Rx);
+
+  void trapa_imm(int imm);
+
+  void tstb_imm_dispR0GBR(int imm);
+
+  void tst_imm_R0(int imm);
+
+  void tst(Register Ry, Register Rx);
+
+  void xorb_imm_dispR0GBR(int imm);
+
+  void xor_imm_R0(int imm);
+
+  void xor_(Register Ry, Register Rx);
+
+  void xtrct(Register Ry, Register Rx);
+
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
-
-  void nop();
 
   void push(Register src);
 
@@ -516,6 +1018,8 @@ class Assembler : public AssemblerBase {
   void bind(Label* L);
 
   void jmp(Label* L);
+
+  void emit(Instr x) {}
 
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
