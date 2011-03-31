@@ -897,6 +897,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
 #elif defined(V8_HOST_ARCH_SH4)
   UNIMPLEMENTED();
+  (void)mcontext;
 #endif
   sampler->SampleStack(sample);
   sampler->Tick(sample);
