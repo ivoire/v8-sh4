@@ -221,11 +221,6 @@ Operand::Operand(Register reg) {
 }
 
 
-Operand::Operand(XMMRegister xmm_reg) {
-  UNIMPLEMENTED();
-}
-
-
 Operand::Operand(int32_t disp, RelocInfo::Mode rmode) {
   UNIMPLEMENTED();
 }

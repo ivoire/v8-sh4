@@ -58,23 +58,42 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  static const int kNumAllocatableRegisters = 6;
-  static const int kNumRegisters = 8;
+  static const int kNumRegisters = 16;
+  static const int kNumAllocatableRegisters = 8;
 
-  static inline const char* AllocationIndexToString(int index);
+  static int ToAllocationIndex(Register reg) {
+    ASSERT(reg.code() < kNumAllocatableRegisters);
+    return reg.code();
+  }
 
-  static inline int ToAllocationIndex(Register reg);
+  static Register FromAllocationIndex(int index) {
+    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    return from_code(index);
+  }
 
-  static inline Register FromAllocationIndex(int index);
+  static const char* AllocationIndexToString(int index) {
+    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    const char* const names[] = {
+      "r0",
+      "r1",
+      "r2",
+      "r3",
+      "r4",
+      "r5",
+      "r6",
+      "r7",
+    };
+    return names[index];
+  }
 
   static Register from_code(int code) {
     Register r = { code };
     return r;
   }
+
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(Register reg) const { return code_ == reg.code_; }
-  // eax, ebx, ecx and edx are byte registers, the rest are not.
-  bool is_byte_register() const { return code_ <= 3; }
+
   int code() const {
     ASSERT(is_valid());
     return code_;
@@ -84,68 +103,211 @@ struct Register {
     return 1 << code_;
   }
 
+  void set_code(int code) {
+    code_ = code;
+    ASSERT(is_valid());
+  }
+
   // Unfortunately we can't make this private in a struct.
   int code_;
 };
 
 const Register no_reg = { -1 };
+const Register r0 = { 0 };
+const Register r1 = { 1 };
+const Register r2 = { 2 };
+const Register r3 = { 3 };
+const Register r4 = { 4 };
+const Register r5 = { 5 };
+const Register r6 = { 6 };
+const Register r7 = { 7 };
+const Register r8 = { 8 };
+const Register r9 = { 9 };
+const Register r10 = { 10 };
+const Register r11 = { 11 };
+const Register r12 = { 12 };
+const Register r13 = { 13 };
+const Register r14 = { 14 };
+const Register r15 = { 15 };
 
 
-inline const char* Register::AllocationIndexToString(int index) {
-  ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-  // This is the mapping of allocation indices to registers.
-  UNIMPLEMENTED();
-}
-
-
-inline int Register::ToAllocationIndex(Register reg) {
-  UNIMPLEMENTED();
-}
-
-
-inline Register Register::FromAllocationIndex(int index)  {
-  UNIMPLEMENTED();
-}
-
-
-struct XMMRegister {
-  static const int kNumAllocatableRegisters = 7;
-  static const int kNumRegisters = 8;
-
-  static int ToAllocationIndex(XMMRegister reg) {
-    UNIMPLEMENTED();
-  }
-
-  static XMMRegister FromAllocationIndex(int index) {
-    UNIMPLEMENTED();
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    UNIMPLEMENTED();
-  }
-
-  static XMMRegister from_code(int code) {
-    UNIMPLEMENTED();
-  }
-
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
-  bool is(XMMRegister reg) const { return code_ == reg.code_; }
+// Single word VFP register.
+struct SwVfpRegister {
+  bool is_valid() const { return 0 <= code_ && code_ < 32; }
+  bool is(SwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
     ASSERT(is_valid());
     return code_;
+  }
+  int bit() const {
+    ASSERT(is_valid());
+    return 1 << code_;
+  }
+  void split_code(int* vm, int* m) const {
+    ASSERT(is_valid());
+    *m = code_ & 0x1;
+    *vm = code_ >> 1;
   }
 
   int code_;
 };
 
 
-typedef XMMRegister DoubleRegister;
+// Double word VFP register.
+struct DwVfpRegister {
+  // d0 has been excluded from allocation. This is following ia32
+  // where xmm0 is excluded. This should be revisited.
+  // Currently d0 is used as a scratch register.
+  // d1 has also been excluded from allocation to be used as a scratch
+  // register as well.
+  static const int kNumRegisters = 16;
+  static const int kNumAllocatableRegisters = 15;
+
+  static int ToAllocationIndex(DwVfpRegister reg) {
+    ASSERT(reg.code() != 0);
+    return reg.code() - 1;
+  }
+
+  static DwVfpRegister FromAllocationIndex(int index) {
+    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    return from_code(index + 1);
+  }
+
+  static const char* AllocationIndexToString(int index) {
+    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    const char* const names[] = {
+      "dr1",
+      "dr2",
+      "dr3",
+      "dr4",
+      "dr5",
+      "dr6",
+      "dr7",
+      "dr8",
+      "dr9",
+      "dr10",
+      "dr11",
+      "dr12",
+      "dr13",
+      "dr14",
+      "dr15"
+    };
+    return names[index];
+  }
+
+  static DwVfpRegister from_code(int code) {
+    DwVfpRegister r = { code };
+    return r;
+  }
+
+  // Supporting dr0 to dr15
+  bool is_valid() const { return 0 <= code_ && code_ < 16; }
+  bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
+  SwVfpRegister low() const {
+    SwVfpRegister reg;
+    reg.code_ = code_ * 2;
+
+    ASSERT(reg.is_valid());
+    return reg;
+  }
+  SwVfpRegister high() const {
+    SwVfpRegister reg;
+    reg.code_ = (code_ * 2) + 1;
+
+    ASSERT(reg.is_valid());
+    return reg;
+  }
+  int code() const {
+    ASSERT(is_valid());
+    return code_;
+  }
+  int bit() const {
+    ASSERT(is_valid());
+    return 1 << code_;
+  }
+  void split_code(int* vm, int* m) const {
+    ASSERT(is_valid());
+    *m = (code_ & 0x10) >> 4;
+    *vm = code_ & 0x0F;
+  }
+
+  int code_;
+};
+
+typedef DwVfpRegister DoubleRegister;
+
+// Support for the VFP registers fr0 to fr31 (dr0 to dr15).
+// Note that "fr(N):fr(N+1)" is the same as "dr(N/2)".
+const SwVfpRegister fr0  = {  0 };
+const SwVfpRegister fr1  = {  1 };
+const SwVfpRegister fr2  = {  2 };
+const SwVfpRegister fr3  = {  3 };
+const SwVfpRegister fr4  = {  4 };
+const SwVfpRegister fr5  = {  5 };
+const SwVfpRegister fr6  = {  6 };
+const SwVfpRegister fr7  = {  7 };
+const SwVfpRegister fr8  = {  8 };
+const SwVfpRegister fr9  = {  9 };
+const SwVfpRegister fr10 = { 10 };
+const SwVfpRegister fr11 = { 11 };
+const SwVfpRegister fr12 = { 12 };
+const SwVfpRegister fr13 = { 13 };
+const SwVfpRegister fr14 = { 14 };
+const SwVfpRegister fr15 = { 15 };
+const SwVfpRegister fr16 = { 16 };
+const SwVfpRegister fr17 = { 17 };
+const SwVfpRegister fr18 = { 18 };
+const SwVfpRegister fr19 = { 19 };
+const SwVfpRegister fr20 = { 20 };
+const SwVfpRegister fr21 = { 21 };
+const SwVfpRegister fr22 = { 22 };
+const SwVfpRegister fr23 = { 23 };
+const SwVfpRegister fr24 = { 24 };
+const SwVfpRegister fr25 = { 25 };
+const SwVfpRegister fr26 = { 26 };
+const SwVfpRegister fr27 = { 27 };
+const SwVfpRegister fr28 = { 28 };
+const SwVfpRegister fr29 = { 29 };
+const SwVfpRegister fr30 = { 30 };
+const SwVfpRegister fr31 = { 31 };
+
+const DwVfpRegister no_dreg = { -1 };
+const DwVfpRegister dr0  = {  0 };
+const DwVfpRegister dr1  = {  1 };
+const DwVfpRegister dr2  = {  2 };
+const DwVfpRegister dr3  = {  3 };
+const DwVfpRegister dr4  = {  4 };
+const DwVfpRegister dr5  = {  5 };
+const DwVfpRegister dr6  = {  6 };
+const DwVfpRegister dr7  = {  7 };
+const DwVfpRegister dr8  = {  8 };
+const DwVfpRegister dr9  = {  9 };
+const DwVfpRegister dr10 = { 10 };
+const DwVfpRegister dr11 = { 11 };
+const DwVfpRegister dr12 = { 12 };
+const DwVfpRegister dr13 = { 13 };
+const DwVfpRegister dr14 = { 14 };
+const DwVfpRegister dr15 = { 15 };
 
 
 enum Condition {
   // any value < 0 is considered no_condition
-  no_condition  = -1
+  no_condition  = -1,
+
+  eq = 0,       // equal
+  ne = 1,       // not equal
+  gt = 2,       // greater
+  ge = 3,       // greater or equal
+  hi = 4,       // unsigned higher
+  hs = 5,       // unsigned higher or equal
+  lt = 6,       // lesser
+  le = 7,       // lesser or equal
+  ui = 8,       // unsigned lower
+  us = 9,       // unsigned lower or equal
+  pl = 10,      // positiv
+  pz = 11,      // positiv or null
+  ql = 12,      // negativ
+  qz = 13       // negativ or null
 };
 
 
@@ -154,7 +316,38 @@ enum Condition {
 // no_condition value (-2). As long as tests for no_condition check
 // for condition < 0, this will work as expected.
 inline Condition NegateCondition(Condition cc) {
-  UNIMPLEMENTED();
+  switch(cc) {
+    case eq:
+      return ne;
+    case ne:
+      return eq;
+    case gt:
+      return le;
+    case ge:
+      return lt;
+    case hi:
+      return us;
+    case hs:
+      return ui;
+    case lt:
+      return ge;
+    case le:
+      return gt;
+    case ui:
+      return hs;
+    case us:
+      return hi;
+    case pl:
+      return qz;
+    case pz:
+      return ql;
+    case ql:
+      return pz;
+    case qz:
+      return pl;
+    default:
+      return cc;
+  }
 }
 
 
@@ -229,9 +422,6 @@ class Operand BASE_EMBEDDED {
  public:
   // reg
   INLINE(explicit Operand(Register reg));
-
-  // XMM reg
-  INLINE(explicit Operand(XMMRegister xmm_reg));
 
   // [disp/r]
   INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode));

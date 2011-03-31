@@ -73,7 +73,7 @@ class LCodeGen BASE_EMBEDDED {
   // Support for converting LOperands to assembler types.
   Operand ToOperand(LOperand* op) const;
   Register ToRegister(LOperand* op) const;
-  XMMRegister ToDoubleRegister(LOperand* op) const;
+  DoubleRegister ToDoubleRegister(LOperand* op) const;
   Immediate ToImmediate(LOperand* op);
 
   // The operand denoting the second word (the one with a higher address) of
@@ -193,7 +193,7 @@ class LCodeGen BASE_EMBEDDED {
   void PopulateDeoptimizationLiteralsWithInlinedFunctions();
 
   Register ToRegister(int index) const;
-  XMMRegister ToDoubleRegister(int index) const;
+  DoubleRegister ToDoubleRegister(int index) const;
   int ToInteger32(LConstantOperand* op) const;
 
   // Specific math operations - used from DoUnaryMathOperation.
@@ -223,7 +223,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitGoto(int block, LDeferredCode* deferred_stack_check = NULL);
   void EmitBranch(int left_block, int right_block, Condition cc);
   void EmitCmpI(LOperand* left, LOperand* right);
-  void EmitNumberUntagD(Register input, XMMRegister result, LEnvironment* env);
+  void EmitNumberUntagD(Register input, DoubleRegister result, LEnvironment* env);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to

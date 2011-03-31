@@ -2078,13 +2078,13 @@ class LChunkBuilder BASE_EMBEDDED {
   // Methods for getting operands for Use / Define / Temp.
   LRegister* ToOperand(Register reg);
   LUnallocated* ToUnallocated(Register reg);
-  LUnallocated* ToUnallocated(XMMRegister reg);
+  LUnallocated* ToUnallocated(DoubleRegister reg);
 
   // Methods for setting up define-use relationships.
   MUST_USE_RESULT LOperand* Use(HValue* value, LUnallocated* operand);
   MUST_USE_RESULT LOperand* UseFixed(HValue* value, Register fixed_register);
   MUST_USE_RESULT LOperand* UseFixedDouble(HValue* value,
-                                           XMMRegister fixed_register);
+                                           DoubleRegister fixed_register);
 
   // A value that is guaranteed to be allocated to a register.
   // Operand created by UseRegister is guaranteed to be live until the end of
@@ -2119,7 +2119,7 @@ class LChunkBuilder BASE_EMBEDDED {
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();
   MUST_USE_RESULT LOperand* FixedTemp(Register reg);
-  MUST_USE_RESULT LOperand* FixedTemp(XMMRegister reg);
+  MUST_USE_RESULT LOperand* FixedTemp(DoubleRegister reg);
 
   // Methods for setting up define-use relationships.
   // Return the same instruction that they are passed.
@@ -2140,7 +2140,7 @@ class LChunkBuilder BASE_EMBEDDED {
                                 Register reg);
   template<int I, int T>
       LInstruction* DefineFixedDouble(LTemplateInstruction<1, I, T>* instr,
-                                      XMMRegister reg);
+                                      DoubleRegister reg);
   LInstruction* AssignEnvironment(LInstruction* instr);
   LInstruction* AssignPointerMap(LInstruction* instr);
 

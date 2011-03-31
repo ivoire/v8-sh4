@@ -396,7 +396,7 @@ LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
 }
 
 
-LUnallocated* LChunkBuilder::ToUnallocated(XMMRegister reg) {
+LUnallocated* LChunkBuilder::ToUnallocated(DoubleRegister reg) {
   UNIMPLEMENTED();
 }
 
@@ -406,7 +406,7 @@ LOperand* LChunkBuilder::UseFixed(HValue* value, Register fixed_register) {
 }
 
 
-LOperand* LChunkBuilder::UseFixedDouble(HValue* value, XMMRegister reg) {
+LOperand* LChunkBuilder::UseFixedDouble(HValue* value, DoubleRegister reg) {
   UNIMPLEMENTED();
 }
 
@@ -511,7 +511,7 @@ LInstruction* LChunkBuilder::DefineFixed(LTemplateInstruction<1, I, T>* instr,
 template<int I, int T>
 LInstruction* LChunkBuilder::DefineFixedDouble(
     LTemplateInstruction<1, I, T>* instr,
-    XMMRegister reg) {
+    DoubleRegister reg) {
   UNIMPLEMENTED();
 }
 
@@ -560,7 +560,7 @@ LOperand* LChunkBuilder::FixedTemp(Register reg) {
 }
 
 
-LOperand* LChunkBuilder::FixedTemp(XMMRegister reg) {
+LOperand* LChunkBuilder::FixedTemp(DoubleRegister reg) {
   UNIMPLEMENTED();
 }
 
