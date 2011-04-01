@@ -36,13 +36,21 @@ namespace internal {
 
 // Register lists
 // Note that the bit values must match those used in actual instruction encoding
-static const int kNumRegs = -1;
+static const int kNumRegs = 16;
 
 
 // Caller-saved registers
-static const RegList kJSCallerSaved = -1;
+static const RegList kJSCallerSaved =
+  1 << 0 |      // r0
+  1 << 1 |      // r1
+  1 << 2 |      // r2
+  1 << 3 |      // r3
+  1 << 4 |      // r4
+  1 << 5 |      // r5
+  1 << 6 |      // r6
+  1 << 7;       // r7
 
-static const int kNumJSCallerSaved = 5;
+static const int kNumJSCallerSaved = 8;
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 

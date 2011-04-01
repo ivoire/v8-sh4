@@ -36,15 +36,59 @@
 namespace v8 {
 namespace internal {
 
+CpuFeatures::CpuFeatures()
+    : supported_(0),
+      enabled_(0),
+      found_by_runtime_probing_(0) {
+}
+
+
+void CpuFeatures::Probe(bool portable) {
+  UNIMPLEMENTED();
+}
+
+
 void Assembler::Align(int m) {
   UNIMPLEMENTED();
 }
 
 
+static const int kMinimalBufferSize = 4*KB;
+
 Assembler::Assembler(void* buffer, int buffer_size)
     : AssemblerBase(Isolate::Current()),
       positions_recorder_(this) {
-  UNIMPLEMENTED();
+  //FIXME(STM): finish this class
+  if (buffer == NULL) {
+    // Do our own buffer management.
+    if (buffer_size <= kMinimalBufferSize) {
+      buffer_size = kMinimalBufferSize;
+
+      if (isolate()->assembler_spare_buffer() != NULL) {
+        buffer = isolate()->assembler_spare_buffer();
+        isolate()->set_assembler_spare_buffer(NULL);
+      }
+    }
+    if (buffer == NULL) {
+      buffer_ = NewArray<byte>(buffer_size);
+    } else {
+      buffer_ = static_cast<byte*>(buffer);
+    }
+    buffer_size_ = buffer_size;
+    own_buffer_ = true;
+
+  } else {
+    // Use externally provided buffer instead.
+    ASSERT(buffer_size > 0);
+    buffer_ = static_cast<byte*>(buffer);
+    buffer_size_ = buffer_size;
+    own_buffer_ = false;
+  }
+
+  // Setup buffer pointers.
+  ASSERT(buffer_ != NULL);
+  pc_ = buffer_;
+
 }
 
 
@@ -99,11 +143,6 @@ void Assembler::push(Register src) {
 
 
 Assembler::~Assembler() {
-  UNIMPLEMENTED();
-}
-
-
-CpuFeatures::CpuFeatures() {
   UNIMPLEMENTED();
 }
 

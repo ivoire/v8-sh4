@@ -581,7 +581,9 @@ class CpuFeatures {
     Isolate* isolate_;
 #else
    public:
-    explicit Scope(CpuFeature f) {}
+    explicit Scope(CpuFeature f) {
+      UNIMPLEMENTED();
+    }
 #endif
   };
 

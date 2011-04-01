@@ -57,8 +57,10 @@ void MacroAssembler::Drop(int stack_elements) {
 
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
-    : Assembler(buffer, size) {
-  UNIMPLEMENTED();
+    : Assembler(buffer, size),
+      generating_stub_(false),
+      allow_stub_calls_(true),
+      code_object_(HEAP->undefined_value()) {
 }
 
 
