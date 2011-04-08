@@ -547,38 +547,37 @@ class Displacement BASE_EMBEDDED {
 //   } else {
 //     // Generate standard x87 floating point code.
 //   }
-class CpuFeatures {
+class CpuFeatures : public AllStatic {
  public:
-  // Detect features of the target CPU. If the portable flag is set,
-  // the method sets safe defaults if the serializer is enabled
-  // (snapshots must be portable).
-  void Probe(bool portable);
-  void Clear() { supported_ = 0; }
+  // Detect features of the target CPU. Set safe defaults if the serializer
+  // is enabled (snapshots must be portable).
+  static void Probe();
 
   // Check whether a feature is supported by the target CPU.
-  bool IsSupported(CpuFeature f) const {
+  static bool IsSupported(CpuFeature f) {
     UNIMPLEMENTED();
   }
+
+#ifdef DEBUG
   // Check whether a feature is currently enabled.
-  bool IsEnabled(CpuFeature f) const {
+  static bool IsEnabled(CpuFeature f) {
     UNIMPLEMENTED();
   }
+#endif
+
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
-    explicit Scope(CpuFeature f)
-        : cpu_features_(Isolate::Current()->cpu_features()),
-          isolate_(Isolate::Current()) {
+    explicit Scope(CpuFeature f) {
       UNIMPLEMENTED();
     }
     ~Scope() {
       UNIMPLEMENTED();
     }
    private:
-    uint64_t old_enabled_;
-    CpuFeatures* cpu_features_;
     Isolate* isolate_;
+    unsigned old_enabled_;
 #else
    public:
     explicit Scope(CpuFeature f) {
@@ -587,14 +586,34 @@ class CpuFeatures {
 #endif
   };
 
+  class TryForceFeatureScope BASE_EMBEDDED {
+   public:
+    explicit TryForceFeatureScope(CpuFeature f)
+        : old_supported_(CpuFeatures::supported_) {
+      UNIMPLEMENTED();
+    }
+
+    ~TryForceFeatureScope() {
+      UNIMPLEMENTED();
+    }
+
+   private:
+    static bool CanForce() {
+      // It's only safe to temporarily force support of CPU features
+      // when there's only a single isolate, which is guaranteed when
+      // the serializer is enabled.
+      return Serializer::enabled();
+    }
+
+    const unsigned old_supported_;
+  };
+
  private:
-  CpuFeatures();
-
-  uint64_t supported_;
-  uint64_t enabled_;
-  uint64_t found_by_runtime_probing_;
-
-  friend class Isolate;
+#ifdef DEBUG
+  static bool initialized_;
+#endif
+  static unsigned supported_;
+  static unsigned found_by_runtime_probing_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
@@ -629,7 +648,7 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size);
   ~Assembler();
 
   // Overrides the default provided by FLAG_debug_code.

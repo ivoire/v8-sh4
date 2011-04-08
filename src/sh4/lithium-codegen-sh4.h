@@ -30,7 +30,6 @@
 
 #include "sh4/lithium-sh4.h"
 
-#include "checks.h"
 #include "deoptimizer.h"
 #include "safepoint-table.h"
 #include "scopes.h"
@@ -40,7 +39,6 @@ namespace internal {
 
 // Forward declarations.
 class LDeferredCode;
-class LGapNode;
 class SafepointGenerator;
 
 class LCodeGen BASE_EMBEDDED {
@@ -58,10 +56,10 @@ class LCodeGen BASE_EMBEDDED {
         scope_(info->scope()),
         status_(UNUSED),
         deferred_(8),
-        osr_pc_offset_(-1),
-        deoptimization_reloc_size() {
+        osr_pc_offset_(-1) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
+
 
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
@@ -71,14 +69,24 @@ class LCodeGen BASE_EMBEDDED {
   Heap* heap() const { return isolate()->heap(); }
 
   // Support for converting LOperands to assembler types.
-  Operand ToOperand(LOperand* op) const;
+  // LOperand must be a register.
   Register ToRegister(LOperand* op) const;
-  DoubleRegister ToDoubleRegister(LOperand* op) const;
-  Immediate ToImmediate(LOperand* op);
 
-  // The operand denoting the second word (the one with a higher address) of
-  // a double stack slot.
-  Operand HighOperand(LOperand* op);
+  // LOperand is loaded into scratch, unless already a register.
+  Register EmitLoadRegister(LOperand* op, Register scratch);
+
+  // LOperand must be a double register.
+  DoubleRegister ToDoubleRegister(LOperand* op) const;
+
+  // LOperand is loaded into dbl_scratch, unless already a double register.
+  DoubleRegister EmitLoadDoubleRegister(LOperand* op,
+                                        SwVfpRegister flt_scratch,
+                                        DoubleRegister dbl_scratch);
+  int ToInteger32(LConstantOperand* op) const;
+  Operand ToOperand(LOperand* op);
+  MemOperand ToMemOperand(LOperand* op) const;
+  // Returns a MemOperand pointing to the high word of a DoubleStackSlot.
+  MemOperand ToHighMemOperand(LOperand* op) const;
 
   // Try to generate code for the entire chunk, but it may fail if the
   // chunk contains constructs we cannot handle. Returns true if the
@@ -90,6 +98,9 @@ class LCodeGen BASE_EMBEDDED {
   void FinishCode(Handle<Code> code);
 
   // Deferred code support.
+  template<int T>
+  void DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
+                              Token::Value op);
   void DoDeferredNumberTagD(LNumberTagD* instr);
   void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
@@ -105,8 +116,6 @@ class LCodeGen BASE_EMBEDDED {
 
   // Emit frame translation commands for an environment.
   void WriteTranslation(LEnvironment* environment, Translation* translation);
-
-  void EnsureRelocSpaceForDeoptimization();
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) void Do##type(L##type* node);
@@ -127,12 +136,15 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   int strict_mode_flag() const {
-    return info()->is_strict() ? kStrictMode : kNonStrictMode;
+    return info()->is_strict_mode() ? kStrictMode : kNonStrictMode;
   }
 
   LChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
+
+  Register scratch0() { UNIMPLEMENTED(); }
+  DwVfpRegister double_scratch0() { UNIMPLEMENTED(); }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
@@ -157,19 +169,19 @@ class LCodeGen BASE_EMBEDDED {
   bool GeneratePrologue();
   bool GenerateBody();
   bool GenerateDeferredCode();
-  // Pad the reloc info to ensure that we have enough space to patch during
-  // deoptimization.
-  bool GenerateRelocPadding();
   bool GenerateSafepointTable();
 
-  void CallCode(Handle<Code> code, RelocInfo::Mode mode, LInstruction* instr,
-                bool adjusted = true);
-  void CallRuntime(const Runtime::Function* fun, int argc, LInstruction* instr,
-                   bool adjusted = true);
-  void CallRuntime(Runtime::FunctionId id, int argc, LInstruction* instr,
-                   bool adjusted = true) {
+  void CallCode(Handle<Code> code,
+                RelocInfo::Mode mode,
+                LInstruction* instr);
+  void CallRuntime(const Runtime::Function* function,
+                   int num_arguments,
+                   LInstruction* instr);
+  void CallRuntime(Runtime::FunctionId id,
+                   int num_arguments,
+                   LInstruction* instr) {
     const Runtime::Function* function = Runtime::FunctionForId(id);
-    CallRuntime(function, argc, instr, adjusted);
+    CallRuntime(function, num_arguments, instr);
   }
 
   // Generate a direct call to a known function.  Expects the function
@@ -194,7 +206,6 @@ class LCodeGen BASE_EMBEDDED {
 
   Register ToRegister(int index) const;
   DoubleRegister ToDoubleRegister(int index) const;
-  int ToInteger32(LConstantOperand* op) const;
 
   // Specific math operations - used from DoUnaryMathOperation.
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);
@@ -217,13 +228,21 @@ class LCodeGen BASE_EMBEDDED {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     int deoptimization_index);
+  void RecordSafepointWithRegistersAndDoubles(LPointerMap* pointers,
+                                              int arguments,
+                                              int deoptimization_index);
   void RecordPosition(int position);
+  int LastSafepointEnd() {
+    return static_cast<int>(safepoints_.GetPcAfterGap());
+  }
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block, LDeferredCode* deferred_stack_check = NULL);
   void EmitBranch(int left_block, int right_block, Condition cc);
   void EmitCmpI(LOperand* left, LOperand* right);
-  void EmitNumberUntagD(Register input, DoubleRegister result, LEnvironment* env);
+  void EmitNumberUntagD(Register input,
+                        DoubleRegister result,
+                        LEnvironment* env);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
@@ -242,8 +261,12 @@ class LCodeGen BASE_EMBEDDED {
 
   // Emits optimized code for %_IsConstructCall().
   // Caller should branch on equal condition.
-  void EmitIsConstructCall(Register temp);
+  void EmitIsConstructCall(Register temp1, Register temp2);
 
+  void EmitLoadField(Register result,
+                     Register object,
+                     Handle<Map> type,
+                     Handle<String> name);
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;
@@ -261,18 +284,10 @@ class LCodeGen BASE_EMBEDDED {
   ZoneList<LDeferredCode*> deferred_;
   int osr_pc_offset_;
 
-  struct DeoptimizationRelocSize {
-    int min_size;
-    int last_pc_offset;
-  };
-
-  DeoptimizationRelocSize deoptimization_reloc_size;
-
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.
   SafepointTableBuilder safepoints_;
 
-  // Compiler from a set of parallel moves to a sequential list of moves.
   friend class LDeferredCode;
   friend class LEnvironment;
   friend class SafepointGenerator;

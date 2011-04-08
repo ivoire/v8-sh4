@@ -40,6 +40,11 @@ void CPU::Setup() {
 }
 
 
+bool CPU::SupportsCrankshaft() {
+  return true;
+}
+
+
 void CPU::FlushICache(void* start, size_t size) {
   UNIMPLEMENTED();
 }

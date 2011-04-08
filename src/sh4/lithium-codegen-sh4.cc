@@ -31,6 +31,7 @@
 
 #include "sh4/lithium-codegen-sh4.h"
 #include "code-stubs.h"
+#include "deoptimizer.h"
 #include "stub-cache.h"
 
 namespace v8 {
@@ -50,6 +51,7 @@ class SafepointGenerator : public PostCallGenerator {
   virtual ~SafepointGenerator() { }
 
   virtual void Generate() {
+    UNIMPLEMENTED();
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 
@@ -57,7 +59,6 @@ class SafepointGenerator : public PostCallGenerator {
   LCodeGen* codegen_;
   LPointerMap* pointers_;
   int deoptimization_index_;
-  bool ensure_reloc_space_;
 };
 
 
@@ -434,6 +435,26 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 }
 
 
+void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
+  UNIMPLEMENTED();
+}
+
+
+void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
+  UNIMPLEMENTED();
+}
+
+
+void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
+  UNIMPLEMENTED();
+}
+
+
+void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
+  UNIMPLEMENTED();
+}
+
+
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   UNIMPLEMENTED();
 }
@@ -451,11 +472,6 @@ void LCodeGen::DoLoadExternalArrayPointer(
 
 
 void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
-  UNIMPLEMENTED();
-}
-
-
-void LCodeGen::DoLoadGlobal(LLoadGlobal* instr) {
   UNIMPLEMENTED();
 }
 
@@ -566,11 +582,6 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
 
 
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
-  UNIMPLEMENTED();
-}
-
-
-void LCodeGen::DoStoreGlobal(LStoreGlobal* instr) {
   UNIMPLEMENTED();
 }
 

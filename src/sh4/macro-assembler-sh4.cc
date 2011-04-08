@@ -56,11 +56,13 @@ void MacroAssembler::Drop(int stack_elements) {
 }
 
 
-MacroAssembler::MacroAssembler(void* buffer, int size)
-    : Assembler(buffer, size),
+MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
+    : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
-      allow_stub_calls_(true),
-      code_object_(HEAP->undefined_value()) {
+      allow_stub_calls_(true) {
+  if (isolate() != NULL)
+    code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
+                                  isolate());
 }
 
 

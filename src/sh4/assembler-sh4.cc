@@ -36,14 +36,14 @@
 namespace v8 {
 namespace internal {
 
-CpuFeatures::CpuFeatures()
-    : supported_(0),
-      enabled_(0),
-      found_by_runtime_probing_(0) {
-}
+#ifdef DEBUG
+bool CpuFeatures::initialized_ = false;
+#endif
+unsigned CpuFeatures::supported_ = 0;
+unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 
 
-void CpuFeatures::Probe(bool portable) {
+void CpuFeatures::Probe() {
   UNIMPLEMENTED();
 }
 
@@ -55,8 +55,8 @@ void Assembler::Align(int m) {
 
 static const int kMinimalBufferSize = 4*KB;
 
-Assembler::Assembler(void* buffer, int buffer_size)
-    : AssemblerBase(Isolate::Current()),
+Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
+    : AssemblerBase(arg_isolate),
       positions_recorder_(this) {
   //FIXME(STM): finish this class
   if (buffer == NULL) {

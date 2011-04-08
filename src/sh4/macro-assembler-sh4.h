@@ -56,7 +56,7 @@ class PostCallGenerator;
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
-  MacroAssembler(void* buffer, int size);
+  MacroAssembler(Isolate* isolate, void* buffer, int size);
 
   // ---------------------------------------------------------------------------
   // GC Support
