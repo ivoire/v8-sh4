@@ -100,14 +100,8 @@ bool LGap::IsRedundant() const {
 }
 
 
-void LGap::PrintDataTo(StringStream* stream) {
-  for (int i = 0; i < 4; i++) {
-    stream->Add("(");
-    if (parallel_moves_[i] != NULL) {
-      parallel_moves_[i]->PrintDataTo(stream);
-    }
-    stream->Add(") ");
-  }
+void LGap::PrintDataTo(StringStream* stream) const {
+  UNIMPLEMENTED();
 }
 
 
@@ -919,12 +913,22 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadGlobal(HLoadGlobal* instr) {
+LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoStoreGlobal(HStoreGlobal* instr) {
+LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
   UNIMPLEMENTED();
 }
 
