@@ -44,12 +44,23 @@ unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 
 
 void CpuFeatures::Probe() {
-  UNIMPLEMENTED();
+  ASSERT(!initialized_);
+#ifdef DEBUG
+  initialized_ = true;
+#endif
+  //FIXME(STM): define the right features to accept or not
+  if (Serializer::enabled()) {
+    supported_ |= OS::CpuFeaturesImpliedByPlatform();
+    return;  // No features if we might serialize.
+  }
 }
 
 
 void Assembler::Align(int m) {
-  UNIMPLEMENTED();
+  ASSERT(m >= 4 && IsPowerOf2(m));
+  while ((pc_offset() & (m - 1)) != 0) {
+    nop();
+  }
 }
 
 
@@ -57,7 +68,8 @@ static const int kMinimalBufferSize = 4*KB;
 
 Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
-      positions_recorder_(this) {
+      positions_recorder_(this),
+      emit_debug_code_(FLAG_debug_code) {
   //FIXME(STM): finish this class
   if (buffer == NULL) {
     // Do our own buffer management.
@@ -88,12 +100,20 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   // Setup buffer pointers.
   ASSERT(buffer_ != NULL);
   pc_ = buffer_;
+  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
 
 }
 
 
 void Assembler::GetCode(CodeDesc* desc) {
-  UNIMPLEMENTED();
+  // Emit the constant pool if needed
+  //FIXME(STM)
+
+  desc->buffer = buffer_;
+  desc->buffer_size = buffer_size_;
+  desc->instr_size = pc_offset();
+  desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->origin = this;
 }
 
 
@@ -143,7 +163,14 @@ void Assembler::push(Register src) {
 
 
 Assembler::~Assembler() {
-  UNIMPLEMENTED();
+  if (own_buffer_) {
+    if (isolate()->assembler_spare_buffer() == NULL &&
+        buffer_size_ == kMinimalBufferSize) {
+      isolate()->set_assembler_spare_buffer(buffer_);
+    } else {
+      DeleteArray(buffer_);
+    }
+  }
 }
 
 

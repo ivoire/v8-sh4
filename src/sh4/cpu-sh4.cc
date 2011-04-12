@@ -36,7 +36,7 @@ namespace v8 {
 namespace internal {
 
 void CPU::Setup() {
-  UNIMPLEMENTED();
+  CpuFeatures::Probe();
 }
 
 
