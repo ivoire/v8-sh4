@@ -1230,7 +1230,7 @@ class Assembler : public AssemblerBase {
 
   void jmp(Label* L);
 
-  void emit(Instr x) {}
+  void emit(Instr x) { /*FIXME(STM): check for the constant pool */ *pc_++ = x; }
 
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();

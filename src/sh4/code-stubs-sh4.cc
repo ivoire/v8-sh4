@@ -70,7 +70,8 @@ Register InstanceofStub::right() {
 
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  UNIMPLEMENTED();
+  //FIXME(STM): really generate this body
+  __ rts();
 }
 
 
