@@ -423,6 +423,9 @@ class Operand BASE_EMBEDDED {
   // reg
   INLINE(explicit Operand(Register reg));
 
+  // immediate
+  INLINE(explicit Operand(int32_t immediate));
+
   // [disp/r]
   INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode));
   // disp only must always be relocated
@@ -470,14 +473,6 @@ class Operand BASE_EMBEDDED {
   unsigned int len_;
   // Only valid if len_ > 4.
   RelocInfo::Mode rmode_;
-
-  // Set the ModRM byte without an encoded 'reg' register. The
-  // register is encoded later as part of the emit_operand operation.
-  inline void set_modrm(int mod, Register rm);
-
-  inline void set_sib(ScaleFactor scale, Register index, Register base);
-  inline void set_disp8(int8_t disp);
-  inline void set_dispr(int32_t disp, RelocInfo::Mode rmode);
 
   friend class Assembler;
 };
@@ -622,18 +617,6 @@ class CpuFeatures : public AllStatic {
 typedef uint16_t Instr;
 
 class Assembler : public AssemblerBase {
- private:
-  // We check before assembling an instruction that there is sufficient
-  // space to write an instruction and its relocation information.
-  // The relocation writer's position must be kGap bytes above the end of
-  // the generated instructions. This leaves enough space for the
-  // longest possible ia32 instruction, 15 bytes, and the longest possible
-  // relocation information encoding, RelocInfoWriter::kMaxLength == 16.
-  // (There is a 15 byte limit on ia32 instruction length that rules out some
-  // otherwise valid instructions.)
-  // This allows for a single, fast space check per instruction.
-  static const int kGap = 32;
-
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -659,6 +642,24 @@ class Assembler : public AssemblerBase {
   // Assembler functions are invoked in between GetCode() calls.
   void GetCode(CodeDesc* desc);
 
+  // Label operations & relative jumps (PPUM Appendix D)
+  //
+  // Takes a branch opcode (cc) and a label (L) and generates
+  // either a backward branch or a forward branch and links it
+  // to the label fixup chain. Usage:
+  //
+  // Label L;    // unbound label
+  // j(cc, &L);  // forward branch to unbound label
+  // bind(&L);   // bind label to the current pc
+  // j(cc, &L);  // backward branch to bound label
+  // bind(&L);   // illegal: a label may be bound only once
+  //
+  // Note: The same Label can be used for forward and backward branches
+  // but it may be bound only once.
+
+  void bind(Label* L);  // binds an unbound label L to the current code position
+
+
   // Read/Modify the code target in the branch/call instruction at pc.
   inline static Address target_address_at(Address pc);
   inline static void set_target_address_at(Address pc, Address target);
@@ -680,37 +681,35 @@ class Assembler : public AssemblerBase {
   static const int kCallTargetSize = kPointerSize;
   static const int kExternalTargetSize = kPointerSize;
 
-  // Distance between the address of the code target in the call instruction
+  // Size of an instruction.
+  static const int kInstrSize = sizeof(Instr);
+
   // and the return address
-  static const int kCallTargetAddressOffset = kPointerSize;
+  static const int kCallTargetAddressOffset = kInstrSize;
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
-  static const int kPatchReturnSequenceAddressOffset = 1;  // JMP imm32.
+  static const int kPatchReturnSequenceAddressOffset = kInstrSize; // FIXME(STM)
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-  static const int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
+  static const int kPatchDebugBreakSlotAddressOffset = kInstrSize; // FIXME(STM)
 
-  static const int kCallInstructionLength = 5;
-  static const int kJSReturnSequenceLength = 6;
+  static const int kJSReturnSequenceLength = 6; // FIXME(STM)
 
   // The debug break slot must be able to contain a call instruction.
-  static const int kDebugBreakSlotLength = kCallInstructionLength;
+  static const int kDebugBreakSlotLength = kInstrSize; // FIXME(STM)
 
-  // One byte opcode for test eax,0xXXXXXXXX.
-  static const byte kTestEaxByte = 0xA9;
-  // One byte opcode for test al, 0xXX.
-  static const byte kTestAlByte = 0xA8;
-  // One byte opcode for nop.
-  static const byte kNopByte = 0x90;
-
-  // One byte opcode for a short unconditional jump.
-  static const byte kJmpShortOpcode = 0xEB;
-  // One byte prefix for a short conditional jump.
-  static const byte kJccShortPrefix = 0x70;
 
 
   // ---------------------------------------------------------------------------
+  // Wrappers around the code generators
+  void add(Register Rx, const Immediate& imm);
+  void mov(Register Rx, const Immediate& imm);
+  void jmp(Label* L);
+  void jmp(Handle<Code> code, RelocInfo::Mode rmode);
+
+
+
   // Code generation
   void addc(Register Ry, Register Rx);
 
@@ -1226,10 +1225,6 @@ class Assembler : public AssemblerBase {
 
   void call(Label* L);
 
-  void bind(Label* L);
-
-  void jmp(Label* L);
-
   void emit(Instr x) { /*FIXME(STM): check for the constant pool */ *pc_++ = x; }
 
   // Mark address of the ExitJSFrame code.
@@ -1250,6 +1245,9 @@ class Assembler : public AssemblerBase {
 
 
  protected:
+  bool emit_debug_code() const { return emit_debug_code_; }
+
+  int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
 
  private:
@@ -1268,6 +1266,10 @@ class Assembler : public AssemblerBase {
 
   // code generation
   byte* pc_;  // the program counter; moves forward
+
+  // Relocation info generation
+  // Each relocation is encoded as a variable size value
+  static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
 
   // push-pop elimination

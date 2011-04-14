@@ -39,11 +39,36 @@ namespace v8 {
 namespace internal {
 
 
+#define __ ACCESS_MASM(masm)
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 CFunctionId id,
                                 BuiltinExtraArguments extra_args) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r0                 : number of arguments excluding receiver
+  //  -- r1                 : called function (only guaranteed when
+  //                          extra_args requires it)
+  //  -- cp                 : context FIXME(STM) does CP exist and what does it mean here ?
+  //  -- sp[0]              : last argument
+  //  -- ...
+  //  -- sp[4 * (argc - 1)] : first argument (argc == r0)
+  //  -- sp[4 * argc]       : receiver
+  // -----------------------------------
+
+  // Insert extra arguments.
+  int num_extra_args = 0;
+  if (extra_args == NEEDS_CALLED_FUNCTION) {
+    num_extra_args = 1;
+    __ push(r1);
+  } else {
+    ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
+  }
+
+  // JumpToExternalReference expects r0 to contain the number of arguments
+  // including the receiver and the extra arguments.
+  __ add_imm(num_extra_args + 1, r0);
+  __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
+
 }
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {

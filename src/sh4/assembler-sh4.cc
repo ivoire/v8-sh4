@@ -123,6 +123,43 @@ void Assembler::RecordComment(const char* msg, bool force) {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
+  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
+    // Adjust code for new modes.
+    ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
+           || RelocInfo::IsJSReturn(rmode)
+           || RelocInfo::IsComment(rmode)
+           || RelocInfo::IsPosition(rmode));
+    // These modes do not need an entry in the constant pool.
+  } else {
+//FIXME(STM): implement the constant pool !
+//  ASSERT(num_prinfo_ < kMaxNumPRInfo);
+//  prinfo_[num_prinfo_++] = rinfo;
+//  // Make sure the constant pool is not emitted in place of the next
+//  // instruction for which we just recorded relocation info.
+//    BlockConstPoolBefore(pc_offset() + kInstrSize);
+  }
+  if (rinfo.rmode() != RelocInfo::NONE) {
+    // Don't record external references unless the heap will be serialized.
+    if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+//FIXME(STM): do something with this ?
+//#ifdef DEBUG
+//      if (!Serializer::enabled()) {
+//        Serializer::TooLateToEnableNow();
+//      }
+//#endif
+      if (!Serializer::enabled() && !emit_debug_code()) {
+        return;
+      }
+    }
+    ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
+    reloc_info_writer.Write(&rinfo);
+  }
+
+}
+
+
+void Assembler::add(Register Rx, const Immediate& imm) {
   UNIMPLEMENTED();
 }
 
@@ -152,13 +189,37 @@ void Assembler::jmp(Label* L) {
 }
 
 
+void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
+  UNIMPLEMENTED();
+}
+
+
+void Assembler::mov(Register Rx, const Immediate& imm) {
+  ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE); // FIXME(STM): Internal ref not handled
+
+  if(imm.rmode_ != RelocInfo::NONE) RecordRelocInfo(imm.rmode_); //FIXME(STM) needed ?
+
+  // Move based on immediates can only be 8 bits long
+  if(imm.is_int8())
+    mov_imm(imm.x_, Rx);
+  else {
+    // Use a tiny constant pool and jump above
+    movl_dispPC(4, Rx);
+    bra(4);
+    nop();
+    *reinterpret_cast<uint32_t*>(pc_) = imm.x_;
+    pc_ += sizeof(uint32_t);
+  }
+}
+
+
 void Assembler::pop(Register dst) {
   UNIMPLEMENTED();
 }
 
 
 void Assembler::push(Register src) {
-  UNIMPLEMENTED();
+  movl_decRx(Register(r15), src);
 }
 
 

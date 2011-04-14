@@ -157,17 +157,20 @@ void RelocInfo::Visit(Heap* heap) {
 
 
 Immediate::Immediate(int x)  {
-  UNIMPLEMENTED();
+  x_ = x;
+  rmode_ = RelocInfo::NONE;
 }
 
 
 Immediate::Immediate(const ExternalReference& ext) {
-  UNIMPLEMENTED();
+  x_ = reinterpret_cast<int32_t>(ext.address());
+  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 
 Immediate::Immediate(Label* internal_offset) {
-  UNIMPLEMENTED();
+  x_ = reinterpret_cast<int32_t>(internal_offset);
+  rmode_ = RelocInfo::INTERNAL_REFERENCE;
 }
 
 
@@ -177,12 +180,14 @@ Immediate::Immediate(Handle<Object> handle) {
 
 
 Immediate::Immediate(Smi* value) {
-  UNIMPLEMENTED();
+  x_ = reinterpret_cast<intptr_t>(value);
+  rmode_ = RelocInfo::NONE;
 }
 
 
 Immediate::Immediate(Address addr) {
-  UNIMPLEMENTED();
+  x_ = reinterpret_cast<int32_t>(addr);
+  rmode_ = RelocInfo::NONE;
 }
 
 
@@ -196,22 +201,7 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 }
 
 
-void Operand::set_modrm(int mod, Register rm) {
-  UNIMPLEMENTED();
-}
-
-
-void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
-  UNIMPLEMENTED();
-}
-
-
-void Operand::set_disp8(int8_t disp) {
-  UNIMPLEMENTED();
-}
-
-
-void Operand::set_dispr(int32_t disp, RelocInfo::Mode rmode) {
+Operand::Operand(int32_t immediate) {
   UNIMPLEMENTED();
 }
 

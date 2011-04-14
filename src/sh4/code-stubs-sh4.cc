@@ -69,6 +69,16 @@ Register InstanceofStub::right() {
 }
 
 
+void CEntryStub::Generate(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+bool CEntryStub::NeedsImmovableCode() {
+  return true;
+}
+
+
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   //FIXME(STM): really generate this body
   __ rts();
