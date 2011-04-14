@@ -160,7 +160,17 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 
 
 void Assembler::add(Register Rx, const Immediate& imm) {
-  UNIMPLEMENTED();
+  if(imm.is_int8()) {
+    add_imm(imm.x_, Rx);
+  }
+  else {
+    // Use a super scratch register (r3) and a tiny constant pool
+    movl_dispPC(4, rtmp);
+    bra(4);
+    add(rtmp, Rx);
+    *reinterpret_cast<uint32_t*>(pc_) = imm.x_;
+    pc_ += sizeof(uint32_t);
+  }
 }
 
 
@@ -200,8 +210,9 @@ void Assembler::mov(Register Rx, const Immediate& imm) {
   if(imm.rmode_ != RelocInfo::NONE) RecordRelocInfo(imm.rmode_); //FIXME(STM) needed ?
 
   // Move based on immediates can only be 8 bits long
-  if(imm.is_int8())
+  if(imm.is_int8()) {
     mov_imm(imm.x_, Rx);
+  }
   else {
     // Use a tiny constant pool and jump above
     movl_dispPC(4, Rx);
@@ -214,7 +225,7 @@ void Assembler::mov(Register Rx, const Immediate& imm) {
 
 
 void Assembler::pop(Register dst) {
-  UNIMPLEMENTED();
+  movl_incRy(Register(r15), dst);
 }
 
 

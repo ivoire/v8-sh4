@@ -113,6 +113,7 @@ struct Register {
 };
 
 const Register no_reg = { -1 };
+
 const Register r0 = { 0 };
 const Register r1 = { 1 };
 const Register r2 = { 2 };
@@ -129,6 +130,8 @@ const Register r12 = { 12 };
 const Register r13 = { 13 };
 const Register r14 = { 14 };
 const Register r15 = { 15 };
+
+const Register rtmp = r3;       // super scratch register
 
 
 // Single word VFP register.
