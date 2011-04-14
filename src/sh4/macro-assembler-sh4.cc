@@ -88,6 +88,13 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 }
 
 
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
+  mov(r1, Immediate(builtin));
+  CEntryStub stub(1);
+  jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_IA32

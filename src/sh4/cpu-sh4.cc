@@ -29,6 +29,10 @@
 
 #if defined(V8_TARGET_ARCH_SH4)
 
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <asm/cachectl.h>
+
 #include "cpu.h"
 #include "macro-assembler.h"
 
@@ -46,7 +50,8 @@ bool CPU::SupportsCrankshaft() {
 
 
 void CPU::FlushICache(void* start, size_t size) {
-  UNIMPLEMENTED();
+  // Invalidate the instruction and the data cache
+  syscall(__NR_cacheflush, start, size, CACHEFLUSH_D_WB | CACHEFLUSH_I);
 }
 
 
