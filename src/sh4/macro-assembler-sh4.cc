@@ -67,7 +67,9 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 
 
 void MacroAssembler::Move(Register dst, Register src) {
-  UNIMPLEMENTED();
+  if(!dst.is(src)) {
+    mov(src, dst);
+  }
 }
 
 

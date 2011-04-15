@@ -711,6 +711,10 @@ class Assembler : public AssemblerBase {
   void jmp(Label* L);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
+  // Align the code
+  void align() { while((uint32_t)pc_ % 4 != 0) nop(); }
+  void misalign() { while((uint32_t)pc_ % 4 != 2) nop(); }
+
 
 
   // Code generation
@@ -1230,6 +1234,7 @@ class Assembler : public AssemblerBase {
 
   void emit(Instr x) { /*FIXME(STM): check for the constant pool */ *pc_++ = x; }
 
+
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
 
@@ -1254,6 +1259,10 @@ class Assembler : public AssemblerBase {
 
 
  private:
+  // Code emission
+  inline void CheckBuffer();
+  void GrowBuffer();
+
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
@@ -1268,6 +1277,11 @@ class Assembler : public AssemblerBase {
   bool own_buffer_;
 
   // code generation
+  // The relocation writer's position is at least kGap bytes below the end of
+  // the generated instructions. This is so that multi-instruction sequences do
+  // not have to check for overflow. The same is true for writes of large
+  // relocation info entries.
+  static const int kGap = 32;
   byte* pc_;  // the program counter; moves forward
 
   // Relocation info generation
