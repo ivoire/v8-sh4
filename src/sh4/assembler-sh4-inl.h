@@ -51,7 +51,8 @@ void RelocInfo::apply(intptr_t delta) {
 
 
 Address RelocInfo::target_address() {
-  UNIMPLEMENTED();
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  return Assembler::target_address_at(pc_);
 }
 
 
@@ -61,12 +62,13 @@ Address RelocInfo::target_address_address() {
 
 
 int RelocInfo::target_address_size() {
-  UNIMPLEMENTED();
+  return Assembler::kExternalTargetSize;
 }
 
 
 void RelocInfo::set_target_address(Address target) {
-  UNIMPLEMENTED();
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  Assembler::set_target_address_at(pc_, target);
 }
 
 
@@ -96,17 +98,27 @@ Address* RelocInfo::target_reference_address() {
 
 
 Handle<JSGlobalPropertyCell> RelocInfo::target_cell_handle() {
-  UNIMPLEMENTED();
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = Memory::Address_at(pc_);
+  return Handle<JSGlobalPropertyCell>(
+      reinterpret_cast<JSGlobalPropertyCell**>(address));
 }
 
 
 JSGlobalPropertyCell* RelocInfo::target_cell() {
-  UNIMPLEMENTED();
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = Memory::Address_at(pc_);
+  Object* object = HeapObject::FromAddress(
+      address - JSGlobalPropertyCell::kValueOffset);
+  return reinterpret_cast<JSGlobalPropertyCell*>(object);
 }
 
 
 void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell) {
-  UNIMPLEMENTED();
+  ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
+  Address address = cell->address() + JSGlobalPropertyCell::kValueOffset;
+  Memory::Address_at(pc_) = address;
+  CPU::FlushICache(pc_, sizeof(Address));
 }
 
 
@@ -121,12 +133,12 @@ void RelocInfo::set_call_address(Address target) {
 
 
 Object* RelocInfo::call_object() {
-  UNIMPLEMENTED();
+  return *call_object_address();
 }
 
 
 void RelocInfo::set_call_object(Object* target) {
-  UNIMPLEMENTED();
+  *call_object_address() = target;
 }
 
 
@@ -146,13 +158,56 @@ bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
 
 
 void RelocInfo::Visit(ObjectVisitor* visitor) {
-  UNIMPLEMENTED();
+  RelocInfo::Mode mode = rmode();
+  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    visitor->VisitPointer(target_object_address());
+    CPU::FlushICache(pc_, sizeof(Address));
+  } else if (RelocInfo::IsCodeTarget(mode)) {
+    visitor->VisitCodeTarget(this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    visitor->VisitGlobalPropertyCell(this);
+  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+    visitor->VisitExternalReference(target_reference_address());
+    CPU::FlushICache(pc_, sizeof(Address));
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // TODO(isolates): Get a cached isolate below.
+  } else if (((RelocInfo::IsJSReturn(mode) &&
+              IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+              IsPatchedDebugBreakSlotSequence())) &&
+             Isolate::Current()->debug()->has_break_points()) {
+    visitor->VisitDebugTarget(this);
+#endif
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+    visitor->VisitRuntimeEntry(this);
+  }
 }
 
 
 template<typename StaticVisitor>
 void RelocInfo::Visit(Heap* heap) {
-  UNIMPLEMENTED();
+  RelocInfo::Mode mode = rmode();
+  if (mode == RelocInfo::EMBEDDED_OBJECT) {
+    StaticVisitor::VisitPointer(heap, target_object_address());
+    CPU::FlushICache(pc_, sizeof(Address));
+  } else if (RelocInfo::IsCodeTarget(mode)) {
+    StaticVisitor::VisitCodeTarget(heap, this);
+  } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
+    StaticVisitor::VisitGlobalPropertyCell(heap, this);
+  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
+    StaticVisitor::VisitExternalReference(target_reference_address());
+    CPU::FlushICache(pc_, sizeof(Address));
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  } else if (heap->isolate()->debug()->has_break_points() &&
+             ((RelocInfo::IsJSReturn(mode) &&
+              IsPatchedReturnSequence()) ||
+             (RelocInfo::IsDebugBreakSlot(mode) &&
+              IsPatchedDebugBreakSlotSequence()))) {
+    StaticVisitor::VisitDebugTarget(heap, this);
+#endif
+  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+    StaticVisitor::VisitRuntimeEntry(this);
+  }
 }
 
 
