@@ -118,7 +118,69 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::RecordComment(const char* msg, bool force) {
-  UNIMPLEMENTED();
+  if (FLAG_code_comments) {
+    CheckBuffer();
+    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
+  }
+}
+
+
+void Assembler::GrowBuffer() {
+  if (!own_buffer_) FATAL("external code buffer is too small");
+
+  // Compute new buffer size.
+  CodeDesc desc;  // the new buffer
+  if (buffer_size_ < 4*KB) {
+    desc.buffer_size = 4*KB;
+  } else if (buffer_size_ < 1*MB) {
+    desc.buffer_size = 2*buffer_size_;
+  } else {
+    desc.buffer_size = buffer_size_ + 1*MB;
+  }
+  CHECK_GT(desc.buffer_size, 0);  // no overflow
+
+  // Setup new buffer.
+  desc.buffer = NewArray<byte>(desc.buffer_size);
+
+  desc.instr_size = pc_offset();
+  desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+
+  // Copy the data.
+  int pc_delta = desc.buffer - buffer_;
+  int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
+  memmove(desc.buffer, buffer_, desc.instr_size);
+  memmove(reloc_info_writer.pos() + rc_delta,
+          reloc_info_writer.pos(), desc.reloc_size);
+
+  // Switch buffers.
+  if (isolate()->assembler_spare_buffer() == NULL &&
+      buffer_size_ == kMinimalBufferSize) {
+    isolate()->set_assembler_spare_buffer(buffer_);
+  } else {
+    DeleteArray(buffer_);
+  }
+  buffer_ = desc.buffer;
+  buffer_size_ = desc.buffer_size;
+  pc_ += pc_delta;
+  if (last_pc_ != NULL) {
+    last_pc_ += pc_delta;
+  }
+  reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
+                               reloc_info_writer.last_pc() + pc_delta);
+
+  // Relocate runtime entries.
+  for (RelocIterator it(desc); !it.done(); it.next()) {
+    RelocInfo::Mode rmode = it.rinfo()->rmode();
+    if (rmode == RelocInfo::RUNTIME_ENTRY) {
+      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+      *p -= pc_delta;  // relocate entry
+    } else if (rmode == RelocInfo::INTERNAL_REFERENCE) {
+      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+      if (*p != 0) {  // 0 means uninitialized.
+        *p += pc_delta;
+      }
+    }
+  }
 }
 
 
@@ -165,7 +227,9 @@ void Assembler::add(Register Rx, const Immediate& imm) {
   }
   else {
     // Use a super scratch register (r3) and a tiny constant pool
+    align();
     movl_dispPC(4, rtmp);
+    nop();
     bra(4);
     add(rtmp, Rx);
     *reinterpret_cast<uint32_t*>(pc_) = imm.x_;
@@ -185,12 +249,16 @@ void Assembler::call(Label* L) {
 
 
 void Assembler::db(uint8_t data) {
-  UNIMPLEMENTED();
+  CheckBuffer();
+  *reinterpret_cast<uint8_t*>(pc_) = data;
+  pc_ += sizeof(uint8_t);
 }
 
 
 void Assembler::dd(uint32_t data) {
-  UNIMPLEMENTED();
+  CheckBuffer();
+  *reinterpret_cast<uint32_t*>(pc_) = data;
+  pc_ += sizeof(uint32_t);
 }
 
 
@@ -200,7 +268,25 @@ void Assembler::jmp(Label* L) {
 
 
 void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
-  UNIMPLEMENTED();
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
+  intptr_t dst = reinterpret_cast<intptr_t>(code.location()) - reinterpret_cast<intptr_t>(pc_);
+
+  // Do a short jump if possible
+  if(dst >= -4096 && dst <= 4094) {
+    bra(dst);
+    nop();
+  }
+  else {
+    // Use a super scratch register (r3) and a tiny constant pool
+    align();
+    movl_dispPC(4, rtmp);
+    nop();
+    braf(rtmp);
+    nop();
+    *reinterpret_cast<uint32_t*>(pc_) = dst;
+    pc_ += sizeof(uint32_t);
+  }
 }
 
 
@@ -215,7 +301,9 @@ void Assembler::mov(Register Rx, const Immediate& imm) {
   }
   else {
     // Use a tiny constant pool and jump above
+    align();
     movl_dispPC(4, Rx);
+    nop();
     bra(4);
     nop();
     *reinterpret_cast<uint32_t*>(pc_) = imm.x_;

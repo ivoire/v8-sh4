@@ -43,6 +43,13 @@
 namespace v8 {
 namespace internal {
 
+void Assembler::CheckBuffer() {
+  if(buffer_space() <= kGap) {
+    GrowBuffer();
+  }
+  //FIXME(STM): check if we must emit the constant pool
+}
+
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
