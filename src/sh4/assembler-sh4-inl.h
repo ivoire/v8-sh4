@@ -53,7 +53,28 @@ void Assembler::CheckBuffer() {
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
-  UNIMPLEMENTED();
+  if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
+    int32_t* p = reinterpret_cast<int32_t*>(pc_);
+    *p -= delta;  // Relocate entry.
+    CPU::FlushICache(p, sizeof(uint32_t));
+  } else if (rmode_ == JS_RETURN && IsPatchedReturnSequence()) {
+    // Special handling of js_return when a break point is set (call
+    // instruction has been inserted).
+    int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
+    *p -= delta;  // Relocate entry.
+    CPU::FlushICache(p, sizeof(uint32_t));
+  } else if (rmode_ == DEBUG_BREAK_SLOT && IsPatchedDebugBreakSlotSequence()) {
+    // Special handling of a debug break slot when a break point is set (call
+    // instruction has been inserted).
+    int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
+    *p -= delta;  // Relocate entry.
+    CPU::FlushICache(p, sizeof(uint32_t));
+  } else if (IsInternalReference(rmode_)) {
+    // absolute code pointer inside code object moves with the code object.
+    int32_t* p = reinterpret_cast<int32_t*>(pc_);
+    *p += delta;  // Relocate entry.
+    CPU::FlushICache(p, sizeof(uint32_t));
+  }
 }
 
 
@@ -85,7 +106,8 @@ Object* RelocInfo::target_object() {
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
-  UNIMPLEMENTED();
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  return Memory::Object_Handle_at(pc_);
 }
 
 
