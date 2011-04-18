@@ -481,6 +481,16 @@ class Operand BASE_EMBEDDED {
 };
 
 
+class MemOperand BASE_EMBEDDED {
+ public:
+   explicit MemOperand() { UNIMPLEMENTED(); };
+
+ private:
+
+  friend class Assembler;
+};
+
+
 // -----------------------------------------------------------------------------
 // A Displacement describes the 32bit immediate field of an instruction which
 // may be used together with a Label in order to refer to a yet unknown code

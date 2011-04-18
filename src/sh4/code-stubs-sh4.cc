@@ -47,11 +47,6 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 }
 
 
-Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
-  UNIMPLEMENTED();
-}
-
-
 Handle<Code> GetTypeRecordingBinaryOpStub(int key,
                         TRBinaryOpIC::TypeInfo type_info,
                         TRBinaryOpIC::TypeInfo result_type_info) {

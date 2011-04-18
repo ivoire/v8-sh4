@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_SH4)
 
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"
@@ -40,6 +40,7 @@ namespace internal {
 
 
 #define __ ACCESS_MASM(masm)
+
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 CFunctionId id,
@@ -71,10 +72,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
 }
 
-void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
 
 void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   UNIMPLEMENTED();
@@ -85,12 +82,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
-
-void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
+void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
@@ -99,8 +91,12 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
+void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
 
-void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
+
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
@@ -110,52 +106,57 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
+void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_JSConstructStubGeneric(v8::internal::MacroAssembler*) {
+void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_JSEntryTrampoline(v8::internal::MacroAssembler*) {
+void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_LazyCompile(v8::internal::MacroAssembler*) {
+void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_LazyRecompile(v8::internal::MacroAssembler*) {
+void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_NotifyDeoptimized(v8::internal::MacroAssembler*) {
+void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_NotifyLazyDeoptimized(v8::internal::MacroAssembler*) {
+void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_NotifyOSR(v8::internal::MacroAssembler*) {
+void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_OnStackReplacement(v8::internal::MacroAssembler*) {
+void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
 
-void Builtins::Generate_StringConstructCode(v8::internal::MacroAssembler*) {
+void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 

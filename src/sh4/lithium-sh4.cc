@@ -220,6 +220,13 @@ void LStoreContextSlot::PrintDataTo(StringStream* stream) {
 }
 
 
+void LInvokeFunction::PrintDataTo(StringStream* stream) {
+  stream->Add("= ");
+  InputAt(0)->PrintTo(stream);
+  stream->Add(" #%d / ", arity());
+}
+
+
 void LCallKeyed::PrintDataTo(StringStream* stream) {
   stream->Add("[ecx] #%d / ", arity());
 }
@@ -679,6 +686,11 @@ LInstruction* LChunkBuilder::DoCallConstantFunction(
 }
 
 
+LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
+  UNIMPLEMENTED();
+}
+
+
 LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   UNIMPLEMENTED();
 }
@@ -1016,6 +1028,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
   UNIMPLEMENTED();
 }
 

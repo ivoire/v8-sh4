@@ -137,6 +137,11 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 }
 
 
+void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
+  UNIMPLEMENTED();
+}
+
+
 void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   UNIMPLEMENTED();
 }
@@ -592,6 +597,11 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 
 
 void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
+  UNIMPLEMENTED();
+}
+
+
+void LCodeGen::DoStringAdd(LStringAdd* instr) {
   UNIMPLEMENTED();
 }
 
