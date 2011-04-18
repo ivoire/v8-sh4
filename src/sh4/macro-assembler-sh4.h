@@ -34,6 +34,10 @@
 namespace v8 {
 namespace internal {
 
+// Forward declaration.
+class CallWrapper;
+class PostCallGenerator;
+
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
   // No special flags.
@@ -44,14 +48,6 @@ enum AllocationFlags {
   // new space.
   RESULT_CONTAINS_TOP = 1 << 1
 };
-
-// Convenience for platform-independent signatures.  We do not normally
-// distinguish memory operands from other operands on ia32.
-typedef Operand MemOperand;
-
-// Forward declaration.
-class JumpTarget;
-class PostCallGenerator;
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
@@ -409,8 +405,7 @@ class MacroAssembler: public Assembler {
   // Check if result is zero and op is negative in code using jump targets.
   void NegativeZeroTest(CodeGenerator* cgen,
                         Register result,
-                        Register op,
-                        JumpTarget* then_target);
+                        Register op);
 
   // Check if result is zero and any of op1 and op2 are negative.
   // Register scratch is destroyed, and it must be different from op2.

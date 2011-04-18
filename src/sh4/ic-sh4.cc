@@ -65,22 +65,6 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm, bool support_wrappers) {
 }
 
 
-bool LoadIC::PatchInlinedContextualLoad(Address address,
-                                        Object* map,
-                                        Object* cell,
-                                        bool is_dont_delete) {
-  return false;
-  UNIMPLEMENTED();
-}
-
-
-bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
-  return false;
-  UNIMPLEMENTED();
-}
-
-
-
 void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
@@ -107,11 +91,6 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
-
-bool StoreIC::PatchInlinedStore(Address address, Object* map, int offset) {
-  UNIMPLEMENTED();
-  return false;
-}
 
 void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   UNIMPLEMENTED();
@@ -168,11 +147,6 @@ void KeyedLoadIC::GenerateString(v8::internal::MacroAssembler*) {
 }
 
 
-bool KeyedLoadIC::PatchInlinedLoad(unsigned char*, v8::internal::Object*) {
-  UNIMPLEMENTED();
-}
-
-
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                                    StrictModeFlag strict_mode) {
   UNIMPLEMENTED();
@@ -181,12 +155,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   UNIMPLEMENTED();
-}
-
-
-bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
-  UNIMPLEMENTED();
-  return false;
 }
 
 

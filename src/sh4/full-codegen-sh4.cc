@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_SH4)
 
 #include "code-stubs.h"
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "debug.h"
 #include "full-codegen.h"
@@ -418,6 +418,11 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
 }
 
 
+void FullCodeGenerator::StackValueContext::Plug(Slot* slot) const {
+  UNIMPLEMENTED();
+}
+
+
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Label* materialize_true,
     Label* materialize_false) const {
@@ -442,20 +447,15 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
 }
 
 
+void FullCodeGenerator::StackValueContext::Plug(
+    Heap::RootListIndex index) const {
+  UNIMPLEMENTED();
+}
+
+
 void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
     int count,
     Register reg) const {
-  UNIMPLEMENTED();
-}
-
-
-void FullCodeGenerator::StackValueContext::Plug(Slot* slot) const {
-  UNIMPLEMENTED();
-}
-
-
-void FullCodeGenerator::StackValueContext::Plug(
-    Heap::RootListIndex index) const {
   UNIMPLEMENTED();
 }
 
