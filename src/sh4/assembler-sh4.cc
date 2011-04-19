@@ -322,6 +322,15 @@ void Assembler::push(Register src) {
 }
 
 
+void Assembler::pushm(RegList src) {
+  for(uint16_t i = 0; i < Register::kNumRegisters; i++) {
+    if((src & (1 << i)) != 0) {
+      push(Register::from_code(i));
+    }
+  }
+}
+
+
 Assembler::~Assembler() {
   if (own_buffer_) {
     if (isolate()->assembler_spare_buffer() == NULL &&
