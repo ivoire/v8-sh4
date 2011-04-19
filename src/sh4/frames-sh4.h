@@ -52,6 +52,18 @@ static const RegList kJSCallerSaved =
 
 static const int kNumJSCallerSaved = 8;
 
+// Callee-saved registers preserved when switching from C to JavaScript
+static const RegList kCalleeSaved =
+  1 <<  8  |  //  r8
+  1 <<  9  |  //  r9
+  1 <<  10 |  //  r10
+  1 <<  11 |  //  r11
+  1 <<  12 |  //  r12
+  1 <<  13;   //  r13
+
+static const int kNumCalleeSaved = 8;
+
+
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
 

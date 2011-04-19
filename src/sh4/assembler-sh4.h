@@ -132,6 +132,8 @@ const Register r14 = { 14 };
 const Register r15 = { 15 };
 
 const Register rtmp = r3;       // super scratch register
+const Register fp = r14;        // Frame Pointer
+const Register sp = r15;        // Stack Pointer
 
 
 // Single word VFP register.
@@ -175,13 +177,13 @@ struct DwVfpRegister {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
       "dr0",
-      "dr1",
       "dr2",
-      "dr3",
       "dr4",
-      "dr5",
       "dr6",
-      "dr7",
+      "dr8",
+      "dr10",
+      "dr12",
+      "dr14",
     };
     return names[index];
   }
@@ -1201,6 +1203,8 @@ class Assembler : public AssemblerBase {
   void Align(int m);
 
   void push(Register src);
+
+  void pushm(RegList src);
 
   void pop(Register dst);
 
