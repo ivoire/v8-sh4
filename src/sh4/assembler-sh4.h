@@ -389,58 +389,15 @@ enum ScaleFactor {
 
 class Operand BASE_EMBEDDED {
  public:
-  // reg
   INLINE(explicit Operand(Register reg));
-
-  // immediate
   INLINE(explicit Operand(int32_t immediate));
-
-  // [disp/r]
-  INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode));
-  // disp only must always be relocated
-
-  // [base + disp/r]
-  explicit Operand(Register base, int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  // [base + index*scale + disp/r]
-  explicit Operand(Register base,
-                   Register index,
-                   ScaleFactor scale,
-                   int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  // [index*scale + disp/r]
-  explicit Operand(Register index,
-                   ScaleFactor scale,
-                   int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  static Operand StaticVariable(const ExternalReference& ext) {
-    return Operand(reinterpret_cast<int32_t>(ext.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static Operand StaticArray(Register index,
-                             ScaleFactor scale,
-                             const ExternalReference& arr) {
-    return Operand(index, scale, reinterpret_cast<int32_t>(arr.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static Operand Cell(Handle<JSGlobalPropertyCell> cell) {
-    return Operand(reinterpret_cast<int32_t>(cell.location()),
-                   RelocInfo::GLOBAL_PROPERTY_CELL);
-  }
 
   // Returns true if this Operand is a wrapper for the specified register.
   bool is_reg(Register reg) const;
 
  private:
-  byte buf_[6];
-  // The number of bytes in buf_.
-  unsigned int len_;
-  // Only valid if len_ > 4.
+  Register rx_;
+  int32_t imm32_;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -1203,10 +1160,12 @@ class Assembler : public AssemblerBase {
   void Align(int m);
 
   void push(Register src);
-
   void pushm(RegList src);
+  void pushPR();
 
   void pop(Register dst);
+  void popm(RegList dst);
+  void popPR();
 
   void call(Label* L);
 
