@@ -136,7 +136,7 @@ const Register rtmp = r3;       // super scratch register
 
 // Single word VFP register.
 struct SwVfpRegister {
-  bool is_valid() const { return 0 <= code_ && code_ < 32; }
+  bool is_valid() const { return 0 <= code_ && code_ < 16; }
   bool is(SwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
     ASSERT(is_valid());
@@ -158,13 +158,8 @@ struct SwVfpRegister {
 
 // Double word VFP register.
 struct DwVfpRegister {
-  // d0 has been excluded from allocation. This is following ia32
-  // where xmm0 is excluded. This should be revisited.
-  // Currently d0 is used as a scratch register.
-  // d1 has also been excluded from allocation to be used as a scratch
-  // register as well.
-  static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 15;
+  static const int kNumRegisters = 8;
+  static const int kNumAllocatableRegisters = 8;
 
   static int ToAllocationIndex(DwVfpRegister reg) {
     ASSERT(reg.code() != 0);
@@ -179,6 +174,7 @@ struct DwVfpRegister {
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
+      "dr0",
       "dr1",
       "dr2",
       "dr3",
@@ -186,14 +182,6 @@ struct DwVfpRegister {
       "dr5",
       "dr6",
       "dr7",
-      "dr8",
-      "dr9",
-      "dr10",
-      "dr11",
-      "dr12",
-      "dr13",
-      "dr14",
-      "dr15"
     };
     return names[index];
   }
@@ -203,8 +191,8 @@ struct DwVfpRegister {
     return r;
   }
 
-  // Supporting dr0 to dr15
-  bool is_valid() const { return 0 <= code_ && code_ < 16; }
+  // Supporting dr0 to dr8
+  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
   SwVfpRegister low() const {
     SwVfpRegister reg;
@@ -239,7 +227,7 @@ struct DwVfpRegister {
 
 typedef DwVfpRegister DoubleRegister;
 
-// Support for the VFP registers fr0 to fr31 (dr0 to dr15).
+// Support for the VFP registers fr0 to fr15 (dr0 to dr7).
 // Note that "fr(N):fr(N+1)" is the same as "dr(N/2)".
 const SwVfpRegister fr0  = {  0 };
 const SwVfpRegister fr1  = {  1 };
@@ -257,22 +245,6 @@ const SwVfpRegister fr12 = { 12 };
 const SwVfpRegister fr13 = { 13 };
 const SwVfpRegister fr14 = { 14 };
 const SwVfpRegister fr15 = { 15 };
-const SwVfpRegister fr16 = { 16 };
-const SwVfpRegister fr17 = { 17 };
-const SwVfpRegister fr18 = { 18 };
-const SwVfpRegister fr19 = { 19 };
-const SwVfpRegister fr20 = { 20 };
-const SwVfpRegister fr21 = { 21 };
-const SwVfpRegister fr22 = { 22 };
-const SwVfpRegister fr23 = { 23 };
-const SwVfpRegister fr24 = { 24 };
-const SwVfpRegister fr25 = { 25 };
-const SwVfpRegister fr26 = { 26 };
-const SwVfpRegister fr27 = { 27 };
-const SwVfpRegister fr28 = { 28 };
-const SwVfpRegister fr29 = { 29 };
-const SwVfpRegister fr30 = { 30 };
-const SwVfpRegister fr31 = { 31 };
 
 const DwVfpRegister no_dreg = { -1 };
 const DwVfpRegister dr0  = {  0 };
@@ -284,14 +256,6 @@ const DwVfpRegister dr5  = {  5 };
 const DwVfpRegister dr6  = {  6 };
 const DwVfpRegister dr7  = {  7 };
 const DwVfpRegister dr8  = {  8 };
-const DwVfpRegister dr9  = {  9 };
-const DwVfpRegister dr10 = { 10 };
-const DwVfpRegister dr11 = { 11 };
-const DwVfpRegister dr12 = { 12 };
-const DwVfpRegister dr13 = { 13 };
-const DwVfpRegister dr14 = { 14 };
-const DwVfpRegister dr15 = { 15 };
-
 
 enum Condition {
   // any value < 0 is considered no_condition
