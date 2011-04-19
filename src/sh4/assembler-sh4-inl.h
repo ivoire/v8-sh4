@@ -286,18 +286,18 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
 
 Operand::Operand(int32_t immediate) {
-  UNIMPLEMENTED();
+  rx_ = no_reg;
+  imm32_ = immediate;
+  rmode_ = RelocInfo::NONE;
 }
 
 
 Operand::Operand(Register reg) {
-  UNIMPLEMENTED();
+  rx_ = reg;
+  imm32_ = 0;
+  rmode_ = RelocInfo::NONE;
 }
 
-
-Operand::Operand(int32_t disp, RelocInfo::Mode rmode) {
-  UNIMPLEMENTED();
-}
 
 } }  // namespace v8::internal
 

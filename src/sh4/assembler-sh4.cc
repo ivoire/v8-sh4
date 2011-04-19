@@ -317,6 +317,20 @@ void Assembler::pop(Register dst) {
 }
 
 
+void Assembler::popm(RegList dst) {
+  for(int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
+    if((dst & (1 << i)) != 0) {
+      pop(Register::from_code(i));
+    }
+  }
+}
+
+
+void Assembler::popPR() {
+  ldsl_incRx_PR(r15);
+}
+
+
 void Assembler::push(Register src) {
   movl_decRx(Register(r15), src);
 }
@@ -328,6 +342,11 @@ void Assembler::pushm(RegList src) {
       push(Register::from_code(i));
     }
   }
+}
+
+
+void Assembler::pushPR() {
+  stsl_PR_decRx(r15);
 }
 
 
