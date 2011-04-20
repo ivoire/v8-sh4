@@ -238,8 +238,20 @@ void Assembler::add(Register Rx, const Immediate& imm) {
 }
 
 
-void Assembler::bind(Label* L) {
+void Assembler::add(Register Rx, Register Ry, const Immediate& imm) {
+  mov(Ry, Rx);
+  add(Rx, imm);
+}
+
+
+void Assembler::bind_to(Label* L, int pos) {
   UNIMPLEMENTED();
+}
+
+
+void Assembler::bind(Label* L) {
+  ASSERT(!L->is_bound());  // label can only be bound once
+  bind_to(L, pc_offset());
 }
 
 
@@ -261,9 +273,25 @@ void Assembler::dd(uint32_t data) {
   pc_ += sizeof(uint32_t);
 }
 
+const int kEndOfChain = -4;
 
 void Assembler::jmp(Label* L) {
-  UNIMPLEMENTED();
+  int target_pos;
+  if(L->is_bound()) {
+    target_pos = L->pos();
+  }
+  else {
+    if(L->is_linked()) {
+      target_pos = L->pos();
+    }
+    else {
+      target_pos = kEndOfChain;
+    }
+    L->link_to(pc_offset());
+  }
+
+  // FIXME(STM): do weneed to align something there ?
+  jmp(target_pos);
 }
 
 
@@ -272,9 +300,14 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
   intptr_t dst = reinterpret_cast<intptr_t>(code.location()) - reinterpret_cast<intptr_t>(pc_);
 
+  jmp(dst);
+}
+
+
+void Assembler::jmp(int offset) {
   // Do a short jump if possible
-  if(dst >= -4096 && dst <= 4094) {
-    bra(dst);
+  if(offset >= -4096 && offset <= 4094) {
+    bra(offset);
     nop();
   }
   else {
@@ -284,7 +317,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
     nop();
     braf(rtmp);
     nop();
-    *reinterpret_cast<uint32_t*>(pc_) = dst;
+    *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }
 }
@@ -324,6 +357,11 @@ void Assembler::mov(Register Rx, const Operand& src) {
 
 void Assembler::mov(Register Rx, const MemOperand& src) {
   movl_indRy(src.rm_, Rx);
+}
+
+
+void Assembler::mov(const MemOperand& dst, Register Rx) {
+  movl_indRx(Rx, dst.rm_);
 }
 
 

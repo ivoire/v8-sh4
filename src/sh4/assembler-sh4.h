@@ -639,12 +639,17 @@ class Assembler : public AssemblerBase {
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
   void add(Register Rx, const Immediate& imm);
+  void add(Register Rx, Register Ry, const Immediate& imm);
+
   void mov(Register Rx, const Immediate& imm);
   void mov(Register Rx, const Operand& src);
   void mov(Register Rx, const MemOperand& src);
 
+  void mov(const MemOperand& dst, Register Rx);
+
   void jmp(Label* L);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
+  void jmp(int offset);
 
   // Align the code
   void align() { while((uint32_t)pc_ % 4 != 0) nop(); }
@@ -1201,6 +1206,8 @@ class Assembler : public AssemblerBase {
   // Code emission
   inline void CheckBuffer();
   void GrowBuffer();
+
+  void bind_to(Label* L, int pos);
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
