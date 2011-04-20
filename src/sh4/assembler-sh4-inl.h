@@ -240,9 +240,9 @@ void RelocInfo::Visit(Heap* heap) {
 }
 
 
-Immediate::Immediate(int x)  {
+Immediate::Immediate(int x, RelocInfo::Mode rmode)  {
   x_ = x;
-  rmode_ = RelocInfo::NONE;
+  rmode_ = rmode;
 }
 
 
@@ -296,6 +296,18 @@ Operand::Operand(Register reg) {
   rx_ = reg;
   imm32_ = 0;
   rmode_ = RelocInfo::NONE;
+}
+
+
+Operand::Operand(const ExternalReference& f) {
+  rx_ = no_reg;
+  imm32_ = reinterpret_cast<int32_t>(f.address());
+  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
+}
+
+
+MemOperand::MemOperand(Register Rx) {
+  rm_ = Rx;
 }
 
 

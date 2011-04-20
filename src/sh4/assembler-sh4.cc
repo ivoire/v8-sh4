@@ -312,6 +312,21 @@ void Assembler::mov(Register Rx, const Immediate& imm) {
 }
 
 
+void Assembler::mov(Register Rx, const Operand& src) {
+  if(src.rx_.is_valid()) {
+    mov(src.rx_, Rx);
+  }
+  else {
+    mov(Rx, Immediate(src.imm32_, src.rmode_));
+  }
+}
+
+
+void Assembler::mov(Register Rx, const MemOperand& src) {
+  movl_indRy(src.rm_, Rx);
+}
+
+
 void Assembler::pop(Register dst) {
   movl_incRy(Register(r15), dst);
 }

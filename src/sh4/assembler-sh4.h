@@ -344,7 +344,7 @@ inline Hint NegateHint(Hint hint) {
 
 class Immediate BASE_EMBEDDED {
  public:
-  inline explicit Immediate(int x);
+  inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE);
   inline explicit Immediate(const ExternalReference& ext);
   inline explicit Immediate(Handle<Object> handle);
   inline explicit Immediate(Smi* value);
@@ -391,9 +391,7 @@ class Operand BASE_EMBEDDED {
  public:
   INLINE(explicit Operand(Register reg));
   INLINE(explicit Operand(int32_t immediate));
-
-  // Returns true if this Operand is a wrapper for the specified register.
-  bool is_reg(Register reg) const;
+  INLINE(explicit Operand(const ExternalReference& f));
 
  private:
   Register rx_;
@@ -406,9 +404,10 @@ class Operand BASE_EMBEDDED {
 
 class MemOperand BASE_EMBEDDED {
  public:
-   explicit MemOperand() { UNIMPLEMENTED(); };
+   INLINE(explicit MemOperand(Register Rx));
 
  private:
+  Register rm_;
 
   friend class Assembler;
 };
@@ -641,6 +640,9 @@ class Assembler : public AssemblerBase {
   // Wrappers around the code generators
   void add(Register Rx, const Immediate& imm);
   void mov(Register Rx, const Immediate& imm);
+  void mov(Register Rx, const Operand& src);
+  void mov(Register Rx, const MemOperand& src);
+
   void jmp(Label* L);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
