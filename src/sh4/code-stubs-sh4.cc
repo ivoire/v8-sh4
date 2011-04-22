@@ -75,8 +75,134 @@ bool CEntryStub::NeedsImmovableCode() {
 
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  //FIXME(STM): really generate this body
-  __ rts();
+  // r4: code entry
+  // r5: function
+  // r6: receiver
+  // r7: argc
+  // [sp+0]: argv
+
+  Label invoke, exit;
+
+  // Save callee-saved registers
+  __ pushm(kCalleeSaved);
+
+  // Get address of argv
+  // r4: code entry
+  // r5: function
+  // r6: receiver
+  // r7: argc
+  __ movl_dispRy(kNumCalleeSaved * kPointerSize, sp, r8); // r8: argv
+
+  // Push the linkage register on the stack
+  __ pushPR();
+
+  // Push a frame with special values setup to mark it as an entry frame.
+  // r4: code entry
+  // r5: function
+  // r6: receiver
+  // r7: argc
+  // r8: argv
+  Isolate* isolate = masm->isolate();
+  __ mov(r0, Immediate(-1));       // Push a bad frame pointer to fail if it is used.
+  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  __ mov(r1, Immediate(Smi::FromInt(marker)));
+  __ mov(r2, Immediate(Smi::FromInt(marker)));
+
+  __ mov(r3, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
+  __ mov(r3, MemOperand(r3));
+
+  __ push(r3);
+  __ push(r2);
+  __ push(r1);
+  __ push(r0);
+
+  // Setup frame pointer for the frame to be pushed.
+  __ add(fp, sp, Immediate(-EntryFrameConstants::kCallerFPOffset));
+
+  // Call a faked try-block that does the invoke.
+  __ jmp(&invoke);
+
+  // Caught exception: Store result (exception) in the pending
+  // exception field in the JSEnv and return a failure sentinel.
+  // Coming in here the fp will be invalid because the PushTryHandler below
+  // sets it to 0 to signal the existence of the JSEntry frame.
+  __ mov(r1, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                       isolate)));
+  __ mov(MemOperand(r1), r0);
+  __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
+  __ jmp(&exit);
+
+  // Invoke: Link this frame into the handler chain.
+#if 0
+  __ bind(&invoke);
+  // Must preserve r0-r4, r5-r7 are available.
+  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
+  // If an exception not caught by another handler occurs, this handler
+  // returns control to the code after the bl(&invoke) above, which
+  // restores all kCalleeSaved registers (including cp and fp) to their
+  // saved values before returning a failure to C.
+
+  // Clear any pending exceptions.
+  __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
+  __ ldr(r5, MemOperand(ip));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                       isolate)));
+  __ str(r5, MemOperand(ip));
+
+  // Invoke the function by calling through JS entry trampoline builtin.
+  // Notice that we cannot store a reference to the trampoline code directly in
+  // this stub, because runtime stubs are not traversed when doing GC.
+
+  // Expected registers by Builtins::JSEntryTrampoline
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  // r4: argv
+  if (is_construct) {
+    ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
+                                      isolate);
+    __ mov(ip, Operand(construct_entry));
+  } else {
+    ExternalReference entry(Builtins::kJSEntryTrampoline, isolate);
+    __ mov(ip, Operand(entry));
+  }
+  __ ldr(ip, MemOperand(ip));  // deref address
+
+  // Branch and link to JSEntryTrampoline.  We don't use the double underscore
+  // macro for the add instruction because we don't want the coverage tool
+  // inserting instructions here after we read the pc.
+  __ mov(lr, Operand(pc));
+  masm->add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  // Unlink this frame from the handler chain. When reading the
+  // address of the next handler, there is no need to use the address
+  // displacement since the current stack pointer (sp) points directly
+  // to the stack handler.
+  __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
+  __ str(r3, MemOperand(ip));
+  // No need to restore registers
+  __ add(sp, sp, Operand(StackHandlerConstants::kSize));
+
+  __ bind(&exit);  // r0 holds result
+  // Restore the top frame descriptors from the stack.
+  __ pop(r3);
+  __ mov(ip,
+         Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
+  __ str(r3, MemOperand(ip));
+
+#endif
+
+  // Pop the linkage register from the stack
+  __ popPR();
+
+  // Restore callee-saved registers and return.
+  __ popm(kCalleeSaved);
+
+  __ rts(); // FIXME(STM): What to put in r0 ?
+
+  UNIMPLEMENTED();
 }
 
 
