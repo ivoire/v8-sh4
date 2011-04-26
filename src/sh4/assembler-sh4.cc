@@ -412,6 +412,18 @@ void Assembler::push(Register src) {
 }
 
 
+void Assembler::push(const Immediate& imm) {
+  mov(rtmp, imm);
+  push(rtmp);
+}
+
+
+void Assembler::push(const Operand& op) {
+  mov(rtmp, op);
+  push(rtmp);
+}
+
+
 void Assembler::pushm(RegList src) {
   for(uint16_t i = 0; i < Register::kNumRegisters; i++) {
     if((src & (1 << i)) != 0) {

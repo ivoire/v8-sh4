@@ -80,7 +80,24 @@ void MacroAssembler::PopTryHandler() {
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
-  UNIMPLEMENTED();
+  if (try_location == IN_JAVASCRIPT) {
+    UNIMPLEMENTED();
+  }
+  else {
+    ASSERT(try_location == IN_JS_ENTRY);
+    // The frame pointer does not point to a JS frame so we save NULL
+    // for ebp. We expect the code throwing an exception to check ebp
+    // before dereferencing it to restore the context.
+    push(Immediate(StackHandler::ENTRY));
+    push(Immediate(0));
+
+    // Save the current handler as the next handler.
+    push(Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+
+    // Link this handler as the new current one.
+    mov(sp, Operand(ExternalReference(Isolate::k_handler_address,
+                                      isolate())));
+  }
 }
 
 
