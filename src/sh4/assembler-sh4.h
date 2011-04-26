@@ -651,6 +651,16 @@ class Assembler : public AssemblerBase {
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
   void jmp(int offset);
 
+  void push(Register src);
+  void push(const Immediate& imm);     // push an immediate on the stack: use rtmp register for that
+  void push(const Operand& op);        // push an immediate on the stack: use rtmp register for that
+  void pushm(RegList src);
+  void pushPR();
+
+  void pop(Register dst);
+  void popm(RegList dst);
+  void popPR();
+
   // Align the code
   void align() { while((uint32_t)pc_ % 4 != 0) nop(); }
   void misalign() { while((uint32_t)pc_ % 4 != 2) nop(); }
@@ -1165,14 +1175,6 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).
   void Align(int m);
-
-  void push(Register src);
-  void pushm(RegList src);
-  void pushPR();
-
-  void pop(Register dst);
-  void popm(RegList dst);
-  void popPR();
 
   void call(Label* L);
 

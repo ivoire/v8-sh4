@@ -133,66 +133,64 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ jmp(&exit);
 
   // Invoke: Link this frame into the handler chain.
-#if 0
   __ bind(&invoke);
-  // Must preserve r0-r4, r5-r7 are available.
+  // Must preserve r4-r8, r0-r3 are available.
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
   // If an exception not caught by another handler occurs, this handler
-  // returns control to the code after the bl(&invoke) above, which
+  // returns control to the code after the jmp(&invoke) above, which
   // restores all kCalleeSaved registers (including cp and fp) to their
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
-  __ ldr(r5, MemOperand(ip));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(r1, Operand(ExternalReference::the_hole_value_location(isolate)));
+  __ mov(r2, MemOperand(r1));
+  __ mov(r1, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                        isolate)));
-  __ str(r5, MemOperand(ip));
+  __ mov(MemOperand(r1), r2);
 
   // Invoke the function by calling through JS entry trampoline builtin.
   // Notice that we cannot store a reference to the trampoline code directly in
   // this stub, because runtime stubs are not traversed when doing GC.
 
   // Expected registers by Builtins::JSEntryTrampoline
-  // r0: code entry
-  // r1: function
-  // r2: receiver
-  // r3: argc
-  // r4: argv
+  // r4: code entry
+  // r5: function
+  // r6: receiver
+  // r7: argc
+  // r8: argv
   if (is_construct) {
     ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
                                       isolate);
-    __ mov(ip, Operand(construct_entry));
+    __ mov(r1, Operand(construct_entry));
   } else {
     ExternalReference entry(Builtins::kJSEntryTrampoline, isolate);
-    __ mov(ip, Operand(entry));
+    __ mov(r1, Operand(entry));
   }
-  __ ldr(ip, MemOperand(ip));  // deref address
+  __ mov(r1, MemOperand(r1));  // deref address
 
-  // Branch and link to JSEntryTrampoline.  We don't use the double underscore
-  // macro for the add instruction because we don't want the coverage tool
-  // inserting instructions here after we read the pc.
-  __ mov(lr, Operand(pc));
-  masm->add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  // JSEntryTrampoline
+  __ add(r1, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ jsr_indRx(r3);
 
   // Unlink this frame from the handler chain. When reading the
   // address of the next handler, there is no need to use the address
   // displacement since the current stack pointer (sp) points directly
   // to the stack handler.
-  __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ mov(ip, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
-  __ str(r3, MemOperand(ip));
+  __ mov(r3, sp);       // __ mov(r1, MemOperand(sp, StackHandlerConstants::kNextOffset));
+  __ add(r3, Immediate(StackHandlerConstants::kNextOffset));
+  __ mov(r3, MemOperand(r3));
+
+  __ mov(r2, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
+  __ mov(MemOperand(r2), r1);
   // No need to restore registers
-  __ add(sp, sp, Operand(StackHandlerConstants::kSize));
+  __ add(sp, Immediate(StackHandlerConstants::kSize));
 
   __ bind(&exit);  // r0 holds result
   // Restore the top frame descriptors from the stack.
-  __ pop(r3);
-  __ mov(ip,
+  __ pop(r1);
+  __ mov(r2,
          Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
-  __ str(r3, MemOperand(ip));
-
-#endif
+  __ mov(MemOperand(r2), r1);
 
   // Pop the linkage register from the stack
   __ popPR();
@@ -201,8 +199,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ popm(kCalleeSaved);
 
   __ rts(); // FIXME(STM): What to put in r0 ?
-
-  UNIMPLEMENTED();
 }
 
 
