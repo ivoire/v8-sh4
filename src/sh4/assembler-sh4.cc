@@ -244,17 +244,6 @@ void Assembler::add(Register Rx, Register Ry, const Immediate& imm) {
 }
 
 
-void Assembler::bind_to(Label* L, int pos) {
-  UNIMPLEMENTED();
-}
-
-
-void Assembler::bind(Label* L) {
-  ASSERT(!L->is_bound());  // label can only be bound once
-  bind_to(L, pc_offset());
-}
-
-
 void Assembler::call(Label* L) {
   UNIMPLEMENTED();
 }
@@ -273,25 +262,59 @@ void Assembler::dd(uint32_t data) {
   pc_ += sizeof(uint32_t);
 }
 
-const int kEndOfChain = -4;
+
+const int kEndOfChain = 0;
+
+void Assembler::bind_to(Label* L, int pos) {
+  while(L->is_linked()) {
+    // Compute the current position
+    uint16_t* p_pos = (uint16_t*)(L->pos());
+    // Compute the next before the patch
+    next(L);
+    // Patch
+    *reinterpret_cast<uint32_t*>(p_pos) = pos;
+  }
+  L->bind_to(pos);
+
+  // Keep track of the last bound label so we don't eliminate any instructions
+  // before a bound label.
+  if (pos > last_bound_pos_)
+    last_bound_pos_ = pos;
+}
+
+
+void Assembler::bind(Label* L) {
+  ASSERT(!L->is_bound());  // label can only be bound once
+  bind_to(L, pc_offset());
+}
+
+
+void Assembler::next(Label* L) {
+  ASSERT(L->is_linked());
+  int link = *reinterpret_cast<uint32_t*>(L->pos());
+  if (link > 0) {
+    L->link_to(link);
+  } else {
+    ASSERT(link == kEndOfChain);
+    L->Unuse();
+  }
+}
+
 
 void Assembler::jmp(Label* L) {
-  int target_pos;
   if(L->is_bound()) {
-    target_pos = L->pos();
+    jmp(L->pos());
   }
   else {
     if(L->is_linked()) {
-      target_pos = L->pos();
+      jmp(L->pos());
     }
     else {
-      target_pos = kEndOfChain;
+      jmp(kEndOfChain);           // Patched later on
     }
-    L->link_to(pc_offset());
+    int pos = (int)((uint16_t*)pc_ - 2);
+    L->link_to(pos);  // Link to the constant
   }
-
-  // FIXME(STM): do weneed to align something there ?
-  jmp(target_pos);
 }
 
 
@@ -306,7 +329,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
 
 void Assembler::jmp(int offset) {
   // Do a short jump if possible
-  if(offset >= -4096 && offset <= 4094) {
+  if(offset >= -4096 && offset <= 4094 && offset != 0) {
     bra(offset);
     nop();
   }

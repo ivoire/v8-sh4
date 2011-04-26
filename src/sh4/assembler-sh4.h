@@ -1176,7 +1176,7 @@ class Assembler : public AssemblerBase {
 
   void call(Label* L);
 
-  void emit(Instr x) { /*FIXME(STM): check for the constant pool */ *pc_++ = x; }
+  void emit(Instr x) { *reinterpret_cast<uint16_t*>(pc_) = x; pc_ += sizeof(uint16_t); }
 
 
   // Mark address of the ExitJSFrame code.
@@ -1203,11 +1203,19 @@ class Assembler : public AssemblerBase {
 
 
  private:
+  // The bound position, before this we cannot do instruction elimination.
+  int last_bound_pos_;
+
   // Code emission
   inline void CheckBuffer();
   void GrowBuffer();
 
   void bind_to(Label* L, int pos);
+  void next(Label *L);
+
+  // Get and setter for instructions
+  Instr instr_at(int pos) { return *reinterpret_cast<Instr*>((uint16_t*)buffer_ + pos); }
+  void instr_at_put(int pos, Instr instr) { *reinterpret_cast<Instr*>((uint16_t*)buffer_ + pos) = instr; }
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
