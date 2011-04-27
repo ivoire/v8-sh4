@@ -631,8 +631,8 @@ class MacroAssembler: public Assembler {
                       PostCallGenerator* post_call_generator = NULL);
 
   // Activation support.
-  void EnterFrame(StackFrame::Type type);
-  void LeaveFrame(StackFrame::Type type);
+  void EnterFrame(StackFrame::Type type) {}
+  void LeaveFrame(StackFrame::Type type) {}
 
   void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
