@@ -47,9 +47,16 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
 }
 
 
-bool BreakLocationIterator::IsDebugBreakAtReturn() {
+// A debug break in the frame exit code is identified by the JS frame exit code
+// having been patched with a call instruction.
+bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
   UNIMPLEMENTED();
   return false;
+}
+
+
+bool BreakLocationIterator::IsDebugBreakAtReturn() {
+  return Debug::IsDebugBreakAtReturn(rinfo());
 }
 
 
