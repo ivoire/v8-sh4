@@ -173,8 +173,8 @@ DEFINE_bool(enable_fpu, true,
             "enable use of MIPS FPU instructions if available (MIPS only)")
 
 // bootstrapper.cc
-DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
-DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
+DEFINE_string(expose_natives_as, "", "expose natives in global object")
+DEFINE_string(expose_debug_as, "", "expose debug in global object")
 DEFINE_bool(expose_gc, false, "expose gc extension")
 DEFINE_bool(expose_externalize_string, false,
             "expose externalize string extension")
@@ -274,7 +274,7 @@ DEFINE_bool(use_ic, true, "use inline caching")
 
 #ifdef LIVE_OBJECT_LIST
 // liveobjectlist.cc
-DEFINE_string(lol_workdir, NULL, "path for lol temp files")
+DEFINE_string(lol_workdir, "", "path for lol temp files")
 DEFINE_bool(verify_lol, false, "perform debugging verification for lol")
 #endif
 
