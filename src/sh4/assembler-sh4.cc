@@ -257,6 +257,34 @@ void Assembler::add(Register Rx, Register Ry, Register Rz) {
 }
 
 
+void Assembler::lsl(Register Rx, Register Ry, const Immediate& imm) {
+  if (Ry.code() != Rx.code())
+    mov(Ry, Rx);
+  if (imm.x_ == 1) {
+    shll(Rx);
+  } else if (imm.x_ == 2) {
+    shll2(Rx);
+  } else {
+    mov(rtmp, imm);
+    shld(rtmp, Rx);
+  }
+}
+
+
+void Assembler::lsr(Register Rx, Register Ry, const Immediate& imm) {
+  if (Ry.code() != Rx.code())
+    mov(Ry, Rx);
+  if (imm.x_ == 1) {
+    shlr(Rx);
+  } else if (imm.x_ == 2) {
+    shlr2(Rx);
+  } else {
+    mov(rtmp, Immediate(32 - imm.x_));
+    shld(rtmp, Rx);
+  }
+}
+
+
 void Assembler::call(Label* L) {
   UNIMPLEMENTED();
 }
