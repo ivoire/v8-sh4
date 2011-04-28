@@ -641,6 +641,7 @@ class Assembler : public AssemblerBase {
   // Wrappers around the code generators
   void add(Register Rx, const Immediate& imm);
   void add(Register Rx, Register Ry, const Immediate& imm);
+  void add(Register Rx, Register Ry, Register Rz);
 
   void mov(Register Rx, const Immediate& imm);
   void mov(Register Rx, const Operand& src);
