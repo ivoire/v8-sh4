@@ -91,7 +91,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r5: function
   // r6: receiver
   // r7: argc
-  __ movl_dispRy(kNumCalleeSaved * kPointerSize, sp, r8); // r8: argv
+  __ mov(r8, MemOperand(sp, kNumCalleeSaved * kPointerSize)); // r8: argv
 
   // Push the linkage register on the stack
   __ pushPR();
@@ -170,7 +170,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // JSEntryTrampoline
   __ add(r1, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jsr_indRx(r3);
+  __ jsr(r3);
 
   // Unlink this frame from the handler chain. When reading the
   // address of the next handler, there is no need to use the address
