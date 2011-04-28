@@ -245,6 +245,18 @@ void Assembler::add(Register Rx, Register Ry, const Immediate& imm) {
 }
 
 
+void Assembler::add(Register Rx, Register Ry, Register Rz) {
+  if (Ry.code() == Rx.code())
+    add(Rz, Rx);
+  else if (Rz.code() == Rx.code())
+    add(Ry, Rx);
+  else {
+    mov(Ry, Rx);
+    add(Rz, Rx);
+  }
+}
+
+
 void Assembler::call(Label* L) {
   UNIMPLEMENTED();
 }
