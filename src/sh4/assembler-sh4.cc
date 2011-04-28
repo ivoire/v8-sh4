@@ -48,7 +48,7 @@ void CpuFeatures::Probe() {
 #ifdef DEBUG
   initialized_ = true;
 #endif
-  //FIXME(STM): define the right features to accept or not
+  // FIXME(STM): define the right features to accept or not
   if (Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
@@ -70,7 +70,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
       positions_recorder_(this),
       emit_debug_code_(FLAG_debug_code) {
-  //FIXME(STM): finish this class
+  // FIXME(STM): finish this class
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -101,13 +101,12 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   ASSERT(buffer_ != NULL);
   pc_ = buffer_;
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
-
 }
 
 
 void Assembler::GetCode(CodeDesc* desc) {
   // Emit the constant pool if needed
-  //FIXME(STM)
+  // FIXME(STM)
 
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -194,7 +193,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
            || RelocInfo::IsPosition(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
-//FIXME(STM): implement the constant pool !
+// FIXME(STM): implement the constant pool !
 //  ASSERT(num_prinfo_ < kMaxNumPRInfo);
 //  prinfo_[num_prinfo_++] = rinfo;
 //  // Make sure the constant pool is not emitted in place of the next
@@ -204,12 +203,12 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (rinfo.rmode() != RelocInfo::NONE) {
     // Don't record external references unless the heap will be serialized.
     if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-//FIXME(STM): do something with this ?
-//#ifdef DEBUG
+// FIXME(STM): do something with this ?
+// #ifdef DEBUG
 //      if (!Serializer::enabled()) {
 //        Serializer::TooLateToEnableNow();
 //      }
-//#endif
+// #endif
       if (!Serializer::enabled() && !emit_debug_code()) {
         return;
       }
@@ -217,15 +216,13 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     reloc_info_writer.Write(&rinfo);
   }
-
 }
 
 
 void Assembler::add(Register Rx, const Immediate& imm) {
-  if(imm.is_int8()) {
+  if (imm.is_int8()) {
     add_imm_(imm.x_, Rx);
-  }
-  else {
+  } else {
     // Use a super scratch register (r3) and a tiny constant pool
     align();
     movl_dispPC_(4, rtmp);
@@ -248,9 +245,9 @@ void Assembler::add(Register Rx, Register Ry, const Immediate& imm) {
 void Assembler::add(Register Rx, Register Ry, Register Rz) {
   if (Ry.code() == Rx.code())
     add_(Rz, Rx);
-  else if (Rz.code() == Rx.code())
+  else if (Rz.code() == Rx.code()) {
     add_(Ry, Rx);
-  else {
+  } else {
     mov_(Ry, Rx);
     add_(Rz, Rx);
   }
@@ -265,12 +262,10 @@ void Assembler::sub(Register Rx, Register Ry, const Immediate& imm) {
 void Assembler::sub(Register Rx, Register Ry, Register Rz) {
   if (Ry.code() == Rx.code()) {
     sub_(Rz, Rx);
-  }
-  else if (Rz.code() == Rx.code()) {
+  } else if (Rz.code() == Rx.code()) {
     neg_(Rz, Rx);
     add_(Ry, Rx);
-  }
-  else {
+  } else {
     mov_(Ry, Rx);
     sub_(Rz, Rx);
   }
@@ -327,9 +322,9 @@ void Assembler::dd(uint32_t data) {
 const int kEndOfChain = 0;
 
 void Assembler::bind_to(Label* L, int pos) {
-  while(L->is_linked()) {
+  while (L->is_linked()) {
     // Compute the current position
-    uint16_t* p_pos = (uint16_t*)(L->pos());
+    uint16_t* p_pos = reinterpret_cast<uint16_t*>(L->pos());
     // Compute the next before the patch
     next(L);
     // Patch
@@ -363,17 +358,14 @@ void Assembler::next(Label* L) {
 
 
 void Assembler::jmp(Label* L) {
-  if(L->is_bound()) {
+  if (L->is_bound()) {
     jmp(L->pos());
-  }
-  else {
-    if(L->is_linked()) {
+  } else {
+    if (L->is_linked())
       jmp(L->pos());
-    }
-    else {
+    else
       jmp(kEndOfChain);           // Patched later on
-    }
-    int pos = (int)((uint16_t*)pc_ - 2);
+    int pos = reinterpret_cast<int>(reinterpret_cast<uint16_t*>(pc_) - 2);
     L->link_to(pos);  // Link to the constant
   }
 }
@@ -382,7 +374,8 @@ void Assembler::jmp(Label* L) {
 void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
-  intptr_t dst = reinterpret_cast<intptr_t>(code.location()) - reinterpret_cast<intptr_t>(pc_);
+  intptr_t dst = reinterpret_cast<intptr_t>(code.location()) -
+                 reinterpret_cast<intptr_t>(pc_);
 
   jmp(dst);
 }
@@ -390,11 +383,10 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
 
 void Assembler::jmp(int offset) {
   // Do a short jump if possible
-  if(offset >= -4096 && offset <= 4094 && offset != 0) {
+  if (offset >= -4096 && offset <= 4094 && offset != 0) {
     bra_(offset);
     nop_();
-  }
-  else {
+  } else {
     // Use a super scratch register (r3) and a tiny constant pool
     align();
     movl_dispPC_(4, rtmp);
@@ -408,15 +400,16 @@ void Assembler::jmp(int offset) {
 
 
 void Assembler::mov(Register Rx, const Immediate& imm) {
-  ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE); // FIXME(STM): Internal ref not handled
+  // FIXME(STM): Internal ref not handled
+  ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE);
 
-  if(imm.rmode_ != RelocInfo::NONE) RecordRelocInfo(imm.rmode_); //FIXME(STM) needed ?
+  // FIXME(STM) needed ?
+  if (imm.rmode_ != RelocInfo::NONE) RecordRelocInfo(imm.rmode_);
 
   // Move based on immediates can only be 8 bits long
-  if(imm.is_int8()) {
+  if (imm.is_int8()) {
     mov_imm_(imm.x_, Rx);
-  }
-  else {
+  } else {
     // Use a tiny constant pool and jump above
     align();
     movl_dispPC_(4, Rx);
@@ -430,19 +423,17 @@ void Assembler::mov(Register Rx, const Immediate& imm) {
 
 
 void Assembler::mov(Register Rx, const Operand& src) {
-  if(src.rx_.is_valid()) {
+  if (src.rx_.is_valid())
     mov_(src.rx_, Rx);
-  }
-  else {
+  else
     mov(Rx, Immediate(src.imm32_, src.rmode_));
-  }
 }
 
 
 void Assembler::mov(Register Rx, const MemOperand& src) {
-  if (src.offset_ == 0)
+  if (src.offset_ == 0) {
     movl_indRy_(src.rm_, Rx);
-  else {
+  } else {
     // TODO: this macro is defined later in the code gen functions.
     // TODO: include the code gen functions before as a separate file.
 #define FITS_SH4_movl_dispRy_bis(imm) ((imm) >= 0 && (imm) <= 60 && ((imm) & 0x3) == 0)
@@ -456,9 +447,9 @@ void Assembler::mov(Register Rx, const MemOperand& src) {
 }
 
 void Assembler::mov(const MemOperand& dst, Register Rx) {
-  if (dst.offset_ == 0)
+  if (dst.offset_ == 0) {
     movl_indRx_(Rx, dst.rm_);
-  else {
+  } else {
     // TODO: this macro is defined later in the code gen functions.
     // TODO: include the code gen functions before as a separate file.
 #define FITS_SH4_movl_dispRx_bis(imm) ((imm) >= 0 && (imm) <= 60 && ((imm) & 0x3) == 0)
@@ -478,8 +469,8 @@ void Assembler::pop(Register dst) {
 
 
 void Assembler::popm(RegList dst) {
-  for(int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
-    if((dst & (1 << i)) != 0) {
+  for (int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
+    if ((dst & (1 << i)) != 0) {
       pop(Register::from_code(i));
     }
   }
@@ -509,8 +500,8 @@ void Assembler::push(const Operand& op) {
 
 
 void Assembler::pushm(RegList src) {
-  for(uint16_t i = 0; i < Register::kNumRegisters; i++) {
-    if((src & (1 << i)) != 0) {
+  for (uint16_t i = 0; i < Register::kNumRegisters; i++) {
+    if ((src & (1 << i)) != 0) {
       push(Register::from_code(i));
     }
   }
@@ -542,7 +533,7 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 
-inline void asm_output(const char *str, int a=0 , int b=0, int c=0) {}
+inline void asm_output(const char *str, int a = 0 , int b = 0, int c = 0) {}
 #define REGNUM(reg) (reg).code()
 
 #define SH4_CHECK_RANGE_add_imm(imm) ((imm) >= -128 && (imm) <= 127)

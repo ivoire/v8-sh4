@@ -285,7 +285,7 @@ enum Condition {
 // no_condition value (-2). As long as tests for no_condition check
 // for condition < 0, this will work as expected.
 inline Condition NegateCondition(Condition cc) {
-  switch(cc) {
+  switch (cc) {
     case eq:
       return ne;
     case ne:
@@ -665,8 +665,9 @@ class Assembler : public AssemblerBase {
   void jsr(Register Rx) { jsr_indRx_(Rx); }
 
   void push(Register src);
-  void push(const Immediate& imm);     // push an immediate on the stack: use rtmp register for that
-  void push(const Operand& op);        // push an immediate on the stack: use rtmp register for that
+  // push an immediate on the stack: use rtmp register for that
+  void push(const Immediate& imm);
+  void push(const Operand& op);
   void pushm(RegList src);
   void pushPR();
 
@@ -677,8 +678,8 @@ class Assembler : public AssemblerBase {
   void rts() { rts_(); }
 
   // Align the code
-  void align() { while((uint32_t)pc_ % 4 != 0) nop_(); }
-  void misalign() { while((uint32_t)pc_ % 4 != 2) nop_(); }
+  void align() { while ((uint32_t)pc_ % 4 != 0) nop_(); }
+  void misalign() { while ((uint32_t)pc_ % 4 != 2) nop_(); }
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple

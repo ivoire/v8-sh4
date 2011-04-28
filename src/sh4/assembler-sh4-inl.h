@@ -44,10 +44,10 @@ namespace v8 {
 namespace internal {
 
 void Assembler::CheckBuffer() {
-  if(buffer_space() <= kGap) {
+  if (buffer_space() <= kGap) {
     GrowBuffer();
   }
-  //FIXME(STM): check if we must emit the constant pool
+  // FIXME(STM): check if we must emit the constant pool
 }
 
 

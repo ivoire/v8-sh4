@@ -67,7 +67,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 
 
 void MacroAssembler::Move(Register dst, Register src) {
-  if(!dst.is(src)) {
+  if (!dst.is(src)) {
     mov(src, dst);
   }
 }
@@ -82,8 +82,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
   if (try_location == IN_JAVASCRIPT) {
     UNIMPLEMENTED();
-  }
-  else {
+  } else {
     ASSERT(try_location == IN_JS_ENTRY);
     // The frame pointer does not point to a JS frame so we save NULL
     // for ebp. We expect the code throwing an exception to check ebp

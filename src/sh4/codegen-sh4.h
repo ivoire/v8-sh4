@@ -78,7 +78,7 @@ class CodeGenerator: public AstVisitor {
     UNIMPLEMENTED();
   }
 
-private:
+  private:
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };
 
