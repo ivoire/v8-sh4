@@ -38,6 +38,15 @@ namespace internal {
 class CallWrapper;
 class PostCallGenerator;
 
+// ----------------------------------------------------------------------------
+// Static helper functions
+
+// Generate a MemOperand for loading a field from an object.
+static inline MemOperand FieldMemOperand(Register object, int offset) {
+  return MemOperand(object, offset - kHeapObjectTag);
+}
+
+
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
   // No special flags.
