@@ -379,12 +379,35 @@ void Assembler::mov(Register Rx, const Operand& src) {
 
 
 void Assembler::mov(Register Rx, const MemOperand& src) {
-  movl_indRy(src.rm_, Rx);
+  if (src.offset_ == 0)
+    movl_indRy(src.rm_, Rx);
+  else {
+    // TODO: this macro is defined later in the code gen functions.
+    // TODO: include the code gen functions before as a separate file.
+#define FITS_SH4_movl_dispRy_bis(imm) ((imm) >= 0 && (imm) <= 60 && ((imm) & 0x3) == 0)
+    if (FITS_SH4_movl_dispRy_bis(src.offset_)) {
+      movl_dispRy(src.offset_, src.rm_, Rx);
+    } else {
+      add(rtmp, src.rm_, Immediate(src.offset_));
+      movl_indRy(rtmp, Rx);
+    }
+  }
 }
 
-
 void Assembler::mov(const MemOperand& dst, Register Rx) {
-  movl_indRx(Rx, dst.rm_);
+  if (dst.offset_ == 0)
+    movl_indRx(Rx, dst.rm_);
+  else {
+    // TODO: this macro is defined later in the code gen functions.
+    // TODO: include the code gen functions before as a separate file.
+#define FITS_SH4_movl_dispRx_bis(imm) ((imm) >= 0 && (imm) <= 60 && ((imm) & 0x3) == 0)
+    if (FITS_SH4_movl_dispRx_bis(dst.offset_)) {
+      movl_dispRx(Rx, dst.offset_, dst.rm_);
+    } else {
+      add(rtmp, dst.rm_, Immediate(dst.offset_));
+      movl_indRx(Rx, rtmp);
+    }
+  }
 }
 
 
