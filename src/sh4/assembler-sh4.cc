@@ -239,7 +239,8 @@ void Assembler::add(Register Rx, const Immediate& imm) {
 
 
 void Assembler::add(Register Rx, Register Ry, const Immediate& imm) {
-  mov(Ry, Rx);
+  if (Ry.code() != Rx.code())
+    mov(Ry, Rx);
   add(Rx, imm);
 }
 
