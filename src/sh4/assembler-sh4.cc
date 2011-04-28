@@ -257,6 +257,26 @@ void Assembler::add(Register Rx, Register Ry, Register Rz) {
 }
 
 
+void Assembler::sub(Register Rx, Register Ry, const Immediate& imm) {
+  add(Rx, Ry, Immediate(-imm.x_));
+}
+
+
+void Assembler::sub(Register Rx, Register Ry, Register Rz) {
+  if (Ry.code() == Rx.code()) {
+    sub(Rz, Rx);
+  }
+  else if (Rz.code() == Rx.code()) {
+    neg(Rz, Rx);
+    add(Ry, Rx);
+  }
+  else {
+    mov(Ry, Rx);
+    sub(Rz, Rx);
+  }
+}
+
+
 void Assembler::lsl(Register Rx, Register Ry, const Immediate& imm) {
   if (Ry.code() != Rx.code())
     mov(Ry, Rx);
