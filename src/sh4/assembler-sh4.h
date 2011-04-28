@@ -643,6 +643,9 @@ class Assembler : public AssemblerBase {
   void add(Register Rx, Register Ry, const Immediate& imm);
   void add(Register Rx, Register Ry, Register Rz);
 
+  void lsl(Register Rx, Register Ry, const Immediate& imm);
+  void lsr(Register Rx, Register Ry, const Immediate& imm);
+
   void mov(Register Rx, const Immediate& imm);
   void mov(Register Rx, const Operand& src);
   void mov(Register Rx, const MemOperand& src);
