@@ -306,8 +306,9 @@ Operand::Operand(const ExternalReference& f) {
 }
 
 
-MemOperand::MemOperand(Register Rx) {
+MemOperand::MemOperand(Register Rx, int32_t offset) {
   rm_ = Rx;
+  offset_ = offset;
 }
 
 

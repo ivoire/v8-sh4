@@ -404,10 +404,11 @@ class Operand BASE_EMBEDDED {
 
 class MemOperand BASE_EMBEDDED {
  public:
-   INLINE(explicit MemOperand(Register Rx));
+  INLINE(explicit MemOperand(Register Rx, int32_t offset = 0));
 
  private:
   Register rm_;
+  int32_t offset_;
 
   friend class Assembler;
 };
