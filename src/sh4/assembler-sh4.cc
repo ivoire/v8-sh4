@@ -508,8 +508,26 @@ void Assembler::pushPR() {
   stsl_PR_decRx_(r15);
 }
 
+//#define SH4_DUMP_BUFFER
+
+#ifdef SH4_DUMP_BUFFER
+static int buffer_count = 0;
+#endif
 
 Assembler::~Assembler() {
+#ifdef SH4_DUMP_BUFFER
+  // dump the buffer on the disk
+  printf("dumping a buffer %i\n", buffer_count++);
+  char *psz_filename;
+  asprintf(&psz_filename, "buffer-%d.st40", buffer_count);
+  FILE *dump = fopen(psz_filename, "w");
+  if (dump) {
+    fwrite(buffer_, buffer_size_, 1, dump);
+    fclose(dump);
+  }
+  free(psz_filename);
+#endif
+
   if (own_buffer_) {
     if (isolate()->assembler_spare_buffer() == NULL &&
         buffer_size_ == kMinimalBufferSize) {
