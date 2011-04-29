@@ -226,7 +226,6 @@ void Assembler::add(Register Rx, const Immediate& imm) {
     add_imm_(imm.x_, Rx);
   } else {
     // Use a super scratch register (r3) and a tiny constant pool
-    align();
     movl_dispPC_(4, rtmp);
     nop_();
     bra_(4);
@@ -359,16 +358,16 @@ void Assembler::next(Label* L) {
 }
 
 
-void Assembler::jmp(Label* L) {
+void Assembler::branch(Label* L, branch_type type) {
   if (L->is_bound()) {
     ASSERT(L->pos() != kEndOfChain);
-    jmp(L->pos());
+    branch(L->pos(), type);
   } else {
     if (L->is_linked()) {
       ASSERT(L->pos() != kEndOfChain);
-      jmp(L->pos());
+      branch(L->pos(), type);
     } else {
-      jmp(kEndOfChain);           // Patched later on
+      branch(kEndOfChain, type);   // Patched later on
     }
     int pos = reinterpret_cast<int>(reinterpret_cast<uint16_t*>(pc_) - 2);
     L->link_to(pos);  // Link to the constant
@@ -386,14 +385,47 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
 }
 
 
+void Assembler::branch(int offset, branch_type type) {
+  switch(type) {
+  case branch_true:
+    bt(offset); break;
+  case branch_false:
+    bf(offset); break;
+  case branch_unconditional:
+    jmp(offset); break;
+  }
+}
+
+
+void Assembler::bt(int offset) {
+  if(FITS_SH4_bt(offset) && offset != kEndOfChain) {
+    bt_(offset);
+    nop_();
+  } else {
+    bf_(8);
+    nop_();
+    movl_dispPC_(4, rtmp);
+    nop_();
+    braf_(rtmp);
+    nop_();
+    *reinterpret_cast<uint32_t*>(pc_) = offset;
+    pc_ += sizeof(uint32_t);
+  }
+}
+
+
+void Assembler::bf(int offset) {
+  UNIMPLEMENTED();
+}
+
+
 void Assembler::jmp(int offset) {
   // Do a short jump if possible
-  if (offset >= -4096 && offset <= 4094 && offset != 0) {
+  if (FITS_SH4_bra(offset) && offset != kEndOfChain) {
     bra_(offset);
     nop_();
   } else {
     // Use a super scratch register (r3) and a tiny constant pool
-    align();
     movl_dispPC_(4, rtmp);
     nop_();
     braf_(rtmp);
@@ -416,7 +448,6 @@ void Assembler::mov(Register Rx, const Immediate& imm) {
     mov_imm_(imm.x_, Rx);
   } else {
     // Use a tiny constant pool and jump above
-    align();
     movl_dispPC_(4, Rx);
     nop_();
     bra_(4);

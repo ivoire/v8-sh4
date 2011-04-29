@@ -635,12 +635,24 @@ class Assembler : public AssemblerBase {
   static const int kDebugBreakSlotLength = kInstrSize; // FIXME(STM)
 
 
+  // branch type
+  enum branch_type {
+    branch_true,
+    branch_false,
+    branch_unconditional
+  };
+
 
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
   void add(Register Rx, const Immediate& imm);
   void add(Register Rx, Register Ry, const Immediate& imm);
   void add(Register Rx, Register Ry, Register Rz);
+
+  void bt(Label* L)             { branch(L, branch_true); }
+  void bf(Label* L)             { branch(L, branch_false); }
+  void jmp(Label* L)            { branch(L, branch_unconditional); }
+  void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
   void sub(Register Rx, Register Ry, const Immediate& imm);
   void sub(Register Rx, Register Ry, Register Rz);
@@ -656,10 +668,6 @@ class Assembler : public AssemblerBase {
   void mov(const MemOperand& dst, Register Rx);
 
   void nop() { nop_(); }
-
-  void jmp(Label* L);
-  void jmp(Handle<Code> code, RelocInfo::Mode rmode);
-  void jmp(int offset);
 
   void jsr(Register Rx) { jsr_indRx_(Rx); }
 
@@ -722,6 +730,13 @@ class Assembler : public AssemblerBase {
 
 
  private:
+  // code generation wrappers
+  void branch(Label* L, branch_type type);
+  void branch(int offset, branch_type type);
+  void bt(int offset);
+  void bf(int offset);
+  void jmp(int offset);
+
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
