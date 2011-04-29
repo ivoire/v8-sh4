@@ -33,6 +33,8 @@
 #include "macro-assembler.h"
 #include "serialize.h"
 
+#include "checks-sh4.h"
+
 namespace v8 {
 namespace internal {
 
@@ -434,10 +436,7 @@ void Assembler::mov(Register Rx, const MemOperand& src) {
   if (src.offset_ == 0) {
     movl_indRy_(src.rm_, Rx);
   } else {
-    // TODO: this macro is defined later in the code gen functions.
-    // TODO: include the code gen functions before as a separate file.
-#define FITS_SH4_movl_dispRy_bis(imm) ((imm) >= 0 && (imm) <= 60 && ((imm) & 0x3) == 0)
-    if (FITS_SH4_movl_dispRy_bis(src.offset_)) {
+    if (FITS_SH4_movl_dispRy(src.offset_)) {
       movl_dispRy_(src.offset_, src.rm_, Rx);
     } else {
       add(rtmp, src.rm_, Immediate(src.offset_));
@@ -450,10 +449,7 @@ void Assembler::mov(const MemOperand& dst, Register Rx) {
   if (dst.offset_ == 0) {
     movl_indRx_(Rx, dst.rm_);
   } else {
-    // TODO: this macro is defined later in the code gen functions.
-    // TODO: include the code gen functions before as a separate file.
-#define FITS_SH4_movl_dispRx_bis(imm) ((imm) >= 0 && (imm) <= 60 && ((imm) & 0x3) == 0)
-    if (FITS_SH4_movl_dispRx_bis(dst.offset_)) {
+    if (FITS_SH4_movl_dispRx(dst.offset_)) {
       movl_dispRx_(Rx, dst.offset_, dst.rm_);
     } else {
       add(rtmp, dst.rm_, Immediate(dst.offset_));
@@ -536,10 +532,6 @@ bool RelocInfo::IsCodedSpecially() {
 inline void asm_output(const char *str, int a = 0 , int b = 0, int c = 0) {}
 #define REGNUM(reg) (reg).code()
 
-#define SH4_CHECK_RANGE_add_imm(imm) ((imm) >= -128 && (imm) <= 127)
-
-#define FITS_SH4_add_imm(imm) (SH4_CHECK_RANGE_add_imm(imm))
-
 void Assembler::add_imm_(int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_add_imm(imm));
   emit((0x7 << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((imm & 0xFF) << 0));
@@ -568,10 +560,6 @@ void Assembler::addv_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_and_imm_R0(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_and_imm_R0(imm) (SH4_CHECK_RANGE_and_imm_R0(imm))
-
 void Assembler::and_imm_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_and_imm_R0(imm));
   emit((0xC << 12) | (0x9 << 8) | ((imm & 0xFF) << 0));
@@ -586,22 +574,12 @@ void Assembler::and_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_andb_imm_dispR0GBR(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_andb_imm_dispR0GBR(imm) (SH4_CHECK_RANGE_andb_imm_dispR0GBR(imm))
-
 void Assembler::andb_imm_dispR0GBR_(int imm) {
   ASSERT(SH4_CHECK_RANGE_andb_imm_dispR0GBR(imm));
   emit((0xC << 12) | (0xD << 8) | ((imm & 0xFF) << 0));
   asm_output("andb_imm_dispR0GBR %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_bra(imm) ((imm) >= -4096 && (imm) <= 4094)
-
-#define SH4_CHECK_ALIGN_bra(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_bra(imm) (SH4_CHECK_RANGE_bra(imm) && SH4_CHECK_ALIGN_bra(imm))
 
 void Assembler::bra_(int imm) {
   ASSERT(SH4_CHECK_RANGE_bra(imm) && SH4_CHECK_ALIGN_bra(imm));
@@ -610,24 +588,12 @@ void Assembler::bra_(int imm) {
 }
 
 
-#define SH4_CHECK_RANGE_bsr(imm) ((imm) >= -4096 && (imm) <= 4094)
-
-#define SH4_CHECK_ALIGN_bsr(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_bsr(imm) (SH4_CHECK_RANGE_bsr(imm) && SH4_CHECK_ALIGN_bsr(imm))
-
 void Assembler::bsr_(int imm) {
   ASSERT(SH4_CHECK_RANGE_bsr(imm) && SH4_CHECK_ALIGN_bsr(imm));
   emit((0xB << 12) | (((imm & 0x1FFE) >> 1) << 0));
   asm_output("bsr %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_bt(imm) ((imm) >= -256 && (imm) <= 254)
-
-#define SH4_CHECK_ALIGN_bt(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_bt(imm) (SH4_CHECK_RANGE_bt(imm) && SH4_CHECK_ALIGN_bt(imm))
 
 void Assembler::bt_(int imm) {
   ASSERT(SH4_CHECK_RANGE_bt(imm) && SH4_CHECK_ALIGN_bt(imm));
@@ -636,12 +602,6 @@ void Assembler::bt_(int imm) {
 }
 
 
-#define SH4_CHECK_RANGE_bf(imm) ((imm) >= -256 && (imm) <= 254)
-
-#define SH4_CHECK_ALIGN_bf(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_bf(imm) (SH4_CHECK_RANGE_bf(imm) && SH4_CHECK_ALIGN_bf(imm))
-
 void Assembler::bf_(int imm) {
   ASSERT(SH4_CHECK_RANGE_bf(imm) && SH4_CHECK_ALIGN_bf(imm));
   emit((0x8 << 12) | (0xB << 8) | (((imm & 0x1FE) >> 1) << 0));
@@ -649,24 +609,12 @@ void Assembler::bf_(int imm) {
 }
 
 
-#define SH4_CHECK_RANGE_bts(imm) ((imm) >= -256 && (imm) <= 254)
-
-#define SH4_CHECK_ALIGN_bts(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_bts(imm) (SH4_CHECK_RANGE_bts(imm) && SH4_CHECK_ALIGN_bts(imm))
-
 void Assembler::bts_(int imm) {
   ASSERT(SH4_CHECK_RANGE_bts(imm) && SH4_CHECK_ALIGN_bts(imm));
   emit((0x8 << 12) | (0xD << 8) | (((imm & 0x1FE) >> 1) << 0));
   asm_output("bts %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_bfs(imm) ((imm) >= -256 && (imm) <= 254)
-
-#define SH4_CHECK_ALIGN_bfs(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_bfs(imm) (SH4_CHECK_RANGE_bfs(imm) && SH4_CHECK_ALIGN_bfs(imm))
 
 void Assembler::bfs_(int imm) {
   ASSERT(SH4_CHECK_RANGE_bfs(imm) && SH4_CHECK_ALIGN_bfs(imm));
@@ -692,10 +640,6 @@ void Assembler::clrt_() {
   asm_output("clrt");
 }
 
-
-#define SH4_CHECK_RANGE_cmpeq_imm_R0(imm) ((imm) >= -128 && (imm) <= 127)
-
-#define FITS_SH4_cmpeq_imm_R0(imm) (SH4_CHECK_RANGE_cmpeq_imm_R0(imm))
 
 void Assembler::cmpeq_imm_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_cmpeq_imm_R0(imm));
@@ -878,10 +822,6 @@ void Assembler::ldc_DBR_(Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_ldc_bank(imm) ((imm) >= 0 && (imm) <= 7)
-
-#define FITS_SH4_ldc_bank(imm) (SH4_CHECK_RANGE_ldc_bank(imm))
-
 void Assembler::ldc_bank_(Register Rx, int imm) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_ldc_bank(imm));
   emit((0x4 << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((imm & 0x7) << 4) | (0xE << 0));
@@ -937,10 +877,6 @@ void Assembler::ldcl_incRx_DBR_(Register Rx) {
   asm_output("ldcl_incRx_DBR R%d", REGNUM(Rx));
 }
 
-
-#define SH4_CHECK_RANGE_ldcl_incRx_bank(imm) ((imm) >= 0 && (imm) <= 7)
-
-#define FITS_SH4_ldcl_incRx_bank(imm) (SH4_CHECK_RANGE_ldcl_incRx_bank(imm))
 
 void Assembler::ldcl_incRx_bank_(Register Rx, int imm) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_ldcl_incRx_bank(imm));
@@ -1032,10 +968,6 @@ void Assembler::macw_incRy_incRx_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_mov_imm(imm) ((imm) >= -128 && (imm) <= 127)
-
-#define FITS_SH4_mov_imm(imm) (SH4_CHECK_RANGE_mov_imm(imm))
-
 void Assembler::mov_imm_(int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_mov_imm(imm));
   emit((0xE << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((imm & 0xFF) << 0));
@@ -1071,20 +1003,12 @@ void Assembler::movb_indRx_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movb_dispRy_R0(imm) ((imm) >= 0 && (imm) <= 15)
-
-#define FITS_SH4_movb_dispRy_R0(imm) (SH4_CHECK_RANGE_movb_dispRy_R0(imm))
-
 void Assembler::movb_dispRy_R0_(int imm, Register Ry) {
   ASSERT(REGNUM(Ry) <= 15 && SH4_CHECK_RANGE_movb_dispRy_R0(imm));
   emit((0x8 << 12) | (0x4 << 8) | ((REGNUM(Ry) & 0xF) << 4) | ((imm & 0xF) << 0));
   asm_output("movb_dispRy_R0 %d, R%d", imm, REGNUM(Ry));
 }
 
-
-#define SH4_CHECK_RANGE_movb_dispGBR_R0(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_movb_dispGBR_R0(imm) (SH4_CHECK_RANGE_movb_dispGBR_R0(imm))
 
 void Assembler::movb_dispGBR_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_movb_dispGBR_R0(imm));
@@ -1114,10 +1038,6 @@ void Assembler::movb_indRy_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movb_R0_dispRx(imm) ((imm) >= 0 && (imm) <= 15)
-
-#define FITS_SH4_movb_R0_dispRx(imm) (SH4_CHECK_RANGE_movb_R0_dispRx(imm))
-
 void Assembler::movb_R0_dispRx_(int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_movb_R0_dispRx(imm));
   emit((0x8 << 12) | (0x0 << 8) | ((REGNUM(Rx) & 0xF) << 4) | ((imm & 0xF) << 0));
@@ -1125,22 +1045,12 @@ void Assembler::movb_R0_dispRx_(int imm, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movb_R0_dispGBR(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_movb_R0_dispGBR(imm) (SH4_CHECK_RANGE_movb_R0_dispGBR(imm))
-
 void Assembler::movb_R0_dispGBR_(int imm) {
   ASSERT(SH4_CHECK_RANGE_movb_R0_dispGBR(imm));
   emit((0xC << 12) | (0x0 << 8) | ((imm & 0xFF) << 0));
   asm_output("movb_R0_dispGBR %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_movl_dispRx(imm) ((imm) >= 0 && (imm) <= 60)
-
-#define SH4_CHECK_ALIGN_movl_dispRx(imm) (((imm) & 0x3) == 0)
-
-#define FITS_SH4_movl_dispRx(imm) (SH4_CHECK_RANGE_movl_dispRx(imm) && SH4_CHECK_ALIGN_movl_dispRx(imm))
 
 void Assembler::movl_dispRx_(Register Ry, int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && REGNUM(Ry) <= 15 && SH4_CHECK_RANGE_movl_dispRx(imm) && SH4_CHECK_ALIGN_movl_dispRx(imm));
@@ -1170,12 +1080,6 @@ void Assembler::movl_indRx_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movl_dispRy(imm) ((imm) >= 0 && (imm) <= 60)
-
-#define SH4_CHECK_ALIGN_movl_dispRy(imm) (((imm) & 0x3) == 0)
-
-#define FITS_SH4_movl_dispRy(imm) (SH4_CHECK_RANGE_movl_dispRy(imm) && SH4_CHECK_ALIGN_movl_dispRy(imm))
-
 void Assembler::movl_dispRy_(int imm, Register Ry, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && REGNUM(Ry) <= 15 && SH4_CHECK_RANGE_movl_dispRy(imm) && SH4_CHECK_ALIGN_movl_dispRy(imm));
   emit((0x5 << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((REGNUM(Ry) & 0xF) << 4) | (((imm & 0x3C) >> 2) << 0));
@@ -1183,24 +1087,12 @@ void Assembler::movl_dispRy_(int imm, Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movl_dispGBR_R0(imm) ((imm) >= 0 && (imm) <= 1020)
-
-#define SH4_CHECK_ALIGN_movl_dispGBR_R0(imm) (((imm) & 0x3) == 0)
-
-#define FITS_SH4_movl_dispGBR_R0(imm) (SH4_CHECK_RANGE_movl_dispGBR_R0(imm) && SH4_CHECK_ALIGN_movl_dispGBR_R0(imm))
-
 void Assembler::movl_dispGBR_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_movl_dispGBR_R0(imm) && SH4_CHECK_ALIGN_movl_dispGBR_R0(imm));
   emit((0xC << 12) | (0x6 << 8) | (((imm & 0x3FC) >> 2) << 0));
   asm_output("movl_dispGBR_R0 %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_movl_dispPC(imm) ((imm) >= 0 && (imm) <= 1020)
-
-#define SH4_CHECK_ALIGN_movl_dispPC(imm) (((imm) & 0x3) == 0)
-
-#define FITS_SH4_movl_dispPC(imm) (SH4_CHECK_RANGE_movl_dispPC(imm) && SH4_CHECK_ALIGN_movl_dispPC(imm))
 
 void Assembler::movl_dispPC_(int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_movl_dispPC(imm) && SH4_CHECK_ALIGN_movl_dispPC(imm));
@@ -1230,12 +1122,6 @@ void Assembler::movl_indRy_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movl_R0_dispGBR(imm) ((imm) >= 0 && (imm) <= 1020)
-
-#define SH4_CHECK_ALIGN_movl_R0_dispGBR(imm) (((imm) & 0x3) == 0)
-
-#define FITS_SH4_movl_R0_dispGBR(imm) (SH4_CHECK_RANGE_movl_R0_dispGBR(imm) && SH4_CHECK_ALIGN_movl_R0_dispGBR(imm))
-
 void Assembler::movl_R0_dispGBR_(int imm) {
   ASSERT(SH4_CHECK_RANGE_movl_R0_dispGBR(imm) && SH4_CHECK_ALIGN_movl_R0_dispGBR(imm));
   emit((0xC << 12) | (0x2 << 8) | (((imm & 0x3FC) >> 2) << 0));
@@ -1264,12 +1150,6 @@ void Assembler::movw_indRx_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movw_dispRy_R0(imm) ((imm) >= 0 && (imm) <= 30)
-
-#define SH4_CHECK_ALIGN_movw_dispRy_R0(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_movw_dispRy_R0(imm) (SH4_CHECK_RANGE_movw_dispRy_R0(imm) && SH4_CHECK_ALIGN_movw_dispRy_R0(imm))
-
 void Assembler::movw_dispRy_R0_(int imm, Register Ry) {
   ASSERT(REGNUM(Ry) <= 15 && SH4_CHECK_RANGE_movw_dispRy_R0(imm) && SH4_CHECK_ALIGN_movw_dispRy_R0(imm));
   emit((0x8 << 12) | (0x5 << 8) | ((REGNUM(Ry) & 0xF) << 4) | (((imm & 0x1E) >> 1) << 0));
@@ -1277,24 +1157,12 @@ void Assembler::movw_dispRy_R0_(int imm, Register Ry) {
 }
 
 
-#define SH4_CHECK_RANGE_movw_dispGBR_R0(imm) ((imm) >= 0 && (imm) <= 510)
-
-#define SH4_CHECK_ALIGN_movw_dispGBR_R0(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_movw_dispGBR_R0(imm) (SH4_CHECK_RANGE_movw_dispGBR_R0(imm) && SH4_CHECK_ALIGN_movw_dispGBR_R0(imm))
-
 void Assembler::movw_dispGBR_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_movw_dispGBR_R0(imm) && SH4_CHECK_ALIGN_movw_dispGBR_R0(imm));
   emit((0xC << 12) | (0x5 << 8) | (((imm & 0x1FE) >> 1) << 0));
   asm_output("movw_dispGBR_R0 %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_movw_dispPC(imm) ((imm) >= 0 && (imm) <= 510)
-
-#define SH4_CHECK_ALIGN_movw_dispPC(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_movw_dispPC(imm) (SH4_CHECK_RANGE_movw_dispPC(imm) && SH4_CHECK_ALIGN_movw_dispPC(imm))
 
 void Assembler::movw_dispPC_(int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_movw_dispPC(imm) && SH4_CHECK_ALIGN_movw_dispPC(imm));
@@ -1324,12 +1192,6 @@ void Assembler::movw_indRy_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movw_R0_dispRx(imm) ((imm) >= 0 && (imm) <= 30)
-
-#define SH4_CHECK_ALIGN_movw_R0_dispRx(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_movw_R0_dispRx(imm) (SH4_CHECK_RANGE_movw_R0_dispRx(imm) && SH4_CHECK_ALIGN_movw_R0_dispRx(imm))
-
 void Assembler::movw_R0_dispRx_(int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_movw_R0_dispRx(imm) && SH4_CHECK_ALIGN_movw_R0_dispRx(imm));
   emit((0x8 << 12) | (0x1 << 8) | ((REGNUM(Rx) & 0xF) << 4) | (((imm & 0x1E) >> 1) << 0));
@@ -1337,24 +1199,12 @@ void Assembler::movw_R0_dispRx_(int imm, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_movw_R0_dispGBR(imm) ((imm) >= 0 && (imm) <= 510)
-
-#define SH4_CHECK_ALIGN_movw_R0_dispGBR(imm) (((imm) & 0x1) == 0)
-
-#define FITS_SH4_movw_R0_dispGBR(imm) (SH4_CHECK_RANGE_movw_R0_dispGBR(imm) && SH4_CHECK_ALIGN_movw_R0_dispGBR(imm))
-
 void Assembler::movw_R0_dispGBR_(int imm) {
   ASSERT(SH4_CHECK_RANGE_movw_R0_dispGBR(imm) && SH4_CHECK_ALIGN_movw_R0_dispGBR(imm));
   emit((0xC << 12) | (0x1 << 8) | (((imm & 0x1FE) >> 1) << 0));
   asm_output("movw_R0_dispGBR %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_mova_dispPC_R0(imm) ((imm) >= 0 && (imm) <= 1020)
-
-#define SH4_CHECK_ALIGN_mova_dispPC_R0(imm) (((imm) & 0x3) == 0)
-
-#define FITS_SH4_mova_dispPC_R0(imm) (SH4_CHECK_RANGE_mova_dispPC_R0(imm) && SH4_CHECK_ALIGN_mova_dispPC_R0(imm))
 
 void Assembler::mova_dispPC_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_mova_dispPC_R0(imm) && SH4_CHECK_ALIGN_mova_dispPC_R0(imm));
@@ -1488,10 +1338,6 @@ void Assembler::ocbwb_indRx_(Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_or_imm_R0(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_or_imm_R0(imm) (SH4_CHECK_RANGE_or_imm_R0(imm))
-
 void Assembler::or_imm_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_or_imm_R0(imm));
   emit((0xC << 12) | (0xB << 8) | ((imm & 0xFF) << 0));
@@ -1505,10 +1351,6 @@ void Assembler::or_(Register Ry, Register Rx) {
   asm_output("or R%d, R%d", REGNUM(Ry), REGNUM(Rx));
 }
 
-
-#define SH4_CHECK_RANGE_orb_imm_dispR0GBR(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_orb_imm_dispR0GBR(imm) (SH4_CHECK_RANGE_orb_imm_dispR0GBR(imm))
 
 void Assembler::orb_imm_dispR0GBR_(int imm) {
   ASSERT(SH4_CHECK_RANGE_orb_imm_dispR0GBR(imm));
@@ -1722,10 +1564,6 @@ void Assembler::stc_DBR_(Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_stc_bank(imm) ((imm) >= 0 && (imm) <= 7)
-
-#define FITS_SH4_stc_bank(imm) (SH4_CHECK_RANGE_stc_bank(imm))
-
 void Assembler::stc_bank_(int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_stc_bank(imm));
   emit((0x0 << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((imm & 0x7) << 4) | (0x2 << 0));
@@ -1781,10 +1619,6 @@ void Assembler::stcl_DBR_decRx_(Register Rx) {
   asm_output("stcl_DBR_decRx R%d", REGNUM(Rx));
 }
 
-
-#define SH4_CHECK_RANGE_stcl_bank_decRx(imm) ((imm) >= 0 && (imm) <= 7)
-
-#define FITS_SH4_stcl_bank_decRx(imm) (SH4_CHECK_RANGE_stcl_bank_decRx(imm))
 
 void Assembler::stcl_bank_decRx_(int imm, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && SH4_CHECK_RANGE_stcl_bank_decRx(imm));
@@ -1911,20 +1745,12 @@ void Assembler::tasb_indRx_(Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_trapa_imm(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_trapa_imm(imm) (SH4_CHECK_RANGE_trapa_imm(imm))
-
 void Assembler::trapa_imm_(int imm) {
   ASSERT(SH4_CHECK_RANGE_trapa_imm(imm));
   emit((0xC << 12) | (0x3 << 8) | ((imm & 0xFF) << 0));
   asm_output("trapa_imm %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_tst_imm_R0(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_tst_imm_R0(imm) (SH4_CHECK_RANGE_tst_imm_R0(imm))
 
 void Assembler::tst_imm_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_tst_imm_R0(imm));
@@ -1940,20 +1766,12 @@ void Assembler::tst_(Register Ry, Register Rx) {
 }
 
 
-#define SH4_CHECK_RANGE_tstb_imm_dispR0GBR(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_tstb_imm_dispR0GBR(imm) (SH4_CHECK_RANGE_tstb_imm_dispR0GBR(imm))
-
 void Assembler::tstb_imm_dispR0GBR_(int imm) {
   ASSERT(SH4_CHECK_RANGE_tstb_imm_dispR0GBR(imm));
   emit((0xC << 12) | (0xC << 8) | ((imm & 0xFF) << 0));
   asm_output("tstb_imm_dispR0GBR %d", imm);
 }
 
-
-#define SH4_CHECK_RANGE_xor_imm_R0(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_xor_imm_R0(imm) (SH4_CHECK_RANGE_xor_imm_R0(imm))
 
 void Assembler::xor_imm_R0_(int imm) {
   ASSERT(SH4_CHECK_RANGE_xor_imm_R0(imm));
@@ -1968,10 +1786,6 @@ void Assembler::xor_(Register Ry, Register Rx) {
   asm_output("xor R%d, R%d", REGNUM(Ry), REGNUM(Rx));
 }
 
-
-#define SH4_CHECK_RANGE_xorb_imm_dispR0GBR(imm) ((imm) >= 0 && (imm) <= 255)
-
-#define FITS_SH4_xorb_imm_dispR0GBR(imm) (SH4_CHECK_RANGE_xorb_imm_dispR0GBR(imm))
 
 void Assembler::xorb_imm_dispR0GBR_(int imm) {
   ASSERT(SH4_CHECK_RANGE_xorb_imm_dispR0GBR(imm));
