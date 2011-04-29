@@ -721,7 +721,6 @@ class Assembler : public AssemblerBase {
   inline void CheckBuffer();
   void GrowBuffer();
 
-  void bind_to(Label* L, int pos);
   void next(Label *L);
 
   // Get and setter for instructions
