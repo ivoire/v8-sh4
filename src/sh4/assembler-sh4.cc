@@ -323,7 +323,13 @@ void Assembler::dd(uint32_t data) {
 
 const int kEndOfChain = 0;
 
-void Assembler::bind_to(Label* L, int pos) {
+void Assembler::bind(Label* L) {
+  // label can only be bound once
+  ASSERT(!L->is_bound());
+
+  int pos = pc_offset();
+
+  // List the linked to patch
   while (L->is_linked()) {
     // Compute the current position
     uint16_t* p_pos = reinterpret_cast<uint16_t*>(L->pos());
@@ -341,12 +347,6 @@ void Assembler::bind_to(Label* L, int pos) {
 }
 
 
-void Assembler::bind(Label* L) {
-  ASSERT(!L->is_bound());  // label can only be bound once
-  bind_to(L, pc_offset());
-}
-
-
 void Assembler::next(Label* L) {
   ASSERT(L->is_linked());
   int link = *reinterpret_cast<uint32_t*>(L->pos());
@@ -361,12 +361,15 @@ void Assembler::next(Label* L) {
 
 void Assembler::jmp(Label* L) {
   if (L->is_bound()) {
+    ASSERT(L->pos() != kEndOfChain);
     jmp(L->pos());
   } else {
-    if (L->is_linked())
+    if (L->is_linked()) {
+      ASSERT(L->pos() != kEndOfChain);
       jmp(L->pos());
-    else
+    } else {
       jmp(kEndOfChain);           // Patched later on
+    }
     int pos = reinterpret_cast<int>(reinterpret_cast<uint16_t*>(pc_) - 2);
     L->link_to(pos);  // Link to the constant
   }
