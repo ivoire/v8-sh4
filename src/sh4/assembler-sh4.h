@@ -704,6 +704,14 @@ class Assembler : public AssemblerBase {
 
   int pc_offset() const { return pc_ - buffer_; }
 
+  // Check if there is less than kGap bytes available in the buffer.
+  // If this is the case, we need to grow the buffer before emitting
+  // an instruction or relocation information.
+  inline bool overflow() const { return pc_ >= reloc_info_writer.pos() - kGap; }
+
+  // Get the number of bytes available in the buffer.
+  inline int available_space() const { return reloc_info_writer.pos() - pc_; }
+
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
 
@@ -722,10 +730,6 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
 
   void next(Label *L);
-
-  // Get and setter for instructions
-  Instr instr_at(int pos) { return *reinterpret_cast<Instr*>((uint16_t*)buffer_ + pos); }
-  void instr_at_put(int pos, Instr instr) { *reinterpret_cast<Instr*>((uint16_t*)buffer_ + pos) = instr; }
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
@@ -1276,12 +1280,16 @@ class Assembler : public AssemblerBase {
 class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) : assembler_(assembler) {
-    UNIMPLEMENTED();
+    if (assembler_->overflow()) assembler_->GrowBuffer();
+#ifdef DEBUG
+    space_before_ = assembler_->available_space();
+#endif
   }
 
 #ifdef DEBUG
   ~EnsureSpace() {
-    UNIMPLEMENTED();
+    int bytes_generated = space_before_ - assembler_->available_space();
+    ASSERT(bytes_generated < assembler_->kGap);
   }
 #endif
 
