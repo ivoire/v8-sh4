@@ -257,7 +257,6 @@ const DwVfpRegister dr4  = {  4 };
 const DwVfpRegister dr5  = {  5 };
 const DwVfpRegister dr6  = {  6 };
 const DwVfpRegister dr7  = {  7 };
-const DwVfpRegister dr8  = {  8 };
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -1145,127 +1144,127 @@ class Assembler : public AssemblerBase {
 
   void bsrf_(Register Rx);
 
-  void fabs_(Register Rx);
+  void fabs_(SwVfpRegister Rx);
 
-  void fabs_double_(Register Rx);
+  void fabs_double_(DwVfpRegister Rx);
 
-  void fadd_(Register Ry, Register Rx);
+  void fadd_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fadd_double_(Register Ry, Register Rx);
+  void fadd_double_(DwVfpRegister Ry, DwVfpRegister Rx);
 
-  void fcmpeq_(Register Ry, Register Rx);
+  void fcmpeq_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fcmpeq_double_(Register Ry, Register Rx);
+  void fcmpeq_double_(DwVfpRegister Ry, DwVfpRegister Rx);
 
-  void fcmpgt_(Register Ry, Register Rx);
+  void fcmpgt_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fcmpgt_double_(Register Ry, Register Rx);
+  void fcmpgt_double_(DwVfpRegister Ry, DwVfpRegister Rx);
 
-  void fcnvds_double_FPUL_(Register Rx);
+  void fcnvds_double_FPUL_(DwVfpRegister Rx);
 
-  void fcnvsd_FPUL_double_(Register Rx);
+  void fcnvsd_FPUL_double_(DwVfpRegister Rx);
 
-  void fdiv_(Register Ry, Register Rx);
+  void fdiv_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fdiv_double_(Register Ry, Register Rx);
+  void fdiv_double_(DwVfpRegister Ry, DwVfpRegister Rx);
 
-  void fipr_(Register Ry, Register Rx);
+  void fipr_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fldi0_(Register Rx);
+  void fldi0_(SwVfpRegister Rx);
 
-  void fldi1_(Register Rx);
+  void fldi1_(SwVfpRegister Rx);
 
-  void flds_FPUL_(Register Rx);
+  void flds_FPUL_(SwVfpRegister Rx);
 
-  void float_FPUL_(Register Rx);
+  void float_FPUL_(SwVfpRegister Rx);
 
-  void float_FPUL_double_(Register Rx);
+  void float_FPUL_double_(DwVfpRegister Rx);
 
-  void fmac_(Register Ry, Register Rx);
+  void fmac_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fmov_(Register Ry, Register Rx);
+  void fmov_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fmov_Xdouble_Xdouble_(Register Ry, Register Rx);
+  void fmov_Xdouble_Xdouble_(DwVfpRegister Ry, DwVfpRegister Rx);
 
-  void fmov_indRy_(Register Ry, Register Rx);
+  void fmov_indRy_(Register Ry, SwVfpRegister Rx);
 
-  void fmov_indRy_Xdouble_(Register Ry, Register Rx);
+  void fmov_indRy_Xdouble_(Register Ry, DwVfpRegister Rx);
 
   void fmov_indRx_(Register Ry, Register Rx);
 
   void fmov_Xdouble_indRx_(Register Ry, Register Rx);
 
-  void fmov_incRy_(Register Ry, Register Rx);
+  void fmov_incRy_(Register Ry, SwVfpRegister Rx);
 
-  void fmov_incRy_Xdouble_(Register Ry, Register Rx);
+  void fmov_incRy_Xdouble_(Register Ry, DwVfpRegister Rx);
 
   void fmov_decRx_(Register Ry, Register Rx);
 
   void fmov_Xdouble_decRx_(Register Ry, Register Rx);
 
-  void fmov_dispR0Ry_(Register Ry, Register Rx);
+  void fmov_dispR0Ry_(Register Ry, SwVfpRegister Rx);
 
-  void fmov_dispR0Ry_Xdouble_(Register Ry, Register Rx);
+  void fmov_dispR0Ry_Xdouble_(Register Ry, DwVfpRegister Rx);
 
   void fmov_dispR0Rx_(Register Ry, Register Rx);
 
   void fmov_Xdouble_dispR0Rx_(Register Ry, Register Rx);
 
-  void fmovd_indRy_Xdouble_(Register Ry, Register Rx);
+  void fmovd_indRy_Xdouble_(Register Ry, DwVfpRegister Rx);
 
   void fmovd_Xdouble_indRx_(Register Ry, Register Rx);
 
-  void fmovd_incRy_Xdouble_(Register Ry, Register Rx);
+  void fmovd_incRy_Xdouble_(Register Ry, DwVfpRegister Rx);
 
   void fmovd_Xdouble_decRx_(Register Ry, Register Rx);
 
-  void fmovd_dispR0Ry_Xdouble_(Register Ry, Register Rx);
+  void fmovd_dispR0Ry_Xdouble_(Register Ry, DwVfpRegister Rx);
 
   void fmovd_Xdouble_dispR0Rx_(Register Ry, Register Rx);
 
-  void fmovs_indRy_(Register Ry, Register Rx);
+  void fmovs_indRy_(Register Ry, SwVfpRegister Rx);
 
   void fmovs_indRx_(Register Ry, Register Rx);
 
-  void fmovs_incRy_(Register Ry, Register Rx);
+  void fmovs_incRy_(Register Ry, SwVfpRegister Rx);
 
   void fmovs_decRx_(Register Ry, Register Rx);
 
-  void fmovs_dispR0Ry_(Register Ry, Register Rx);
+  void fmovs_dispR0Ry_(Register Ry, SwVfpRegister Rx);
 
   void fmovs_dispR0Rx_(Register Ry, Register Rx);
 
-  void fmul_(Register Ry, Register Rx);
+  void fmul_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fmul_double_(Register Ry, Register Rx);
+  void fmul_double_(DwVfpRegister Ry, DwVfpRegister Rx);
 
-  void fneg_(Register Rx);
+  void fneg_(SwVfpRegister Rx);
 
-  void fneg_double_(Register Rx);
+  void fneg_double_(DwVfpRegister Rx);
 
   void fpchg_();
 
   void frchg_();
 
-  void fsca_FPUL_double_(Register Rx);
+  void fsca_FPUL_double_(DwVfpRegister Rx);
 
   void fschg_();
 
-  void fsqrt_(Register Rx);
+  void fsqrt_(SwVfpRegister Rx);
 
-  void fsqrt_double_(Register Rx);
+  void fsqrt_double_(DwVfpRegister Rx);
 
-  void fsrra_(Register Rx);
+  void fsrra_(SwVfpRegister Rx);
 
-  void fsts_FPUL_(Register Rx);
+  void fsts_FPUL_(SwVfpRegister Rx);
 
-  void fsub_(Register Ry, Register Rx);
+  void fsub_(SwVfpRegister Ry, SwVfpRegister Rx);
 
-  void fsub_double_(Register Ry, Register Rx);
+  void fsub_double_(DwVfpRegister Ry, DwVfpRegister Rx);
 
-  void ftrc_FPUL_(Register Rx);
+  void ftrc_FPUL_(SwVfpRegister Rx);
 
-  void ftrc_double_FPUL_(Register Rx);
+  void ftrc_double_FPUL_(DwVfpRegister Rx);
 
   void ftrv_(Register Rx);
 };
