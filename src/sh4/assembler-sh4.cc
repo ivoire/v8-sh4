@@ -495,7 +495,12 @@ void Assembler::mov(const MemOperand& dst, Register Rx) {
 
 
 void Assembler::pop(Register dst) {
-  movl_incRy_(Register(r15), dst);
+  movl_incRy_(r15, dst);
+}
+
+
+void Assembler::pop(DwVfpRegister dst) {
+  fmov_incRy_(r15, dst);
 }
 
 
@@ -514,7 +519,15 @@ void Assembler::popPR() {
 
 
 void Assembler::push(Register src) {
-  movl_decRx_(Register(r15), src);
+  if (src.is(pr))
+    stsl_PR_decRx_(r15);
+  else
+    movl_decRx_(src, r15);
+}
+
+
+void Assembler::push(DwVfpRegister src) {
+  fmov_decRx_(src, r15);
 }
 
 
@@ -2071,31 +2084,17 @@ void Assembler::fmov_Xdouble_indRx_(Register Ry, Register Rx) {
 }
 
 
-void Assembler::fmov_incRy_(Register Ry, SwVfpRegister Rx) {
+void Assembler::fmov_incRy_(Register Ry, DwVfpRegister Rx) {
   ASSERT(REGNUM(Rx) <= 15 && REGNUM(Ry) <= 15);
   emit((0xF << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((REGNUM(Ry) & 0xF) << 4) | (0x9 << 0));
   asm_output("fmov_incRy R%d, R%d", REGNUM(Ry), REGNUM(Rx));
 }
 
 
-void Assembler::fmov_incRy_Xdouble_(Register Ry, DwVfpRegister Rx) {
-  ASSERT(REGNUM(Rx) <= 15 && REGNUM(Ry) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((REGNUM(Ry) & 0xF) << 4) | (0x9 << 0));
-  asm_output("fmov_incRy_Xdouble R%d, R%d", REGNUM(Ry), REGNUM(Rx));
-}
-
-
-void Assembler::fmov_decRx_(Register Ry, Register Rx) {
+void Assembler::fmov_decRx_(DwVfpRegister Ry, Register Rx) {
   ASSERT(REGNUM(Rx) <= 15 && REGNUM(Ry) <= 15);
   emit((0xF << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((REGNUM(Ry) & 0xF) << 4) | (0xB << 0));
   asm_output("fmov_decRx R%d, R%d", REGNUM(Ry), REGNUM(Rx));
-}
-
-
-void Assembler::fmov_Xdouble_decRx_(Register Ry, Register Rx) {
-  ASSERT(REGNUM(Rx) <= 15 && REGNUM(Ry) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rx) & 0xF) << 8) | ((REGNUM(Ry) & 0xF) << 4) | (0xB << 0));
-  asm_output("fmov_Xdouble_decRx R%d, R%d", REGNUM(Ry), REGNUM(Rx));
 }
 
 

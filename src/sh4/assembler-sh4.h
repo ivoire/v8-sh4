@@ -135,6 +135,7 @@ const Register rtmp = r3;       // super scratch register
 const Register fp = r14;        // Frame Pointer
 const Register sp = r15;        // Stack Pointer
 const Register cp = r13;        // Context Pointer
+const Register pr = { -2 };     // Link register
 
 
 // Single word VFP register.
@@ -166,12 +167,12 @@ struct DwVfpRegister {
 
   static int ToAllocationIndex(DwVfpRegister reg) {
     ASSERT(reg.code() != 0);
-    return reg.code() - 1;
+    return reg.code();
   }
 
   static DwVfpRegister FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return from_code(index + 1);
+    return from_code(index);
   }
 
   static const char* AllocationIndexToString(int index) {
@@ -195,18 +196,18 @@ struct DwVfpRegister {
   }
 
   // Supporting dr0 to dr8
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters * 2 - 1; }
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
   SwVfpRegister low() const {
     SwVfpRegister reg;
-    reg.code_ = code_ * 2;
+    reg.code_ = code_;
 
     ASSERT(reg.is_valid());
     return reg;
   }
   SwVfpRegister high() const {
     SwVfpRegister reg;
-    reg.code_ = (code_ * 2) + 1;
+    reg.code_ = code_ + 1;
 
     ASSERT(reg.is_valid());
     return reg;
@@ -231,7 +232,8 @@ struct DwVfpRegister {
 typedef DwVfpRegister DoubleRegister;
 
 // Support for the VFP registers fr0 to fr15 (dr0 to dr7).
-// Note that "fr(N):fr(N+1)" is the same as "dr(N/2)".
+// Note that "fr(N):fr(N+1)" is the same as "dr(N)".
+const SwVfpRegister no_freg = { -1 };
 const SwVfpRegister fr0  = {  0 };
 const SwVfpRegister fr1  = {  1 };
 const SwVfpRegister fr2  = {  2 };
@@ -250,14 +252,14 @@ const SwVfpRegister fr14 = { 14 };
 const SwVfpRegister fr15 = { 15 };
 
 const DwVfpRegister no_dreg = { -1 };
-const DwVfpRegister dr0  = {  0 };
-const DwVfpRegister dr1  = {  1 };
-const DwVfpRegister dr2  = {  2 };
-const DwVfpRegister dr3  = {  3 };
-const DwVfpRegister dr4  = {  4 };
-const DwVfpRegister dr5  = {  5 };
-const DwVfpRegister dr6  = {  6 };
-const DwVfpRegister dr7  = {  7 };
+const DwVfpRegister dr0   = {  0  };
+const DwVfpRegister dr2   = {  2  };
+const DwVfpRegister dr4   = {  4  };
+const DwVfpRegister dr6   = {  6  };
+const DwVfpRegister dr8   = {  8  };
+const DwVfpRegister dr10  = {  10 };
+const DwVfpRegister dr12  = {  12 };
+const DwVfpRegister dr14  = {  14 };
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -677,6 +679,7 @@ class Assembler : public AssemblerBase {
   void jsr(Register Rx) { jsr_indRx_(Rx); }
 
   void push(Register src);
+  void push(DwVfpRegister src);
   // push an immediate on the stack: use rtmp register for that
   void push(const Immediate& imm);
   void push(const Operand& op);
@@ -684,6 +687,7 @@ class Assembler : public AssemblerBase {
   void pushPR();
 
   void pop(Register dst);
+  void pop(DwVfpRegister dst);
   void popm(RegList dst);
   void popPR();
 
@@ -1217,11 +1221,9 @@ class Assembler : public AssemblerBase {
 
   void fmov_Xdouble_indRx_(Register Ry, Register Rx);
 
-  void fmov_incRy_(Register Ry, SwVfpRegister Rx);
+  void fmov_incRy_(Register Ry, DwVfpRegister Rx);
 
-  void fmov_incRy_Xdouble_(Register Ry, DwVfpRegister Rx);
-
-  void fmov_decRx_(Register Ry, Register Rx);
+  void fmov_decRx_(DwVfpRegister Ry, Register Rx);
 
   void fmov_Xdouble_decRx_(Register Ry, Register Rx);
 
