@@ -406,7 +406,7 @@ class Operand BASE_EMBEDDED {
 
 class MemOperand BASE_EMBEDDED {
  public:
-  INLINE(explicit MemOperand(Register Rx, int32_t offset = 0));
+  INLINE(explicit MemOperand(Register Rd, int32_t offset = 0));
 
  private:
   Register rm_;
@@ -648,35 +648,35 @@ class Assembler : public AssemblerBase {
 
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
-  void add(Register Rx, const Immediate& imm);
-  void add(Register Rx, Register Ry, const Immediate& imm);
-  void add(Register Rx, Register Ry, Register Rz);
+  void add(Register Rd, const Immediate& imm);
+  void add(Register Rd, Register Rs, const Immediate& imm);
+  void add(Register Rd, Register Rs, Register Rz);
 
-  void And(Register Rx, const Immediate& imm) { UNIMPLEMENTED(); }
+  void And(Register Rd, const Immediate& imm) { UNIMPLEMENTED(); }
 
   void bt(Label* L)             { branch(L, branch_true); }
   void bf(Label* L)             { branch(L, branch_false); }
   void jmp(Label* L)            { branch(L, branch_unconditional); }
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
-  void cmpeq(Register Rx, Register Ry) { cmpeq_(Rx, Ry); }
+  void cmpeq(Register Rd, Register Rs) { cmpeq_(Rd, Rs); }
 
-  void sub(Register Rx, Register Ry, const Immediate& imm);
-  void sub(Register Rx, Register Ry, Register Rz);
+  void sub(Register Rd, Register Rs, const Immediate& imm);
+  void sub(Register Rd, Register Rs, Register Rz);
 
-  void lsl(Register Rx, Register Ry, const Immediate& imm);
-  void lsr(Register Rx, Register Ry, const Immediate& imm);
+  void lsl(Register Rd, Register Rs, const Immediate& imm);
+  void lsr(Register Rd, Register Rs, const Immediate& imm);
 
-  void mov(Register Rx, Register Ry) { mov_(Ry, Rx); }
-  void mov(Register Rx, const Immediate& imm);
-  void mov(Register Rx, const Operand& src);
-  void mov(Register Rx, const MemOperand& src);
+  void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }
+  void mov(Register Rd, const Immediate& imm);
+  void mov(Register Rd, const Operand& src);
+  void mov(Register Rd, const MemOperand& src);
 
-  void mov(const MemOperand& dst, Register Rx);
+  void mov(const MemOperand& dst, Register Rd);
 
   void nop() { nop_(); }
 
-  void jsr(Register Rx) { jsr_indRx_(Rx); }
+  void jsr(Register Rd) { jsr_indRd_(Rd); }
 
   void push(Register src);
   void push(DwVfpRegister src);
@@ -793,17 +793,17 @@ class Assembler : public AssemblerBase {
 
   // ---------------------------------------------------------------------------
   // low level code generation (opcodes)
-  void add_imm_(int imm, Register Rx);
+  void add_imm_(int imm, Register Rd);
 
-  void add_(Register Ry, Register Rx);
+  void add_(Register Rs, Register Rd);
 
-  void addc_(Register Ry, Register Rx);
+  void addc_(Register Rs, Register Rd);
 
-  void addv_(Register Ry, Register Rx);
+  void addv_(Register Rs, Register Rd);
 
   void and_imm_R0_(int imm);
 
-  void and_(Register Ry, Register Rx);
+  void and_(Register Rs, Register Rd);
 
   void andb_imm_dispR0GBR_(int imm);
 
@@ -827,221 +827,221 @@ class Assembler : public AssemblerBase {
 
   void cmpeq_imm_R0_(int imm);
 
-  void cmpeq_(Register Ry, Register Rx);
+  void cmpeq_(Register Rs, Register Rd);
 
-  void cmpge_(Register Ry, Register Rx);
+  void cmpge_(Register Rs, Register Rd);
 
-  void cmpgt_(Register Ry, Register Rx);
+  void cmpgt_(Register Rs, Register Rd);
 
-  void cmphi_(Register Ry, Register Rx);
+  void cmphi_(Register Rs, Register Rd);
 
-  void cmphs_(Register Ry, Register Rx);
+  void cmphs_(Register Rs, Register Rd);
 
-  void cmppl_(Register Rx);
+  void cmppl_(Register Rd);
 
-  void cmppz_(Register Rx);
+  void cmppz_(Register Rd);
 
-  void cmpstr_(Register Ry, Register Rx);
+  void cmpstr_(Register Rs, Register Rd);
 
-  void div0s_(Register Ry, Register Rx);
+  void div0s_(Register Rs, Register Rd);
 
   void div0u_();
 
-  void div1_(Register Ry, Register Rx);
+  void div1_(Register Rs, Register Rd);
 
-  void extsb_(Register Ry, Register Rx);
+  void extsb_(Register Rs, Register Rd);
 
-  void extsw_(Register Ry, Register Rx);
+  void extsw_(Register Rs, Register Rd);
 
-  void extub_(Register Ry, Register Rx);
+  void extub_(Register Rs, Register Rd);
 
-  void extuw_(Register Ry, Register Rx);
+  void extuw_(Register Rs, Register Rd);
 
-  void icbi_indRx_(Register Rx);
+  void icbi_indRd_(Register Rd);
 
-  void jmp_indRx_(Register Rx);
+  void jmp_indRd_(Register Rd);
 
-  void jsr_indRx_(Register Rx);
+  void jsr_indRd_(Register Rd);
 
-  void ldc_SR_(Register Rx);
+  void ldc_SR_(Register Rd);
 
-  void ldc_GBR_(Register Rx);
+  void ldc_GBR_(Register Rd);
 
-  void ldc_SGR_(Register Rx);
+  void ldc_SGR_(Register Rd);
 
-  void ldc_VBR_(Register Rx);
+  void ldc_VBR_(Register Rd);
 
-  void ldc_SSR_(Register Rx);
+  void ldc_SSR_(Register Rd);
 
-  void ldc_SPC_(Register Rx);
+  void ldc_SPC_(Register Rd);
 
-  void ldc_DBR_(Register Rx);
+  void ldc_DBR_(Register Rd);
 
-  void ldc_bank_(Register Rx, int imm);
+  void ldc_bank_(Register Rd, int imm);
 
-  void ldcl_incRx_SR_(Register Rx);
+  void ldcl_incRd_SR_(Register Rd);
 
-  void ldcl_incRx_GBR_(Register Rx);
+  void ldcl_incRd_GBR_(Register Rd);
 
-  void ldcl_incRx_VBR_(Register Rx);
+  void ldcl_incRd_VBR_(Register Rd);
 
-  void ldcl_incRx_SGR_(Register Rx);
+  void ldcl_incRd_SGR_(Register Rd);
 
-  void ldcl_incRx_SSR_(Register Rx);
+  void ldcl_incRd_SSR_(Register Rd);
 
-  void ldcl_incRx_SPC_(Register Rx);
+  void ldcl_incRd_SPC_(Register Rd);
 
-  void ldcl_incRx_DBR_(Register Rx);
+  void ldcl_incRd_DBR_(Register Rd);
 
-  void ldcl_incRx_bank_(Register Rx, int imm);
+  void ldcl_incRd_bank_(Register Rd, int imm);
 
-  void lds_MACH_(Register Rx);
+  void lds_MACH_(Register Rd);
 
-  void lds_MACL_(Register Rx);
+  void lds_MACL_(Register Rd);
 
-  void lds_PR_(Register Rx);
+  void lds_PR_(Register Rd);
 
-  void lds_FPUL_(Register Ry);
+  void lds_FPUL_(Register Rs);
 
-  void lds_FPSCR_(Register Ry);
+  void lds_FPSCR_(Register Rs);
 
-  void ldsl_incRx_MACH_(Register Rx);
+  void ldsl_incRd_MACH_(Register Rd);
 
-  void ldsl_incRx_MACL_(Register Rx);
+  void ldsl_incRd_MACL_(Register Rd);
 
-  void ldsl_incRx_PR_(Register Rx);
+  void ldsl_incRd_PR_(Register Rd);
 
-  void ldsl_incRy_FPUL_(Register Ry);
+  void ldsl_incRs_FPUL_(Register Rs);
 
-  void ldsl_incRy_FPSCR_(Register Ry);
+  void ldsl_incRs_FPSCR_(Register Rs);
 
   void ldtlb_();
 
-  void macw_incRy_incRx_(Register Ry, Register Rx);
+  void macw_incRs_incRd_(Register Rs, Register Rd);
 
-  void mov_imm_(int imm, Register Rx);
+  void mov_imm_(int imm, Register Rd);
 
-  void mov_(Register Ry, Register Rx);
+  void mov_(Register Rs, Register Rd);
 
-  void movb_dispR0Rx_(Register Ry, Register Rx);
+  void movb_dispR0Rd_(Register Rs, Register Rd);
 
-  void movb_decRx_(Register Ry, Register Rx);
+  void movb_decRd_(Register Rs, Register Rd);
 
-  void movb_indRx_(Register Ry, Register Rx);
+  void movb_indRd_(Register Rs, Register Rd);
 
-  void movb_dispRy_R0_(int imm, Register Ry);
+  void movb_dispRs_R0_(int imm, Register Rs);
 
   void movb_dispGBR_R0_(int imm);
 
-  void movb_dispR0Ry_(Register Ry, Register Rx);
+  void movb_dispR0Rs_(Register Rs, Register Rd);
 
-  void movb_incRy_(Register Ry, Register Rx);
+  void movb_incRs_(Register Rs, Register Rd);
 
-  void movb_indRy_(Register Ry, Register Rx);
+  void movb_indRs_(Register Rs, Register Rd);
 
-  void movb_R0_dispRx_(int imm, Register Rx);
+  void movb_R0_dispRd_(int imm, Register Rd);
 
   void movb_R0_dispGBR_(int imm);
 
-  void movl_dispRx_(Register Ry, int imm, Register Rx);
+  void movl_dispRd_(Register Rs, int imm, Register Rd);
 
-  void movl_dispR0Rx_(Register Ry, Register Rx);
+  void movl_dispR0Rd_(Register Rs, Register Rd);
 
-  void movl_decRx_(Register Ry, Register Rx);
+  void movl_decRd_(Register Rs, Register Rd);
 
-  void movl_indRx_(Register Ry, Register Rx);
+  void movl_indRd_(Register Rs, Register Rd);
 
-  void movl_dispRy_(int imm, Register Ry, Register Rx);
+  void movl_dispRs_(int imm, Register Rs, Register Rd);
 
   void movl_dispGBR_R0_(int imm);
 
-  void movl_dispPC_(int imm, Register Rx);
+  void movl_dispPC_(int imm, Register Rd);
 
-  void movl_dispR0Ry_(Register Ry, Register Rx);
+  void movl_dispR0Rs_(Register Rs, Register Rd);
 
-  void movl_incRy_(Register Ry, Register Rx);
+  void movl_incRs_(Register Rs, Register Rd);
 
-  void movl_indRy_(Register Ry, Register Rx);
+  void movl_indRs_(Register Rs, Register Rd);
 
   void movl_R0_dispGBR_(int imm);
 
-  void movw_dispR0Rx_(Register Ry, Register Rx);
+  void movw_dispR0Rd_(Register Rs, Register Rd);
 
-  void movw_decRx_(Register Ry, Register Rx);
+  void movw_decRd_(Register Rs, Register Rd);
 
-  void movw_indRx_(Register Ry, Register Rx);
+  void movw_indRd_(Register Rs, Register Rd);
 
-  void movw_dispRy_R0_(int imm, Register Ry);
+  void movw_dispRs_R0_(int imm, Register Rs);
 
   void movw_dispGBR_R0_(int imm);
 
-  void movw_dispPC_(int imm, Register Rx);
+  void movw_dispPC_(int imm, Register Rd);
 
-  void movw_dispR0Ry_(Register Ry, Register Rx);
+  void movw_dispR0Rs_(Register Rs, Register Rd);
 
-  void movw_incRy_(Register Ry, Register Rx);
+  void movw_incRs_(Register Rs, Register Rd);
 
-  void movw_indRy_(Register Ry, Register Rx);
+  void movw_indRs_(Register Rs, Register Rd);
 
-  void movw_R0_dispRx_(int imm, Register Rx);
+  void movw_R0_dispRd_(int imm, Register Rd);
 
   void movw_R0_dispGBR_(int imm);
 
   void mova_dispPC_R0_(int imm);
 
-  void movcal_R0_indRx_(Register Rx);
+  void movcal_R0_indRd_(Register Rd);
 
-  void movcol_R0_indRx_(Register Rx);
+  void movcol_R0_indRd_(Register Rd);
 
-  void movlil_indRy_R0_(Register Ry);
+  void movlil_indRs_R0_(Register Rs);
 
-  void movt_(Register Rx);
+  void movt_(Register Rd);
 
-  void movual_indRy_R0_(Register Ry);
+  void movual_indRs_R0_(Register Rs);
 
-  void movual_incRy_R0_(Register Ry);
+  void movual_incRs_R0_(Register Rs);
 
-  void mulsw_(Register Ry, Register Rx);
+  void mulsw_(Register Rs, Register Rd);
 
-  void muls_(Register Ry, Register Rx);
+  void muls_(Register Rs, Register Rd);
 
-  void mull_(Register Ry, Register Rx);
+  void mull_(Register Rs, Register Rd);
 
-  void muluw_(Register Ry, Register Rx);
+  void muluw_(Register Rs, Register Rd);
 
-  void mulu_(Register Ry, Register Rx);
+  void mulu_(Register Rs, Register Rd);
 
-  void neg_(Register Ry, Register Rx);
+  void neg_(Register Rs, Register Rd);
 
-  void negc_(Register Ry, Register Rx);
+  void negc_(Register Rs, Register Rd);
 
   void nop_();
 
-  void not_(Register Ry, Register Rx);
+  void not_(Register Rs, Register Rd);
 
-  void ocbi_indRx_(Register Rx);
+  void ocbi_indRd_(Register Rd);
 
-  void ocbp_indRx_(Register Rx);
+  void ocbp_indRd_(Register Rd);
 
-  void ocbwb_indRx_(Register Rx);
+  void ocbwb_indRd_(Register Rd);
 
   void or_imm_R0_(int imm);
 
-  void or_(Register Ry, Register Rx);
+  void or_(Register Rs, Register Rd);
 
   void orb_imm_dispR0GBR_(int imm);
 
-  void pref_indRx_(Register Rx);
+  void pref_indRd_(Register Rd);
 
-  void prefi_indRx_(Register Rx);
+  void prefi_indRd_(Register Rd);
 
-  void rotcl_(Register Rx);
+  void rotcl_(Register Rd);
 
-  void rotcr_(Register Rx);
+  void rotcr_(Register Rd);
 
-  void rotl_(Register Rx);
+  void rotl_(Register Rd);
 
-  void rotr_(Register Rx);
+  void rotr_(Register Rd);
 
   void rte_();
 
@@ -1051,247 +1051,247 @@ class Assembler : public AssemblerBase {
 
   void sett_();
 
-  void shad_(Register Ry, Register Rx);
+  void shad_(Register Rs, Register Rd);
 
-  void shld_(Register Ry, Register Rx);
+  void shld_(Register Rs, Register Rd);
 
-  void shal_(Register Rx);
+  void shal_(Register Rd);
 
-  void shar_(Register Rx);
+  void shar_(Register Rd);
 
-  void shll_(Register Rx);
+  void shll_(Register Rd);
 
-  void shll16_(Register Rx);
+  void shll16_(Register Rd);
 
-  void shll2_(Register Rx);
+  void shll2_(Register Rd);
 
-  void shll8_(Register Rx);
+  void shll8_(Register Rd);
 
-  void shlr_(Register Rx);
+  void shlr_(Register Rd);
 
-  void shlr16_(Register Rx);
+  void shlr16_(Register Rd);
 
-  void shlr2_(Register Rx);
+  void shlr2_(Register Rd);
 
-  void shlr8_(Register Rx);
+  void shlr8_(Register Rd);
 
   void sleep_();
 
-  void stc_SR_(Register Rx);
+  void stc_SR_(Register Rd);
 
-  void stc_GBR_(Register Rx);
+  void stc_GBR_(Register Rd);
 
-  void stc_VBR_(Register Rx);
+  void stc_VBR_(Register Rd);
 
-  void stc_SSR_(Register Rx);
+  void stc_SSR_(Register Rd);
 
-  void stc_SPC_(Register Rx);
+  void stc_SPC_(Register Rd);
 
-  void stc_SGR_(Register Rx);
+  void stc_SGR_(Register Rd);
 
-  void stc_DBR_(Register Rx);
+  void stc_DBR_(Register Rd);
 
-  void stc_bank_(int imm, Register Rx);
+  void stc_bank_(int imm, Register Rd);
 
-  void stcl_SR_decRx_(Register Rx);
+  void stcl_SR_decRd_(Register Rd);
 
-  void stcl_VBR_decRx_(Register Rx);
+  void stcl_VBR_decRd_(Register Rd);
 
-  void stcl_SSR_decRx_(Register Rx);
+  void stcl_SSR_decRd_(Register Rd);
 
-  void stcl_SPC_decRx_(Register Rx);
+  void stcl_SPC_decRd_(Register Rd);
 
-  void stcl_GBR_decRx_(Register Rx);
+  void stcl_GBR_decRd_(Register Rd);
 
-  void stcl_SGR_decRx_(Register Rx);
+  void stcl_SGR_decRd_(Register Rd);
 
-  void stcl_DBR_decRx_(Register Rx);
+  void stcl_DBR_decRd_(Register Rd);
 
-  void stcl_bank_decRx_(int imm, Register Rx);
+  void stcl_bank_decRd_(int imm, Register Rd);
 
-  void sts_MACH_(Register Rx);
+  void sts_MACH_(Register Rd);
 
-  void sts_MACL_(Register Rx);
+  void sts_MACL_(Register Rd);
 
-  void sts_PR_(Register Rx);
+  void sts_PR_(Register Rd);
 
-  void sts_FPUL_(Register Rx);
+  void sts_FPUL_(Register Rd);
 
-  void sts_FPSCR_(Register Rx);
+  void sts_FPSCR_(Register Rd);
 
-  void stsl_MACH_decRx_(Register Rx);
+  void stsl_MACH_decRd_(Register Rd);
 
-  void stsl_MACL_decRx_(Register Rx);
+  void stsl_MACL_decRd_(Register Rd);
 
-  void stsl_PR_decRx_(Register Rx);
+  void stsl_PR_decRd_(Register Rd);
 
-  void stsl_FPUL_decRx_(Register Rx);
+  void stsl_FPUL_decRd_(Register Rd);
 
-  void stsl_FPSCR_decRx_(Register Rx);
+  void stsl_FPSCR_decRd_(Register Rd);
 
-  void sub_(Register Ry, Register Rx);
+  void sub_(Register Rs, Register Rd);
 
-  void subc_(Register Ry, Register Rx);
+  void subc_(Register Rs, Register Rd);
 
-  void subv_(Register Ry, Register Rx);
+  void subv_(Register Rs, Register Rd);
 
-  void swapb_(Register Ry, Register Rx);
+  void swapb_(Register Rs, Register Rd);
 
-  void swapw_(Register Ry, Register Rx);
+  void swapw_(Register Rs, Register Rd);
 
   void synco_();
 
-  void tasb_indRx_(Register Rx);
+  void tasb_indRd_(Register Rd);
 
   void trapa_imm_(int imm);
 
   void tst_imm_R0_(int imm);
 
-  void tst_(Register Ry, Register Rx);
+  void tst_(Register Rs, Register Rd);
 
   void tstb_imm_dispR0GBR_(int imm);
 
   void xor_imm_R0_(int imm);
 
-  void xor_(Register Ry, Register Rx);
+  void xor_(Register Rs, Register Rd);
 
   void xorb_imm_dispR0GBR_(int imm);
 
-  void xtrct_(Register Ry, Register Rx);
+  void xtrct_(Register Rs, Register Rd);
 
-  void dt_(Register Rx);
+  void dt_(Register Rd);
 
-  void dmulsl_(Register Ry, Register Rx);
+  void dmulsl_(Register Rs, Register Rd);
 
-  void dmulul_(Register Ry, Register Rx);
+  void dmulul_(Register Rs, Register Rd);
 
-  void macl_incRy_incRx_(Register Ry, Register Rx);
+  void macl_incRs_incRd_(Register Rs, Register Rd);
 
-  void braf_(Register Rx);
+  void braf_(Register Rd);
 
-  void bsrf_(Register Rx);
+  void bsrf_(Register Rd);
 
-  void fabs_(SwVfpRegister Rx);
+  void fabs_(SwVfpRegister Rd);
 
-  void fabs_double_(DwVfpRegister Rx);
+  void fabs_double_(DwVfpRegister Rd);
 
-  void fadd_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fadd_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fadd_double_(DwVfpRegister Ry, DwVfpRegister Rx);
+  void fadd_double_(DwVfpRegister Rs, DwVfpRegister Rd);
 
-  void fcmpeq_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fcmpeq_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fcmpeq_double_(DwVfpRegister Ry, DwVfpRegister Rx);
+  void fcmpeq_double_(DwVfpRegister Rs, DwVfpRegister Rd);
 
-  void fcmpgt_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fcmpgt_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fcmpgt_double_(DwVfpRegister Ry, DwVfpRegister Rx);
+  void fcmpgt_double_(DwVfpRegister Rs, DwVfpRegister Rd);
 
-  void fcnvds_double_FPUL_(DwVfpRegister Rx);
+  void fcnvds_double_FPUL_(DwVfpRegister Rd);
 
-  void fcnvsd_FPUL_double_(DwVfpRegister Rx);
+  void fcnvsd_FPUL_double_(DwVfpRegister Rd);
 
-  void fdiv_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fdiv_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fdiv_double_(DwVfpRegister Ry, DwVfpRegister Rx);
+  void fdiv_double_(DwVfpRegister Rs, DwVfpRegister Rd);
 
-  void fipr_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fipr_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fldi0_(SwVfpRegister Rx);
+  void fldi0_(SwVfpRegister Rd);
 
-  void fldi1_(SwVfpRegister Rx);
+  void fldi1_(SwVfpRegister Rd);
 
-  void flds_FPUL_(SwVfpRegister Rx);
+  void flds_FPUL_(SwVfpRegister Rd);
 
-  void float_FPUL_(SwVfpRegister Rx);
+  void float_FPUL_(SwVfpRegister Rd);
 
-  void float_FPUL_double_(DwVfpRegister Rx);
+  void float_FPUL_double_(DwVfpRegister Rd);
 
-  void fmac_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fmac_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fmov_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fmov_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fmov_Xdouble_Xdouble_(DwVfpRegister Ry, DwVfpRegister Rx);
+  void fmov_Xdouble_Xdouble_(DwVfpRegister Rs, DwVfpRegister Rd);
 
-  void fmov_indRy_(Register Ry, SwVfpRegister Rx);
+  void fmov_indRs_(Register Rs, SwVfpRegister Rd);
 
-  void fmov_indRy_Xdouble_(Register Ry, DwVfpRegister Rx);
+  void fmov_indRs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-  void fmov_indRx_(Register Ry, Register Rx);
+  void fmov_indRd_(Register Rs, Register Rd);
 
-  void fmov_Xdouble_indRx_(Register Ry, Register Rx);
+  void fmov_Xdouble_indRd_(Register Rs, Register Rd);
 
-  void fmov_incRy_(Register Ry, DwVfpRegister Rx);
+  void fmov_incRs_(Register Rs, DwVfpRegister Rd);
 
-  void fmov_decRx_(DwVfpRegister Ry, Register Rx);
+  void fmov_decRd_(DwVfpRegister Rs, Register Rd);
 
-  void fmov_Xdouble_decRx_(Register Ry, Register Rx);
+  void fmov_Xdouble_decRd_(Register Rs, Register Rd);
 
-  void fmov_dispR0Ry_(Register Ry, SwVfpRegister Rx);
+  void fmov_dispR0Rs_(Register Rs, SwVfpRegister Rd);
 
-  void fmov_dispR0Ry_Xdouble_(Register Ry, DwVfpRegister Rx);
+  void fmov_dispR0Rs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-  void fmov_dispR0Rx_(Register Ry, Register Rx);
+  void fmov_dispR0Rd_(Register Rs, Register Rd);
 
-  void fmov_Xdouble_dispR0Rx_(Register Ry, Register Rx);
+  void fmov_Xdouble_dispR0Rd_(Register Rs, Register Rd);
 
-  void fmovd_indRy_Xdouble_(Register Ry, DwVfpRegister Rx);
+  void fmovd_indRs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-  void fmovd_Xdouble_indRx_(Register Ry, Register Rx);
+  void fmovd_Xdouble_indRd_(Register Rs, Register Rd);
 
-  void fmovd_incRy_Xdouble_(Register Ry, DwVfpRegister Rx);
+  void fmovd_incRs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-  void fmovd_Xdouble_decRx_(Register Ry, Register Rx);
+  void fmovd_Xdouble_decRd_(Register Rs, Register Rd);
 
-  void fmovd_dispR0Ry_Xdouble_(Register Ry, DwVfpRegister Rx);
+  void fmovd_dispR0Rs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-  void fmovd_Xdouble_dispR0Rx_(Register Ry, Register Rx);
+  void fmovd_Xdouble_dispR0Rd_(Register Rs, Register Rd);
 
-  void fmovs_indRy_(Register Ry, SwVfpRegister Rx);
+  void fmovs_indRs_(Register Rs, SwVfpRegister Rd);
 
-  void fmovs_indRx_(Register Ry, Register Rx);
+  void fmovs_indRd_(Register Rs, Register Rd);
 
-  void fmovs_incRy_(Register Ry, SwVfpRegister Rx);
+  void fmovs_incRs_(Register Rs, SwVfpRegister Rd);
 
-  void fmovs_decRx_(Register Ry, Register Rx);
+  void fmovs_decRd_(Register Rs, Register Rd);
 
-  void fmovs_dispR0Ry_(Register Ry, SwVfpRegister Rx);
+  void fmovs_dispR0Rs_(Register Rs, SwVfpRegister Rd);
 
-  void fmovs_dispR0Rx_(Register Ry, Register Rx);
+  void fmovs_dispR0Rd_(Register Rs, Register Rd);
 
-  void fmul_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fmul_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fmul_double_(DwVfpRegister Ry, DwVfpRegister Rx);
+  void fmul_double_(DwVfpRegister Rs, DwVfpRegister Rd);
 
-  void fneg_(SwVfpRegister Rx);
+  void fneg_(SwVfpRegister Rd);
 
-  void fneg_double_(DwVfpRegister Rx);
+  void fneg_double_(DwVfpRegister Rd);
 
   void fpchg_();
 
   void frchg_();
 
-  void fsca_FPUL_double_(DwVfpRegister Rx);
+  void fsca_FPUL_double_(DwVfpRegister Rd);
 
   void fschg_();
 
-  void fsqrt_(SwVfpRegister Rx);
+  void fsqrt_(SwVfpRegister Rd);
 
-  void fsqrt_double_(DwVfpRegister Rx);
+  void fsqrt_double_(DwVfpRegister Rd);
 
-  void fsrra_(SwVfpRegister Rx);
+  void fsrra_(SwVfpRegister Rd);
 
-  void fsts_FPUL_(SwVfpRegister Rx);
+  void fsts_FPUL_(SwVfpRegister Rd);
 
-  void fsub_(SwVfpRegister Ry, SwVfpRegister Rx);
+  void fsub_(SwVfpRegister Rs, SwVfpRegister Rd);
 
-  void fsub_double_(DwVfpRegister Ry, DwVfpRegister Rx);
+  void fsub_double_(DwVfpRegister Rs, DwVfpRegister Rd);
 
-  void ftrc_FPUL_(SwVfpRegister Rx);
+  void ftrc_FPUL_(SwVfpRegister Rd);
 
-  void ftrc_double_FPUL_(DwVfpRegister Rx);
+  void ftrc_double_FPUL_(DwVfpRegister Rd);
 
-  void ftrv_(Register Rx);
+  void ftrv_(Register Rd);
 };
 
 

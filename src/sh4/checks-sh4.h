@@ -67,31 +67,31 @@
 #define SH4_CHECK_RANGE_ldc_bank(imm) ((imm) >= 0 && (imm) <= 7)
 #define FITS_SH4_ldc_bank(imm) (SH4_CHECK_RANGE_ldc_bank(imm))
 
-#define SH4_CHECK_RANGE_ldcl_incRx_bank(imm) ((imm) >= 0 && (imm) <= 7)
-#define FITS_SH4_ldcl_incRx_bank(imm) (SH4_CHECK_RANGE_ldcl_incRx_bank(imm))
+#define SH4_CHECK_RANGE_ldcl_incRd_bank(imm) ((imm) >= 0 && (imm) <= 7)
+#define FITS_SH4_ldcl_incRd_bank(imm) (SH4_CHECK_RANGE_ldcl_incRd_bank(imm))
 
 #define SH4_CHECK_RANGE_mov_imm(imm) ((imm) >= -128 && (imm) <= 127)
 #define FITS_SH4_mov_imm(imm) (SH4_CHECK_RANGE_mov_imm(imm))
 
-#define SH4_CHECK_RANGE_movb_dispRy_R0(imm) ((imm) >= 0 && (imm) <= 15)
-#define FITS_SH4_movb_dispRy_R0(imm) (SH4_CHECK_RANGE_movb_dispRy_R0(imm))
+#define SH4_CHECK_RANGE_movb_dispRs_R0(imm) ((imm) >= 0 && (imm) <= 15)
+#define FITS_SH4_movb_dispRs_R0(imm) (SH4_CHECK_RANGE_movb_dispRs_R0(imm))
 
 #define SH4_CHECK_RANGE_movb_dispGBR_R0(imm) ((imm) >= 0 && (imm) <= 255)
 #define FITS_SH4_movb_dispGBR_R0(imm) (SH4_CHECK_RANGE_movb_dispGBR_R0(imm))
 
-#define SH4_CHECK_RANGE_movb_R0_dispRx(imm) ((imm) >= 0 && (imm) <= 15)
-#define FITS_SH4_movb_R0_dispRx(imm) (SH4_CHECK_RANGE_movb_R0_dispRx(imm))
+#define SH4_CHECK_RANGE_movb_R0_dispRd(imm) ((imm) >= 0 && (imm) <= 15)
+#define FITS_SH4_movb_R0_dispRd(imm) (SH4_CHECK_RANGE_movb_R0_dispRd(imm))
 
 #define SH4_CHECK_RANGE_movb_R0_dispGBR(imm) ((imm) >= 0 && (imm) <= 255)
 #define FITS_SH4_movb_R0_dispGBR(imm) (SH4_CHECK_RANGE_movb_R0_dispGBR(imm))
 
-#define SH4_CHECK_RANGE_movl_dispRx(imm) ((imm) >= 0 && (imm) <= 60)
-#define SH4_CHECK_ALIGN_movl_dispRx(imm) (((imm) & 0x3) == 0)
-#define FITS_SH4_movl_dispRx(imm) (SH4_CHECK_RANGE_movl_dispRx(imm) && SH4_CHECK_ALIGN_movl_dispRx(imm))
+#define SH4_CHECK_RANGE_movl_dispRd(imm) ((imm) >= 0 && (imm) <= 60)
+#define SH4_CHECK_ALIGN_movl_dispRd(imm) (((imm) & 0x3) == 0)
+#define FITS_SH4_movl_dispRd(imm) (SH4_CHECK_RANGE_movl_dispRd(imm) && SH4_CHECK_ALIGN_movl_dispRd(imm))
 
-#define SH4_CHECK_RANGE_movl_dispRy(imm) ((imm) >= 0 && (imm) <= 60)
-#define SH4_CHECK_ALIGN_movl_dispRy(imm) (((imm) & 0x3) == 0)
-#define FITS_SH4_movl_dispRy(imm) (SH4_CHECK_RANGE_movl_dispRy(imm) && SH4_CHECK_ALIGN_movl_dispRy(imm))
+#define SH4_CHECK_RANGE_movl_dispRs(imm) ((imm) >= 0 && (imm) <= 60)
+#define SH4_CHECK_ALIGN_movl_dispRs(imm) (((imm) & 0x3) == 0)
+#define FITS_SH4_movl_dispRs(imm) (SH4_CHECK_RANGE_movl_dispRs(imm) && SH4_CHECK_ALIGN_movl_dispRs(imm))
 
 #define SH4_CHECK_RANGE_movl_dispGBR_R0(imm) ((imm) >= 0 && (imm) <= 1020)
 #define SH4_CHECK_ALIGN_movl_dispGBR_R0(imm) (((imm) & 0x3) == 0)
@@ -105,9 +105,9 @@
 #define SH4_CHECK_ALIGN_movl_R0_dispGBR(imm) (((imm) & 0x3) == 0)
 #define FITS_SH4_movl_R0_dispGBR(imm) (SH4_CHECK_RANGE_movl_R0_dispGBR(imm) && SH4_CHECK_ALIGN_movl_R0_dispGBR(imm))
 
-#define SH4_CHECK_RANGE_movw_dispRy_R0(imm) ((imm) >= 0 && (imm) <= 30)
-#define SH4_CHECK_ALIGN_movw_dispRy_R0(imm) (((imm) & 0x1) == 0)
-#define FITS_SH4_movw_dispRy_R0(imm) (SH4_CHECK_RANGE_movw_dispRy_R0(imm) && SH4_CHECK_ALIGN_movw_dispRy_R0(imm))
+#define SH4_CHECK_RANGE_movw_dispRs_R0(imm) ((imm) >= 0 && (imm) <= 30)
+#define SH4_CHECK_ALIGN_movw_dispRs_R0(imm) (((imm) & 0x1) == 0)
+#define FITS_SH4_movw_dispRs_R0(imm) (SH4_CHECK_RANGE_movw_dispRs_R0(imm) && SH4_CHECK_ALIGN_movw_dispRs_R0(imm))
 
 #define SH4_CHECK_RANGE_movw_dispGBR_R0(imm) ((imm) >= 0 && (imm) <= 510)
 #define SH4_CHECK_ALIGN_movw_dispGBR_R0(imm) (((imm) & 0x1) == 0)
@@ -117,9 +117,9 @@
 #define SH4_CHECK_ALIGN_movw_dispPC(imm) (((imm) & 0x1) == 0)
 #define FITS_SH4_movw_dispPC(imm) (SH4_CHECK_RANGE_movw_dispPC(imm) && SH4_CHECK_ALIGN_movw_dispPC(imm))
 
-#define SH4_CHECK_RANGE_movw_R0_dispRx(imm) ((imm) >= 0 && (imm) <= 30)
-#define SH4_CHECK_ALIGN_movw_R0_dispRx(imm) (((imm) & 0x1) == 0)
-#define FITS_SH4_movw_R0_dispRx(imm) (SH4_CHECK_RANGE_movw_R0_dispRx(imm) && SH4_CHECK_ALIGN_movw_R0_dispRx(imm))
+#define SH4_CHECK_RANGE_movw_R0_dispRd(imm) ((imm) >= 0 && (imm) <= 30)
+#define SH4_CHECK_ALIGN_movw_R0_dispRd(imm) (((imm) & 0x1) == 0)
+#define FITS_SH4_movw_R0_dispRd(imm) (SH4_CHECK_RANGE_movw_R0_dispRd(imm) && SH4_CHECK_ALIGN_movw_R0_dispRd(imm))
 
 #define SH4_CHECK_RANGE_movw_R0_dispGBR(imm) ((imm) >= 0 && (imm) <= 510)
 #define SH4_CHECK_ALIGN_movw_R0_dispGBR(imm) (((imm) & 0x1) == 0)
@@ -138,8 +138,8 @@
 #define SH4_CHECK_RANGE_stc_bank(imm) ((imm) >= 0 && (imm) <= 7)
 #define FITS_SH4_stc_bank(imm) (SH4_CHECK_RANGE_stc_bank(imm))
 
-#define SH4_CHECK_RANGE_stcl_bank_decRx(imm) ((imm) >= 0 && (imm) <= 7)
-#define FITS_SH4_stcl_bank_decRx(imm) (SH4_CHECK_RANGE_stcl_bank_decRx(imm))
+#define SH4_CHECK_RANGE_stcl_bank_decRd(imm) ((imm) >= 0 && (imm) <= 7)
+#define FITS_SH4_stcl_bank_decRd(imm) (SH4_CHECK_RANGE_stcl_bank_decRd(imm))
 
 #define SH4_CHECK_RANGE_trapa_imm(imm) ((imm) >= 0 && (imm) <= 255)
 #define FITS_SH4_trapa_imm(imm) (SH4_CHECK_RANGE_trapa_imm(imm))
