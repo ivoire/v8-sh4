@@ -504,10 +504,18 @@ void Assembler::pop(DwVfpRegister dst) {
 }
 
 
-void Assembler::popm(RegList dst) {
-  for (int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
-    if ((dst & (1 << i)) != 0) {
-      pop(Register::from_code(i));
+void Assembler::popm(RegList dst, bool doubles) {
+  if (!doubles) {
+    for (int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
+      if ((dst & (1 << i)) != 0) {
+        pop(Register::from_code(i));
+      }
+    }
+  } else {
+    for (int16_t i = DwVfpRegister::kNumRegisters - 1; i >= 0; i -= 2) {
+      if ((dst & (1 << i)) != 0) {
+        pop(DwVfpRegister::from_code(i));
+      }
     }
   }
 }
@@ -543,10 +551,18 @@ void Assembler::push(const Operand& op) {
 }
 
 
-void Assembler::pushm(RegList src) {
-  for (uint16_t i = 0; i < Register::kNumRegisters; i++) {
-    if ((src & (1 << i)) != 0) {
-      push(Register::from_code(i));
+void Assembler::pushm(RegList src, bool doubles) {
+  if (!doubles) {
+    for (uint16_t i = 0; i < Register::kNumRegisters; i++) {
+      if ((src & (1 << i)) != 0) {
+        push(Register::from_code(i));
+      }
+    }
+  } else {
+    for (uint16_t i = 0; i < Register::kNumRegisters; i += 2) {
+      if ((src & (1 << i)) != 0) {
+        push(DwVfpRegister::from_code(i));
+      }
     }
   }
 }
