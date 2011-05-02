@@ -645,6 +645,8 @@ class Assembler : public AssemblerBase {
     branch_unconditional
   };
 
+  static const RegList kAllRegisters = 0xffffffff;
+
 
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
@@ -683,12 +685,12 @@ class Assembler : public AssemblerBase {
   // push an immediate on the stack: use rtmp register for that
   void push(const Immediate& imm);
   void push(const Operand& op);
-  void pushm(RegList src);
+  void pushm(RegList src, bool doubles = false);
   void pushPR();
 
   void pop(Register dst);
   void pop(DwVfpRegister dst);
-  void popm(RegList dst);
+  void popm(RegList dst, bool doubles = false);
   void popPR();
 
   void rts() { rts_(); }
