@@ -176,8 +176,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // address of the next handler, there is no need to use the address
   // displacement since the current stack pointer (sp) points directly
   // to the stack handler.
-  __ mov(r3, sp);       // __ mov(r1, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ add(r3, Immediate(StackHandlerConstants::kNextOffset));
+  // __ mov(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
+  __ add(r3, sp, Immediate(StackHandlerConstants::kNextOffset));
   __ mov(r3, MemOperand(r3));
 
   __ mov(r2, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
