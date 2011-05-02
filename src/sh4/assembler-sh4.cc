@@ -421,7 +421,19 @@ void Assembler::bt(int offset) {
 
 
 void Assembler::bf(int offset) {
-  UNIMPLEMENTED();
+  if(FITS_SH4_bf(offset) && offset != kEndOfChain) {
+    bf_(offset);
+    nop_();
+  } else {
+    bt_(8);
+    nop_();
+    movl_dispPC_(4, rtmp);
+    nop_();
+    braf_(rtmp);
+    nop_();
+    *reinterpret_cast<uint32_t*>(pc_) = offset;
+    pc_ += sizeof(uint32_t);
+  }
 }
 
 
