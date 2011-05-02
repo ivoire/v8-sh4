@@ -649,10 +649,14 @@ class Assembler : public AssemblerBase {
   void add(Register Rx, Register Ry, const Immediate& imm);
   void add(Register Rx, Register Ry, Register Rz);
 
+  void And(Register Rx, const Immediate& imm) { UNIMPLEMENTED(); }
+
   void bt(Label* L)             { branch(L, branch_true); }
   void bf(Label* L)             { branch(L, branch_false); }
   void jmp(Label* L)            { branch(L, branch_unconditional); }
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
+
+  void cmpeq(Register Rx, Register Ry) { cmpeq_(Rx, Ry); }
 
   void sub(Register Rx, Register Ry, const Immediate& imm);
   void sub(Register Rx, Register Ry, Register Rz);

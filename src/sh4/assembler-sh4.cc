@@ -479,6 +479,7 @@ void Assembler::mov(Register Rx, const MemOperand& src) {
   }
 }
 
+
 void Assembler::mov(const MemOperand& dst, Register Rx) {
   if (dst.offset_ == 0) {
     movl_indRx_(Rx, dst.rm_);
