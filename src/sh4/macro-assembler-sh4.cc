@@ -68,7 +68,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 
 void MacroAssembler::Move(Register dst, Register src) {
   if (!dst.is(src)) {
-    mov(src, dst);
+    mov(dst, src);
   }
 }
 
