@@ -94,7 +94,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(r8, MemOperand(sp, kNumCalleeSaved * kPointerSize)); // r8: argv
 
   // Push the linkage register on the stack
-  __ pushPR();
+  __ push(pr);
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r4: code entry
@@ -193,7 +193,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(MemOperand(r2), r1);
 
   // Pop the linkage register from the stack
-  __ popPR();
+  __ pop(pr);
 
   // Restore callee-saved registers and return.
   __ popm(kCalleeSaved);
