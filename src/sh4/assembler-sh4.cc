@@ -243,14 +243,14 @@ void Assembler::add(Register Rd, Register Rs, const Immediate& imm) {
 }
 
 
-void Assembler::add(Register Rd, Register Rs, Register Rz) {
+void Assembler::add(Register Rd, Register Rs, Register Rt) {
   if (Rs.code() == Rd.code())
-    add_(Rz, Rd);
-  else if (Rz.code() == Rd.code()) {
+    add_(Rt, Rd);
+  else if (Rt.code() == Rd.code()) {
     add_(Rs, Rd);
   } else {
     mov_(Rs, Rd);
-    add_(Rz, Rd);
+    add_(Rt, Rd);
   }
 }
 
@@ -266,15 +266,27 @@ void Assembler::sub(Register Rd, Register Rs, const Immediate& imm) {
 }
 
 
-void Assembler::sub(Register Rd, Register Rs, Register Rz) {
+void Assembler::sub(Register Rd, Register Rs, Register Rt) {
   if (Rs.code() == Rd.code()) {
-    sub_(Rz, Rd);
-  } else if (Rz.code() == Rd.code()) {
-    neg_(Rz, Rd);
+    sub_(Rt, Rd);
+  } else if (Rt.code() == Rd.code()) {
+    neg_(Rt, Rd);
     add_(Rs, Rd);
   } else {
     mov_(Rs, Rd);
-    sub_(Rz, Rd);
+    sub_(Rt, Rd);
+  }
+}
+
+
+void Assembler::addv(Register Rd, Register Rs, Register Rt) {
+  if (Rs.code() == Rd.code())
+    addv_(Rt, Rd);
+  else if (Rt.code() == Rd.code()) {
+    addv_(Rs, Rd);
+  } else {
+    mov_(Rs, Rd);
+    addv_(Rt, Rd);
   }
 }
 
@@ -306,6 +318,10 @@ void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm) {
   }
 }
 
+void Assembler::tst(Register Rd, const Immediate& imm) {
+  mov(rtmp, imm);
+  tst_(Rd, rtmp);
+}
 
 void Assembler::call(Label* L) {
   UNIMPLEMENTED();
@@ -390,6 +406,14 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   jmp(dst);
 }
 
+void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode) {
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
+  intptr_t dst = reinterpret_cast<intptr_t>(code.location()) -
+                 reinterpret_cast<intptr_t>(pc_);
+
+  jsr(dst);
+}
 
 void Assembler::branch(int offset, branch_type type) {
   switch(type) {
@@ -438,6 +462,10 @@ void Assembler::bf(int offset) {
 
 
 void Assembler::jmp(int offset) {
+  // TODO: on other architectures we have:
+  // positions_recorder()->WriteRecordedPositions();
+  // check if this is necessary
+
   // Do a short jump if possible
   if (FITS_SH4_bra(offset) && offset != kEndOfChain) {
     bra_(offset);
@@ -448,6 +476,29 @@ void Assembler::jmp(int offset) {
     nop_();
     braf_(rtmp);
     nop_();
+    *reinterpret_cast<uint32_t*>(pc_) = offset;
+    pc_ += sizeof(uint32_t);
+  }
+}
+
+void Assembler::jsr(int offset) {
+  // TODO: on other architectures we have:
+  // positions_recorder()->WriteRecordedPositions();
+  // check if this is necessary
+
+  // Do a short jump if possible
+  // TODO: check if we must remove 4 from offset
+  // as the sematic of bra is to jump at [pc + 4 + (offset << 1)]
+  if (FITS_SH4_bsr(offset) && offset != kEndOfChain) {
+    bsr_(offset);
+    nop_();
+  } else {
+    // Use a super scratch register (r3) and a tiny constant pool
+    movl_dispPC_(4, rtmp);
+    nop_();
+    bsrf_(rtmp);
+    nop_();
+    // TODO: do we need align?
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }

@@ -126,7 +126,7 @@ const Register r8 = { 8 };      // ABI callee saved, idem for JIT
 const Register r9 = { 9 };      // ABI callee saved, idem for JIT
 const Register r10 = { 10 };    // ABI callee saved, idem for JIT
 const Register r11 = { 11 };    // ABI callee saved, idem for JIT
-const Register r12 = { 12 };    // ABI GP, standard callee saved for JIT
+const Register r12 = { 12 };    // ABI GP, root table pointer for JIT
 const Register r13 = { 13 };    // ABI callee saved, context pointer for JIT
 const Register r14 = { 14 };    // ABI FP, idem for JIT
 const Register r15 = { 15 };    // ABI SP, idem for JIT
@@ -136,6 +136,7 @@ const Register fp = r14;        // Frame Pointer
 const Register sp = r15;        // Stack Pointer
 const Register cp = r13;        // Context Pointer
 const Register pr = { -2 };     // Link register
+const Register roots = r12;     // Root Table Pointer
 
 
 // Single word VFP register.
@@ -652,7 +653,7 @@ class Assembler : public AssemblerBase {
   // Wrappers around the code generators
   void add(Register Rd, const Immediate& imm);
   void add(Register Rd, Register Rs, const Immediate& imm);
-  void add(Register Rd, Register Rs, Register Rz);
+  void add(Register Rd, Register Rs, Register Rt);
 
   void And(Register Rd, const Immediate& imm);
 
@@ -660,21 +661,31 @@ class Assembler : public AssemblerBase {
   void bf(Label* L)             { branch(L, branch_false); }
   void jmp(Label* L)            { branch(L, branch_unconditional); }
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
+  void jsr(Handle<Code> code, RelocInfo::Mode rmode);
 
-  void cmpeq(Register Rd, Register Rs) { cmpeq_(Rd, Rs); }
+  void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
+  void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }      // is Rd > Rs ?
+  void cmpge(Register Rd, Register Rs) { cmpge_(Rs, Rd); }      // is Rd >= Rs ?
+  void cmpgtu(Register Rd, Register Rs) { cmphi_(Rs, Rd); }     // is Rd u> Rs ?
+  void cmpgeu(Register Rd, Register Rs) { cmphs_(Rs, Rd); }     // is Rd u>= Rs ?
 
   void sub(Register Rd, Register Rs, const Immediate& imm);
-  void sub(Register Rd, Register Rs, Register Rz);
+  void sub(Register Rd, Register Rs, Register Rt);
+
+  void addv(Register Rd, Register Rs, Register Rt);
 
   void lsl(Register Rd, Register Rs, const Immediate& imm);
   void lsr(Register Rd, Register Rs, const Immediate& imm);
 
+  void tst(Register Rd, const Immediate& imm);
+
   void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }
   void mov(Register Rd, const Immediate& imm);
   void mov(Register Rd, const Operand& src);
-  void mov(Register Rd, const MemOperand& src);
 
-  void mov(const MemOperand& dst, Register Rd);
+  void mov(Register Rd, const MemOperand& src);  // load op.
+
+  void mov(const MemOperand& dst, Register Rd);  // store op.
 
   void nop() { nop_(); }
 
@@ -745,6 +756,7 @@ class Assembler : public AssemblerBase {
   void bt(int offset);
   void bf(int offset);
   void jmp(int offset);
+  void jsr(int offset);
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
