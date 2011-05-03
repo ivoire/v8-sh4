@@ -55,13 +55,25 @@ enum AllocationFlags {
   TAG_OBJECT = 1 << 0,
   // The content of the result register already contains the allocation top in
   // new space.
-  RESULT_CONTAINS_TOP = 1 << 1
+  RESULT_CONTAINS_TOP = 1 << 1,
+  // Specify that the requested size of the space to allocate is specified in
+  // words instead of bytes.
+  SIZE_IN_WORDS = 1 << 2
 };
+
+
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size);
+
+  // Load an object from the root table.
+  void LoadRoot(Register destination,
+                Heap::RootListIndex index);
+  // Store an object to the root table.
+  void StoreRoot(Register source,
+                 Heap::RootListIndex index);
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -397,6 +409,9 @@ class MacroAssembler: public Assembler {
                                Register scratch2,
                                Label* gc_required);
 
+  // Copies a fixed number of fields of heap objects from src to dst.
+  void CopyFields(Register dst, Register src, RegList temps, int field_count);
+
   // Copy memory, byte-by-byte, from source to destination.  Not optimized for
   // long or aligned copies.
   // The contents of index and scratch are destroyed.
@@ -549,13 +564,7 @@ class MacroAssembler: public Assembler {
 
   void Ret();
 
-  // Return and drop arguments from stack, where the number of arguments
-  // may be bigger than 2^16 - 1.  Requires a scratch register.
-  void Ret(int bytes_dropped, Register scratch);
-
-  // Emit code to discard a non-negative number of pointer-sized elements
-  // from the stack, clobbering only the esp register.
-  void Drop(int element_count);
+  void Drop(int stack_elements);
 
   void Call(Label* target) { call(target); }
 
@@ -587,12 +596,12 @@ class MacroAssembler: public Assembler {
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, const char* msg);
+  void Assert(const char* msg);
 
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
-  void Check(Condition cc, const char* msg);
+  void Check(const char* msg);
 
   // Print a message to stdout and abort execution.
   void Abort(const char* msg);
