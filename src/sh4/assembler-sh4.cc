@@ -255,6 +255,12 @@ void Assembler::add(Register Rd, Register Rs, Register Rz) {
 }
 
 
+void Assembler::And(Register Rd, const Immediate& imm) {
+  mov(r3, imm);
+  and_(r3, Rd);
+}
+
+
 void Assembler::sub(Register Rd, Register Rs, const Immediate& imm) {
   add(Rd, Rs, Immediate(-imm.x_));
 }
@@ -495,7 +501,10 @@ void Assembler::mov(const MemOperand& dst, Register Rd) {
 
 
 void Assembler::pop(Register dst) {
-  movl_incRs_(r15, dst);
+  if (dst.is(pr))
+    ldsl_incRd_PR_(r15);
+  else
+    movl_incRs_(r15, dst);
 }
 
 
@@ -518,11 +527,6 @@ void Assembler::popm(RegList dst, bool doubles) {
       }
     }
   }
-}
-
-
-void Assembler::popPR() {
-  ldsl_incRd_PR_(r15);
 }
 
 
@@ -567,10 +571,6 @@ void Assembler::pushm(RegList src, bool doubles) {
   }
 }
 
-
-void Assembler::pushPR() {
-  stsl_PR_decRd_(r15);
-}
 
 //#define SH4_DUMP_BUFFER
 

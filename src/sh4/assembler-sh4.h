@@ -654,7 +654,7 @@ class Assembler : public AssemblerBase {
   void add(Register Rd, Register Rs, const Immediate& imm);
   void add(Register Rd, Register Rs, Register Rz);
 
-  void And(Register Rd, const Immediate& imm) { UNIMPLEMENTED(); }
+  void And(Register Rd, const Immediate& imm);
 
   void bt(Label* L)             { branch(L, branch_true); }
   void bf(Label* L)             { branch(L, branch_false); }
@@ -686,12 +686,10 @@ class Assembler : public AssemblerBase {
   void push(const Immediate& imm);
   void push(const Operand& op);
   void pushm(RegList src, bool doubles = false);
-  void pushPR();
 
   void pop(Register dst);
   void pop(DwVfpRegister dst);
   void popm(RegList dst, bool doubles = false);
-  void popPR();
 
   void rts() { rts_(); }
 
