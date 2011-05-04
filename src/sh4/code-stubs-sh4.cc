@@ -409,8 +409,165 @@ Register InstanceofStub::right() {
 }
 
 
+void CEntryStub::GenerateCore(MacroAssembler* masm,
+                              Label* throw_normal_exception,
+                              Label* throw_termination_exception,
+                              Label* throw_out_of_memory_exception,
+                              bool do_gc,
+                              bool always_allocate) {
+  // r0: result parameter for PerformGC, if any
+  // r8: number of arguments including receiver  (C callee-saved)
+  // r9: pointer to builtin function  (C callee-saved)
+  // r10: pointer to the first argument (C callee-saved)
+  Isolate* isolate = masm->isolate();
+
+  if (do_gc) {
+    // Passing r0.
+    __ PrepareCallCFunction(1, r1);
+    __ CallCFunction(ExternalReference::perform_gc_function(isolate), 1);
+  }
+
+  ExternalReference scope_depth =
+      ExternalReference::heap_always_allocate_scope_depth(isolate);
+  if (always_allocate) {
+    __ mov(r0, Operand(scope_depth));
+    __ mov(r1, MemOperand(r0));
+    __ add(r1, Immediate(1));
+    __ mov(MemOperand(r0), r1);
+  }
+
+  // Call C built-in.
+  // r4 = argc, r5 = argv, r6 = isolate
+  __ mov(r4, r8);
+  __ mov(r5, r10);
+  __ mov(r6, Operand(ExternalReference::isolate_address()));
+  __ jsr(r9);
+
+  if (always_allocate) {
+    // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
+    // though (contain the result).
+    __ mov(r2, Operand(scope_depth));
+    __ mov(r3, MemOperand(r2));
+    __ sub(r3, r3, Immediate(1));
+    __ mov(MemOperand(r2), r3);
+  }
+
+  // check for failure result
+  Label failure_returned;
+  STATIC_ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
+  // Lower 2 bits of r2 are 0 if r0 has failure tag.
+  __ add(r2, r0, Immediate(1));
+  __ mov(r3, Immediate(kFailureTagMask));
+  __ tst(r2, r3);
+  __ bt(&failure_returned);
+
+  // Exit C frame and return.
+  // r0:r1: result
+  // sp: stack pointer
+  // fp: frame pointer
+  //  Callee-saved register r8 still holds argc.
+  __ LeaveExitFrame(save_doubles_, r4);
+  __ rts();
+
+  // check if we should retry or throw exception
+  Label retry;
+  __ bind(&failure_returned);
+  STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
+  __ tst(r0, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
+  __ bt(&retry);
+
+  // Special handling of out of memory exceptions.
+  Failure* out_of_memory = Failure::OutOfMemoryException();
+  __ mov(r3, Immediate(reinterpret_cast<int32_t>(out_of_memory)));
+  __ cmpeq(r0, r3);
+  __ bt(throw_out_of_memory_exception);
+
+  // Retrieve the pending exception and clear the variable.
+  __ mov(r3, Operand(ExternalReference::the_hole_value_location(isolate)));
+  __ mov(r2, MemOperand(r3));
+  __ mov(r3, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                       isolate)));
+  __ mov(r0, MemOperand(r3));
+  __ mov(MemOperand(r3), r2);
+
+  // Special handling of termination exceptions which are uncatchable
+  // by javascript code.
+  __ mov(r3, Operand(isolate->factory()->termination_exception()));
+  __ cmpeq(r0, r3);
+  __ bt(throw_termination_exception);
+
+  // Handle normal exception.
+  __ jmp(throw_normal_exception);
+
+  __ bind(&retry);  // pass last failure (r0) as parameter (r0) when retrying
+}
+
+
 void CEntryStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // Called from JavaScript; parameters are on stack as if calling JS function
+  // r0: number of arguments including receiver
+  // r1: pointer to builtin function
+  // fp: frame pointer  (restored after C call)
+  // sp: stack pointer  (restored as callee's sp after C call)
+  // cp: current context  (C callee-saved)
+
+  // NOTE: Invocations of builtins may return failure objects instead
+  // of a proper result. The builtin entry handles this by performing
+  // a garbage collection and retrying the builtin (twice).
+
+  // Compute the argv pointer in a callee-saved register.
+  __ lsl(r10, r0, Immediate(kPointerSizeLog2));
+  __ add(r10, sp, r0);
+  __ sub(r10, r8, Immediate(kPointerSize));
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  __ EnterExitFrame(save_doubles_);
+
+  // Setup argc and the builtin function in callee-saved registers.
+  __ mov(r8, r0);
+  __ mov(r9, r1);
+
+  // r8: number of arguments (C callee-saved)
+  // r9: pointer to builtin function (C callee-saved)
+  // r10: pointer to first argument (C callee-saved)
+
+  Label throw_normal_exception;
+  Label throw_termination_exception;
+  Label throw_out_of_memory_exception;
+
+  // Call into the runtime system.
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_termination_exception,
+               &throw_out_of_memory_exception,
+               false,
+               false);
+
+  // Do space-specific GC and retry runtime call.
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_termination_exception,
+               &throw_out_of_memory_exception,
+               true,
+               false);
+
+  // Do full GC and retry runtime call one final time.
+  Failure* failure = Failure::InternalError();
+  __ mov(r0, Operand(reinterpret_cast<int32_t>(failure)));
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_termination_exception,
+               &throw_out_of_memory_exception,
+               true,
+               true);
+
+  __ bind(&throw_out_of_memory_exception);
+  __ ThrowUncatchable(OUT_OF_MEMORY, r0);
+
+  __ bind(&throw_termination_exception);
+  __ ThrowUncatchable(TERMINATION, r0);
+  __ bind(&throw_normal_exception);
+  __ Throw(r0);
 }
 
 

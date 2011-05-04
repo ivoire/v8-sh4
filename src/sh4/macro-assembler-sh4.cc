@@ -92,6 +92,86 @@ void MacroAssembler::Drop(int stack_elements) {
 }
 
 
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
+  // Setup the frame structure on the stack
+  ASSERT_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
+  ASSERT_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
+  ASSERT_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
+
+  // Save PR and FP
+  push(pr);
+  push(fp);
+  // Setup a new frame pointer
+  mov(fp, sp);
+
+  // Reserve room for saved entry sp and code object
+  sub(sp, sp, Immediate(2*kPointerSize));
+  if (emit_debug_code()) {
+    mov(r3, Immediate(0));
+    mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r3);
+  }
+//  mov(r3, Operand(CodeObject()));     //TODO: relocation !!
+  mov(MemOperand(fp, ExitFrameConstants::kCodeOffset), r3);
+
+  // Save the frame pointer and the context in top.
+  mov(r3, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  mov(MemOperand(r3), fp);
+  mov(r3, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  mov(MemOperand(r3), cp);
+
+  // Optionally save all double registers.
+  if (save_doubles)
+    pushm(kAllRegisters, true);
+
+  // Reserve place for the return address and stack space and align the frame
+  // preparing for calling the runtime function.
+  const int frame_alignment = OS::ActivationFrameAlignment();
+  sub(sp, sp, Immediate((stack_space + 1) * kPointerSize));
+  if (frame_alignment) {
+    ASSERT(IsPowerOf2(frame_alignment));
+    And(sp, Immediate(-frame_alignment));
+  }
+
+  // Set the exit frame sp value to point just before the return address
+  // location.
+  add(r3, sp, Immediate(kPointerSize));
+  mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r3);
+}
+
+
+void MacroAssembler::LeaveExitFrame(bool save_doubles,
+                                    Register argument_count) {
+  // Clear top frame.
+  mov(r3, Immediate(0));
+  mov(r2, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  mov(MemOperand(r2), r3);
+
+  // Restore current context from top and clear it in debug mode.
+  mov(r3, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  mov(cp, MemOperand(r3));
+
+  // Pop the doubles if needed
+  if (save_doubles) {
+    // Calculate the stack location of the saved doubles and restore them.
+    const int offset = 2 * kPointerSize;
+    sub(sp, fp, Immediate(offset + DwVfpRegister::kNumRegisters * kDoubleSize));
+    popm(kAllRegisters, true);
+  }
+
+  // Tear down the exit frame, pop the arguments, and return.
+  mov(sp, fp);
+  pop(fp);
+  pop(pr);
+
+  if (argument_count.is_valid()) {
+    // sp = sp + argument_count << kPointerSizeLog2
+    ASSERT(!argument_count.is(r3));
+    lsl(r3, argument_count, Immediate(kPointerSizeLog2));
+    add(sp, sp, r3);
+  }
+}
+
+
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
@@ -111,6 +191,65 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 void MacroAssembler::PopTryHandler() {
   UNIMPLEMENTED();
+}
+
+
+static const int kRegisterPassedArguments = 4;
+
+void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
+  int frame_alignment = OS::ActivationFrameAlignment();
+
+  // Up to four simple arguments are passed in registers r4..r7.
+  int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
+                               0 : num_arguments - kRegisterPassedArguments;
+
+  if (frame_alignment > 0) {
+    mov(scratch, sp);
+    sub(sp, sp, Immediate((stack_passed_arguments + 1) * kPointerSize));
+    ASSERT(IsPowerOf2(frame_alignment));
+    And(sp, Immediate(-frame_alignment));
+    mov(MemOperand(sp, stack_passed_arguments * kPointerSize), scratch);
+  } else {
+    sub(sp, sp, Immediate(stack_passed_arguments * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments) {
+  CallCFunctionHelper(no_reg, function, r3, num_arguments);
+}
+
+
+void MacroAssembler::CallCFunctionHelper(Register function,
+                                         ExternalReference function_reference,
+                                         Register scratch,
+                                         int num_arguments) {
+  // Make sure that the stack is aligned before calling a C function unless
+  // running in the simulator. The simulator has its own alignment check which
+  // provides more information.
+#if defined(V8_HOST_ARCH_SH4)
+  if (emit_debug_code()) {
+    UNIMPLEMENTED();
+  }
+#endif
+
+  // Just call directly. The function called cannot cause a GC, or
+  // allow preemption, so the return address in the link register
+  // stays correct.
+  if (function.is(no_reg)) {
+    mov(scratch, Operand(function_reference));
+    function = scratch;
+  }
+  jsr(function);
+
+  int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
+                               0 : num_arguments - kRegisterPassedArguments;
+  if (OS::ActivationFrameAlignment() > kPointerSize) {
+    mov(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
+  } else {
+    add(sp, sp, Immediate(stack_passed_arguments * sizeof(kPointerSize)));
+  }
 }
 
 
@@ -135,6 +274,126 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
   }
 }
 
+
+void MacroAssembler::Throw(Register value) {
+  // r0 is expected to hold the exception.
+  if (!value.is(r0)) {
+    mov(r0, value);
+  }
+
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // Drop the sp to the top of the handler.
+  mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  mov(sp, MemOperand(r3));
+
+  // Restore the next handler and frame pointer, discard handler state.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  pop(r2);
+  mov(MemOperand(r3), r2);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  pop(r3);
+  pop(fp);
+
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
+  Label restore, restore_end;
+  mov(r3, Immediate(0));
+  cmpeq(fp, r3);
+  bf(&restore);
+  // Set cp to NULL if fp is NULL.
+  mov(cp, Immediate(0));
+  jmp(&restore_end);
+  bind(&restore);
+  // Restore cp otherwise.
+  mov(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  bind(&restore_end);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+  pop(pr);
+  rts();
+}
+
+
+void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
+                                      Register value) {
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // r0 is expected to hold the exception.
+  if (!value.is(r0)) {
+    mov(r0, value);
+  }
+
+  // Drop sp to the top stack handler.
+  mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  mov(sp, MemOperand(r3));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  Label loop, done;
+  bind(&loop);
+  // Load the type of the current stack handler.
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  mov(r3, MemOperand(sp, kStateOffset));
+  mov(r2, Operand(StackHandler::ENTRY));
+  cmpeq(r2, r3);
+  bt(&done);
+  // Fetch the next handler in the list.
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  mov(sp, MemOperand(sp, kNextOffset));
+  jmp(&loop);
+  bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  pop(r2);
+  mov(MemOperand(r3), r2);
+
+  if (type == OUT_OF_MEMORY) {
+    // Set external caught exception to false.
+    ExternalReference external_caught(
+        Isolate::k_external_caught_exception_address, isolate());
+    mov(r0, Immediate(false));
+    mov(r3, Operand(external_caught));
+    mov(MemOperand(r0), r3);
+
+    // Set pending exception and r0 to out of memory exception.
+    Failure* out_of_memory = Failure::OutOfMemoryException();
+    mov(r0, Immediate(reinterpret_cast<int32_t>(out_of_memory)));
+    mov(r3, Operand(ExternalReference(Isolate::k_pending_exception_address,
+                                      isolate())));
+    mov(MemOperand(r3), r0);
+  }
+
+  // Stack layout at this point. See also StackHandlerConstants.
+  // sp ->   state (ENTRY)
+  //         fp
+  //         pr
+
+  // Discard handler state (r3 is not used) and restore frame pointer.
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  pop(r3);
+  pop(fp);
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
+  Label restore, restore_end;
+  mov(r3, Immediate(0));
+  cmpeq(fp, r3);
+  bf(&restore);
+  // Set cp to NULL if fp is NULL.
+  mov(cp, Immediate(0));
+  jmp(&restore_end);
+  bind(&restore);
+  // Restore cp otherwise.
+  mov(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  bind(&restore_end);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+  pop(pr);
+  rts();
+}
 
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   UNIMPLEMENTED();
