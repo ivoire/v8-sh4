@@ -130,22 +130,14 @@ class MacroAssembler: public Assembler {
   void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
   void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
-  // Enter specific kind of exit frame. Expects the number of
-  // arguments in register eax and sets up the number of arguments in
-  // register edi and the pointer to the first argument in register
-  // esi.
-  void EnterExitFrame(bool save_doubles);
+  // Enter exit frame.
+  // stack_space - extra stack space, used for alignment before call to C.
+  void EnterExitFrame(bool save_doubles, int stack_space = 0);
 
-  void EnterApiExitFrame(int argc);
-
-  // Leave the current exit frame. Expects the return value in
-  // register eax:edx (untouched) and the pointer to the first
-  // argument in register esi.
-  void LeaveExitFrame(bool save_doubles);
-
-  // Leave the current exit frame. Expects the return value in
-  // register eax (untouched).
-  void LeaveApiExitFrame();
+  // Leave the current exit frame. Expects the return value in r0.
+  // Expect the number of values, pushed prior to the exit frame, to
+  // remove in a register (or no_reg, if there is nothing to remove).
+  void LeaveExitFrame(bool save_doubles, Register argument_count);
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
@@ -576,8 +568,6 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
-  void Move(Register target, Handle<Object> value);
-
   Handle<Object> CodeObject() { return code_object_; }
 
 
@@ -634,6 +624,11 @@ class MacroAssembler: public Assembler {
                                            Label* on_not_flat_ascii_strings);
 
  private:
+  void CallCFunctionHelper(Register function,
+                           ExternalReference function_reference,
+                           Register scratch,
+                           int num_arguments);
+
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.
@@ -649,11 +644,8 @@ class MacroAssembler: public Assembler {
                       PostCallGenerator* post_call_generator = NULL);
 
   // Activation support.
-  void EnterFrame(StackFrame::Type type) {}
-  void LeaveFrame(StackFrame::Type type) {}
-
-  void EnterExitFramePrologue();
-  void EnterExitFrameEpilogue(int argc, bool save_doubles);
+  void EnterFrame(StackFrame::Type type) { UNIMPLEMENTED(); }
+  void LeaveFrame(StackFrame::Type type) { UNIMPLEMENTED(); }
 
   void LeaveExitFrameEpilogue();
 
