@@ -827,7 +827,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 
 void StackCheckStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ TailCallRuntime(Runtime::kStackGuard, 0, 1);
 }
 
 
