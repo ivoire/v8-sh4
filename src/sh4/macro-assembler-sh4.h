@@ -263,11 +263,13 @@ class MacroAssembler: public Assembler {
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
-    UNIMPLEMENTED();
+    tst(value, Immediate(kSmiTagMask));
+    bt(smi_label);
   }
-  // Jump if register contain a non-smi.
+  // Jump if the register contains a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
-    UNIMPLEMENTED();
+    tst(value, Immediate(kSmiTagMask));
+    bf(not_smi_label);
   }
 
   // Assumes input is a heap object.
