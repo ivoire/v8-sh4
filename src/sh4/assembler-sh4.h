@@ -395,6 +395,7 @@ class Operand BASE_EMBEDDED {
   INLINE(explicit Operand(Register reg));
   INLINE(explicit Operand(int32_t immediate));
   INLINE(explicit Operand(const ExternalReference& f));
+  explicit Operand(Handle<Object> handle);
 
  private:
   Register rx_;
@@ -677,6 +678,7 @@ class Assembler : public AssemblerBase {
   void lsl(Register Rd, Register Rs, const Immediate& imm);
   void lsr(Register Rd, Register Rs, const Immediate& imm);
 
+  void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };
   void tst(Register Rd, const Immediate& imm);
 
   void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }

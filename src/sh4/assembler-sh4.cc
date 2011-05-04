@@ -58,6 +58,26 @@ void CpuFeatures::Probe() {
 }
 
 
+// -----------------------------------------------------------------------------
+// Implementation of Operand and MemOperand
+// See assembler-sh4-inl.h for inlined constructors
+
+Operand::Operand(Handle<Object> handle) {
+  rx_ = no_reg;
+  // Verify all Objects referred by code are NOT in new space.
+  Object* obj = *handle;
+  ASSERT(!HEAP->InNewSpace(obj));
+  if (obj->IsHeapObject()) {
+    imm32_ = reinterpret_cast<intptr_t>(handle.location());
+    rmode_ = RelocInfo::EMBEDDED_OBJECT;
+  } else {
+    // no relocation needed
+    imm32_ =  reinterpret_cast<intptr_t>(obj);
+    rmode_ = RelocInfo::NONE;
+  }
+}
+
+
 void Assembler::Align(int m) {
   ASSERT(m >= 4 && IsPowerOf2(m));
   while ((pc_offset() & (m - 1)) != 0) {
