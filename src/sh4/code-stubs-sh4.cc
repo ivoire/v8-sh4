@@ -388,7 +388,129 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // The displacement is the offset of the last parameter (if any)
+  // relative to the frame pointer.
+  static const int kDisplacement =
+      StandardFrameConstants::kCallerSPOffset - kPointerSize;
+
+  // SH4 parameters {
+  // r4: index limit (undefined if in adapator frame)
+  // r5: key index
+  // }
+
+  // ARM live-in: r0, r1
+  // SH4 live-in: r4, r5
+  
+  // ARM -> SH4 register mapping
+  // r0 -> r4 (when parameter) or r0 (when return value)
+  // r1 -> r5 (when parameter)
+  // r2 -> r2
+  // r3 -> r0
+
+  // Check that the key is a smi.
+  Label slow;
+  // ARM code: __ JumpIfNotSmi(r1, &slow);
+  // SH4 live-in: r4, r5
+  // SH4 live-out: r4, r5
+  // SH4 code:
+  __ JumpIfNotSmi(r5, &slow);
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  // ARM code {
+  // __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  // __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  // __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  // __ b(eq, &adaptor);
+  // }
+  // SH4 live-in: r4, r5
+  // SH4 live-out: r4, r5
+  // SH4 code {
+  __ mov(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(r0, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ mov(r1, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ cmpeq(r0, r1);
+  __ bt(&adaptor);
+  // }
+
+  // Check index against formal parameters count limit passed in
+  // through register r0. Use unsigned comparison to get negative
+  // check for free.
+  // ARM code {
+  // __ cmp(r1, r0);
+  // __ b(hs, &slow);
+  // }
+  // SH4 live-in: r4, r5
+  // SH4 live-out: r4, r5
+  // SH4 code {
+  __ cmpgeu(r5, r4);
+  __ bt(&slow);
+  // }
+
+  // Read the argument from the stack and return it.
+  // ARM code {
+  // __ sub(r3, r0, r1);
+  // __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  // __ ldr(r0, MemOperand(r3, kDisplacement));
+  // __ Jump(lr);
+  // }
+  // SH4 live-in: r4, r5
+  // SH4 live-out: r0
+  // SH4 code {
+  __ sub(r0, r4, r5);
+  __ lsl(r0, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r0, fp, r0);
+  __ mov(r0, MemOperand(r0, kDisplacement));
+  __ Ret();
+  // }
+
+  // Arguments adaptor case: Check index against actual arguments
+  // limit found in the arguments adaptor frame. Use unsigned
+  // comparison to get negative check for free.
+  __ bind(&adaptor);
+  // ARM code {
+  // __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  // __ cmp(r1, r0);
+  // __ b(cs, &slow);
+  // }
+  // SH4 live-in: r2, r5
+  // SH4 live-out: r2, r4, r5
+  // SH4 code {
+  __ mov(r4, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmpgeu(r5, r4);
+  __ bt(&slow);
+  // }
+
+  // Read the argument from the adaptor frame and return it.
+  // ARM code {
+  // __ sub(r3, r0, r1);
+  // __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  // __ ldr(r0, MemOperand(r3, kDisplacement));
+  // __ Jump(lr);
+  // }
+  // SH4 live-in: r2, r4, r5
+  // SH4 live-out: r0
+  // SH4 code {
+  __ sub(r0, r4, r5);
+  __ lsl(r0, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r0, r2, r0);
+  __ mov(r0, MemOperand(r0, kDisplacement));
+  __ Ret();
+  // }
+
+  // Slow-case: Handle non-smi or out-of-bounds access to arguments
+  // by calling the runtime system.
+  __ bind(&slow);
+  // ARM code {
+  // __ push(r1);
+  // __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
+  // }
+  // SH4 live-in: r5
+  // SH4 live-out: empty
+  // SH4 code {
+  __ push(r5);
+  __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
+  // }
 }
 
 
