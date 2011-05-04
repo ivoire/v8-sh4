@@ -114,6 +114,46 @@ class MacroAssembler: public Assembler {
                    Register address,
                    Register value);
 
+  // Push two registers.  Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2) {
+    ASSERT(!src1.is(src2));
+    push(src1);
+    push(src2);
+  }
+
+  // Push three registers.  Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2, Register src3) {
+    ASSERT(!src1.is(src2));
+    ASSERT(!src2.is(src3));
+    ASSERT(!src1.is(src3));
+    push(src1);
+    push(src2);
+    push(src3);
+  }
+
+  // Push four registers.  Pushes leftmost register first (to highest address).
+  void Push(Register src1, Register src2,
+            Register src3, Register src4) {
+    ASSERT(!src1.is(src2));
+    ASSERT(!src2.is(src3));
+    ASSERT(!src1.is(src3));
+    ASSERT(!src1.is(src4));
+    ASSERT(!src2.is(src4));
+    ASSERT(!src3.is(src4));
+    push(src1);
+    push(src2);
+    push(src3);
+    push(src4);
+  }
+
+  // Pop two registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2) {
+    ASSERT(!src1.is(src2));
+    pop(src2);
+    pop(src1);
+  }
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
