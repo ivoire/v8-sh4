@@ -92,7 +92,6 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
       positions_recorder_(this),
       emit_debug_code_(FLAG_debug_code) {
-  // FIXME(STM): finish this class
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -119,10 +118,16 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     own_buffer_ = false;
   }
 
+  if (own_buffer_) {
+    memset(buffer_, 0x00, buffer_size);
+  }
+
   // Setup buffer pointers.
   ASSERT(buffer_ != NULL);
   pc_ = buffer_;
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
+
+  last_pc_ = NULL;
 }
 
 
