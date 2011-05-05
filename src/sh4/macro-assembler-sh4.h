@@ -87,32 +87,30 @@ class MacroAssembler: public Assembler {
 
   // Check if object is in new space.
   // scratch can be object itself, but it will be clobbered.
-  template <typename LabelType>
   void InNewSpace(Register object,
                   Register scratch,
-                  Condition cc,  // equal for new space, not_equal otherwise.
-                  LabelType* branch);
+                  int eq_0_ne_1,  // 0 for "in new space?", 1 for "not in new space?"
+                  Label* branch);
 
-  // For page containing |object| mark region covering [object+offset]
-  // dirty. |object| is the object being stored into, |value| is the
-  // object being stored. If offset is zero, then the scratch register
-  // contains the array index into the elements array represented as a
-  // Smi. All registers are clobbered by the operation. RecordWrite
-  // filters out smis so it does not update the write barrier if the
-  // value is a smi.
+  // For the page containing |object| mark the region covering
+  // [object+offset] dirty. The object address must be in the first 8K
+  // of an allocated page.  The 'scratch' registers are used in the
+  // implementation and all 3 registers are clobbered by the
+  // operation, as well as the ip register. RecordWrite updates the
+  // write barrier even when storing smis.
   void RecordWrite(Register object,
-                   int offset,
-                   Register value,
-                   Register scratch);
+                   Register offset,
+                   Register scratch0,
+                   Register scratch1);
 
-  // For page containing |object| mark region covering |address|
-  // dirty. |object| is the object being stored into, |value| is the
-  // object being stored. All registers are clobbered by the
-  // operation. RecordWrite filters out smis so it does not update the
-  // write barrier if the value is a smi.
+  // For the page containing |object| mark the region covering
+  // [address] dirty. The object address must be in the first 8K of an
+  // allocated page.  All 3 registers are clobbered by the operation,
+  // as well as the ip register. RecordWrite updates the write barrier
+  // even when storing smis.
   void RecordWrite(Register object,
                    Register address,
-                   Register value);
+                   Register scratch);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -610,6 +608,10 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
+  void Ubfx(Register dst, Register src, int lsb, int width);
+  void Sbfx(Register dst, Register src, int lsb, int width);
+  void Bfc(Register dst, int lsb, int width);
+
   Handle<Object> CodeObject() { return code_object_; }
 
 
@@ -713,15 +715,6 @@ class MacroAssembler: public Assembler {
   // traversal.
   friend class OptimizedFrame;
 };
-
-
-template <typename LabelType>
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                LabelType* branch) {
-  UNIMPLEMENTED();
-}
 
 
 // The code patcher is used to patch (typically) small parts of code e.g. for
