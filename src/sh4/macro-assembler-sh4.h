@@ -99,7 +99,7 @@ class MacroAssembler: public Assembler {
   // operation, as well as the ip register. RecordWrite updates the
   // write barrier even when storing smis.
   void RecordWrite(Register object,
-                   Register offset,
+                   int offset,
                    Register scratch0,
                    Register scratch1);
 

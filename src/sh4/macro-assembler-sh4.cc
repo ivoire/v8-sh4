@@ -718,11 +718,11 @@ void MacroAssembler::RecordWriteHelper(Register object,
 }
 
 
-// Will clobber 4 registers: object, offset, scratch, rtmp (ARM:ip).  The
+// Will clobber 4 registers: object, scratch0/1, rtmp (ARM:ip).  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
-                                 Register offset,
+                                 int offset,
                                  Register scratch0,
                                  Register scratch1) {
   // The compiled code assumes that record write doesn't change the
@@ -737,7 +737,7 @@ void MacroAssembler::RecordWrite(Register object,
   InNewSpace(object, scratch0, 0/*eq*/, &done);
 
   // Add offset into the object.
-  add(scratch0, object, offset);
+  add(scratch0, object, Immediate(offset));
 
   // Record the actual write.
   RecordWriteHelper(object, scratch0, scratch1);
