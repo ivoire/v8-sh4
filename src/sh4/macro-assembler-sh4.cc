@@ -401,6 +401,40 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 }
 
 
+void MacroAssembler::SetCounter(StatsCounter* counter, int value,
+                                Register scratch1, Register scratch2) {
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    mov(scratch1, Immediate(value));
+    mov(scratch2, Operand(ExternalReference(counter)));
+    mov(MemOperand(scratch2), scratch1);
+  }
+}
+
+
+void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
+                                      Register scratch1, Register scratch2) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    mov(scratch2, Operand(ExternalReference(counter)));
+    mov(scratch1, MemOperand(scratch2));
+    add(scratch1, scratch1, Immediate(value));
+    mov(MemOperand(scratch2), scratch1);
+  }
+}
+
+
+void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
+                                      Register scratch1, Register scratch2) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    mov(scratch2, Operand(ExternalReference(counter)));
+    mov(scratch1, MemOperand(scratch2));
+    sub(scratch1, scratch1, Immediate(value));
+    mov(MemOperand(scratch2), scratch1);
+  }
+}
+
+
 void MacroAssembler::Check(const char* msg) {
   Label L;
   // ARM code {
@@ -782,6 +816,39 @@ void MacroAssembler::RecordWrite(Register object,
     mov(object, Immediate(BitCast<int32_t>(kZapValue)));
     mov(address, Immediate(BitCast<int32_t>(kZapValue)));
     mov(scratch, Immediate(BitCast<int32_t>(kZapValue)));
+  }
+}
+
+
+// Clobbers: rtmp, dst
+// live-in: cp
+// live-out: cp, dst
+void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
+  if (context_chain_length > 0) {
+    // Move up the chain of contexts to the context containing the slot.
+    mov(dst, MemOperand(cp, Context::SlotOffset(Context::CLOSURE_INDEX)));
+    // Load the function context (which is the incoming, outer context).
+    mov(dst, FieldMemOperand(dst, JSFunction::kContextOffset));
+    for (int i = 1; i < context_chain_length; i++) {
+      mov(dst, MemOperand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
+      mov(dst, FieldMemOperand(dst, JSFunction::kContextOffset));
+    }
+  } else {
+    // Slot is in the current function context.  Move it into the
+    // destination register in case we store into it (the write barrier
+    // cannot be allowed to destroy the context in esi).
+    mov(dst, cp);
+  }
+
+  // We should not have found a 'with' context by walking the context chain
+  // (i.e., the static scope chain and runtime context chain do not agree).
+  // A variable occurring in such a scope should have slot type LOOKUP and
+  // not CONTEXT.
+  if (emit_debug_code()) {
+    mov(rtmp, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+    cmpeq(dst, rtmp);
+    Check("Yo dawg, I heard you liked function contexts "
+	  "so I put function contexts in all your contexts");
   }
 }
 

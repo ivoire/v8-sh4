@@ -47,6 +47,11 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
 }
 
 
+static inline MemOperand ContextOperand(Register context, int index) {
+  return MemOperand(context, Context::SlotOffset(index));
+}
+
+
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
   // No special flags.
@@ -618,11 +623,12 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
-  void SetCounter(StatsCounter* counter, int value);
-  void IncrementCounter(StatsCounter* counter, int value);
-  void DecrementCounter(StatsCounter* counter, int value);
-  void IncrementCounter(Condition cc, StatsCounter* counter, int value);
-  void DecrementCounter(Condition cc, StatsCounter* counter, int value);
+  void SetCounter(StatsCounter* counter, int value,
+		  Register scratch1, Register scratch2);
+  void IncrementCounter(StatsCounter* counter, int value,
+			Register scratch1, Register scratch2);
+  void DecrementCounter(StatsCounter* counter, int value,
+			Register scratch1, Register scratch2);
 
 
   // ---------------------------------------------------------------------------
