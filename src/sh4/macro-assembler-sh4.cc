@@ -428,7 +428,6 @@ void MacroAssembler::Abort(const char* msg) {
   ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
 #ifdef DEBUG
   if (msg != NULL) {
-    // TODO: check implementation
     RecordComment("Abort message: ");
     RecordComment(msg);
   }
