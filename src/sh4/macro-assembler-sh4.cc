@@ -129,7 +129,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   sub(sp, sp, Immediate((stack_space + 1) * kPointerSize));
   if (frame_alignment) {
     ASSERT(IsPowerOf2(frame_alignment));
-    And(sp, Immediate(-frame_alignment));
+    land(sp, sp, Immediate(-frame_alignment));
   }
 
   // Set the exit frame sp value to point just before the return address
@@ -207,7 +207,7 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
     mov(scratch, sp);
     sub(sp, sp, Immediate((stack_passed_arguments + 1) * kPointerSize));
     ASSERT(IsPowerOf2(frame_alignment));
-    And(sp, Immediate(-frame_alignment));
+    land(sp, sp, Immediate(-frame_alignment));
     mov(MemOperand(sp, stack_passed_arguments * kPointerSize), scratch);
   } else {
     sub(sp, sp, Immediate(stack_passed_arguments * kPointerSize));
