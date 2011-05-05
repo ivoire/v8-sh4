@@ -246,6 +246,7 @@ void Assembler::add(Register Rd, const Immediate& imm) {
     add_imm_(imm.x_, Rd);
   } else {
     // Use a super scratch register (r3) and a tiny constant pool
+    align();
     movl_dispPC_(4, rtmp);
     nop_();
     bra_(4);
@@ -442,7 +443,8 @@ void Assembler::branch(Label* L, branch_type type) {
     } else {
       branch(kEndOfChain, type);   // Patched later on
     }
-    int pos = reinterpret_cast<int>(reinterpret_cast<uint16_t*>(pc_) - 2);
+    // Compensate the place of the constant (sizeof(uint32_t))
+    int pos = reinterpret_cast<int>(pc_) - sizeof(uint32_t);
     L->link_to(pos);  // Link to the constant
   }
 }
@@ -483,13 +485,16 @@ void Assembler::bt(int offset) {
     bt_(offset);
     nop_();
   } else {
+    int nop_count = align();
     bf_(8);
     nop_();
     movl_dispPC_(4, rtmp);
     nop_();
     braf_(rtmp);
     nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = offset;
+    *reinterpret_cast<uint32_t*>(pc_) = (offset == kEndOfChain ?
+                                         kEndOfChain :
+                                         offset - (3 + nop_count) * sizeof(uint16_t));
     pc_ += sizeof(uint32_t);
   }
 }
@@ -500,13 +505,16 @@ void Assembler::bf(int offset) {
     bf_(offset);
     nop_();
   } else {
+    int nop_count = align();
     bt_(8);
     nop_();
     movl_dispPC_(4, rtmp);
     nop_();
     braf_(rtmp);
     nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = offset;
+    *reinterpret_cast<uint32_t*>(pc_) = (offset == kEndOfChain ?
+                                         kEndOfChain :
+                                         offset - (3 + nop_count) * sizeof(uint16_t));
     pc_ += sizeof(uint32_t);
   }
 }
@@ -523,11 +531,14 @@ void Assembler::jmp(int offset) {
     nop_();
   } else {
     // Use a super scratch register (r3) and a tiny constant pool
+    int nop_count = align();
     movl_dispPC_(4, rtmp);
-    nop_();
+    nop();
     braf_(rtmp);
     nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = offset;
+    *reinterpret_cast<uint32_t*>(pc_) = (offset == kEndOfChain ?
+                                         kEndOfChain :
+                                         offset - (3 + nop_count) * sizeof(uint16_t));
     pc_ += sizeof(uint32_t);
   }
 }
@@ -545,12 +556,14 @@ void Assembler::jsr(int offset) {
     nop_();
   } else {
     // Use a super scratch register (r3) and a tiny constant pool
+    int nop_count = align();
     movl_dispPC_(4, rtmp);
     nop_();
     bsrf_(rtmp);
     nop_();
-    // TODO: do we need align?
-    *reinterpret_cast<uint32_t*>(pc_) = offset;
+    *reinterpret_cast<uint32_t*>(pc_) = (offset == kEndOfChain ?
+                                         kEndOfChain :
+                                         offset - (2 + nop_count) * sizeof(uint16_t));
     pc_ += sizeof(uint32_t);
   }
 }
@@ -568,6 +581,7 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
     mov_imm_(imm.x_, Rd);
   } else {
     // Use a tiny constant pool and jump above
+    align();
     movl_dispPC_(4, Rd);
     nop_();
     bra_(4);

@@ -712,8 +712,7 @@ class Assembler : public AssemblerBase {
   void rts() { rts_(); }
 
   // Align the code
-  void align() { while ((uint32_t)pc_ % 4 != 0) nop_(); }
-  void misalign() { while ((uint32_t)pc_ % 4 != 2) nop_(); }
+  int align() { int count = 0; while (((unsigned)pc_ & 0x3) != 0) { nop_(); count++; } return count; }
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
