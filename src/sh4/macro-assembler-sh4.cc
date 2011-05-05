@@ -409,7 +409,6 @@ void MacroAssembler::Check(const char* msg) {
   // }
   // SH4 code {
   bt(&L);
-  // TODO: implement Abort()
   Abort(msg);
   // }
   // will not return here
@@ -443,7 +442,7 @@ void MacroAssembler::Abort(const char* msg) {
   push(r0);
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
-  // TODO: understand if the following is needed
+  // TODO: implement this when const pool manager is active
   //if (is_const_pool_blocked()) {
   //  // If the calling code cares about the exact number of
   //  // instructions generated, we insert padding here to keep the size
@@ -653,6 +652,140 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                             num_arguments,
                             result_size);
 }
+
+
+void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
+  ASSERT(lsb < 32);
+  ASSERT(lsb + width < 32);
+  // Extract unsigned value from bits src1[lsb..lsb+width-1] into dst
+  uint32_t mask = ((uint32_t)1 << (width + lsb)) - 1 - (((uint32_t)1 << lsb) - 1);
+  land(dst, src, Immediate(mask));
+  if (lsb != 0) {
+    lsr(dst, dst, Immediate(lsb));
+  }
+}
+
+
+void MacroAssembler::Bfc(Register dst, int lsb, int width) {
+  ASSERT(lsb < 32);
+  ASSERT(lsb + width < 32);
+  // Clear bits [lsb..lsb+width-1] of dst
+  uint32_t mask = ~(((uint32_t)1 << (width + lsb)) - 1 - (((uint32_t)1 << lsb) - 1));
+  land(dst, dst, Immediate(mask));
+}
+
+
+void MacroAssembler::InNewSpace(Register object,
+                                Register scratch,
+                                int eq_0_ne_1,
+                                Label* branch) {
+  ASSERT(!scratch.is(rtmp));
+  ASSERT(eq_0_ne_1 == 0 || eq_0_ne_1 == 1);
+  land(scratch, object, Immediate(ExternalReference::new_space_mask(isolate())));
+  mov(rtmp, Immediate(ExternalReference::new_space_start(isolate())));
+  cmpeq(scratch, rtmp);
+  if (eq_0_ne_1 == 0)
+    bt(branch);
+  else
+    bf(branch);
+}
+
+
+void MacroAssembler::RecordWriteHelper(Register object,
+                                       Register address,
+                                       Register scratch) {
+  ASSERT(!scratch.is(rtmp));
+  if (emit_debug_code()) {
+    // Check that the object is not in new space.
+    Label not_in_new_space;
+    InNewSpace(object, scratch, 1/*ne*/, &not_in_new_space);
+    Abort("new-space object passed to RecordWriteHelper");
+    bind(&not_in_new_space);
+  }
+
+  // Calculate page address.
+  Bfc(object, 0, kPageSizeBits);
+
+  // Calculate region number.
+  Ubfx(address, address, Page::kRegionSizeLog2,
+       kPageSizeBits - Page::kRegionSizeLog2);
+
+  // Mark region dirty.
+  mov(scratch, MemOperand(object, Page::kDirtyFlagOffset));
+  mov(rtmp, Immediate(1));
+  lsl(rtmp, rtmp, address);
+  lor(scratch, scratch, rtmp);
+  mov(MemOperand(object, Page::kDirtyFlagOffset), scratch);
+}
+
+
+// Will clobber 4 registers: object, offset, scratch, rtmp (ARM:ip).  The
+// register 'object' contains a heap object pointer.  The heap object
+// tag is shifted away.
+void MacroAssembler::RecordWrite(Register object,
+                                 Register offset,
+                                 Register scratch0,
+                                 Register scratch1) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are cp.
+  ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
+
+  Label done;
+
+  // First, test that the object is not in the new space.  We cannot set
+  // region marks for new space pages.
+  InNewSpace(object, scratch0, 0/*eq*/, &done);
+
+  // Add offset into the object.
+  add(scratch0, object, offset);
+
+  // Record the actual write.
+  RecordWriteHelper(object, scratch0, scratch1);
+
+  bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(scratch0, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(scratch1, Immediate(BitCast<int32_t>(kZapValue)));
+  }
+}
+
+
+// Will clobber 4 registers: object, address, scratch, rtmp (ARM:ip).  The
+// register 'object' contains a heap object pointer.  The heap object
+// tag is shifted away.
+void MacroAssembler::RecordWrite(Register object,
+                                 Register address,
+                                 Register scratch) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are cp.
+  ASSERT(!object.is(cp) && !address.is(cp) && !scratch.is(cp));
+
+  Label done;
+
+  // First, test that the object is not in the new space.  We cannot set
+  // region marks for new space pages.
+  InNewSpace(object, scratch, 0/*eq*/, &done);
+
+  // Record the actual write.
+  RecordWriteHelper(object, address, scratch);
+
+  bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(address, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(scratch, Immediate(BitCast<int32_t>(kZapValue)));
+  }
+}
+
 
 } }  // namespace v8::internal
 
