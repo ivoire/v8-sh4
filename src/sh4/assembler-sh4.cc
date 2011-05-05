@@ -275,12 +275,6 @@ void Assembler::add(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::And(Register Rd, const Immediate& imm) {
-  mov(r3, imm);
-  and_(r3, Rd);
-}
-
-
 void Assembler::sub(Register Rd, Register Rs, const Immediate& imm) {
   add(Rd, Rs, Immediate(-imm.x_));
 }
@@ -325,6 +319,13 @@ void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm) {
 }
 
 
+void Assembler::lsl(Register Rd, Register Rs, Register Rt) {
+  if (Rs.code() != Rd.code())
+    mov_(Rs, Rd);
+  shld_(Rt, Rd);
+}
+
+
 void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm) {
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
@@ -336,6 +337,36 @@ void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm) {
     mov(rtmp, Immediate(32 - imm.x_));
     shld_(rtmp, Rd);
   }
+}
+
+void Assembler::land(Register Rd, Register Rs, const Immediate& imm) {
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_and_imm_R0(imm.x_)) {
+    and_imm_R0_(imm.x_);
+  } else {
+    mov(rtmp, imm);
+    land(Rd, Rs, rtmp);
+  }
+}
+
+void Assembler::land(Register Rd, Register Rs, Register Rt) {
+  if (!Rd.is(Rs))
+    mov_(Rs, Rd);
+  and_(Rt, Rd);
+}
+
+void Assembler::lor(Register Rd, Register Rs, const Immediate& imm) {
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_or_imm_R0(imm.x_)) {
+    or_imm_R0_(imm.x_);
+  } else {
+    mov(rtmp, imm);
+    lor(Rd, Rs, rtmp);
+  }
+}
+
+void Assembler::lor(Register Rd, Register Rs, Register Rt) {
+  if (!Rd.is(Rs))
+    mov_(Rs, Rd);
+  or_(Rt, Rd);
 }
 
 void Assembler::tst(Register Rd, const Immediate& imm) {

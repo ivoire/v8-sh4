@@ -656,8 +656,6 @@ class Assembler : public AssemblerBase {
   void add(Register Rd, Register Rs, const Immediate& imm);
   void add(Register Rd, Register Rs, Register Rt);
 
-  void And(Register Rd, const Immediate& imm);
-
   void bt(Label* L)             { branch(L, branch_true); }
   void bf(Label* L)             { branch(L, branch_false); }
   void jmp(Label* L)            { branch(L, branch_unconditional); }
@@ -676,7 +674,14 @@ class Assembler : public AssemblerBase {
   void addv(Register Rd, Register Rs, Register Rt);
 
   void lsl(Register Rd, Register Rs, const Immediate& imm);
+  void lsl(Register Rd, Register Rs, Register Rt);
   void lsr(Register Rd, Register Rs, const Immediate& imm);
+
+  void land(Register Rd, Register Rs, const Immediate& imm);
+  void land(Register Rd, Register Rs, Register Rt);
+
+  void lor(Register Rd, Register Rs, const Immediate& imm);
+  void lor(Register Rd, Register Rs, Register Rt);
 
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };
   void tst(Register Rd, const Immediate& imm);
