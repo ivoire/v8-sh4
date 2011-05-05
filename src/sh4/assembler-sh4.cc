@@ -387,6 +387,13 @@ void Assembler::db(uint8_t data) {
 }
 
 
+void Assembler::dw(uint16_t data) {
+  CheckBuffer();
+  *reinterpret_cast<uint16_t*>(pc_) = data;
+  pc_ += sizeof(uint16_t);
+}
+
+
 void Assembler::dd(uint32_t data) {
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
@@ -697,6 +704,21 @@ void Assembler::pushm(RegList src, bool doubles) {
       }
     }
   }
+}
+
+
+// Exception-generating instructions and debugging support.
+// Stops with a non-negative code less than kNumOfWatchedStops support
+// enabling/disabling and a counter feature. See simulator-arm.h .
+void Assembler::stop(const char* msg) {
+  // TODO handle simulator based stuff (ref to ARM code)
+  bkpt();
+}
+
+
+void Assembler::bkpt() {
+  // Encode directly a BRK
+  dw(0x003b);
 }
 
 
