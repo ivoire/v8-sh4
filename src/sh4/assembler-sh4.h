@@ -711,6 +711,10 @@ class Assembler : public AssemblerBase {
 
   void rts() { rts_(); }
 
+  // Exception-generating instructions and debugging support
+  void stop(const char* msg);
+  void bkpt();
+
   // Align the code
   int align() { int count = 0; while (((unsigned)pc_ & 0x3) != 0) { nop_(); count++; } return count; }
 
@@ -734,6 +738,7 @@ class Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
+  void dw(uint16_t data);
   void dd(uint32_t data);
 
   int pc_offset() const { return pc_ - buffer_; }
