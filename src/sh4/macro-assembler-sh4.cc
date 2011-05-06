@@ -53,6 +53,54 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
 }
 
 
+void MacroAssembler::Call(
+    intptr_t target, RelocInfo::Mode rmode) {
+  //TODO: check whether this is necessaery
+  //   // Block constant pool for the call instruction sequence.
+  //   BlockConstPoolScope block_const_pool(this);
+  // #ifdef DEBUG
+  //   int pre_position = pc_offset();
+  // #endif
+  
+  // TODO: check whether this is necessary
+  // Statement positions are expected to be recorded when the target
+  // address is loaded. The mov method will automatically record
+  // positions when pc is the target, since this is not the case here
+  // we have to do it explicitly.
+  //positions_recorder()->WriteRecordedPositions();
+
+  mov(rtmp, Operand(target, rmode));
+  jsr(rtmp);
+
+  ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
+
+
+  //TODO: check whether this is necessaery
+  // #ifdef DEBUG
+  //   int post_position = pc_offset();
+  //   CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
+  // #endif
+}
+
+
+void MacroAssembler::Call(
+    Handle<Code> code, RelocInfo::Mode rmode) {
+  //TODO: check whether this is necessaery
+  // #ifdef DEBUG
+  //   int pre_position = pc_offset();
+  // #endif
+
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  Call(reinterpret_cast<intptr_t>(code.location()), rmode);
+
+  //TODO: check whether this is necessaery
+  // #ifdef DEBUG
+  //   int post_position = pc_offset();
+  //   CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
+  // #endif
+}
+
+
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments) {
   // All parameters are on the stack.  r0 has the return value after call.
