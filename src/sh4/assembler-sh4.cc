@@ -504,9 +504,7 @@ void Assembler::bt(int offset) {
     nop_();
     braf_(rtmp);
     nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = (offset == kEndOfChain ?
-                                         kEndOfChain :
-                                         offset - (3 + nop_count) * sizeof(uint16_t));
+    *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }
 }
@@ -524,9 +522,7 @@ void Assembler::bf(int offset) {
     nop_();
     braf_(rtmp);
     nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = (offset == kEndOfChain ?
-                                         kEndOfChain :
-                                         offset - (3 + nop_count) * sizeof(uint16_t));
+    *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }
 }
@@ -548,9 +544,7 @@ void Assembler::jmp(int offset) {
     nop();
     braf_(rtmp);
     nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = (offset == kEndOfChain ?
-                                         kEndOfChain :
-                                         offset - (3 + nop_count) * sizeof(uint16_t));
+    *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }
 }
@@ -573,9 +567,7 @@ void Assembler::jsr(int offset) {
     nop_();
     bsrf_(rtmp);
     nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = (offset == kEndOfChain ?
-                                         kEndOfChain :
-                                         offset - (2 + nop_count) * sizeof(uint16_t));
+    *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }
 }
