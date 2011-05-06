@@ -393,7 +393,7 @@ enum ScaleFactor {
 class Operand BASE_EMBEDDED {
  public:
   INLINE(explicit Operand(Register reg));
-  INLINE(explicit Operand(int32_t immediate));
+  INLINE(explicit Operand(int32_t immediate, RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
   explicit Operand(Handle<Object> handle);
 

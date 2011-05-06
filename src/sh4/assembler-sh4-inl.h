@@ -285,10 +285,10 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 }
 
 
-Operand::Operand(int32_t immediate) {
+Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) {
   rx_ = no_reg;
   imm32_ = immediate;
-  rmode_ = RelocInfo::NONE;
+  rmode_ = rmode;
 }
 
 
