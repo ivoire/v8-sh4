@@ -52,6 +52,11 @@ static inline MemOperand ContextOperand(Register context, int index) {
 }
 
 
+static inline MemOperand GlobalObjectOperand()  {
+  return ContextOperand(cp, Context::GLOBAL_INDEX);
+}
+
+
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
   // No special flags.
@@ -604,6 +609,8 @@ class MacroAssembler: public Assembler {
   void Drop(int stack_elements);
 
   void Call(Label* target) { call(target); }
+  void Call(Handle<Code> code, RelocInfo::Mode rmode);
+  void Call(intptr_t target, RelocInfo::Mode rmode);
 
   // Emit call to the code we are currently generating.
   void CallSelf() {
