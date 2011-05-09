@@ -412,23 +412,25 @@ void Assembler::bind(Label* L) {
   // label can only be bound once
   ASSERT(!L->is_bound());
 
-  int pos = pc_offset();
+  int target_pos = (int)pc_;
 
   // List the linked to patch
   while (L->is_linked()) {
     // Compute the current position
     uint16_t* p_pos = reinterpret_cast<uint16_t*>(L->pos());
+
     // Compute the next before the patch
     next(L);
-    // Patch
-    *reinterpret_cast<uint32_t*>(p_pos) = pos;
+
+    // Patching
+    patchBranchOffset(target_pos, p_pos);
   }
-  L->bind_to(pos);
+  L->bind_to(target_pos);
 
   // Keep track of the last bound label so we don't eliminate any instructions
   // before a bound label.
-  if (pos > last_bound_pos_)
-    last_bound_pos_ = pos;
+  if (target_pos > last_bound_pos_)
+    last_bound_pos_ = target_pos;
 }
 
 
@@ -488,7 +490,43 @@ void Assembler::branch(int offset, branch_type type) {
     bf(offset); break;
   case branch_unconditional:
     jmp(offset); break;
+  case branch_subroutine:
+    ASSERT(type != branch_subroutine); break;
   }
+}
+
+
+void Assembler::writeBranchTag(int nop_count, branch_type type) {
+  // Check that we generate at most one nop
+  ASSERT(nop_count <= 1);
+
+  *reinterpret_cast<uint16_t*>(pc_) = type + nop_count;
+  pc_ += sizeof(uint16_t);
+}
+
+
+void Assembler::patchBranchOffset(int target_pos, uint16_t *p_pos) {
+  // p_pos is the position of the constant to patch
+  int nop_count = (*(p_pos - 1)) & 0x1;
+  branch_type type = static_cast<branch_type>(*(p_pos - 1) - nop_count);
+
+  // Restore the nop
+  *(p_pos - 1) = 0x9;
+
+  // Patch according to the branch type
+  switch (type) {
+  case branch_true:
+  case branch_false:
+    target_pos -= 8;
+    break;
+  case branch_unconditional:
+  case branch_subroutine:
+    target_pos -= 4;
+    break;
+  }
+
+  // Patch the constant (the number of nops if doubled to have an alligned adress (not sure about that)
+  *reinterpret_cast<uint32_t*>(p_pos) = target_pos - nop_count * 2;
 }
 
 
@@ -504,6 +542,9 @@ void Assembler::bt(int offset) {
     nop_();
     braf_(rtmp);
     nop_();
+    // Store the nop count in the nop just before the constant
+    // The nop will be restaured during the back patching
+    writeBranchTag(nop_count, branch_true);
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }
@@ -522,6 +563,9 @@ void Assembler::bf(int offset) {
     nop_();
     braf_(rtmp);
     nop_();
+    // Store the nop count in the nop just before the constant
+    // The nop will be restaured during the back patching
+    writeBranchTag(nop_count, branch_false);
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }
@@ -544,6 +588,9 @@ void Assembler::jmp(int offset) {
     nop();
     braf_(rtmp);
     nop_();
+    // Store the nop count in the nop just before the constant
+    // The nop will be restaured during the back patching
+    writeBranchTag(nop_count, branch_unconditional);
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }
@@ -567,6 +614,9 @@ void Assembler::jsr(int offset) {
     nop_();
     bsrf_(rtmp);
     nop_();
+    // Store the nop count in the nop just before the constant
+    // The nop will be restaured during the back patching
+    writeBranchTag(nop_count, branch_subroutine);
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   }

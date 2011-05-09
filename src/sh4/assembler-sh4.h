@@ -642,9 +642,10 @@ class Assembler : public AssemblerBase {
 
   // branch type
   enum branch_type {
-    branch_true,
-    branch_false,
-    branch_unconditional
+    branch_true          = 1 << 1,
+    branch_false         = 1 << 2,
+    branch_unconditional = 1 << 3,
+    branch_subroutine    = 1 << 4
   };
 
   static const RegList kAllRegisters = 0xffffffff;
@@ -768,6 +769,9 @@ class Assembler : public AssemblerBase {
   void bf(int offset);
   void jmp(int offset);
   void jsr(int offset);
+
+  void writeBranchTag(int nop_count, branch_type type);
+  void patchBranchOffset(int fixup_pos, uint16_t *p_pos);
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
