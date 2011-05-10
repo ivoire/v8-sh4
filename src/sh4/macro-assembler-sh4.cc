@@ -71,6 +71,7 @@ void MacroAssembler::Call(
 
   mov(rtmp, Operand(target, rmode));
   jsr(rtmp);
+  nop();
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
 
@@ -137,6 +138,29 @@ void MacroAssembler::DebugBreak() {
 
 void MacroAssembler::Drop(int stack_elements) {
   UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::EnterFrame(StackFrame::Type type) {
+  // r4-r7: preserved
+  Push(cp, fp, pr);
+  mov(r3, Immediate(Smi::FromInt(type)));
+  push(r3);
+  mov(r3, Operand(CodeObject()));
+  push(r3);
+  add(fp, sp, Immediate(3 * kPointerSize));  // Adjust FP to point to saved FP.
+}
+
+
+void MacroAssembler::LeaveFrame(StackFrame::Type type) {
+  // r4: preserved
+  // r5: preserved
+  // r6: preserved
+
+  // Drop the execution stack down to the frame pointer and restore
+  // the caller frame pointer and return address.
+  mov(sp, fp);
+  Pop(fp, pr);
 }
 
 
@@ -217,6 +241,128 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
     lsl(r3, argument_count, Immediate(kPointerSizeLog2));
     add(sp, sp, r3);
   }
+}
+
+
+void MacroAssembler::InvokePrologue(const ParameterCount& expected,
+                                    const ParameterCount& actual,
+                                    Handle<Code> code_constant,
+                                    Register code_reg,
+                                    Label* done,
+                                    InvokeFlag flag,
+                                    CallWrapper* call_wrapper) {
+  bool definitely_matches = false;
+  Label regular_invoke;
+
+  // Check whether the expected and actual arguments count match. If not,
+  // setup registers according to contract with ArgumentsAdaptorTrampoline:
+  //  r0 -> r4: actual arguments count
+  //  r1 -> r5: function (passed through to callee)
+  //  r2 -> r6: expected arguments count
+  //  r3 -> r7: callee code entry
+
+  // The code below is made a lot easier because the calling code already sets
+  // up actual and expected registers according to the contract if values are
+  // passed in registers.
+  ASSERT(actual.is_immediate() || actual.reg().is(r4));
+  ASSERT(expected.is_immediate() || expected.reg().is(r6));
+  ASSERT((!code_constant.is_null() && code_reg.is(no_reg)) || code_reg.is(r7));
+
+  if (expected.is_immediate()) {
+    ASSERT(actual.is_immediate());
+    if (expected.immediate() == actual.immediate()) {
+      definitely_matches = true;
+    } else {
+      mov(r4, Immediate(actual.immediate()));
+      const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+      if (expected.immediate() == sentinel) {
+        // Don't worry about adapting arguments for builtins that
+        // don't want that done. Skip adaption code by making it look
+        // like we have a match between expected and actual number of
+        // arguments.
+        definitely_matches = true;
+      } else {
+        mov(r6, Immediate(expected.immediate()));
+      }
+    }
+  }
+ else {
+    if (actual.is_immediate()) {
+      mov(r3, Immediate((actual.immediate())));
+      cmpeq(expected.reg(), r3);
+      bt(&regular_invoke);
+      mov(r0, Immediate(actual.immediate()));
+    } else {
+      cmpeq(expected.reg(), actual.reg());
+      bt(&regular_invoke);
+    }
+  }
+
+  if (!definitely_matches) {
+    if (!code_constant.is_null()) {
+      mov(r7, Operand(code_constant));
+      add(r7, r7, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    }
+    Handle<Code> adaptor =
+        isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    if (flag == CALL_FUNCTION) {
+      if (call_wrapper != NULL) call_wrapper->BeforeCall(2 * kInstrSize);
+      Call(adaptor, RelocInfo::CODE_TARGET);
+      if (call_wrapper != NULL) call_wrapper->AfterCall();
+      jmp(done);
+    } else {
+      jmp(adaptor, RelocInfo::CODE_TARGET);
+    }
+    bind(&regular_invoke);
+  }
+}
+
+
+void MacroAssembler::InvokeCode(Register code,
+                                const ParameterCount& expected,
+                                const ParameterCount& actual,
+                                InvokeFlag flag,
+                                CallWrapper* call_wrapper) {
+  Label done;
+
+  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
+                 call_wrapper);
+  if (flag == CALL_FUNCTION) {
+    if (call_wrapper != NULL) call_wrapper->BeforeCall(2 * kInstrSize);
+    jsr(code);
+    if (call_wrapper != NULL) call_wrapper->AfterCall();
+  } else {
+    ASSERT(flag == JUMP_FUNCTION);
+    jsr(code);
+  }
+
+  // Continue here if InvokePrologue does handle the invocation due to
+  // mismatched parameter counts.
+  bind(&done);
+}
+
+
+void MacroAssembler::InvokeFunction(Register fun,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag,
+                                    CallWrapper* call_wrapper) {
+  // Contract with called JS functions requires that function is passed in r5.
+  ASSERT(fun.is(r5));
+
+  Register expected_reg = r6;
+  Register code_reg = r7;
+
+  mov(code_reg, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
+  mov(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
+  mov(expected_reg,
+      FieldMemOperand(code_reg,
+                      SharedFunctionInfo::kFormalParameterCountOffset));
+  asr(expected_reg, expected_reg, Immediate(kSmiTagSize));
+  mov(code_reg,
+      FieldMemOperand(r5, JSFunction::kCodeEntryOffset));
+
+  ParameterCount expected(expected_reg);
+  InvokeCode(code_reg, expected, actual, flag, call_wrapper);
 }
 
 

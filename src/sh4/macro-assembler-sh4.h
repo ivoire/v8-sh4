@@ -210,30 +210,28 @@ class MacroAssembler: public Assembler {
   // JavaScript invokes
 
   // Invoke the JavaScript function code by either calling or jumping.
-  void InvokeCode(const Operand& code,
+  void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  CallWrapper* call_wrapper = NULL);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
-                  InvokeFlag flag,
-                  PostCallGenerator* post_call_generator = NULL);
+                  InvokeFlag flag);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      CallWrapper* call_wrapper = NULL);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
-                      InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      InvokeFlag flag);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
@@ -716,14 +714,14 @@ class MacroAssembler: public Assembler {
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual,
                       Handle<Code> code_constant,
-                      const Operand& code_operand,
-                      NearLabel* done,
+                      Register code_reg,
+                      Label* done,
                       InvokeFlag flag,
-                      PostCallGenerator* post_call_generator = NULL);
+                      CallWrapper* call_wrapper = NULL);
 
   // Activation support.
-  void EnterFrame(StackFrame::Type type) { UNIMPLEMENTED(); }
-  void LeaveFrame(StackFrame::Type type) { UNIMPLEMENTED(); }
+  void EnterFrame(StackFrame::Type type);
+  void LeaveFrame(StackFrame::Type type);
 
   void LeaveExitFrameEpilogue();
 
@@ -784,6 +782,20 @@ class PostCallGenerator {
 
 // Generates an Operand for saving parameters after PrepareCallApiFunction.
 Operand ApiParameterOperand(int index);
+
+// Helper class for generating code or data associated with the code
+// right after a call instruction. As an example this can be used to
+// generate safepoint data after calls for crankshaft.
+class CallWrapper {
+ public:
+  CallWrapper() { }
+  virtual ~CallWrapper() { }
+  // Called just before emitting a call. Argument is the size of the generated
+  // call code.
+  virtual void BeforeCall(int call_size) = 0;
+  // Called just after emitting a call, i.e., at the return site for the call.
+  virtual void AfterCall() = 0;
+};
 
 
 #define ACCESS_MASM(masm) masm->
