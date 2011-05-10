@@ -211,38 +211,20 @@ void Assembler::GrowBuffer() {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
-  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
-    // Adjust code for new modes.
-    ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsJSReturn(rmode)
-           || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsPosition(rmode));
-    // These modes do not need an entry in the constant pool.
-  } else {
-// FIXME(STM): implement the constant pool !
-//  ASSERT(num_prinfo_ < kMaxNumPRInfo);
-//  prinfo_[num_prinfo_++] = rinfo;
-//  // Make sure the constant pool is not emitted in place of the next
-//  // instruction for which we just recorded relocation info.
-//    BlockConstPoolBefore(pc_offset() + kInstrSize);
-  }
-  if (rinfo.rmode() != RelocInfo::NONE) {
-    // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-// FIXME(STM): do something with this ?
-// #ifdef DEBUG
-//      if (!Serializer::enabled()) {
-//        Serializer::TooLateToEnableNow();
-//      }
-// #endif
-      if (!Serializer::enabled() && !emit_debug_code()) {
-        return;
-      }
+  ASSERT(rmode != RelocInfo::NONE);
+  // Don't record external references unless the heap will be serialized.
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+#ifdef DEBUG
+    if (!Serializer::enabled()) {
+      Serializer::TooLateToEnableNow();
     }
-    ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
-    reloc_info_writer.Write(&rinfo);
+#endif
+    if (!Serializer::enabled() && !emit_debug_code()) {
+      return;
+    }
   }
+  RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
+  reloc_info_writer.Write(&rinfo);
 }
 
 
