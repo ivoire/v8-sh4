@@ -34,6 +34,7 @@
 namespace v8 {
 namespace internal {
 
+#define __ ACCESS_MASM(masm)
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   UNIMPLEMENTED();
@@ -51,7 +52,23 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  //  -- sp[0] : receiver
+  // -----------------------------------
+  Isolate* isolate = masm->isolate();
+
+  __ IncrementCounter(isolate->counters()->load_miss(), 1, r1, r2);
+
+  __ mov(r7, r4);
+  __ Push(r7, r4);
+
+  // Perform tail call to the entry.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
+  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
@@ -83,7 +100,19 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
 
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ---------- S t a t e --------------
+  //  -- r4     : value
+  //  -- r5     : key
+  //  -- r6     : receiver
+  //  -- pr     : return address
+  // -----------------------------------
+
+  // Push receiver, key and value for runtime call.
+  __ Push(r6, r5, r4);
+
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
 }
 
 
@@ -137,8 +166,21 @@ void KeyedLoadIC::GenerateIndexedInterceptor(v8::internal::MacroAssembler*) {
 }
 
 
-void KeyedLoadIC::GenerateMiss(v8::internal::MacroAssembler*) {
-  UNIMPLEMENTED();
+void KeyedLoadIC::GenerateMiss(v8::internal::MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- r4     : key
+  //  -- r5     : receiver
+  //  -- pr     : return address
+  // -----------------------------------
+  Isolate* isolate = masm->isolate();
+
+  __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, r1, r2);
+
+  __ Push(r5, r4);
+
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
+  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
@@ -154,7 +196,19 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
 
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ---------- S t a t e --------------
+  //  -- r4     : value
+  //  -- r5     : key
+  //  -- r6     : receiver
+  //  -- pr     : return address
+  // -----------------------------------
+
+  // Push receiver, key and value for runtime call.
+  __ Push(r6, r5, r4);
+
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
 }
 
 
@@ -162,6 +216,7 @@ void PatchInlinedSmiCode(Address address) {
   UNIMPLEMENTED();
 }
 
+#undef __
 
 } }  // namespace v8::internal
 
