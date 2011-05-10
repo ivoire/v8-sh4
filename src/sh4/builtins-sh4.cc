@@ -118,38 +118,141 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
+static void Generate_JSConstructStubHelper(MacroAssembler* masm,
+                                           bool is_api_function,
+                                           bool count_constructions) {
   UNIMPLEMENTED();
+}
+
+void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true);
 }
 
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Generate_JSConstructStubHelper(masm, false, false);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Generate_JSConstructStubHelper(masm, true, false);
+}
+
+
+static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
+                                             bool is_construct) {
+  // Called from Generate_JS_Entry
+  // r0 -> r4: code entry
+  // r1 -> r5: function
+  // r2 -> r6: receiver
+  // r3 -> r7: argc
+  // r4 -> [sp+0]: argv
+  // r0-r2, cp may be clobbered
+
+  // store argv in r0
+  __ mov(r0, MemOperand(sp));
+
+  // Clear the context before we push it when entering the JS frame.
+  __ mov(cp, Immediate(0));
+
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Set up the context from the function argument.
+  __ mov(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
+
+  // Set up the roots register.
+  ExternalReference roots_address =
+      ExternalReference::roots_address(masm->isolate());
+  __ mov(roots, Operand(roots_address));
+
+  // Push the function and the receiver onto the stack.
+  __ push(r5);
+  __ push(r6);
+
+  // Copy arguments to the stack in a loop.
+  // r1 -> r5: function
+  // r3 -> r7: argc
+  // r4 -> r0: argv, i.e. points to first arg
+  Label loop, entry;
+  __ lsl(r3, r7, Immediate(kPointerSizeLog2));
+  __ add(r6, r6, r3);
+  // r2 points past last arg.
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ mov(r3, MemOperand(r0, kPointerSize));     // read next parameter
+  __ add(r0, r0, Immediate(kPointerSize));      // mov the r0 pointer onto the next parameter
+  __ mov(r3, MemOperand(r3));  // dereference handle
+  __ push(r3);  // push parameter
+  __ bind(&entry);
+  __ cmpeq(r0, r6);
+  __ bf(&loop);
+
+  // Initialize all JavaScript callee-saved registers, since they will be seen
+  // by the garbage collector as part of handlers.
+  __ LoadRoot(r8, Heap::kUndefinedValueRootIndex);
+  __ mov(r9, r8);
+  __ mov(r10, r8);
+
+  // Invoke the code and pass argc as r4.
+  __ mov(r4, Operand(r7));
+  if (is_construct) {
+    __ Call(masm->isolate()->builtins()->JSConstructCall(),
+            RelocInfo::CODE_TARGET);
+  } else {
+    ParameterCount actual(r4);
+    __ InvokeFunction(r5, actual, CALL_FUNCTION);
+  }
+
+  // Exit the JS frame and remove the parameters (except function), and return.
+  // Respect ABI stack constraint.
+  __ LeaveInternalFrame();
+  __ rts();
+
+  // r0: result
 }
 
 
 void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Generate_JSEntryTrampolineHelper(masm, false);
 }
 
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+
+static void Generate_LazyCompileHelper(MacroAssembler* masm, Runtime::FunctionId fid) {
+  // Enter an internal frame.
+  __ EnterInternalFrame();
+
+  // Preserve the function.
+  __ push(r5);
+
+  // Push the function on the stack as the argument to the runtime function.
+  __ push(r5);
+  __ CallRuntime(fid, 1);
+  // Calculate the entry point.
+  __ add(r6, r4, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  // Restore saved function.
+  __ pop(r5);
+
+  // Tear down temporary frame.
+  __ LeaveInternalFrame();
+
+  // Do a tail-call of the compiled function.
+  __ jsr(r6);
 }
 
 
 void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Generate_LazyCompileHelper(masm, Runtime::kLazyCompile);
 }
 
 
 void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Generate_LazyCompileHelper(masm, Runtime::kLazyRecompile);
 }
 
 
