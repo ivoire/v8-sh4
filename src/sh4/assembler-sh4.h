@@ -30,7 +30,7 @@
 #ifndef V8_SH4_ASSEMBLER_SH4_H_
 #define V8_SH4_ASSEMBLER_SH4_H_
 
-#include "isolate.h"
+#include "assembler.h"
 #include "serialize.h"
 
 namespace v8 {
@@ -674,6 +674,9 @@ class Assembler : public AssemblerBase {
 
   void addv(Register Rd, Register Rs, Register Rt);
 
+  void asr(Register Rd, Register Rs, const Immediate& imm);    // arithmetic shift right
+  void asl(Register Rd, Register Rs, const Immediate& imm);    // arithmetic shift left
+
   void lsl(Register Rd, Register Rs, const Immediate& imm);
   void lsl(Register Rd, Register Rs, Register Rt);
   void lsr(Register Rd, Register Rs, const Immediate& imm);
@@ -802,10 +805,6 @@ class Assembler : public AssemblerBase {
   // relocation info entries.
   static const int kGap = 32;
   byte* pc_;  // the program counter; moves forward
-
-  // Relocation info generation
-  // Each relocation is encoded as a variable size value
-  static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
 
   // push-pop elimination

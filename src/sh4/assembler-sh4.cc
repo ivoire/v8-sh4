@@ -311,6 +311,30 @@ void Assembler::addv(Register Rd, Register Rs, Register Rt) {
 }
 
 
+void Assembler::asl(Register Rd, Register Rs, const Immediate& imm) {
+  if (Rs.code() != Rd.code())
+    mov(Rd, Rs);
+  if (imm.x_ == 1) {
+    shal_(Rd);
+  } else {
+    mov(rtmp, imm);
+    shad_(rtmp, Rd);
+  }
+}
+
+
+void Assembler::asr(Register Rd, Register Rs, const Immediate& imm) {
+  if (Rs.code() != Rd.code())
+    mov(Rd, Rs);
+  if (imm.x_ == 1) {
+    shal_(Rd);
+  } else {
+    mov(rtmp, Immediate(32 - imm.x_));
+    shad_(rtmp, Rd);
+  }
+}
+
+
 void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm) {
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
