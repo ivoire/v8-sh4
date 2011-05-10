@@ -87,7 +87,35 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
 
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4     : number of arguments
+  //  -- r5     : constructor function
+  //  -- pr     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+  Label non_function_call;
+
+  // Check that the function is not a smi.
+  __ tst(r5, Immediate(kSmiTagMask));
+  __ bt(&non_function_call);
+  // Check that the function is a JSFunction.
+  __ CompareObjectType(r5, r2, r2, JS_FUNCTION_TYPE);   // r2 is a temp register
+  __ bf(&non_function_call);
+
+  // Jump to the function-specific construct stub.
+  __ mov(r3, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(r2, FieldMemOperand(r2, SharedFunctionInfo::kConstructStubOffset));
+  __ add(r3, r2, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ jsr(r3);
+
+  // r4: number of arguments
+  // r5: called object
+  __ bind(&non_function_call);
+  // Set expected number of arguments to zero (not changing r0).
+  __ mov(r4, Immediate(0));
+  __ GetBuiltinEntry(r6, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+          RelocInfo::CODE_TARGET);
 }
 
 void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {

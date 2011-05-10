@@ -449,6 +449,25 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 }
 
 
+void MacroAssembler::GetBuiltinFunction(Register target,
+                                        Builtins::JavaScript id) {
+  // Load the builtins object into target register.
+  mov(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  mov(target, FieldMemOperand(target, GlobalObject::kBuiltinsOffset));
+  // Load the JavaScript builtin function from the builtins object.
+  mov(target, FieldMemOperand(target,
+                          JSBuiltinsObject::OffsetOfFunctionWithId(id)));
+}
+
+
+void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  ASSERT(!target.is(r3));
+  GetBuiltinFunction(r3, id);
+  // Load the code entry point from the builtins object.
+  mov(target, MemOperand(r3, JSFunction::kCodeEntryOffset));
+}
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
   if (FLAG_native_code_counters && counter->Enabled()) {
@@ -898,6 +917,25 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     Check("Yo dawg, I heard you liked function contexts "
 	  "so I put function contexts in all your contexts");
   }
+}
+
+
+void MacroAssembler::CompareObjectType(Register object,
+                                       Register map,
+                                       Register type_reg,
+                                       InstanceType type) {
+  mov(map, FieldMemOperand(object, HeapObject::kMapOffset));
+  CompareInstanceType(map, type_reg, type);
+}
+
+
+void MacroAssembler::CompareInstanceType(Register map,
+                                         Register type_reg,
+                                         InstanceType type) {
+  ASSERT(!map.is(r3));
+  mov(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset)); //FIXME: mov.b ??
+  mov(r3, Immediate(type));
+  cmpeq(type_reg, r3);
 }
 
 

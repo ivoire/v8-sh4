@@ -465,6 +465,27 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Support functions.
 
+  // Compare object type for heap object.  heap_object contains a non-Smi
+  // whose object type should be compared with the given type.  This both
+  // sets the flags and leaves the object type in the type_reg register.
+  // It leaves the map in the map register (unless the type_reg and map register
+  // are the same register).  It leaves the heap object in the heap_object
+  // register unless the heap_object register is the same register as one of the
+  // other registers.
+  void CompareObjectType(Register heap_object,
+                         Register map,
+                         Register type_reg,
+                         InstanceType type);
+
+  // Compare instance type in a map.  map contains a valid map object whose
+  // object type should be compared with the given type.  This both
+  // sets the flags and leaves the object type in the type_reg register.  It
+  // leaves the heap object in the heap_object register unless the heap_object
+  // register is the same register as type_reg.
+  void CompareInstanceType(Register map,
+                           Register type_reg,
+                           InstanceType type);
+
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
 
