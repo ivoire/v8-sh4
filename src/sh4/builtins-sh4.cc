@@ -256,18 +256,61 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 }
 
 
+static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
+                                             Deoptimizer::BailoutType type) {
+  __ EnterInternalFrame();
+  // Pass the function and deoptimization type to the runtime system.
+  __ mov(r0, Immediate(Smi::FromInt(static_cast<int>(type))));
+  __ push(r0);
+  __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+  __ LeaveInternalFrame();
+
+  // Get the full codegen state from the stack and untag it -> r1.
+  __ mov(r1, MemOperand(sp, 0 * kPointerSize));
+  __ SmiUntag(r1);
+  // Switch on the state.
+  Label with_tos_register, unknown_state;
+  __ mov(r3, Immediate(FullCodeGenerator::NO_REGISTERS));
+  __ cmpeq(r1, r3);
+  __ bf(&with_tos_register);
+  __ add(sp, sp, Immediate(1 * kPointerSize));  // Remove state.
+  __ rts();
+
+  __ bind(&with_tos_register);
+  __ mov(r0, MemOperand(sp, 1 * kPointerSize));
+  __ mov(r3, Immediate(FullCodeGenerator::TOS_REG));
+  __ cmpeq(r1, r3);
+  __ bf(&unknown_state);
+  __ add(sp, sp, Immediate(2 * kPointerSize));  // Remove state.
+  __ rts();
+
+  __ bind(&unknown_state);
+  __ stop("no cases left");
+}
+
 void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
 }
 
 
 void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
 }
 
 
 void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // For now, we are relying on the fact that Runtime::NotifyOSR
+  // doesn't do any garbage collection which allows us to save/restore
+  // the registers without worrying about which of them contain
+  // pointers. This seems a bit fragile.
+  __ pushm(kJSCallerSaved | kCalleeSaved);
+  __ Push(pr, fp);
+  __ EnterInternalFrame();
+  __ CallRuntime(Runtime::kNotifyOSR, 0);
+  __ LeaveInternalFrame();
+  __ Pop(pr, fp);
+  __ popm(kJSCallerSaved | kCalleeSaved);
+  __ rts();
 }
 
 
