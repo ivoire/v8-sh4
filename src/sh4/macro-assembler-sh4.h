@@ -772,20 +772,6 @@ class CodePatcher {
 // Helper class for generating code or data associated with the code
 // right after a call instruction. As an example this can be used to
 // generate safepoint data after calls for crankshaft.
-class PostCallGenerator {
- public:
-  PostCallGenerator() { }
-  virtual ~PostCallGenerator() { }
-  virtual void Generate() = 0;
-};
-
-
-// Generates an Operand for saving parameters after PrepareCallApiFunction.
-Operand ApiParameterOperand(int index);
-
-// Helper class for generating code or data associated with the code
-// right after a call instruction. As an example this can be used to
-// generate safepoint data after calls for crankshaft.
 class CallWrapper {
  public:
   CallWrapper() { }
