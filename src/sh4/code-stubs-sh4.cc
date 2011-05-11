@@ -882,6 +882,202 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 }
 
 
+// -------------------------------------------------------------------------
+// StringCharAtGenerator
+
+void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
+  char_code_at_generator_.GenerateFast(masm);
+  char_from_code_generator_.GenerateFast(masm);
+}
+
+
+void StringCharAtGenerator::GenerateSlow(
+    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+  char_code_at_generator_.GenerateSlow(masm, call_helper);
+  char_from_code_generator_.GenerateSlow(masm, call_helper);
+}
+
+
+// -------------------------------------------------------------------------
+// StringCharFromCodeGenerator
+
+void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
+  Label flat_string;
+  Label ascii_string;
+  Label got_char_code;
+
+  // If the receiver is a smi trigger the non-string case.
+  __ JumpIfSmi(object_, receiver_not_string_);
+
+  // Fetch the instance type of the receiver into result register.
+  __ mov(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+  __ mov(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));  // FIXME: mov.b ??
+  // If the receiver is not a string trigger the non-string case.
+  __ tst(result_, Immediate(kIsNotStringMask));
+  __ bf(receiver_not_string_);
+
+  // If the index is non-smi trigger the non-smi case.
+  __ JumpIfNotSmi(index_, &index_not_smi_);
+
+  // Put smi-tagged index into scratch register.
+  __ mov(scratch_, index_);
+  __ bind(&got_smi_index_);
+
+  // Check for index out of range.
+  __ mov(r3, FieldMemOperand(object_, String::kLengthOffset));
+  __ cmpgeu(scratch_, r3);
+  __ bf(index_out_of_range_);
+
+  // We need special handling for non-flat strings.
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ tst(result_, Immediate(kStringRepresentationMask));
+  __ bt(&flat_string);
+
+  // Handle non-flat strings.
+  __ tst(result_, Immediate(kIsConsStringMask));
+  __ bt(&call_runtime_);
+
+  // ConsString.
+  // Check whether the right hand side is the empty string (i.e. if
+  // this is really a flat string in a cons string). If that is not
+  // the case we would rather go to the runtime system now to flatten
+  // the string.
+  __ mov(result_, FieldMemOperand(object_, ConsString::kSecondOffset));
+  __ LoadRoot(r3, Heap::kEmptyStringRootIndex);
+  __ cmpeq(result_, r3);
+  __ bf(&call_runtime_);
+  // Get the first of the two strings and load its instance type.
+  __ mov(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
+  __ mov(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+  __ mov(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));  // FIXME mov.b ??
+  // If the first cons component is also non-flat, then go to runtime.
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ tst(result_, Immediate(kStringRepresentationMask));
+  __ bf(&call_runtime_);
+
+  // Check for 1-byte or 2-byte string.
+  __ bind(&flat_string);
+  STATIC_ASSERT(kAsciiStringTag != 0);
+  __ tst(result_, Immediate(kStringEncodingMask));
+  __ bf(&ascii_string);
+
+  // 2-byte string.
+  // Load the 2-byte character code into the result register. We can
+  // add without shifting since the smi tag size is the log2 of the
+  // number of bytes in a two-byte character.
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1 && kSmiShiftSize == 0);
+  __ add(scratch_, object_, scratch_);
+  __ mov(result_, FieldMemOperand(scratch_, SeqTwoByteString::kHeaderSize));    // FIXME: mov.w ??
+  __ jmp(&got_char_code);
+
+  // ASCII string.
+  // Load the byte into the result register.
+  __ bind(&ascii_string);
+  __ lsr(scratch_, scratch_, Immediate(kSmiTagSize));
+  __ add(scratch_, object_, scratch_);
+  __ mov(result_, FieldMemOperand(scratch_, SeqAsciiString::kHeaderSize));      // FIXME: mov.b ??
+
+  __ bind(&got_char_code);
+  __ lsl(result_, result_, Immediate(kSmiTagSize));
+  __ bind(&exit_);
+}
+
+
+void StringCharCodeAtGenerator::GenerateSlow(
+    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+  __ Abort("Unexpected fallthrough to CharCodeAt slow case");
+
+  // Index is not a smi.
+  __ bind(&index_not_smi_);
+  // If index is a heap number, try converting it to an integer.
+  __ CheckMap(index_,
+              scratch_,
+              Heap::kHeapNumberMapRootIndex,
+              index_not_number_,
+              true);
+  call_helper.BeforeCall(masm);
+  __ Push(object_, index_);
+  __ push(index_);  // Consumed by runtime conversion function.
+  if (index_flags_ == STRING_INDEX_IS_NUMBER) {
+    __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
+  } else {
+    ASSERT(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
+    // NumberToSmi discards numbers that are not exact integers.
+    __ CallRuntime(Runtime::kNumberToSmi, 1);
+  }
+  // Save the conversion result before the pop instructions below
+  // have a chance to overwrite it.
+  __ mov(scratch_, r0);
+  __ pop(index_);
+  __ pop(object_);
+  // Reload the instance type.
+  __ mov(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+  __ mov(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));  // FIXME: mov.b ??
+  call_helper.AfterCall(masm);
+  // If index is still not a smi, it must be out of range.
+  __ JumpIfNotSmi(scratch_, index_out_of_range_);
+  // Otherwise, return to the fast path.
+  __ jmp(&got_smi_index_);
+
+  // Call runtime. We get here when the receiver is a string and the
+  // index is a number, but the code of getting the actual character
+  // is too complex (e.g., when the string needs to be flattened).
+  __ bind(&call_runtime_);
+  call_helper.BeforeCall(masm);
+  __ Push(object_, index_);
+  __ CallRuntime(Runtime::kStringCharCodeAt, 2);
+  __ mov(result_, r0);
+  call_helper.AfterCall(masm);
+  __ jmp(&exit_);
+
+  __ Abort("Unexpected fallthrough from CharCodeAt slow case");
+}
+
+
+// -------------------------------------------------------------------------
+// StringCharFromCodeGenerator
+
+void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
+  // Fast case of Heap::LookupSingleCharacterStringFromCode.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiShiftSize == 0);
+  ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
+  __ tst(code_,
+         Immediate(kSmiTagMask |
+                 ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
+  __ bf(&slow_case_);
+
+  __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
+  // At this point code register contains smi tagged ASCII char code.
+  STATIC_ASSERT(kSmiTag == 0);
+  __ lsl(r3, code_, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(result_, result_, r3);
+  __ mov(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
+  __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+  __ cmpeq(result_, r3);
+  __ bt(&slow_case_);
+  __ bind(&exit_);
+}
+
+
+void StringCharFromCodeGenerator::GenerateSlow(
+    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+  __ Abort("Unexpected fallthrough to CharFromCode slow case");
+
+  __ bind(&slow_case_);
+  call_helper.BeforeCall(masm);
+  __ push(code_);
+  __ CallRuntime(Runtime::kCharFromCode, 1);
+  __ mov(result_, r0);
+  call_helper.AfterCall(masm);
+  __ jmp(&exit_);
+
+  __ Abort("Unexpected fallthrough from CharFromCode slow case");
+}
+
+
+
+
 #undef __
 
 } }  // namespace v8::internal

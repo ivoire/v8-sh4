@@ -1162,6 +1162,37 @@ void MacroAssembler::CompareInstanceType(Register map,
 }
 
 
+void MacroAssembler::CheckMap(Register obj,
+                              Register scratch,
+                              Handle<Map> map,
+                              Label* fail,
+                              bool is_heap_object) {
+  ASSERT(!obj.is(r3));
+  if (!is_heap_object) {
+    JumpIfSmi(obj, fail);
+  }
+  mov(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  mov(r3, Operand(map));
+  cmpeq(scratch, r3);
+  bf(fail);
+}
+
+
+void MacroAssembler::CheckMap(Register obj,
+                              Register scratch,
+                              Heap::RootListIndex index,
+                              Label* fail,
+                              bool is_heap_object) {
+  ASSERT(!obj.is(r3));
+  if (!is_heap_object) {
+    JumpIfSmi(obj, fail);
+  }
+  mov(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  LoadRoot(r3, index);
+  cmpeq(scratch, r3);
+  bf(fail);
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_IA32

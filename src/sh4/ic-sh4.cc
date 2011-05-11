@@ -29,6 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_SH4)
 
+#include "code-stubs.h"
 #include "ic-inl.h"
 #include "stub-cache.h"
 
@@ -425,8 +426,37 @@ void KeyedLoadIC::GenerateMiss(v8::internal::MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateString(v8::internal::MacroAssembler*) {
-  UNIMPLEMENTED();
+void KeyedLoadIC::GenerateString(v8::internal::MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- pr     : return address
+  //  -- r4     : key (index)
+  //  -- r5     : receiver
+  // -----------------------------------
+  Label miss;
+
+  Register receiver = r1;
+  Register index = r0;
+  Register scratch1 = r2;
+  Register scratch2 = r3;
+  Register result = r0;
+
+  StringCharAtGenerator char_at_generator(receiver,
+                                          index,
+                                          scratch1,
+                                          scratch2,
+                                          result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX);
+  char_at_generator.GenerateFast(masm);
+  __ rts();
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
 }
 
 
