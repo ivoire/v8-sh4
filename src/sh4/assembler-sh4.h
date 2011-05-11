@@ -409,9 +409,11 @@ class Operand BASE_EMBEDDED {
 class MemOperand BASE_EMBEDDED {
  public:
   INLINE(explicit MemOperand(Register Rd, int32_t offset = 0));
+  INLINE(explicit MemOperand(Register Rd, Register offset));
 
  private:
   Register rm_;
+  Register rn_;
   int32_t offset_;
 
   friend class Assembler;
@@ -660,6 +662,7 @@ class Assembler : public AssemblerBase {
   void bt(Label* L)             { branch(L, branch_true); }
   void bf(Label* L)             { branch(L, branch_false); }
   void jmp(Label* L)            { branch(L, branch_unconditional); }
+  void jmp(Register Rd)         { jmp_indRd_(Rd); }
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode);
 
@@ -686,6 +689,9 @@ class Assembler : public AssemblerBase {
 
   void lor(Register Rd, Register Rs, const Immediate& imm);
   void lor(Register Rd, Register Rs, Register Rt);
+
+  void lxor(Register Rd, Register Rs, const Immediate& imm);
+  void lxor(Register Rd, Register Rs, Register Rt);
 
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };
   void tst(Register Rd, const Immediate& imm);

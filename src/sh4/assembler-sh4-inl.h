@@ -308,9 +308,15 @@ Operand::Operand(const ExternalReference& f) {
 
 MemOperand::MemOperand(Register Rx, int32_t offset) {
   rm_ = Rx;
+  rn_ = no_reg;
   offset_ = offset;
 }
 
+MemOperand::MemOperand(Register Rd, Register offset) {
+  rm_ = Rd;
+  rn_ = offset;
+  offset_ = 0;
+}
 
 } }  // namespace v8::internal
 

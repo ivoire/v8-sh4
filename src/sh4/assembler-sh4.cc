@@ -381,6 +381,20 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt) {
   or_(Rt, Rd);
 }
 
+void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm) {
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(imm.x_)) {
+    xor_imm_R0_(imm.x_);
+  } else {
+    mov(rtmp, imm);
+    lxor(Rd, Rs, rtmp);
+  }
+}
+
+void Assembler::lxor(Register Rd, Register Rs, Register Rt) {
+  if (!Rd.is(Rs))
+    mov_(Rs, Rd);
+  xor_(Rt, Rd);
+}
 void Assembler::tst(Register Rd, const Immediate& imm) {
   mov(rtmp, imm);
   tst_(Rd, rtmp);
@@ -663,13 +677,16 @@ void Assembler::mov(Register Rd, const Operand& src) {
 void Assembler::mov(Register Rd, const MemOperand& src) {
   if (src.offset_ == 0) {
     movl_indRs_(src.rm_, Rd);
-  } else {
+  } else if(!src.rn_.is_valid()) {
     if (FITS_SH4_movl_dispRs(src.offset_)) {
       movl_dispRs_(src.offset_, src.rm_, Rd);
     } else {
       add(rtmp, src.rm_, Immediate(src.offset_));
       movl_indRs_(rtmp, Rd);
     }
+  } else {
+    add(rtmp, src.rm_, src.rn_);
+    movl_indRs_(rtmp, Rd);
   }
 }
 
