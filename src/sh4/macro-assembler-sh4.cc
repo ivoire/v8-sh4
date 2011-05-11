@@ -38,6 +38,53 @@
 namespace v8 {
 namespace internal {
 
+void MacroAssembler::TryGetFunctionPrototype(Register function,
+                                             Register result,
+                                             Register scratch,
+                                             Label* miss) {
+  ASSERT(!result.is(r3) && !scratch.is(r3));
+  // Check that the receiver isn't a smi.
+  JumpIfSmi(function, miss);
+
+  // Check that the function really is a function.  Load map into result reg.
+  CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
+  bf(miss);
+
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  mov(scratch, FieldMemOperand(result, Map::kBitFieldOffset));  // FIXME: mov.b ??
+  tst(scratch, Immediate(1 << Map::kHasNonInstancePrototype));
+  bf(&non_instance);
+
+  // Get the prototype or initial map from the function.
+  mov(result,
+      FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // If the prototype or initial map is the hole, don't return it and
+  // simply miss the cache instead. This will allow us to allocate a
+  // prototype object on-demand in the runtime system.
+  LoadRoot(r3, Heap::kTheHoleValueRootIndex);
+  cmpeq(result, r3);
+  bt(miss);
+
+  // If the function does not have an initial map, we're done.
+  Label done;
+  CompareObjectType(result, scratch, scratch, MAP_TYPE);
+  bf(&done);
+
+  // Get the prototype from the initial map.
+  mov(result, FieldMemOperand(result, Map::kPrototypeOffset));
+  jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  bind(&non_instance);
+  mov(result, FieldMemOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  bind(&done);
+}
+
 
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
