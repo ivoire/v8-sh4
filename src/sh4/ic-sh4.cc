@@ -30,6 +30,7 @@
 #if defined(V8_TARGET_ARCH_SH4)
 
 #include "ic-inl.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -37,17 +38,52 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  //  -- sp[0] : receiver
+  // -----------------------------------
+  Label miss;
+
+  StubCompiler::GenerateLoadArrayLength(masm, r4, r7, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  //  -- sp[0] : receiver
+  // -----------------------------------
+  Label miss;
+
+  StubCompiler::GenerateLoadFunctionPrototype(masm, r4, r5, r7, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  //  -- sp[0] : receiver
+  // -----------------------------------
+
+  // Probe the stub cache.
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC);
+  Isolate::Current()->stub_cache()->GenerateProbe(
+      masm, flags, r4, r6, r7, r1, r2);
+
+  // Cache miss: Jump to runtime.
+  GenerateMiss(masm);
 }
 
 
@@ -271,7 +307,19 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateStringLength(MacroAssembler* masm, bool support_wrappers) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : receiver
+  //  -- r6    : name
+  //  -- lr    : return address
+  //  -- sp[0] : receiver
+  // -----------------------------------
+  Label miss;
+
+  StubCompiler::GenerateLoadStringLength(masm, r4, r5, r7, &miss,
+                                         support_wrappers);
+  // Cache miss: Jump to runtime.
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
