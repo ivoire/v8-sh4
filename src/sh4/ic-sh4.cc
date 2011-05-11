@@ -72,8 +72,201 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
+static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
+                                            Register type,
+                                            Label* global_object) {
+  // Register usage:
+  //   type: holds the receiver instance type on entry.
+  ASSERT(!type.is(r3));
+  __ mov(r3, Immediate(JS_GLOBAL_OBJECT_TYPE));
+  __ cmpeq(type, r3);
+  __ bt(global_object);
+  __ mov(r3, Immediate(JS_BUILTINS_OBJECT_TYPE));
+  __ cmpeq(type, r3);
+  __ bt(global_object);
+  __ mov(r3, Immediate(JS_GLOBAL_PROXY_TYPE));
+  __ cmpeq(type, r3);
+  __ bt(global_object);
+}
+
+
+// Generated code falls through if the receiver is a regular non-global
+// JS object with slow properties and no interceptors.
+static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
+                                                  Register receiver,
+                                                  Register elements,
+                                                  Register t0,
+                                                  Register t1,
+                                                  Label* miss) {
+  // Register usage:
+  //   receiver: holds the receiver on entry and is unchanged.
+  //   elements: holds the property dictionary on fall through.
+  // Scratch registers:
+  //   t0: used to holds the receiver map.
+  //   t1: used to holds the receiver instance type, receiver bit mask and
+  //       elements map.
+
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Immediate(kSmiTagMask));
+  __ bt(miss);
+
+  // Check that the receiver is a valid JS object.
+  __ CompareObjectType(receiver, t0, t1, FIRST_JS_OBJECT_TYPE, ge);
+  __ bf(miss);
+
+  // If this assert fails, we have to check upper bound too.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+
+  GenerateGlobalInstanceTypeCheck(masm, t1, miss);
+
+  // Check that the global object does not require access checks.
+  __ mov(t1, FieldMemOperand(t0, Map::kBitFieldOffset));        // FIXME mov.b ??
+  __ tst(t1, Immediate((1 << Map::kIsAccessCheckNeeded) |
+                     (1 << Map::kHasNamedInterceptor)));
+  __ bf(miss);
+
+  __ mov(elements, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ mov(t1, FieldMemOperand(elements, HeapObject::kMapOffset));
+  __ LoadRoot(r3, Heap::kHashTableMapRootIndex);
+  __ cmpeq(t1, r3);
+  __ bf(miss);
+}
+
+// Probe the string dictionary in the |elements| register. Jump to the
+// |done| label if a property with the given name is found. Jump to
+// the |miss| label otherwise.
+static void GenerateStringDictionaryProbes(MacroAssembler* masm,
+                                           Label* miss,
+                                           Label* done,
+                                           Register elements,
+                                           Register name,
+                                           Register scratch1,
+                                           Register scratch2) {
+  ASSERT(!elements.is(r3) && !name.is(r3) && !scratch1.is(r3) && !scratch2.is(r3));
+  // Assert that name contains a string.
+  if (FLAG_debug_code) __ AbortIfNotString(name);
+
+  // Compute the capacity mask.
+  const int kCapacityOffset = StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
+  __ mov(scratch1, FieldMemOperand(elements, kCapacityOffset));
+  __ asr(scratch1, scratch1, Immediate(kSmiTagSize));  // convert smi to int
+  __ sub(scratch1, scratch1, Immediate(1));
+
+  const int kElementsStartOffset = StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+
+  // Generate an unrolled loop that performs a few probes before
+  // giving up. Measurements done on Gmail indicate that 2 probes
+  // cover ~93% of loads from dictionaries.
+  static const int kProbes = 4;
+  for (int i = 0; i < kProbes; i++) {
+    // Compute the masked index: (hash + i + i * i) & mask.
+    __ mov(scratch2, FieldMemOperand(name, String::kHashFieldOffset));
+    if (i > 0) {
+      // Add the probe offset (i + i * i) left shifted to avoid right shifting
+      // the hash in a separate instruction. The value hash + i + i * i is right
+      // shifted in the following and instruction.
+      ASSERT(StringDictionary::GetProbeOffset(i) <
+             1 << (32 - String::kHashFieldOffset));
+      __ add(scratch2, scratch2, Immediate(
+          StringDictionary::GetProbeOffset(i) << String::kHashShift));
+    }
+    __ lsr(scratch2, scratch2, Immediate(String::kHashShift));
+    __ land(scratch2, scratch1, scratch2);
+
+    // Scale the index by multiplying by the element size.
+    ASSERT(StringDictionary::kEntrySize == 3);
+    // scratch2 = scratch2 * 3.
+    __ add(r3, scratch2, scratch2);
+    __ add(scratch2, r3, scratch2);
+
+    // Check if the key is identical to the name.
+    __ lsl(scratch2, scratch2, Immediate(2));
+    __ add(scratch2, scratch2, elements);
+    __ mov(r3, FieldMemOperand(scratch2, kElementsStartOffset));
+    __ cmpeq(name, r3);
+    if (i != kProbes - 1) {
+      __ bt(done);
+    } else {
+      __ bf(miss);
+    }
+  }
+}
+
+
+// Helper function used from LoadIC/CallIC GenerateNormal.
+//
+// elements: Property dictionary. It is not clobbered if a jump to the miss
+//           label is done.
+// name:     Property name. It is not clobbered if a jump to the miss label is
+//           done
+// result:   Register for the result. It is only updated if a jump to the miss
+//           label is not done. Can be the same as elements or name clobbering
+//           one of these in the case of not jumping to the miss label.
+// The two scratch registers need to be different from elements, name and
+// result.
+// The generated code assumes that the receiver has slow properties,
+// is not a global object and does not have interceptors.
+static void GenerateDictionaryLoad(MacroAssembler* masm,
+                                   Label* miss,
+                                   Register elements,
+                                   Register name,
+                                   Register result,
+                                   Register scratch1,
+                                   Register scratch2) {
+  ASSERT(!scratch1.is(r3) && !scratch2.is(r3));
+
+  // Main use of the scratch registers.
+  // scratch1: Used as temporary and to hold the capacity of the property
+  //           dictionary.
+  // scratch2: Used as temporary.
+  Label done;
+
+  // Probe the dictionary.
+  GenerateStringDictionaryProbes(masm,
+                                 miss,
+                                 &done,
+                                 elements,
+                                 name,
+                                 scratch1,
+                                 scratch2);
+
+  // If probing finds an entry check that the value is a normal
+  // property.
+  __ bind(&done);  // scratch2 == elements + 4 * index
+  const int kElementsStartOffset = StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+  const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
+  __ mov(scratch1, FieldMemOperand(scratch2, kDetailsOffset));
+  __ mov(r3, Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
+  __ tst(scratch1, r3);
+  __ bf(miss);
+
+  // Get the value at the masked, scaled index and return.
+  __ mov(result,
+         FieldMemOperand(scratch2, kElementsStartOffset + 1 * kPointerSize));
+}
+
+
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  //  -- sp[0] : receiver
+  // -----------------------------------
+  Label miss;
+
+  GenerateStringDictionaryReceiverCheck(masm, r4, r5, r6, r7, &miss);
+
+  // r1: elements
+  GenerateDictionaryLoad(masm, &miss, r5, r6, r4, r7, r1);
+  __ rts();
+
+  // Cache miss: Jump to runtime.
+  __ bind(&miss);
+  GenerateMiss(masm);
 }
 
 
