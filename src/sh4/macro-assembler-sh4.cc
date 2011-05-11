@@ -648,14 +648,23 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 }
 
 
-void MacroAssembler::Check(const char* msg) {
+void MacroAssembler::Assert(const char* msg, bool value) {
+  if (emit_debug_code())
+  Check(msg, value);
+}
+
+
+void MacroAssembler::Check(const char* msg, bool value) {
   Label L;
   // ARM code {
   // b(cond, &L)
   // Abort(msg);
   // }
   // SH4 code {
-  bt(&L);
+  if (value)
+    bt(&L);
+  else
+    bf(&L);
   Abort(msg);
   // }
   // will not return here
@@ -1066,22 +1075,43 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
+void MacroAssembler::AbortIfNotString(Register object) {
+  STATIC_ASSERT(kSmiTag == 0);
+  tst(object, Immediate(kSmiTagMask));
+  Assert("Operand is not a string");
+  push(object);
+  mov(object, FieldMemOperand(object, HeapObject::kMapOffset));
+  CompareInstanceType(object, object, FIRST_NONSTRING_TYPE, hs);
+  pop(object);
+  Assert("Operand is not a string", false);
+}
+
+
 void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
                                        Register type_reg,
-                                       InstanceType type) {
+                                       InstanceType type,
+                                       Condition cond) {
   mov(map, FieldMemOperand(object, HeapObject::kMapOffset));
-  CompareInstanceType(map, type_reg, type);
+  CompareInstanceType(map, type_reg, type, cond);
 }
 
 
 void MacroAssembler::CompareInstanceType(Register map,
                                          Register type_reg,
-                                         InstanceType type) {
+                                         InstanceType type,
+                                         Condition cond) {
   ASSERT(!map.is(r3));
   mov(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset)); //FIXME: mov.b ??
   mov(r3, Immediate(type));
-  cmpeq(type_reg, r3);
+  switch(cond) {
+  case eq:
+    cmpeq(type_reg, r3); break;
+  case ge:
+    cmpge(type_reg, r3); break;
+  default:
+    UNIMPLEMENTED();
+  }
 }
 
 

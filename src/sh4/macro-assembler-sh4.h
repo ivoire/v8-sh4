@@ -294,7 +294,7 @@ class MacroAssembler: public Assembler {
     UNIMPLEMENTED();
   }
   void SmiUntag(Register reg) {
-    UNIMPLEMENTED();
+    asr(reg, reg, Immediate(kSmiTagSize));
   }
 
   // Modifies the register even if it does not contain a Smi!
@@ -473,7 +473,8 @@ class MacroAssembler: public Assembler {
   void CompareObjectType(Register heap_object,
                          Register map,
                          Register type_reg,
-                         InstanceType type);
+                         InstanceType type,
+                         Condition cond = eq);
 
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both
@@ -482,7 +483,8 @@ class MacroAssembler: public Assembler {
   // register is the same register as type_reg.
   void CompareInstanceType(Register map,
                            Register type_reg,
-                           InstanceType type);
+                           InstanceType type,
+                           Condition cond);
 
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
@@ -662,12 +664,12 @@ class MacroAssembler: public Assembler {
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(const char* msg);
+  void Assert(const char* msg, bool value = true);
 
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
-  void Check(const char* msg);
+  void Check(const char* msg, bool value = true);
 
   // Print a message to stdout and abort execution.
   void Abort(const char* msg);
