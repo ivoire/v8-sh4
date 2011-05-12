@@ -286,6 +286,63 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 }
 
 
+// Helper function used from StoreIC::GenerateNormal.
+//
+// elements: Property dictionary. It is not clobbered if a jump to the miss
+//           label is done.
+// name:     Property name. It is not clobbered if a jump to the miss label is
+//           done
+// value:    The value to store.
+// The two scratch registers need to be different from elements, name and
+// result.
+// The generated code assumes that the receiver has slow properties,
+// is not a global object and does not have interceptors.
+static void GenerateDictionaryStore(MacroAssembler* masm,
+                                    Label* miss,
+                                    Register elements,
+                                    Register name,
+                                    Register value,
+                                    Register scratch1,
+                                    Register scratch2) {
+  // Main use of the scratch registers.
+  // scratch1: Used as temporary and to hold the capacity of the property
+  //           dictionary.
+  // scratch2: Used as temporary.
+  Label done;
+
+  // Probe the dictionary.
+  GenerateStringDictionaryProbes(masm,
+                                 miss,
+                                 &done,
+                                 elements,
+                                 name,
+                                 scratch1,
+                                 scratch2);
+
+  // If probing finds an entry in the dictionary check that the value
+  // is a normal property that is not read only.
+  __ bind(&done);  // scratch2 == elements + 4 * index
+  const int kElementsStartOffset = StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+  const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
+  const int kTypeAndReadOnlyMask
+      = (PropertyDetails::TypeField::mask() |
+         PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
+  __ mov(scratch1, FieldMemOperand(scratch2, kDetailsOffset));
+  __ tst(scratch1, Immediate(kTypeAndReadOnlyMask));
+  __ bf(miss);
+
+  // Store the value at the masked, scaled index and return.
+  const int kValueOffset = kElementsStartOffset + kPointerSize;
+  __ add(scratch2, scratch2, Immediate(kValueOffset - kHeapObjectTag));
+  __ mov(MemOperand(scratch2), value);
+
+  // Update the write barrier. Make sure not to clobber the value.
+  __ mov(scratch1, value);
+  __ RecordWrite(elements, scratch2, scratch1);
+}
+
+
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r4    : receiver
@@ -325,19 +382,95 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm, bool support_wrappers) {
 
 
 void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : value
+  //  -- r5    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  // -----------------------------------
+  //
+  // This accepts as a receiver anything JSObject::SetElementsLength accepts
+  // (currently anything except for external and pixel arrays which means
+  // anything with elements of FixedArray type.), but currently is restricted
+  // to JSArray.
+  // Value must be a number, but only smis are accepted as the most common case.
+
+  Label miss;
+
+  Register receiver = r5;
+  Register value = r4;
+  Register scratch = r7;
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(receiver, &miss);
+
+  // Check that the object is a JS array.
+  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
+  __ bf(&miss);
+
+  // Check that elements are FixedArray.
+  // We rely on StoreIC_ArrayLength below to deal with all types of
+  // fast elements (including COW).
+  __ mov(scratch, FieldMemOperand(receiver, JSArray::kElementsOffset));
+  __ CompareObjectType(scratch, scratch, scratch, FIXED_ARRAY_TYPE);
+  __ bf(&miss);
+
+  // Check that value is a smi.
+  __ JumpIfNotSmi(value, &miss);
+
+  // Prepare tail call to StoreIC_ArrayLength.
+  __ Push(receiver, value);
+
+  ExternalReference ref =
+      ExternalReference(IC_Utility(kStoreIC_ArrayLength), masm->isolate());
+  __ TailCallExternalReference(ref, 2, 1);
+
+  __ bind(&miss);
+
+  GenerateMiss(masm);
 }
 
 
 void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
                                   StrictModeFlag strict_mode) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : value
+  //  -- r5    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  // -----------------------------------
+
+  __ Push(r5, r6, r4);
+
+  __ mov(r5, Immediate(Smi::FromInt(NONE)));  // PropertyAttributes
+  __ mov(r4, Immediate(Smi::FromInt(strict_mode)));
+  __ Push(r5, r4);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
                                   StrictModeFlag strict_mode) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : value
+  //  -- r5    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  // -----------------------------------
+
+  // Get the receiver from the stack and probe the stub cache.
+  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC,
+                                         strict_mode);
+
+  Isolate::Current()->stub_cache()->GenerateProbe(
+      masm, flags, r5, r6, r7, r1, r2);
+
+  // Cache miss: Jump to runtime.
+  GenerateMiss(masm);
 }
 
 
@@ -359,7 +492,25 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateNormal(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r4    : value
+  //  -- r5    : receiver
+  //  -- r6    : name
+  //  -- pr    : return address
+  // -----------------------------------
+  Label miss;
+
+  GenerateStringDictionaryReceiverCheck(masm, r5, r7, r1, r2, &miss);
+
+  GenerateDictionaryStore(masm, &miss, r7, r6, r4, r1, r2);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->store_normal_hit(),
+                      1, r1, r2);
+  __ rts();
+
+  __ bind(&miss);
+  __ IncrementCounter(counters->store_normal_miss(), 1, r1, r2);
+  GenerateMiss(masm);
 }
 
 
@@ -403,8 +554,44 @@ void KeyedLoadIC::GenerateGeneric(v8::internal::MacroAssembler*) {
 }
 
 
-void KeyedLoadIC::GenerateIndexedInterceptor(v8::internal::MacroAssembler*) {
-  UNIMPLEMENTED();
+void KeyedLoadIC::GenerateIndexedInterceptor(v8::internal::MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- pr     : return address
+  //  -- r4     : key
+  //  -- r5     : receiver
+  // -----------------------------------
+  Label slow;
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(r5, &slow);
+
+  // Check that the key is an array index, that is Uint32.
+  __ tst(r4, Immediate(kSmiTagMask | kSmiSignMask));
+  __ bf(&slow);
+
+  // Get the map of the receiver.
+  __ mov(r6, FieldMemOperand(r5, HeapObject::kMapOffset));
+
+  // Check that it has indexed interceptor and access checks
+  // are not enabled for this object.
+  __ mov(r7, FieldMemOperand(r6, Map::kBitFieldOffset));        // FIXME: mov.b ??
+  __ land(r7, r7, Immediate(kSlowCaseBitFieldMask));
+  __ mov(r3, Immediate(1 << Map::kHasIndexedInterceptor));
+  __ cmpeq(r7, r3);
+  __ bf(&slow);
+
+  // Everything is fine, call runtime.
+  __ Push(r5, r4);  // Receiver, key.
+
+  // Perform tail call to the entry.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(kKeyedLoadPropertyWithInterceptor),
+                        masm->isolate()),
+      2,
+      1);
+
+  __ bind(&slow);
+  GenerateMiss(masm);
 }
 
 
@@ -460,9 +647,135 @@ void KeyedLoadIC::GenerateString(v8::internal::MacroAssembler* masm) {
 }
 
 
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                              StrictModeFlag strict_mode) {
+  // ---------- S t a t e --------------
+  //  -- r4     : value
+  //  -- r5     : key
+  //  -- r6     : receiver
+  //  -- pr     : return address
+  // -----------------------------------
+
+  // Push receiver, key and value for runtime call.
+  __ Push(r6, r5, r4);
+
+  __ mov(r5, Immediate(Smi::FromInt(NONE)));          // PropertyAttributes
+  __ mov(r4, Immediate(Smi::FromInt(strict_mode)));   // Strict mode.
+  __ Push(r5, r4);
+
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
+}
+
+
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                                    StrictModeFlag strict_mode) {
-  UNIMPLEMENTED();
+  // ---------- S t a t e --------------
+  //  -- r4     : value
+  //  -- r5     : key
+  //  -- r6     : receiver
+  //  -- pr     : return address
+  // -----------------------------------
+  Label slow, fast, array, extra, end;
+
+  // Register usage.
+  Register value = r4;
+  Register key = r5;
+  Register receiver = r6;
+  Register elements = r7;  // Elements array of the receiver.
+  // r1 and r2 are used as general scratch registers.
+
+  // Check that the key is a smi.
+  __ tst(key, Immediate(kSmiTagMask));
+  __ bf(&slow);
+  // Check that the object isn't a smi.
+  __ tst(receiver, Immediate(kSmiTagMask));
+  __ bt(&slow);
+  // Get the map of the object.
+  __ mov(r1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  // Check that the receiver does not require access checks.  We need
+  // to do this because this generic stub does not perform map checks.
+  __ mov(r3, FieldMemOperand(r1, Map::kBitFieldOffset));        // FIXME: mov.b ??
+  __ tst(r3, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ bf(&slow);
+  // Check if the object is a JS array or not.
+  __ mov(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));    // FIXME: mov.b ??
+  __ mov(r3, Immediate(JS_ARRAY_TYPE));
+  __ cmpeq(r1, r3);
+  __ bt(&array);
+  // Check that the object is some kind of JS object.
+  __ mov(r3, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmpgt(r3, r4);
+  __ bt(&slow);
+
+  // Object case: Check key against length in the elements array.
+  __ mov(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  // Check that the object is in fast mode and writable.
+  __ mov(r1, FieldMemOperand(elements, HeapObject::kMapOffset));
+  __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
+  __ cmpeq(r1, r3);
+  __ bf(&slow);
+  // Check array bounds. Both the key and the length of FixedArray are smis.
+  __ mov(r3, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ cmpgtu(r3, key);
+  __ bt(&fast);
+
+  // Slow case, handle jump to runtime.
+  __ bind(&slow);
+  // Entry registers are intact.
+  // r4: value.
+  // r5: key.
+  // r6: receiver.
+  GenerateRuntimeSetProperty(masm, strict_mode);
+
+  // Extra capacity case: Check if there is extra capacity to
+  // perform the store and update the length. Used for adding one
+  // element to the array by writing to array[array.length].
+  __ bind(&extra);
+  // Condition code from comparing key and array length is still available.
+  __ bf(&slow);  // Only support writing to writing to array[array.length].
+  // Check for room in the elements backing store.
+  // Both the key and the length of FixedArray are smis.
+  __ mov(r3, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ cmpgeu(key, r3);
+  __ bt(&slow);
+  // Calculate key + 1 as smi.
+  ASSERT_EQ(0, kSmiTag);
+  __ add(r1, key, Immediate(Smi::FromInt(1)));
+  __ mov(FieldMemOperand(receiver, JSArray::kLengthOffset), r1);
+  __ jmp(&fast);
+
+  // Array case: Get the length and the elements array from the JS
+  // array. Check that the array is in fast mode (and writable); if it
+  // is the length is always a smi.
+  __ bind(&array);
+  __ mov(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ mov(r1, FieldMemOperand(elements, HeapObject::kMapOffset));
+  __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
+  __ cmpeq(r4, r3);
+  __ bf(&slow);
+
+  // Check the key against the length in the array.
+  __ mov(r3, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ cmpgeu(key, r3);
+  __ bt(&extra);
+  // Fall through to fast case.
+
+  __ bind(&fast);
+  // Fast case, store the value to the elements backing store.
+  __ add(r2, elements, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ lsl(r3, key, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r2, r2, r3);
+  __ mov(MemOperand(r2), value);
+  // Skip write barrier if the written value is a smi.
+  __ tst(value, Immediate(kSmiTagMask));
+  __ bt(&end);
+  __ rts();
+  // Update write barrier for the elements array address.
+  __ sub(r1, r2, elements);
+  __ RecordWrite(elements, r1, r2);     // FIXME: not exactly like arm one
+
+  __ bind(&end);
+  __ rts();
 }
 
 
