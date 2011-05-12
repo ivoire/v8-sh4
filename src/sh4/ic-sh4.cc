@@ -253,6 +253,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
                                    Register scratch1,
                                    Register scratch2) {
   ASSERT(!scratch1.is(r3) && !scratch2.is(r3));
+  ASSERT(result.is(r0));
 
   // Main use of the scratch registers.
   // scratch1: Used as temporary and to hold the capacity of the property
@@ -343,6 +344,138 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 }
 
 
+static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
+                                         Label* miss,
+                                         Register elements,
+                                         Register key,
+                                         Register result,
+                                         Register t0,
+                                         Register t1,
+                                         Register t2) {
+  ASSERT(!elements.is(r3) && !key.is(r3) && !result.is(r3) &&
+         !t0.is(r3) && !t1.is(r3) && !t2.is(r3));
+  ASSERT(result.is(r0));
+  // Register use:
+  //
+  // elements - holds the slow-case elements of the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // result   - holds the result on exit if the load succeeded.
+  //            Allowed to be the same as 'key' or 'result'.
+  //            Unchanged on bailout so 'key' or 'result' can be used
+  //            in further computation.
+  //
+  // Scratch registers:
+  //
+  // t0 - holds the untagged key on entry and holds the hash once computed.
+  //
+  // t1 - used to hold the capacity mask of the dictionary
+  //
+  // t2 - used for the index into the dictionary.
+  Label done;
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  __ lnot(t1, t0);
+  __ lsl(r3, t0, Immediate(15));
+  __ add(t0, t1, r3);
+  // hash = hash ^ (hash >> 12);
+  __ lsr(r3, t0, Immediate(12));
+  __ lor(t0, t0, r3);
+  // hash = hash + (hash << 2);
+  __ lsl(r3, t0, Immediate(2));
+  __ add(t0, t0, r3);
+  // hash = hash ^ (hash >> 4);
+  __ lsr(r3, t0, Immediate(4));
+  __ lor(t0, t0, r3);
+  // hash = hash * 2057;
+  __ mov(t1, Immediate(2057));
+  __ mul(t0, t0, t1);
+  // hash = hash ^ (hash >> 16);
+  __ lsr(r3, t0, Immediate(16));
+  __ lor(t0, t0, r3);
+
+  // Compute the capacity mask.
+  __ mov(t1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
+  __ asr(t1, t1, Immediate(kSmiTagSize));
+  __ sub(t1, t1, Immediate(1));
+
+  // Generate an unrolled loop that performs a few probes before giving up.
+  static const int kProbes = 4;
+  for (int i = 0; i < kProbes; i++) {
+    // Use t2 for index calculations and keep the hash intact in t0.
+    __ mov(t2, t0);
+    // Compute the masked index: (hash + i + i * i) & mask.
+    if (i > 0) {
+      __ add(t2, t2, Immediate(NumberDictionary::GetProbeOffset(i)));
+    }
+    __ land(t2, t2, t1);
+
+    // Scale the index by multiplying by the element size.
+    ASSERT(NumberDictionary::kEntrySize == 3);
+    __ lsl(r3, t2, Immediate(1));
+    __ add(t2, t2, r3);  // t2 = t2 * 3
+
+    // Check if the key is identical to the name.
+    __ lsl(r3, t2, Immediate(kPointerSizeLog2));
+    __ add(t2, elements, r3);
+    __ mov(r3, FieldMemOperand(t2, NumberDictionary::kElementsStartOffset));
+    __ cmpeq(key, r3);
+    if (i != kProbes - 1) {
+      __ bt(&done);
+    } else {
+      __ bf(miss);
+    }
+  }
+
+  __ bind(&done);
+  // Check that the value is a normal property.
+  // t2: elements + (index * kPointerSize)
+  const int kDetailsOffset =
+      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+  __ mov(t1, FieldMemOperand(t2, kDetailsOffset));
+  __ tst(t1, Immediate(Smi::FromInt(PropertyDetails::TypeField::mask())));
+  __ bf(miss);
+
+  // Get the value at the masked, scaled index and return.
+  const int kValueOffset =
+      NumberDictionary::kElementsStartOffset + kPointerSize;
+  __ mov(result, FieldMemOperand(t2, kValueOffset));
+}
+
+
+// Checks whether a key is an array index string or a symbol string.
+// Falls through if a key is a symbol.
+static void GenerateKeyStringCheck(MacroAssembler* masm,
+                                   Register key,
+                                   Register map,
+                                   Register hash,
+                                   Label* index_string,
+                                   Label* not_symbol) {
+  // The key is not a smi.
+  // Is it a string?
+  __ CompareObjectType(key, map, hash, FIRST_NONSTRING_TYPE, ge);
+  __ bt(not_symbol);
+
+  // Is the string an array index, with cached numeric value?
+  __ mov(hash, FieldMemOperand(key, String::kHashFieldOffset));
+  __ tst(hash, Immediate(String::kContainsCachedArrayIndexMask));
+  __ bt(index_string);
+
+  // Is the string a symbol?
+  // map: key map
+  __ mov(hash, FieldMemOperand(map, Map::kInstanceTypeOffset)); // FIXME: mov.b ??
+  ASSERT(kSymbolTag != 0);
+  __ tst(hash, Immediate(kIsSymbolMask));
+  __ bt(not_symbol);
+}
+
+
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r4    : receiver
@@ -355,7 +488,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   GenerateStringDictionaryReceiverCheck(masm, r4, r5, r6, r7, &miss);
 
   // r1: elements
-  GenerateDictionaryLoad(masm, &miss, r5, r6, r4, r7, r1);
+  GenerateDictionaryLoad(masm, &miss, r5, r6, r0, r7, r1);
   __ rts();
 
   // Cache miss: Jump to runtime.
@@ -549,8 +682,266 @@ void KeyedCallIC::GenerateNormal(v8::internal::MacroAssembler*, int) {
 }
 
 
-void KeyedLoadIC::GenerateGeneric(v8::internal::MacroAssembler*) {
-  UNIMPLEMENTED();
+// Checks the receiver for special cases (value type, slow case bits).
+// Falls through for regular JS object.
+static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
+                                           Register receiver,
+                                           Register map,
+                                           Register scratch,
+                                           int interceptor_bit,
+                                           Label* slow) {
+  ASSERT(!receiver.is(r3) && !map.is(r3) && !scratch.is(r3));
+  // Check that the object isn't a smi.
+  __ JumpIfSmi(receiver, slow);
+  // Get the map of the receiver.
+  __ mov(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  // Check bit field.
+  __ mov(scratch, FieldMemOperand(map, Map::kBitFieldOffset));  // FIXME: mov.b ??
+  __ tst(scratch,
+         Immediate((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
+  __ bf(slow);
+  // Check that the object is some kind of JS object EXCEPT JS Value type.
+  // In the case that the object is a value-wrapper object,
+  // we enter the runtime system to make sure that indexing into string
+  // objects work as intended.
+  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
+  __ mov(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));      // FIXME: mov.b ??
+  __ mov(r3, Immediate(JS_OBJECT_TYPE));
+  __ cmpgt(r3, scratch);
+  __ bt(slow);
+}
+
+
+// Loads an indexed element from a fast case array.
+// If not_fast_array is NULL, doesn't perform the elements map check.
+static void GenerateFastArrayLoad(MacroAssembler* masm,
+                                  Register receiver,
+                                  Register key,
+                                  Register elements,
+                                  Register scratch1,
+                                  Register scratch2,
+                                  Register result,
+                                  Label* not_fast_array,
+                                  Label* out_of_range) {
+ ASSERT(!receiver.is(r3) && !key.is(r3) && !elements.is(r3) &&
+        !scratch1.is(r3) && !scratch2.is(r3) && !result.is(r3));
+  ASSERT(result.is(r0));
+
+  // Register use:
+  //
+  // receiver - holds the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // elements - holds the elements of the receiver on exit.
+  //
+  // result   - holds the result on exit if the load succeeded.
+  //            Allowed to be the the same as 'receiver' or 'key'.
+  //            Unchanged on bailout so 'receiver' and 'key' can be safely
+  //            used by further computation.
+  //
+  // Scratch registers:
+  //
+  // scratch1 - used to hold elements map and elements length.
+  //            Holds the elements map if not_fast_array branch is taken.
+  //
+  // scratch2 - used to hold the loaded value.
+
+  __ mov(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  if (not_fast_array != NULL) {
+    // Check that the object is in fast mode and writable.
+    __ mov(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
+    __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
+    __ cmpeq(scratch1, r3);
+    __ bf(not_fast_array);
+  } else {
+    __ AssertFastElements(elements);
+  }
+
+  // Check that the key (index) is within bounds.
+  __ mov(scratch1, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ cmpgeu(key, scratch1);
+  __ bt(out_of_range);
+  // Fast case: Do the load.
+  __ add(scratch1, elements, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  // The key is a smi.
+  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  __ lsl(r3, key, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ mov(scratch2,
+         MemOperand(scratch1, r3));
+  __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
+  __ cmpeq(scratch2, r3);
+  // In case the loaded value is the_hole we have to consult GetProperty
+  // to ensure the prototype chain is searched.
+  __ bt(out_of_range);
+  __ mov(result, scratch2);
+}
+
+
+void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- pr     : return address
+  //  -- r4     : key
+  //  -- r5     : receiver
+  // -----------------------------------
+
+  __ Push(r5, r4);
+
+  __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
+}
+
+
+void KeyedLoadIC::GenerateGeneric(v8::internal::MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- pr     : return address
+  //  -- r4     : key
+  //  -- r5     : receiver
+  // -----------------------------------
+  Label slow, check_string, index_smi, index_string, property_array_property;
+  Label probe_dictionary, check_number_dictionary;
+
+  Register key = r4;
+  Register receiver = r5;
+
+  Isolate* isolate = masm->isolate();
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(key, &check_string);
+  __ bind(&index_smi);
+  // Now the key is known to be a smi. This place is also jumped to from below
+  // where a numeric string is converted to a smi.
+
+  GenerateKeyedLoadReceiverCheck(
+      masm, receiver, r6, r7, Map::kHasIndexedInterceptor, &slow);
+
+  // Check the "has fast elements" bit in the receiver's map which is
+  // now in r6.
+  __ mov(r7, FieldMemOperand(r6, Map::kBitField2Offset));       // FIXME: mov.b ??
+  __ tst(r7, Immediate(1 << Map::kHasFastElements));
+  __ bt(&check_number_dictionary);
+
+  GenerateFastArrayLoad(
+      masm, receiver, key, r1, r7, r6, r0, NULL, &slow);
+  __ IncrementCounter(isolate->counters()->keyed_load_generic_smi(), 1, r2, r3);
+  __ rts();
+
+  __ bind(&check_number_dictionary);
+  __ mov(r1, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ mov(r7, FieldMemOperand(r1, JSObject::kMapOffset));
+
+  // Check whether the elements is a number dictionary.
+  // r0: key
+  // r7: elements map
+  // r1: elements
+  __ LoadRoot(r3, Heap::kHashTableMapRootIndex);
+  __ cmpeq(r7, r3);
+  __ bf(&slow);
+  __ asr(r6, r4, Immediate(kSmiTagSize));
+  GenerateNumberDictionaryLoad(masm, &slow, r1, r4, r0, r6, r7, r2);
+  __ rts();
+
+  // Slow case, key and receiver still in r0 and r1.
+  __ bind(&slow);
+  __ IncrementCounter(isolate->counters()->keyed_load_generic_slow(),
+                      1, r6, r7);
+  GenerateRuntimeGetProperty(masm);
+
+  __ bind(&check_string);
+  GenerateKeyStringCheck(masm, key, r6, r7, &index_string, &slow);
+
+  GenerateKeyedLoadReceiverCheck(
+      masm, receiver, r6, r7, Map::kHasNamedInterceptor, &slow);
+
+  // If the receiver is a fast-case object, check the keyed lookup
+  // cache. Otherwise probe the dictionary.
+  __ mov(r7, FieldMemOperand(r5, JSObject::kPropertiesOffset));
+  __ mov(r1, FieldMemOperand(r7, HeapObject::kMapOffset));
+  __ LoadRoot(r3, Heap::kHashTableMapRootIndex);
+  __ cmpeq(r1, r3);
+  __ bt(&probe_dictionary);
+
+  // Load the map of the receiver, compute the keyed lookup cache hash
+  // based on 32 bits of the map pointer and the string hash.
+  __ mov(r6, FieldMemOperand(r5, HeapObject::kMapOffset));
+  __ asr(r7, r6, Immediate(KeyedLookupCache::kMapHashShift));
+  __ mov(r1, FieldMemOperand(r4, String::kHashFieldOffset));
+  __ asr(r7, r1, Immediate(String::kHashShift));
+  __ lor(r7, r7, r7);
+  __ land(r7, r7, Immediate(KeyedLookupCache::kCapacityMask));
+
+  // Load the key (consisting of map and symbol) from the cache and
+  // check for match.
+  ExternalReference cache_keys =
+      ExternalReference::keyed_lookup_cache_keys(isolate);
+  __ mov(r7, Operand(cache_keys));
+  __ lsl(r3, r7, Immediate(kPointerSizeLog2 + 1));
+  __ add(r1, r1, r3);
+  __ mov(r2, MemOperand(r1, kPointerSize));  // Move r1 to symbol.
+  __ add(r1, r1, Immediate(kPointerSize));
+
+  __ cmpeq(r6, r2);
+  __ bf(&slow);
+  __ mov(r2, MemOperand(r1));
+  __ cmpeq(r4, r2);
+  __ bf(&slow);
+
+  // Get field offset.
+  // r4     : key
+  // r5     : receiver
+  // r6     : receiver's map
+  // r7     : lookup cache index
+  ExternalReference cache_field_offsets =
+      ExternalReference::keyed_lookup_cache_field_offsets(isolate);
+  __ mov(r1, Operand(cache_field_offsets));
+  __ lsl(r3, r7, Immediate(kPointerSizeLog2));
+  __ mov(r2, MemOperand(r1, r3));
+  __ mov(r3, FieldMemOperand(r6, Map::kInObjectPropertiesOffset));      // FIXME: mov.b ??
+  __ sub(r2, r2, r3);
+  __ mov(r3, Immediate(0));
+  __ cmpge(r2, r3);
+  __ bt(&property_array_property);
+
+  // Load in-object property.
+  __ mov(r3, FieldMemOperand(r6, Map::kInstanceSizeOffset));            // FIXME: mov.b ??
+  __ add(r3, r3, r2);  // Index from start of object.
+  __ sub(r5, r5, Immediate(kHeapObjectTag));  // Remove the heap tag.
+  __ lsl(r3, r5, Immediate(kPointerSizeLog2));
+  __ mov(r4, MemOperand(r5, r3));                                       // FIXME: return value ?
+  __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(),
+                      1, r6, r7);
+  __ rts();
+
+  // Load property array property.
+  __ bind(&property_array_property);
+  __ mov(r5, FieldMemOperand(r5, JSObject::kPropertiesOffset));
+  __ add(r5, r5, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ lsl(r3, r2, Immediate(kPointerSizeLog2));
+  __ mov(r4, MemOperand(r5, r3));                                       // FIXME: return value ?
+  __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(),
+                      1, r6, r7);
+  __ rts();
+
+  // Do a quick inline probe of the receiver's dictionary, if it
+  // exists.
+  __ bind(&probe_dictionary);
+  // r5: receiver
+  // r4: key
+  // r7: elements
+  __ mov(r6, FieldMemOperand(r5, HeapObject::kMapOffset));
+  __ mov(r6, FieldMemOperand(r6, Map::kInstanceTypeOffset));    // FIXME: mov.b ??
+  GenerateGlobalInstanceTypeCheck(masm, r6, &slow);
+  // Load the property to r0.
+  GenerateDictionaryLoad(masm, &slow, r7, r4, r0, r6, r1);
+  __ IncrementCounter(isolate->counters()->keyed_load_generic_symbol(),
+                      1, r6, r7);
+  __ rts();
+
+  __ bind(&index_string);
+  __ IndexFromHash(r7, key);
+  // Now jump to the place where smi keys are handled.
+  __ jmp(&index_smi);
 }
 
 
