@@ -687,6 +687,8 @@ class Assembler : public AssemblerBase {
   void land(Register Rd, Register Rs, const Immediate& imm);
   void land(Register Rd, Register Rs, Register Rt);
 
+  void lnot(Register Rd, Register Rs) { not_(Rs, Rd); }
+
   void lor(Register Rd, Register Rs, const Immediate& imm);
   void lor(Register Rd, Register Rs, Register Rt);
 
@@ -701,8 +703,9 @@ class Assembler : public AssemblerBase {
   void mov(Register Rd, const Operand& src);
 
   void mov(Register Rd, const MemOperand& src);  // load op.
-
   void mov(const MemOperand& dst, Register Rd);  // store op.
+
+  void mul(Register Rd, Register Rs, Register Rt);
 
   void nop() { nop_(); }
 

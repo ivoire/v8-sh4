@@ -100,6 +100,22 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
 }
 
 
+void MacroAssembler::IndexFromHash(Register hash, Register index) {
+  // If the hash field contains an array index pick it out. The assert checks
+  // that the constants for the maximum number of digits for an array index
+  // cached in the hash field and the number of bits reserved for it does not
+  // conflict.
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
+  // the low kHashShift bits.
+  STATIC_ASSERT(kSmiTag == 0);
+  Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
+  lsl(r3, hash, Immediate(kSmiTagSize));
+  mov(index, r3);
+}
+
+
 void MacroAssembler::Call(
     intptr_t target, RelocInfo::Mode rmode) {
   //TODO: check whether this is necessaery
@@ -698,6 +714,26 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 void MacroAssembler::Assert(const char* msg, bool value) {
   if (emit_debug_code())
   Check(msg, value);
+}
+
+
+void MacroAssembler::AssertFastElements(Register elements) {
+  ASSERT(!elements.is(r3));
+  if (emit_debug_code()) {
+    ASSERT(!elements.is(r3));
+    Label ok;
+    push(elements);
+    mov(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
+    LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
+    cmpeq(elements, r3);
+    bt(&ok);
+    LoadRoot(r3, Heap::kFixedCOWArrayMapRootIndex);
+    cmpeq(elements, r3);
+    bt(&ok);
+    Abort("JSObject with fast elements map has slow elements");
+    bind(&ok);
+    pop(elements);
+  }
 }
 
 

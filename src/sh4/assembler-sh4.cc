@@ -705,6 +705,12 @@ void Assembler::mov(const MemOperand& dst, Register Rd) {
 }
 
 
+void Assembler::mul(Register Rd, Register Rs, Register Rt) {
+  mull_(Rs, Rt);
+  sts_MACL_(Rd);
+}
+
+
 void Assembler::pop(Register dst) {
   if (dst.is(pr))
     ldsl_incRd_PR_(r15);
