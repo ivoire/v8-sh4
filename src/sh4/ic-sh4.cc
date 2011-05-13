@@ -501,7 +501,7 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm, bool support_wrappers) {
   // ----------- S t a t e -------------
   //  -- r4    : receiver
   //  -- r6    : name
-  //  -- lr    : return address
+  //  -- pr    : return address
   //  -- sp[0] : receiver
   // -----------------------------------
   Label miss;
