@@ -34,6 +34,12 @@
 // TODO(isolates): is it necessary to lift this?
 static int fatal_error_handler_nesting_depth = 0;
 
+// Set this to > 1 for allowing multiple fatal errors
+static int fatal_count_max = 1;
+
+// Count number of fatal errors
+static int fatal_count;
+
 // Contains protection against recursive calls (faults while handling faults).
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
   fflush(stdout);
@@ -55,7 +61,8 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
       i::Isolate::Current()->PrintStack();
     }
   }
-  i::OS::Abort();
+  if (++fatal_count >= fatal_count_max)
+    i::OS::Abort();
 }
 
 
