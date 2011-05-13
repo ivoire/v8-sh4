@@ -118,6 +118,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     own_buffer_ = false;
   }
 
+  // Fill the buffer with 0 so it will normally crash if we jump into it
   if (own_buffer_) {
     memset(buffer_, 0x00, buffer_size);
   }
@@ -794,7 +795,10 @@ void Assembler::stop(const char* msg) {
 
 void Assembler::bkpt() {
   // Encode directly a BRK
-  dw(0x003b);
+  //dw(0x003b);
+
+  // Use a privileged instruction
+  ldtlb_();
 }
 
 
