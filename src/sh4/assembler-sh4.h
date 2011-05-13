@@ -705,6 +705,9 @@ class Assembler : public AssemblerBase {
   void mov(Register Rd, const MemOperand& src);  // load op.
   void mov(const MemOperand& dst, Register Rd);  // store op.
 
+  void ldr(Register Rd, const MemOperand& src) { mov(Rd, src); }
+  void str(Register Rs, const MemOperand& dst) { mov(dst, Rs); }
+
   void mul(Register Rd, Register Rs, Register Rt);
 
   void nop() { nop_(); }
