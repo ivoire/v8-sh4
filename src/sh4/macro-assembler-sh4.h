@@ -57,6 +57,12 @@ static inline MemOperand GlobalObjectOperand()  {
 }
 
 
+enum InvokeJSFlags {
+  CALL_JS,
+  JUMP_JS
+};
+
+
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
   // No special flags.
@@ -236,8 +242,8 @@ class MacroAssembler: public Assembler {
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeFlag flag,
-                     PostCallGenerator* post_call_generator = NULL);
+                     InvokeJSFlags flag,
+                     CallWrapper* call_wrapper = NULL);
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);

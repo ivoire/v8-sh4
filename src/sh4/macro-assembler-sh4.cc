@@ -33,7 +33,6 @@
 #include "codegen.h"
 #include "debug.h"
 #include "runtime.h"
-#include "serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -655,6 +654,21 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   UNIMPLEMENTED();
   return 0;
+}
+
+
+void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeJSFlags flags,
+                                   CallWrapper* call_wrapper) {
+  GetBuiltinEntry(r6, id);
+  if (flags == CALL_JS) {
+    if (call_wrapper != NULL) call_wrapper->BeforeCall(2 * kInstrSize);
+    jsr(r6);
+    if (call_wrapper != NULL) call_wrapper->AfterCall();
+  } else {
+    ASSERT(flags == JUMP_JS);
+    jmp(r6);
+  }
 }
 
 
