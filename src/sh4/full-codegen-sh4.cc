@@ -258,65 +258,65 @@ void FullCodeGenerator::Move(Slot* dst,
 
 
 void FullCodeGenerator::ClearAccumulator() {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
@@ -325,194 +325,194 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
                                               OverwriteMode mode,
                                               Expression* left,
                                               Expression* right) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsArray(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsNonNegativeSmi(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsSmi(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
     ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitLog(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitMathCos(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitMathLog(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitMathSin(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitMathSqrt(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
                                        bool pretenure) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitNumberToString(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitRegExpConstructResult(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitRegExpExec(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitReturnSequence() {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitStringAdd(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitStringCharAt(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitStringCharCodeAt(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitStringCharFromCode(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitStringCompare(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitSubString(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EmitValueOf(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EnterFinallyBlock() {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::ExitFinallyBlock() {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
@@ -520,7 +520,7 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
                                                      bool should_normalize,
                                                      Label* if_true,
                                                      Label* if_false) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
@@ -636,67 +636,67 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
 
 
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitAssignment(Assignment* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitCall(Call* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitCallNew(CallNew* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitProperty(Property* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 // clobbers: rtmp, r0, r1
@@ -790,7 +790,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
     TypeofState typeof_state,
     Label* slow,
     Label* done) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
   // // Generate fast-case code for variables that might be shadowed by
   // // eval-introduced variables.  Eval is used a lot without
   // // introducing variables.  In those cases, we do not want to
@@ -840,27 +840,27 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
 
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
@@ -898,136 +898,136 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(Slot* slot) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Label* materialize_true,
     Label* materialize_false) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(Slot* slot) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Handle<Object> lit) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Heap::RootListIndex index) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(
     Heap::RootListIndex index) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
     int count,
     Register reg) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::StackValueContext::DropAndPlug(int count,
                                                        Register reg) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(
     Label* materialize_true,
     Label* materialize_false) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::TestContext::Plug(Slot* slot) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::TestContext::DropAndPlug(int count,
                                                  Register reg) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::TestContext::Plug(Label* materialize_true,
                                           Label* materialize_false) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::TestContext::Plug(bool flag) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EffectContext::Plug(Slot* slot) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EffectContext::Plug(Heap::RootListIndex index) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EffectContext::DropAndPlug(int count,
                                                    Register reg) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EffectContext::Plug(Label* materialize_true,
                                             Label* materialize_false) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void FullCodeGenerator::EffectContext::Plug(bool flag) const {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 

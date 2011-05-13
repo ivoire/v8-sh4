@@ -73,16 +73,16 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
 
 void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
 void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
@@ -121,7 +121,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool count_constructions) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
@@ -315,7 +315,7 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ bkpt();//UNIMPLEMENTED();
 }
 
 
@@ -761,6 +761,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ rts();
 }
 
+#undef __
 
 } }  // namespace v8::internal
 
