@@ -487,20 +487,18 @@ void Assembler::branch(Label* L, branch_type type) {
 
 void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
-  intptr_t dst = reinterpret_cast<intptr_t>(code.location()) -
-                 reinterpret_cast<intptr_t>(pc_);
-
-  jmp(dst);
+  // TODO: make a faster sequence where the constant pool is
+  // after the branch
+  mov(rtmp, Immediate(reinterpret_cast<intptr_t>(code.location()), rmode));
+  braf_(rtmp);
 }
 
 void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
-  intptr_t dst = reinterpret_cast<intptr_t>(code.location()) -
-                 reinterpret_cast<intptr_t>(pc_);
-
-  jsr(dst);
+  // TODO: make a faster sequence where the constant pool is
+  // after the branch
+  mov(rtmp, Immediate(reinterpret_cast<intptr_t>(code.location()), rmode));
+  bsrf_(rtmp);
 }
 
 void Assembler::branch(int offset, branch_type type) {
@@ -648,11 +646,19 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
   // FIXME(STM): Internal ref not handled
   ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE);
 
-  // FIXME(STM) needed ?
+#ifdef DEBUG
+  Address instr_address = pc_;
+#endif
+
+  // Record the relocation location.
+  // Actually we record the PC of the instruction,
+  // though the target address is encoded in the constant pool below.
+  // If the code sequence changes, one must update
+  // Assembler::target_address_address_at().
   if (imm.rmode_ != RelocInfo::NONE) RecordRelocInfo(imm.rmode_);
 
   // Move based on immediates can only be 8 bits long
-  if (imm.is_int8()) {
+  if (imm.is_int8() && imm.rmode_ == RelocInfo::NONE) {
     mov_imm_(imm.x_, Rd);
   } else {
     // Use a tiny constant pool and jump above
@@ -661,6 +667,14 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
     nop_();
     bra_(4);
     nop_();
+#ifdef DEBUG
+    if (imm.rmode_ != RelocInfo::NONE) {
+      Address target_address = pc_;
+      // Verify that target_address_address_at() is actually returning
+      // the address where the target address for the instruction is stored.
+      ASSERT(target_address == target_address_address_at(instr_address));
+    }
+#endif
     *reinterpret_cast<uint32_t*>(pc_) = imm.x_;
     pc_ += sizeof(uint32_t);
   }
