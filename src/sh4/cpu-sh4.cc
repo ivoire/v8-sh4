@@ -56,7 +56,7 @@ void CPU::FlushICache(void* start, size_t size) {
 
 
 void CPU::DebugBreak() {
-  UNIMPLEMENTED();
+  asm("ldtlb");
 }
 
 } }  // namespace v8::internal
