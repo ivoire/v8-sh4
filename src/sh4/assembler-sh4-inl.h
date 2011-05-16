@@ -53,28 +53,13 @@ void Assembler::CheckBuffer() {
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
-  if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
-    int32_t* p = reinterpret_cast<int32_t*>(pc_);
-    *p -= delta;  // Relocate entry.
-    CPU::FlushICache(p, sizeof(uint32_t));
-  } else if (rmode_ == JS_RETURN && IsPatchedReturnSequence()) {
-    // Special handling of js_return when a break point is set (call
-    // instruction has been inserted).
-    int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
-    *p -= delta;  // Relocate entry.
-    CPU::FlushICache(p, sizeof(uint32_t));
-  } else if (rmode_ == DEBUG_BREAK_SLOT && IsPatchedDebugBreakSlotSequence()) {
-    // Special handling of a debug break slot when a break point is set (call
-    // instruction has been inserted).
-    int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
-    *p -= delta;  // Relocate entry.
-    CPU::FlushICache(p, sizeof(uint32_t));
-  } else if (IsInternalReference(rmode_)) {
+  if (RelocInfo::IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
-    *p += delta;  // Relocate entry.
-    CPU::FlushICache(p, sizeof(uint32_t));
+    *p += delta;  // relocate entry
   }
+  // We do not use pc relative addressing on ARM, so there is
+  // nothing else to do.
 }
 
 
