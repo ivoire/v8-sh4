@@ -85,7 +85,8 @@ Address RelocInfo::target_address() {
 
 
 Address RelocInfo::target_address_address() {
-  UNIMPLEMENTED();
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  return reinterpret_cast<Address>(Assembler::target_address_address_at(pc_));
 }
 
 
@@ -101,28 +102,32 @@ void RelocInfo::set_target_address(Address target) {
 
 
 Object* RelocInfo::target_object() {
-  UNIMPLEMENTED();
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  return Memory::Object_at(Assembler::target_address_address_at(pc_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return Memory::Object_Handle_at(pc_);
+  return Memory::Object_Handle_at(Assembler::target_address_address_at(pc_));
 }
 
 
 Object** RelocInfo::target_object_address() {
-  UNIMPLEMENTED();
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  return reinterpret_cast<Object**>(Assembler::target_address_address_at(pc_));
 }
 
 
 void RelocInfo::set_target_object(Object* target) {
-  UNIMPLEMENTED();
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
 }
 
 
 Address* RelocInfo::target_reference_address() {
-  UNIMPLEMENTED();
+  ASSERT(rmode_ == EXTERNAL_REFERENCE);
+  return reinterpret_cast<Address*>(Assembler::target_address_address_at(pc_));
 }
 
 
@@ -275,13 +280,36 @@ Immediate::Immediate(Address addr) {
 }
 
 
+Address Assembler::target_address_address_at(Address pc) {
+  // Compute the actual address in the code where the address of the
+  // jump/call/mov instruction is stored given the instruction pc.
+  // Ref to functions that call Assembler::RecordRelocInfo() 
+  // such as Assembler::mov(), Assembler::jmp(), such as Assembler::jsr().
+
+  // All sequences for jmp/jsr/mov uses the same sequence as mov(), i.e.:
+  // align 4; movl pc+4 => R; nop; bra pc+4; nop; pool[0..32]
+  // We compute the address of pool[0] given the pc address before the align
+  Address pool_address = pc;
+  pool_address = reinterpret_cast<Address>((reinterpret_cast<int32_t>(pc) + 3) & ~0x3); // align to 4 bytes boundary
+  pool_address += 4 * kInstrSize;
+  return pool_address;
+}
+
+
 Address Assembler::target_address_at(Address pc) {
-  UNIMPLEMENTED();
+  return Memory::Address_at(target_address_address_at(pc));
 }
 
 
 void Assembler::set_target_address_at(Address pc, Address target) {
-  UNIMPLEMENTED();
+  Memory::Address_at(target_address_address_at(pc)) = target;
+  // Intuitively, we would think it is necessary to flush the instruction cache
+  // after patching a target address in the code as follows:
+  //   CPU::FlushICache(pc, sizeof(target));
+  // However, on ARM, no instruction was actually patched by the assignment
+  // above; the target address is not part of an instruction, it is patched in
+  // the constant pool and is read via a data access; the instruction accessing
+  // this address in the constant pool remains unchanged.
 }
 
 
