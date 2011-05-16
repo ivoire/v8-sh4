@@ -373,7 +373,7 @@ void OS::DebugBreak() {
   asm("break");
 #elif defined(__sh__)
   //FIXME: STM
-  asm("trapa #3");
+  asm("ldtlb");
 #else
   asm("int $3");
 #endif
