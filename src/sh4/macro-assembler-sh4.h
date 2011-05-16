@@ -305,20 +305,10 @@ class MacroAssembler: public Assembler {
 
   // Smi tagging support.
   void SmiTag(Register reg) {
-    UNIMPLEMENTED();
+    add(reg, reg, reg);
   }
   void SmiUntag(Register reg) {
     asr(reg, reg, Immediate(kSmiTagSize));
-  }
-
-  // Modifies the register even if it does not contain a Smi!
-  void SmiUntag(Register reg, TypeInfo info, Label* non_smi) {
-    UNIMPLEMENTED();
-  }
-
-  // Modifies the register even if it does not contain a Smi!
-  void SmiUntag(Register reg, Label* is_smi) {
-    UNIMPLEMENTED();
   }
 
   // Jump the register contains a smi.
