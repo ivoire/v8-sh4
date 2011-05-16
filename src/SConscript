@@ -179,6 +179,7 @@ SOURCES = {
     sh4/builtins-sh4.cc
     sh4/code-stubs-sh4.cc
     sh4/codegen-sh4.cc
+    sh4/constant-sh4.cc
     sh4/cpu-sh4.cc
     sh4/debug-sh4.cc
     sh4/deoptimizer-sh4.cc
