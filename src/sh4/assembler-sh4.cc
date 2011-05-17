@@ -470,13 +470,13 @@ void Assembler::next(Label* L) {
 void Assembler::branch(Label* L, branch_type type) {
   if (L->is_bound()) {
     ASSERT(L->pos() != kEndOfChain);
-    branch(L->pos(), type);
+    branch(L->pos() - (int)pc_, type, false);
   } else {
     if (L->is_linked()) {
       ASSERT(L->pos() != kEndOfChain);
-      branch(L->pos(), type);
+      branch(L->pos(), type, true);
     } else {
-      branch(kEndOfChain, type);   // Patched later on
+      branch(kEndOfChain, type, true);   // Patched later on
     }
     // Compensate the place of the constant (sizeof(uint32_t))
     // Constant pool is always emited last in the sequence
@@ -502,143 +502,155 @@ void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode) {
   bsrf_(rtmp);
 }
 
-void Assembler::branch(int offset, branch_type type) {
+void Assembler::branch(int offset, branch_type type, bool patched_later) {
   switch(type) {
   case branch_true:
-    bt(offset); break;
+    bt(offset, patched_later); break;
   case branch_false:
-    bf(offset); break;
+    bf(offset, patched_later); break;
   case branch_unconditional:
-    jmp(offset); break;
+    jmp(offset, patched_later); break;
   case branch_subroutine:
     ASSERT(type != branch_subroutine); break;
   }
 }
 
 
-void Assembler::writeBranchTag(int nop_count, branch_type type) {
-  // Check that we generate at most one nop
-  ASSERT(nop_count <= 1);
-  uint16_t *ptr = reinterpret_cast<uint16_t*>(pc_) - 1;
-  ASSERT(*ptr == 0x9); // Check that it is a nop actually
-  *ptr = type + nop_count;
+void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant) {
+  // Patch the constant
+  ASSERT(*(p_constant - 1) == 0x09);
+  *reinterpret_cast<uint32_t*>(p_constant) = target_pos - (unsigned)p_constant;
 }
 
 
-void Assembler::patchBranchOffset(int target_pos, uint16_t *p_pos) {
-  // p_pos is the position of the constant to patch
-  int nop_count = (*(p_pos - 1)) & 0x1;
-  branch_type type = static_cast<branch_type>(*(p_pos - 1) - nop_count);
-
-  // Restore the nop
-  *(p_pos - 1) = 0x9;
-
-  // Patch according to the branch type
-  switch (type) {
-  case branch_true:
-  case branch_false:
-    target_pos -= 8;
-    break;
-  case branch_unconditional:
-  case branch_subroutine:
-    target_pos -= 4;
-    break;
-  }
-
-  // Patch the constant (the number of nops if doubled to have an alligned adress (not sure about that)
-  *reinterpret_cast<uint32_t*>(p_pos) = target_pos - nop_count * 2;
-}
-
-
-void Assembler::bt(int offset) {
-  if(FITS_SH4_bt(offset) && offset != kEndOfChain) {
-    bt_(offset);
-    nop_();
-  } else {
-    int nop_count = align();
+void Assembler::bt(int offset, bool patched_later) {
+  if (patched_later) {
+    align();
     bf_(8);
     nop_();
-    movl_dispPC_(4, rtmp);
+    movl_dispPC_(4, r3);
     nop_();
-    braf_(rtmp);
+    braf_(r3);
     nop_();
-    // Store the nop count in the nop just before the constant
-    // The nop will be restaured during the back patching
-    writeBranchTag(nop_count, branch_true);
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
+  } else {
+    if(FITS_SH4_bt(offset - 4)) {
+      bt_(offset - 4);
+      nop_();
+    } else {
+      int nop_count = align();
+      bf_(8);
+      nop_();
+      movl_dispPC_(4, r3);
+      nop_();
+      braf_(r3);
+      nop_();
+      *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 8 - 2*nop_count;
+      pc_ += sizeof(uint32_t);
+    }
   }
 }
 
 
-void Assembler::bf(int offset) {
-  if(FITS_SH4_bf(offset) && offset != kEndOfChain) {
-    bf_(offset);
-    nop_();
-  } else {
-    int nop_count = align();
+void Assembler::bf(int offset, bool patched_later) {
+  //TODO: rename offset to pos and keep this meaning
+  if (patched_later) {
+    align();
     bt_(8);
     nop_();
-    movl_dispPC_(4, rtmp);
+    movl_dispPC_(4, r3);
     nop_();
-    braf_(rtmp);
+    braf_(r3);
     nop_();
-    // Store the nop count in the nop just before the constant
-    // The nop will be restaured during the back patching
-    writeBranchTag(nop_count, branch_false);
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
+  } else {
+    if (FITS_SH4_bf(offset - 4)) {
+      bf_(offset - 4);
+      nop_();
+    } else {
+      int nop_count = align();
+      bt_(8);
+      nop_();
+      movl_dispPC_(4, r3);
+      nop_();
+      braf_(r3);
+      nop_();
+      *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 8 - 2*nop_count;
+      pc_ += sizeof(uint32_t);
+    }
   }
 }
 
 
-void Assembler::jmp(int offset) {
+void Assembler::jmp(int offset, bool patched_later) {
+  //TODO: rename offset to pos and keep this meaning
+
   // TODO: on other architectures we have:
   // positions_recorder()->WriteRecordedPositions();
   // check if this is necessary
 
-  // Do a short jump if possible
-  if (FITS_SH4_bra(offset) && offset != kEndOfChain) {
-    bra_(offset);
-    nop_();
-  } else {
-    // Use a super scratch register (r3) and a tiny constant pool
-    int nop_count = align();
-    movl_dispPC_(4, rtmp);
+  // Is it going to be pacthed later on
+  if (patched_later) {
+    // There is no way to know the size of the offset: take the worst case
+    align();
+    movl_dispPC_(4, r3);
     nop();
-    braf_(rtmp);
+    braf_(r3);
     nop_();
-    // Store the nop count in the nop just before the constant
-    // The nop will be restaured during the back patching
-    writeBranchTag(nop_count, branch_unconditional);
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
+
+  } else {
+    // Does it fits in a bra offset
+    if (FITS_SH4_bra(offset - 4)) {
+      bra_(offset - 4);
+      nop_();
+    } else {
+      int nop_count = align();
+      movl_dispPC_(4, r3);
+      nop();
+      braf_(r3);
+      nop_();
+      *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 4 - 2*nop_count;
+      pc_ += sizeof(uint32_t);
+    }
   }
 }
 
-void Assembler::jsr(int offset) {
+void Assembler::jsr(int offset, bool patched_later) {
+  //TODO: rename offset to pos and keep this meaning
+
   // TODO: on other architectures we have:
   // positions_recorder()->WriteRecordedPositions();
   // check if this is necessary
 
-  // Do a short jump if possible
-  // TODO: check if we must remove 4 from offset
-  // as the sematic of bra is to jump at [pc + 4 + (offset << 1)]
-  if (FITS_SH4_bsr(offset) && offset != kEndOfChain) {
-    bsr_(offset);
+  // Is it going to be pacthed later on
+  if (patched_later) {
+    // There is no way to know the size of the offset: take the worst case
+    align();
+    movl_dispPC_(4, r3);
+    nop();
+    bsrf_(r3);
     nop_();
-  } else {
-    // Use a super scratch register (r3) and a tiny constant pool
-    int nop_count = align();
-    movl_dispPC_(4, rtmp);
-    nop_();
-    bsrf_(rtmp);
-    nop_();
-    // Store the nop count in the nop just before the constant
-    // The nop will be restaured during the back patching
-    writeBranchTag(nop_count, branch_subroutine);
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
+
+  } else {
+    // Does it fits in a bsr offset
+    if (FITS_SH4_bsr(offset - 4)) {
+      bsr_(offset - 4);
+      nop_();
+    } else {
+      int nop_count = align();
+      movl_dispPC_(4, r3);
+      nop();
+      bsrf_(r3);
+      nop_();
+      *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 4 - 2*nop_count;
+      pc_ += sizeof(uint32_t);
+    }
   }
 }
 

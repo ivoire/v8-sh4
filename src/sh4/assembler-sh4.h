@@ -783,11 +783,11 @@ class Assembler : public AssemblerBase {
  private:
   // code generation wrappers
   void branch(Label* L, branch_type type);
-  void branch(int offset, branch_type type);
-  void bt(int offset);
-  void bf(int offset);
-  void jmp(int offset);
-  void jsr(int offset);
+  void branch(int offset, branch_type type, bool patched_later);
+  void bt(int offset, bool patched_later);
+  void bf(int offset, bool patched_later);
+  void jmp(int offset, bool patched_later);
+  void jsr(int offset, bool patched_later);
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos);
