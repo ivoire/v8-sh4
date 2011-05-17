@@ -28,6 +28,8 @@
 #ifndef V8_DISASM_H_
 #define V8_DISASM_H_
 
+#include "allocation.h"
+
 namespace disasm {
 
 typedef unsigned char byte;
@@ -53,27 +55,28 @@ class NameConverter {
 // A generic Disassembler interface
 class Disassembler {
  public:
-  // Caller deallocates converter.
-  explicit Disassembler(const NameConverter& converter);
-
-  virtual ~Disassembler();
+  virtual ~Disassembler() {};
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction);
+  virtual int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction) = 0;
 
   // Returns -1 if instruction does not mark the beginning of a constant pool,
   // or the number of entries in the constant pool beginning here.
-  int ConstantPoolSizeAt(byte* instruction);
+  virtual int ConstantPoolSizeAt(byte* instruction) = 0;
 
   // Write disassembly into specified file 'f' using specified NameConverter
   // (see constructor).
   static void Disassemble(FILE* f, byte* begin, byte* end);
- private:
-  const NameConverter& converter_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Disassembler);
 };
+
+
+// Factory for Disassembler class implemented in target dependent code.
+class DisassemblerFactory : public v8::internal::AllStatic {
+ public:
+  static Disassembler *NewDisassembler(const NameConverter& converter);
+};
+
 
 }  // namespace disasm
 

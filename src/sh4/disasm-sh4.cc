@@ -54,10 +54,8 @@ namespace internal {
 // more informative description.
 class Decoder {
  public:
-  Decoder(const disasm::NameConverter& converter,
-          Vector<char> out_buffer)
-    : converter_(converter),
-      out_buffer_(out_buffer),
+  Decoder(Vector<char> out_buffer)
+    : out_buffer_(out_buffer),
       out_buffer_pos_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
   }
@@ -73,9 +71,6 @@ class Decoder {
   void PrintChar(const char ch);
   void Print(const char* str);
 
-  // Printing of common values.
-  void PrintRegister(int reg);
-
   // Print a formated stream.
   void Format(const char *format, ...);
 
@@ -88,7 +83,6 @@ class Decoder {
   // Decode instructions from Table 39, p.150
   int DecodeTable39(Instruction* instr);
 
-  const disasm::NameConverter& converter_;
   Vector<char> out_buffer_;
   int out_buffer_pos_;
 
@@ -635,12 +629,6 @@ void Decoder::Print(const char* str) {
 }
 
 
-// Print the register name according to the active name converter.
-void Decoder::PrintRegister(int reg) {
-  Print(converter_.NameOfCPURegister(reg));
-}
-
-
 void Decoder::Format(const char *format, ...) {
   va_list args;
   va_start(args, format);
@@ -682,11 +670,11 @@ namespace internal {
 
 class Decoder {
  public:
-  Decoder(const disasm::NameConverter& converter,
-          Vector<char> out_buffer)
-    : converter_(converter),
-      out_buffer_(out_buffer),
-      out_buffer_pos_(0) {
+  Decoder(Vector<char> out_buffer)
+    : out_buffer_(out_buffer),
+      out_buffer_pos_(0),
+      last_pool_offset_(0),
+      last_pool_size_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
   }
 
@@ -696,6 +684,11 @@ class Decoder {
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(byte* instruction);
 
+  // Returns the offset from the current PC (before the instruction)
+  // and size of the reference if a PC relative dereference was decoded.
+  int LastPoolSize();
+  int LastPoolReference();
+
  private:
   // Print a formated stream.
   void Format(const char *format, ...);
@@ -703,15 +696,19 @@ class Decoder {
   // This method is implemented in opcodes-disasm-sh4.c
   void print_sh_insn(uint32_t memaddr, uint16_t insn);
 
-  const disasm::NameConverter& converter_;
   Vector<char> out_buffer_;
   int out_buffer_pos_;
+  int last_pool_offset_;
+  int last_pool_size_;
 
   DISALLOW_COPY_AND_ASSIGN(Decoder);
 };
 
 #define printk Format
-#define __get_user(val,ptr) ((val) = *(ptr))
+#define __get_user(val,ptr) \
+  do { last_pool_offset_ = (u32)(ptr) - memaddr;	\
+    last_pool_size_ = sizeof(*(ptr));			\
+    ((val) = *(ptr)); } while(0)
 #define u16 uint16_t
 #define u32 uint32_t
 #include "opcodes-disasm-sh4.c"
@@ -741,6 +738,13 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   return Instruction::kInstrSize;
 }
 
+int Decoder::LastPoolReference() {
+  return last_pool_offset_;
+}
+
+int Decoder::LastPoolSize() {
+  return last_pool_size_;
+}
 
 } }  // namespace v8::internal
 
@@ -790,38 +794,112 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-Disassembler::Disassembler(const NameConverter& converter)
-    : converter_(converter) {}
+class DisassemblerSH4: public Disassembler {
+public:
+  explicit DisassemblerSH4() : start_pc_(0) {
+    memset(pools_locs_, 9, sizeof(pools_locs_));
+  }
+
+  virtual ~DisassemblerSH4() {}
+
+  virtual int InstructionDecode(v8::internal::Vector<char> buffer,
+				byte* instruction);
+
+  virtual int ConstantPoolSizeAt(byte* instruction);
+
+private:
+  // Management of pool references.
+  void SetPoolAt(int offset, int size);
+  void ClearPoolAt(int offset, int size);
+  int HasPoolAt(int offset, int size);
+
+  uint32_t start_pc_;
+  static const int pools_locs_count_ = 1024;
+  uint32_t pools_locs_[pools_locs_count_/sizeof(uint32_t)];
+};
 
 
-Disassembler::~Disassembler() {}
-
-
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
-                                    byte* instruction) {
-  v8::internal::Decoder d(converter_, buffer);
-  return d.InstructionDecode(instruction);
+int DisassemblerSH4::InstructionDecode(v8::internal::Vector<char> buffer,
+				       byte* instruction) {
+  if (start_pc_ == 0)
+    start_pc_ = (uint32_t)instruction;
+  v8::internal::Decoder d(buffer);
+  int n = d.InstructionDecode(instruction);
+  int offset = d.LastPoolReference();
+  int size = d.LastPoolSize();
+  if (offset > 0)
+    SetPoolAt((uint32_t)instruction - start_pc_ + offset, size);
+  return n;
 }
 
 
-int Disassembler::ConstantPoolSizeAt(byte* instruction) {
-  return -1;
+int DisassemblerSH4::ConstantPoolSizeAt(byte* instruction) {
+  // Constant pool size is a multiple of 4 from caller point of view,
+  // we make this a post condition.
+  // Though SH4 does not support misaligned pools, hence we
+  // proceed by steps of 2.
+  int size = 0;
+  if (start_pc_ == 0)
+    return -1;
+  for (int offset = (uint32_t)instruction - start_pc_;
+       HasPoolAt(offset, 2);
+       offset += 2) {
+    size += 2;
+    ClearPoolAt(offset, 2);
+  }
+  ASSERT(size % 4 == 0);
+  return size/4 - 1;
+}
+
+
+void DisassemblerSH4::SetPoolAt(int offset, int size) {
+  ASSERT(size >= 1 && size <= 4);
+  ASSERT(offset/4 == (offset+size-1)/4);
+  int elt = (offset % pools_locs_count_)/(sizeof(*pools_locs_)*8);
+  int pos = (offset % pools_locs_count_)%(sizeof(*pools_locs_)*8);
+  uint32_t mask = ((uint32_t)1<<size)-1;
+  pools_locs_[elt] |= mask<<pos;
+}
+
+
+void DisassemblerSH4::ClearPoolAt(int offset, int size) {
+  ASSERT(size >= 1 && size <= 4);
+  ASSERT(offset/4 == (offset+size-1)/4);
+  int elt = (offset % pools_locs_count_)/(sizeof(*pools_locs_)*8);
+  int pos = (offset % pools_locs_count_)%(sizeof(*pools_locs_)*8);
+  uint32_t mask = ((uint32_t)1<<size)-1;
+  pools_locs_[elt] &= ~(mask<<pos);
+}
+
+
+int DisassemblerSH4::HasPoolAt(int offset, int size) {
+  ASSERT(size >= 1 && size <= 4);
+  ASSERT(offset/4 == (offset+size-1)/4);
+  int elt = (offset % pools_locs_count_)/(sizeof(*pools_locs_)*8);
+  int pos = (offset % pools_locs_count_)%(sizeof(*pools_locs_)*8);
+  uint32_t mask = ((uint32_t)1<<size)-1;
+  return (pools_locs_[elt] & (mask<<pos)) == (mask<<pos);
 }
 
 
 void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
   NameConverter converter;
-  Disassembler d(converter);
+  Disassembler *d = DisassemblerFactory::NewDisassembler(converter);
   for (byte* pc = begin; pc < end;) {
     v8::internal::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
-    pc += d.InstructionDecode(buffer, pc);
+    pc += d->InstructionDecode(buffer, pc);
     fprintf(f, "%p    %02x %02x      %s\n",
             prev_pc, *reinterpret_cast<const uint8_t*>(prev_pc), *reinterpret_cast<const uint8_t*>(prev_pc+1), buffer.start());
   }
 }
 
+
+Disassembler *DisassemblerFactory::NewDisassembler(const NameConverter& converter)
+{
+  return new DisassemblerSH4::DisassemblerSH4();
+}
 
 }  // namespace disasm
 

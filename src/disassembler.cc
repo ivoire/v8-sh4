@@ -124,7 +124,7 @@ static int DecodeIt(FILE* f,
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
   StringBuilder out(out_buffer.start(), out_buffer.length());
   byte* pc = begin;
-  disasm::Disassembler d(converter);
+  disasm::Disassembler *d = disasm::DisassemblerFactory::NewDisassembler(converter);
   RelocIterator* it = NULL;
   if (converter.code() != NULL) {
     it = new RelocIterator(converter.code());
@@ -143,11 +143,12 @@ static int DecodeIt(FILE* f,
       constants--;
       pc += 4;
     } else {
-      int num_const = d.ConstantPoolSizeAt(pc);
+      int num_const = d->ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
         OS::SNPrintF(decode_buffer,
-                     "%08x       constant pool begin",
-                     *reinterpret_cast<int32_t*>(pc));
+                     "%08x       constant pool%s",
+                     *reinterpret_cast<int32_t*>(pc),
+		     num_const > 0 ? " begin":"");
         constants = num_const;
         pc += 4;
       } else if (it != NULL && !it->done() && it->rinfo()->pc() == pc &&
@@ -161,7 +162,7 @@ static int DecodeIt(FILE* f,
         pc += 4;
       } else {
         decode_buffer[0] = '\0';
-        pc += d.InstructionDecode(decode_buffer, pc);
+        pc += d->InstructionDecode(decode_buffer, pc);
       }
     }
 
@@ -312,6 +313,7 @@ static int DecodeIt(FILE* f,
     }
   }
 
+  delete d;
   delete it;
   return static_cast<int>(pc - begin);
 }
