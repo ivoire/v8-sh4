@@ -479,6 +479,7 @@ void Assembler::branch(Label* L, branch_type type) {
       branch(kEndOfChain, type);   // Patched later on
     }
     // Compensate the place of the constant (sizeof(uint32_t))
+    // Constant pool is always emited last in the sequence
     int pos = reinterpret_cast<int>(pc_) - sizeof(uint32_t);
     L->link_to(pos);  // Link to the constant
   }
@@ -518,9 +519,9 @@ void Assembler::branch(int offset, branch_type type) {
 void Assembler::writeBranchTag(int nop_count, branch_type type) {
   // Check that we generate at most one nop
   ASSERT(nop_count <= 1);
-
-  *reinterpret_cast<uint16_t*>(pc_) = type + nop_count;
-  pc_ += sizeof(uint16_t);
+  uint16_t *ptr = reinterpret_cast<uint16_t*>(pc_) - 1;
+  ASSERT(*ptr == 0x9); // Check that it is a nop actually
+  *ptr = type + nop_count;
 }
 
 
