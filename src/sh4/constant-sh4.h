@@ -87,6 +87,12 @@ class Instruction {
     return (InstructionBits() >> lo) & ((2 << (hi - lo)) - 1);
   }
 
+  // Read a signed bit field's value out of the instruction bits.
+  inline int SBits(int hi, int lo) const {
+    return (Bits(hi, lo) << (sizeof(int)*8 - hi - 1)) >>
+      (sizeof(int)*8 - hi - 1);
+  }
+
   // Read a bit field out of the instruction bits.
   inline int BitField(int hi, int lo) const {
     return InstructionBits() & (((2 << (hi - lo)) - 1) << lo);
@@ -104,6 +110,12 @@ class Instruction {
     return (instr >> lo) & ((2 << (hi - lo)) - 1);
   }
 
+
+  // Read the value of a signed bit field out of the instruction bits.
+  inline int SBits(Instr instr, int hi, int lo) const {
+    return (Bits(instr, hi, lo) << (sizeof(int)*8 - hi - 1)) >>
+      (sizeof(int)*8 - hi - 1);
+  }
 
   // Read a bit field out of the instruction bits.
   static inline int BitField(Instr instr, int hi, int lo) {
