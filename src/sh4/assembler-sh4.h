@@ -666,7 +666,11 @@ class Assembler : public AssemblerBase {
   void bt(Label* L)             { branch(L, branch_true); }
   void bf(Label* L)             { branch(L, branch_false); }
   void jmp(Label* L)            { branch(L, branch_unconditional); }
+  void jsr(Label* L)            { branch(L, branch_subroutine); }
+
   void jmp(Register Rd)         { jmp_indRd_(Rd); }
+  void jsr(Register Rd)         { jsr_indRd_(Rd); }
+
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode);
 
@@ -715,8 +719,6 @@ class Assembler : public AssemblerBase {
   void mul(Register Rd, Register Rs, Register Rt);
 
   void nop() { nop_(); }
-
-  void jsr(Register Rd) { jsr_indRd_(Rd); }
 
   void push(Register src);
   void push(DwVfpRegister src);
