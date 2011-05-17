@@ -511,7 +511,7 @@ void Assembler::branch(int offset, branch_type type, bool patched_later) {
   case branch_unconditional:
     jmp(offset, patched_later); break;
   case branch_subroutine:
-    ASSERT(type != branch_subroutine); break;
+    jsr(offset, patched_later); break;
   }
 }
 

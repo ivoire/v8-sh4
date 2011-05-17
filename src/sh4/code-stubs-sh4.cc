@@ -709,16 +709,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Save callee-saved registers
   __ pushm(kCalleeSaved);
+  __ push(pr);
 
   // Get address of argv
   // r4: code entry
   // r5: function
   // r6: receiver
   // r7: argc
-  __ mov(r8, MemOperand(sp, kNumCalleeSaved * kPointerSize)); // r8: argv
-
-  // Push the linkage register on the stack
-  __ push(pr);
+  __ mov(r8, MemOperand(sp, (kNumCalleeSaved + 1)* kPointerSize)); // r8: argv
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r4: code entry
@@ -727,13 +725,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r7: argc
   // r8: argv
   Isolate* isolate = masm->isolate();
-  __ mov(r0, Immediate(-1));       // Push a bad frame pointer to fail if it is used.
+  __ mov(r3, Immediate(-1));       // Push a bad frame pointer to fail if it is used.
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  __ mov(r1, Immediate(Smi::FromInt(marker)));
   __ mov(r2, Immediate(Smi::FromInt(marker)));
+  __ mov(r1, Immediate(Smi::FromInt(marker)));
 
-  __ mov(r3, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
-  __ mov(r3, MemOperand(r3));
+  __ mov(r0, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
+  __ mov(r0, MemOperand(r0));
 
   __ push(r3);
   __ push(r2);
@@ -743,16 +741,26 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Setup frame pointer for the frame to be pushed.
   __ add(fp, sp, Immediate(-EntryFrameConstants::kCallerFPOffset));
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+//  // If this is the outermost JS call, set js_entry_sp value.
+//  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
+//  __ mov(r0, Operand(ExternalReference(js_entry_sp)));
+//  __ mov(r1, MemOperand(r1));
+//  __ cmp(r2, Operand(0, RelocInfo::NONE));
+//  __ mov(MemOperand(r2), fp);
+#endif
+
+
   // Call a faked try-block that does the invoke.
-  __ jmp(&invoke);
+  __ jsr(&invoke);
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
-  __ mov(r1, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(r3, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                        isolate)));
-  __ mov(MemOperand(r1), r0);
+  __ mov(MemOperand(r3), r0);
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ jmp(&exit);
 
@@ -766,11 +774,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ mov(r1, Operand(ExternalReference::the_hole_value_location(isolate)));
-  __ mov(r2, MemOperand(r1));
-  __ mov(r1, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(r3, Operand(ExternalReference::the_hole_value_location(isolate)));
+  __ mov(r1, MemOperand(r3));
+  __ mov(r3, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                        isolate)));
-  __ mov(MemOperand(r1), r2);
+  __ mov(MemOperand(r3), r1);
 
   // Invoke the function by calling through JS entry trampoline builtin.
   // Notice that we cannot store a reference to the trampoline code directly in
@@ -785,36 +793,47 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   if (is_construct) {
     ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
                                       isolate);
-    __ mov(r1, Operand(construct_entry));
+    __ mov(r3, Operand(construct_entry));
   } else {
     ExternalReference entry(Builtins::kJSEntryTrampoline, isolate);
-    __ mov(r1, Operand(entry));
+    __ mov(r3, Operand(entry));
   }
-  __ mov(r1, MemOperand(r1));  // deref address
+  __ mov(r3, MemOperand(r3));  // deref address
 
   // JSEntryTrampoline
-  __ add(r1, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ add(r3, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jsr(r3);
+  __ nop();
 
   // Unlink this frame from the handler chain. When reading the
   // address of the next handler, there is no need to use the address
   // displacement since the current stack pointer (sp) points directly
   // to the stack handler.
-  // __ mov(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ add(r3, sp, Immediate(StackHandlerConstants::kNextOffset));
-  __ mov(r3, MemOperand(r3));
-
-  __ mov(r2, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
-  __ mov(MemOperand(r2), r1);
+  __ mov(r7, MemOperand(sp, StackHandlerConstants::kNextOffset));
+  __ mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
+  __ mov(MemOperand(r3), r7);
   // No need to restore registers
-  __ add(sp, Immediate(StackHandlerConstants::kSize));
+  __ add(sp, sp, Immediate(StackHandlerConstants::kSize));
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If current FP value is the same as js_entry_sp value, it means that
+  // the current function is the outermost.
+//  __ mov(r5, Operand(ExternalReference(js_entry_sp)));
+//  __ ldr(r6, MemOperand(r5));
+//  __ cmp(fp, Operand(r6));
+//  __ mov(r6, Operand(0, RelocInfo::NONE), LeaveCC, eq);
+//  __ str(r6, MemOperand(r5), eq);
+#endif
 
   __ bind(&exit);  // r0 holds result
   // Restore the top frame descriptors from the stack.
-  __ pop(r1);
-  __ mov(r2,
+  __ pop(r7);
+  __ mov(r3,
          Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
-  __ mov(MemOperand(r2), r1);
+  __ mov(MemOperand(r3), r7);
+
+  // Reset the stack to the callee saved registers.
+  __ add(sp, sp, Immediate(-EntryFrameConstants::kCallerFPOffset));
 
   // Pop the linkage register from the stack
   __ pop(pr);
@@ -822,7 +841,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Restore callee-saved registers and return.
   __ popm(kCalleeSaved);
 
-  __ rts(); // FIXME(STM): What to put in r0 ?
+  __ rts();
 }
 
 
