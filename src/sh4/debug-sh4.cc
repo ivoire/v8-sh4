@@ -79,62 +79,62 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
 
 
 void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x63);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateConstructCallDebugBreak(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x64);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateFrameDropperLiveEdit(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x65);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateKeyedLoadICDebugBreak(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x66);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateKeyedStoreICDebugBreak(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x67);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateLoadICDebugBreak(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x68);//UNIMPLEMENTED();
 }
 
 
 void Debug::GeneratePlainReturnLiveEdit(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x69);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateReturnDebugBreak(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x6a);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateSlot(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x6b);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateSlotDebugBreak(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x6c);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateStoreICDebugBreak(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x6d);//UNIMPLEMENTED();
 }
 
 
 void Debug::GenerateStubNoRegistersDebugBreak(v8::internal::MacroAssembler* masm) {
-  __ bkpt();//UNIMPLEMENTED();
+  __ bkpt();__ dw(0x6e);//UNIMPLEMENTED();
 }
 
 const bool Debug::kFrameDropperSupported = true;
