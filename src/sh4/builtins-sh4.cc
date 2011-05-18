@@ -73,16 +73,16 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
 
 void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
-  __ bkpt();__ dw(0x5e);//UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
-  __ bkpt();__ dw(0x5f);//UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
-  __ bkpt();__ dw(0x60);//UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -121,7 +121,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool count_constructions) {
-  __ bkpt();__ dw(0x61);//UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
@@ -312,7 +312,7 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  __ bkpt();__ dw(0x62);//UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
