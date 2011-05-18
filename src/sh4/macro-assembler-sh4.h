@@ -176,6 +176,16 @@ class MacroAssembler: public Assembler {
 #endif
 
   // ---------------------------------------------------------------------------
+  // Support for marking unimplemented code generator function
+  // Should be called with UNIMPLEMENTED_BREAK define below.
+  void UnimplementedBreak(const char *file, int line);
+#ifdef DEBUG
+#define UNIMPLEMENTED_BREAK() UnimplementedBreak(__FILE__, __LINE__)
+#else
+#define UNIMPLEMENTED_BREAK() UNIMPLEMENTED()
+#endif
+
+  // ---------------------------------------------------------------------------
   // Activation frames
 
   void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }

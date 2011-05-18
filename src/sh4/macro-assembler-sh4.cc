@@ -193,15 +193,28 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
-  bkpt();//UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 #endif
 
 
 void MacroAssembler::Drop(int stack_elements) {
-  bkpt();//UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
+void MacroAssembler::UnimplementedBreak(const char *file, int line) {
+  uint32_t file_id = 0;
+  const char *base = strrchr(file, '/');
+  if (base == NULL)
+    base = file;
+  while(*base) {
+    file_id += *base;
+    base++;
+  }
+  mov(r0, Immediate(file_id));
+  mov(r1, Immediate(line));
+  bkpt();
+}
 
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // r4-r7: preserved
