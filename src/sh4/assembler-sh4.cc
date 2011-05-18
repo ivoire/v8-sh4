@@ -492,6 +492,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   // after the branch
   mov(rtmp, Immediate(reinterpret_cast<intptr_t>(code.location()), rmode));
   braf_(rtmp);
+  nop_();
 }
 
 void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode) {
@@ -500,6 +501,7 @@ void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode) {
   // after the branch
   mov(rtmp, Immediate(reinterpret_cast<intptr_t>(code.location()), rmode));
   bsrf_(rtmp);
+  nop_();
 }
 
 void Assembler::branch(int offset, branch_type type, bool patched_later) {
