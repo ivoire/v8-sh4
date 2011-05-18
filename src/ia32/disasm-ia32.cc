@@ -1634,6 +1634,11 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
 }
 
 
+/*static*/ DisassemblerInterface *
+DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
+  return new Disassembler::Disassembler(converter);
+}
+
 }  // namespace disasm
 
 #endif  // V8_TARGET_ARCH_IA32

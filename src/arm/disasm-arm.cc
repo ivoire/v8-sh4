@@ -1501,6 +1501,11 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
 }
 
 
+/*static*/ DisassemblerInterface *
+DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
+  return new Disassembler::Disassembler(converter);
+}
+
 }  // namespace disasm
 
 #endif  // V8_TARGET_ARCH_ARM

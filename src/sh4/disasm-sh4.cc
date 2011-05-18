@@ -794,7 +794,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-class DisassemblerSH4: public Disassembler {
+class DisassemblerSH4: public DisassemblerInterface {
 public:
   explicit DisassemblerSH4() : start_pc_(0) {
     memset(pools_locs_, 9, sizeof(pools_locs_));
@@ -884,7 +884,7 @@ int DisassemblerSH4::HasPoolAt(int offset, int size) {
 
 void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
   NameConverter converter;
-  Disassembler *d = DisassemblerFactory::NewDisassembler(converter);
+  DisassemblerInterface *d = DisassemblerFactory::NewDisassembler(converter);
   for (byte* pc = begin; pc < end;) {
     v8::internal::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
@@ -893,11 +893,12 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     fprintf(f, "%p    %02x %02x      %s\n",
             prev_pc, *reinterpret_cast<const uint8_t*>(prev_pc), *reinterpret_cast<const uint8_t*>(prev_pc+1), buffer.start());
   }
+  delete d;
 }
 
 
-Disassembler *DisassemblerFactory::NewDisassembler(const NameConverter& converter)
-{
+/*static*/ DisassemblerInterface *
+DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
   return new DisassemblerSH4::DisassemblerSH4();
 }
 

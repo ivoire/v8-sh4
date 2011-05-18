@@ -1043,6 +1043,11 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
 }
 
 
+/*static*/ DisassemblerInterface *
+DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
+  return new Disassembler::Disassembler(converter);
+}
+
 #undef UNSUPPORTED
 
 }  // namespace disasm
