@@ -146,11 +146,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r1 -> r5: function
   // r2 -> r6: receiver
   // r3 -> r7: argc
-  // r4 -> [sp+0]: argv
+  // r4 -> r8: argv (JSEntryStub does set it)
   // r0-r2, cp may be clobbered
-
-  // store argv in r0
-  __ mov(r0, MemOperand(sp));
 
   // Clear the context before we push it when entering the JS frame.
   __ mov(cp, Immediate(0));
@@ -173,19 +170,19 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Copy arguments to the stack in a loop.
   // r1 -> r5: function
   // r3 -> r7: argc
-  // r4 -> r0: argv, i.e. points to first arg
+  // r4 -> r8: argv, i.e. points to first arg
   Label loop, entry;
   __ lsl(r3, r7, Immediate(kPointerSizeLog2));
-  __ add(r6, r6, r3);
-  // r2 points past last arg.
+  __ add(r6, r8, r3);
+  // r6 points past last arg.
   __ jmp(&entry);
   __ bind(&loop);
-  __ mov(r3, MemOperand(r0, kPointerSize));     // read next parameter
-  __ add(r0, r0, Immediate(kPointerSize));      // mov the r0 pointer onto the next parameter
-  __ mov(r3, MemOperand(r3));  // dereference handle
-  __ push(r3);  // push parameter
+    __ mov(r1, MemOperand(r8, kPointerSize));     // read next parameter
+    __ add(r8, r8, Immediate(kPointerSize));      // mov the r8 pointer onto the next parameter
+    __ mov(r1, MemOperand(r1));  // dereference handle
+    __ push(r1);  // push parameter
   __ bind(&entry);
-  __ cmpeq(r0, r6);
+    __ cmpeq(r8, r6);
   __ bf(&loop);
 
   // Initialize all JavaScript callee-saved registers, since they will be seen
