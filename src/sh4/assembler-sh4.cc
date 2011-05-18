@@ -491,7 +491,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   // TODO: make a faster sequence where the constant pool is
   // after the branch
   mov(rtmp, Immediate(reinterpret_cast<intptr_t>(code.location()), rmode));
-  braf_(rtmp);
+  jmp_indRd_(rtmp);
   nop_();
 }
 
@@ -500,7 +500,7 @@ void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode) {
   // TODO: make a faster sequence where the constant pool is
   // after the branch
   mov(rtmp, Immediate(reinterpret_cast<intptr_t>(code.location()), rmode));
-  bsrf_(rtmp);
+  jsr_indRd_(rtmp);
   nop_();
 }
 
