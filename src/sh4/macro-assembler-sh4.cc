@@ -459,7 +459,7 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 
 void MacroAssembler::PopTryHandler() {
-  bkpt();//UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
 
@@ -499,7 +499,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   // provides more information.
 #if defined(V8_HOST_ARCH_SH4)
   if (emit_debug_code()) {
-    bkpt();//UNIMPLEMENTED();
+    UNIMPLEMENTED_BREAK();
   }
 #endif
 
@@ -525,7 +525,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
   if (try_location == IN_JAVASCRIPT) {
-    bkpt();//UNIMPLEMENTED();
+    UNIMPLEMENTED_BREAK();
   } else {
     ASSERT(try_location == IN_JS_ENTRY);
     // The frame pointer does not point to a JS frame so we save NULL
@@ -1220,7 +1220,7 @@ void MacroAssembler::CompareInstanceType(Register map,
   case ge:
     cmpge(type_reg, r3); break;
   default:
-    bkpt();//UNIMPLEMENTED();
+    UNIMPLEMENTED_BREAK();
   }
 }
 

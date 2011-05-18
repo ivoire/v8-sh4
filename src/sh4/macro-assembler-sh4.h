@@ -182,7 +182,7 @@ class MacroAssembler: public Assembler {
 #ifdef DEBUG
 #define UNIMPLEMENTED_BREAK() UnimplementedBreak(__FILE__, __LINE__)
 #else
-#define UNIMPLEMENTED_BREAK() UNIMPLEMENTED()
+#define UNIMPLEMENTED_BREAK() UnimplementedBreak("", 0)
 #endif
 
   // ---------------------------------------------------------------------------
