@@ -53,9 +53,9 @@ class NameConverter {
 
 
 // A generic Disassembler interface
-class Disassembler {
+class DisassemblerInterface {
  public:
-  virtual ~Disassembler() {};
+  virtual ~DisassemblerInterface() {};
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
@@ -65,16 +65,31 @@ class Disassembler {
   // or the number of entries in the constant pool beginning here.
   virtual int ConstantPoolSizeAt(byte* instruction) = 0;
 
+};
+
+
+// A generic Disassembler implementation.
+// Target specific code is implemented in target dependent files.
+class Disassembler : public DisassemblerInterface {
+ public:
+  explicit Disassembler(const NameConverter& converter);
+  ~Disassembler();
+  int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction);
+  int ConstantPoolSizeAt(byte* instruction);
+
   // Write disassembly into specified file 'f' using specified NameConverter
   // (see constructor).
   static void Disassemble(FILE* f, byte* begin, byte* end);
+
+ protected:
+  const NameConverter& converter_;
 };
 
 
 // Factory for Disassembler class implemented in target dependent code.
 class DisassemblerFactory : public v8::internal::AllStatic {
  public:
-  static Disassembler *NewDisassembler(const NameConverter& converter);
+  static DisassemblerInterface *NewDisassembler(const NameConverter& converter);
 };
 
 
