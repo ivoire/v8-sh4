@@ -374,7 +374,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   //
   // t1 - used to hold the capacity mask of the dictionary
   //
-  // t2 - used for the index into the dictionary.
+  // t2 - used for the index into the dictionary adn as scratch for the first part
   Label done;
 
   // Compute the hash code from the untagged key.  This must be kept in sync
@@ -382,23 +382,23 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   //
   // hash = ~hash + (hash << 15);
   __ lnot(t1, t0);
-  __ lsl(r3, t0, Immediate(15));
-  __ add(t0, t1, r3);
+  __ lsl(t2, t0, Immediate(15));
+  __ add(t0, t1, t2);
   // hash = hash ^ (hash >> 12);
-  __ lsr(r3, t0, Immediate(12));
-  __ lor(t0, t0, r3);
+  __ lsr(t2, t0, Immediate(12));
+  __ lor(t0, t0, t2);
   // hash = hash + (hash << 2);
-  __ lsl(r3, t0, Immediate(2));
-  __ add(t0, t0, r3);
+  __ lsl(t2, t0, Immediate(2));
+  __ add(t0, t0, t2);
   // hash = hash ^ (hash >> 4);
-  __ lsr(r3, t0, Immediate(4));
-  __ lor(t0, t0, r3);
+  __ lsr(t2, t0, Immediate(4));
+  __ lor(t0, t0, t2);
   // hash = hash * 2057;
   __ mov(t1, Immediate(2057));
   __ mul(t0, t0, t1);
   // hash = hash ^ (hash >> 16);
-  __ lsr(r3, t0, Immediate(16));
-  __ lor(t0, t0, r3);
+  __ lsr(t2, t0, Immediate(16));
+  __ lor(t0, t0, t2);
 
   // Compute the capacity mask.
   __ mov(t1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
@@ -876,8 +876,8 @@ void KeyedLoadIC::GenerateGeneric(v8::internal::MacroAssembler* masm) {
   ExternalReference cache_keys =
       ExternalReference::keyed_lookup_cache_keys(isolate);
   __ mov(r7, Operand(cache_keys));
-  __ lsl(r3, r7, Immediate(kPointerSizeLog2 + 1));
-  __ add(r1, r1, r3);
+  __ lsl(r2, r7, Immediate(kPointerSizeLog2 + 1));
+  __ add(r1, r1, r2);
   __ mov(r2, MemOperand(r1, kPointerSize));  // Move r1 to symbol.
   __ add(r1, r1, Immediate(kPointerSize));
 

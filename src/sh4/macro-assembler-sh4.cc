@@ -687,6 +687,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
 
 void MacroAssembler::GetBuiltinFunction(Register target,
                                         Builtins::JavaScript id) {
+  ASSERT(!target.is(r3));
   // Load the builtins object into target register.
   mov(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   mov(target, FieldMemOperand(target, GlobalObject::kBuiltinsOffset));
@@ -698,9 +699,9 @@ void MacroAssembler::GetBuiltinFunction(Register target,
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   ASSERT(!target.is(r3));
-  GetBuiltinFunction(r3, id);
+  GetBuiltinFunction(target, id);
   // Load the code entry point from the builtins object.
-  mov(target, MemOperand(r3, JSFunction::kCodeEntryOffset));
+  mov(target, MemOperand(target, JSFunction::kCodeEntryOffset));
 }
 
 
