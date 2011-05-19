@@ -131,8 +131,8 @@ void MacroAssembler::Call(
   // we have to do it explicitly.
   //positions_recorder()->WriteRecordedPositions();
 
-  mov(rtmp, Operand(target, rmode));
-  jsr(rtmp);
+  mov(r3, Operand(target, rmode));
+  jsr(r3);
   nop();
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
@@ -180,8 +180,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  mov(r4, Immediate(num_arguments));
-  mov(r5, Immediate(ExternalReference(f, isolate())));
+  mov(r0, Immediate(num_arguments));
+  mov(r1, Immediate(ExternalReference(f, isolate())));
   CEntryStub stub(1);
   CallStub(&stub);
 }
@@ -853,9 +853,9 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
-  ASSERT(!result.is(rtmp));
-  ASSERT(!scratch1.is(rtmp));
-  ASSERT(!scratch2.is(rtmp));
+  ASSERT(!result.is(r3));
+  ASSERT(!scratch1.is(r3));
+  ASSERT(!scratch2.is(r3));
 
   // Check relative positions of allocation top and limit addresses.
   // The values must be adjacent in memory to allow the use of LDM.
@@ -877,35 +877,35 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // SH4 code:
   mov(topaddr, Immediate(new_space_allocation_top));
 
-  // This code stores a temporary value in rtmp (ARM:ip). This is OK, as the code below
-  // does not need rtmp (ARM:ip) for implicit literal generation.
+  // This code stores a temporary value in r3 (ARM:ip). This is OK, as the code below
+  // does not need r3 (ARM:ip) for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    // Load allocation top into result and allocation limit into rtmp (ARM:ip).
+    // Load allocation top into result and allocation limit into r3 (ARM:ip).
     // ARM code: ldm(ia, topaddr, result.bit() | ip.bit());
     // SH4 code {
     mov(result, MemOperand(topaddr));
-    mov(rtmp, MemOperand(topaddr, 4));
+    mov(r3, MemOperand(topaddr, 4));
     // }
   } else {
     if (emit_debug_code()) {
-      // Assert that result actually contains top on entry. rtmp (ARM:ip) is used
+      // Assert that result actually contains top on entry. r3 (ARM:ip) is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
       // ARM code {
       // ldr(ip, MemOperand(topaddr));
-      // cmp(result, rtmp);
+      // cmp(result, r3);
       // Check(eq, "Unexpected allocation top");
       // }
       // SH4 code {
-      mov(rtmp, MemOperand(topaddr));
-      cmpeq(result, rtmp);
+      mov(r3, MemOperand(topaddr));
+      cmpeq(result, r3);
       Check("Unexpected allocation top");
       // }
     }
-    // Load allocation limit into rtmp (ARM: ip). Result already contains allocation top.
+    // Load allocation limit into r3 (ARM: ip). Result already contains allocation top.
     // ARM code: ldr(ip, MemOperand(topaddr, limit - top));
     // SH4 code:
-    mov(rtmp, MemOperand(topaddr, limit - top));
+    mov(r3, MemOperand(topaddr, limit - top));
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
@@ -929,7 +929,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // }
   // SH4 code {
   bt(gc_required);
-  cmpgtu(scratch2, rtmp);
+  cmpgtu(scratch2, r3);
   bt(gc_required);
   // }
 
@@ -1045,11 +1045,11 @@ void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 int eq_0_ne_1,
                                 Label* branch) {
-  ASSERT(!scratch.is(rtmp));
+  ASSERT(!scratch.is(r3));
   ASSERT(eq_0_ne_1 == 0 || eq_0_ne_1 == 1);
   land(scratch, object, Immediate(ExternalReference::new_space_mask(isolate())));
-  mov(rtmp, Immediate(ExternalReference::new_space_start(isolate())));
-  cmpeq(scratch, rtmp);
+  mov(r3, Immediate(ExternalReference::new_space_start(isolate())));
+  cmpeq(scratch, r3);
   if (eq_0_ne_1 == 0)
     bt(branch);
   else
@@ -1060,7 +1060,7 @@ void MacroAssembler::InNewSpace(Register object,
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register address,
                                        Register scratch) {
-  ASSERT(!scratch.is(rtmp));
+  ASSERT(!scratch.is(r3));
   if (emit_debug_code()) {
     // Check that the object is not in new space.
     Label not_in_new_space;
@@ -1078,14 +1078,14 @@ void MacroAssembler::RecordWriteHelper(Register object,
 
   // Mark region dirty.
   mov(scratch, MemOperand(object, Page::kDirtyFlagOffset));
-  mov(rtmp, Immediate(1));
-  lsl(rtmp, rtmp, address);
-  lor(scratch, scratch, rtmp);
+  mov(r3, Immediate(1));
+  lsl(r3, r3, address);
+  lor(scratch, scratch, r3);
   mov(MemOperand(object, Page::kDirtyFlagOffset), scratch);
 }
 
 
-// Will clobber 4 registers: object, scratch0/1, rtmp (ARM:ip).  The
+// Will clobber 4 registers: object, scratch0/1, r3 (ARM:ip).  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
@@ -1121,7 +1121,7 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-// Will clobber 4 registers: object, address, scratch, rtmp (ARM:ip).  The
+// Will clobber 4 registers: object, address, scratch, r3 (ARM:ip).  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
@@ -1153,7 +1153,7 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-// Clobbers: rtmp, dst
+// Clobbers: r3, dst
 // live-in: cp
 // live-out: cp, dst
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
@@ -1178,8 +1178,8 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   // A variable occurring in such a scope should have slot type LOOKUP and
   // not CONTEXT.
   if (emit_debug_code()) {
-    mov(rtmp, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-    cmpeq(dst, rtmp);
+    mov(r3, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+    cmpeq(dst, r3);
     Check("Yo dawg, I heard you liked function contexts "
 	  "so I put function contexts in all your contexts");
   }

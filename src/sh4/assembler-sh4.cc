@@ -229,12 +229,12 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 
-void Assembler::add(Register Rd, const Immediate& imm) {
+void Assembler::add(Register Rd, const Immediate& imm, Register rtmp) {
   if (imm.is_int8()) {
     add_imm_(imm.x_, Rd);
   } else {
     ASSERT(!Rd.is(rtmp));
-    // Use a super scratch register (r3) and a tiny constant pool
+    // Use a super scratch register (rtmp) and a tiny constant pool
     align();
     movl_dispPC_(4, rtmp);
     nop_();
@@ -298,7 +298,7 @@ void Assembler::addv(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::asl(Register Rd, Register Rs, const Immediate& imm) {
+void Assembler::asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rs.code() != Rd.code())
     mov(Rd, Rs);
   if (imm.x_ == 1) {
@@ -311,7 +311,7 @@ void Assembler::asl(Register Rd, Register Rs, const Immediate& imm) {
 }
 
 
-void Assembler::asr(Register Rd, Register Rs, const Immediate& imm) {
+void Assembler::asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rs.code() != Rd.code())
     mov(Rd, Rs);
   if (imm.x_ == 1) {
@@ -323,7 +323,7 @@ void Assembler::asr(Register Rd, Register Rs, const Immediate& imm) {
 }
 
 
-void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm) {
+void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
 
@@ -346,7 +346,7 @@ void Assembler::lsl(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm) {
+void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
   if (imm.x_ == 1) {
@@ -360,7 +360,7 @@ void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm) {
   }
 }
 
-void Assembler::land(Register Rd, Register Rs, const Immediate& imm) {
+void Assembler::land(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_and_imm_R0(imm.x_)) {
     and_imm_R0_(imm.x_);
   } else {
@@ -376,7 +376,7 @@ void Assembler::land(Register Rd, Register Rs, Register Rt) {
   and_(Rt, Rd);
 }
 
-void Assembler::lor(Register Rd, Register Rs, const Immediate& imm) {
+void Assembler::lor(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_or_imm_R0(imm.x_)) {
     or_imm_R0_(imm.x_);
   } else {
@@ -392,7 +392,7 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt) {
   or_(Rt, Rd);
 }
 
-void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm) {
+void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(imm.x_)) {
     xor_imm_R0_(imm.x_);
   } else {
@@ -407,7 +407,8 @@ void Assembler::lxor(Register Rd, Register Rs, Register Rt) {
     mov_(Rs, Rd);
   xor_(Rt, Rd);
 }
-void Assembler::tst(Register Rd, const Immediate& imm) {
+
+void Assembler::tst(Register Rd, const Immediate& imm, Register rtmp) {
   mov(rtmp, imm);
   tst_(Rd, rtmp);
 }
@@ -497,7 +498,7 @@ void Assembler::branch(Label* L, branch_type type) {
 }
 
 
-void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
+void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   // TODO: make a faster sequence where the constant pool is
   // after the branch
@@ -506,7 +507,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   nop_();
 }
 
-void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode) {
+void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   // TODO: make a faster sequence where the constant pool is
   // after the branch
@@ -715,7 +716,7 @@ void Assembler::mov(Register Rd, const Operand& src) {
 }
 
 
-void Assembler::mov(Register Rd, const MemOperand& src) {
+void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
   if (src.offset_ == 0) {
     movl_indRs_(src.rm_, Rd);
   } else if(!src.rn_.is_valid()) {
@@ -732,7 +733,7 @@ void Assembler::mov(Register Rd, const MemOperand& src) {
 }
 
 
-void Assembler::mov(const MemOperand& dst, Register Rd) {
+void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
   if (dst.offset_ == 0) {
     movl_indRd_(Rd, dst.rm_);
   } else {
@@ -795,13 +796,13 @@ void Assembler::push(DwVfpRegister src) {
 }
 
 
-void Assembler::push(const Immediate& imm) {
+void Assembler::push(const Immediate& imm, Register rtmp) {
   mov(rtmp, imm);
   push(rtmp);
 }
 
 
-void Assembler::push(const Operand& op) {
+void Assembler::push(const Operand& op, Register rtmp) {
   mov(rtmp, op);
   push(rtmp);
 }
