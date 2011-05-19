@@ -92,27 +92,28 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kCodeOffset      = -2 * kPointerSize;
-  static const int kSPOffset        = -1 * kPointerSize;
+  static const int kCodeOffset = -2 * kPointerSize;
+  static const int kSPOffset = -1 * kPointerSize;
 
-  static const int kCallerFPOffset =  0 * kPointerSize;
-  static const int kCallerPCOffset = +1 * kPointerSize;
+  // The caller fields are below the frame pointer on the stack.
+  static const int kCallerFPOffset = 0 * kPointerSize;
+  // The calling JS function is below FP.
+  static const int kCallerPCOffset = 1 * kPointerSize;
 
   // FP-relative displacement of the caller's SP.  It points just
   // below the saved PC.
-  static const int kCallerSPDisplacement = +2 * kPointerSize;
+  static const int kCallerSPDisplacement = 2 * kPointerSize;
 };
 
 
 class StandardFrameConstants : public AllStatic {
  public:
-  static const int kFixedFrameSize    =  4;
   static const int kExpressionsOffset = -3 * kPointerSize;
   static const int kMarkerOffset      = -2 * kPointerSize;
   static const int kContextOffset     = -1 * kPointerSize;
   static const int kCallerFPOffset    =  0 * kPointerSize;
-  static const int kCallerPCOffset    = +1 * kPointerSize;
-  static const int kCallerSPOffset    = +2 * kPointerSize;
+  static const int kCallerPCOffset    =  1 * kPointerSize;
+  static const int kCallerSPOffset    =  2 * kPointerSize;
 };
 
 
@@ -142,7 +143,8 @@ class InternalFrameConstants : public AllStatic {
 
 
 inline Object* JavaScriptFrame::function_slot_object() const {
-  UNIMPLEMENTED();
+  const int offset = JavaScriptFrameConstants::kFunctionOffset;
+  return Memory::Object_at(fp() + offset);
 }
 
 

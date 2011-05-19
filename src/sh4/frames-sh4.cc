@@ -36,7 +36,7 @@ namespace internal {
 
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
-  UNIMPLEMENTED();
+  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
 
 
