@@ -233,6 +233,7 @@ void Assembler::add(Register Rd, const Immediate& imm) {
   if (imm.is_int8()) {
     add_imm_(imm.x_, Rd);
   } else {
+    ASSERT(!Rd.is(rtmp));
     // Use a super scratch register (r3) and a tiny constant pool
     align();
     movl_dispPC_(4, rtmp);
@@ -246,9 +247,12 @@ void Assembler::add(Register Rd, const Immediate& imm) {
 
 
 void Assembler::add(Register Rd, Register Rs, const Immediate& imm) {
-  if (Rs.code() != Rd.code())
-    mov_(Rs, Rd);
-  add(Rd, imm);
+  if (Rs.code() != Rd.code()) {
+    mov(Rd, imm);
+    add_(Rs, Rd);
+  } else {
+    add(Rd, imm);
+  }
 }
 
 
@@ -300,6 +304,7 @@ void Assembler::asl(Register Rd, Register Rs, const Immediate& imm) {
   if (imm.x_ == 1) {
     shal_(Rd);
   } else {
+    ASSERT(!Rd.is(rtmp));
     mov(rtmp, imm);
     shad_(rtmp, Rd);
   }
@@ -321,11 +326,13 @@ void Assembler::asr(Register Rd, Register Rs, const Immediate& imm) {
 void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm) {
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
+
   if (imm.x_ == 1) {
     shll_(Rd);
   } else if (imm.x_ == 2) {
     shll2_(Rd);
   } else {
+    ASSERT(!Rd.is(rtmp));
     mov(rtmp, imm);
     shld_(rtmp, Rd);
   }
@@ -347,6 +354,7 @@ void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm) {
   } else if (imm.x_ == 2) {
     shlr2_(Rd);
   } else {
+    ASSERT(!Rd.is(rtmp));
     mov(rtmp, Immediate(32 - imm.x_));
     shld_(rtmp, Rd);
   }
@@ -356,6 +364,7 @@ void Assembler::land(Register Rd, Register Rs, const Immediate& imm) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_and_imm_R0(imm.x_)) {
     and_imm_R0_(imm.x_);
   } else {
+    ASSERT(!Rs.is(rtmp));
     mov(rtmp, imm);
     land(Rd, Rs, rtmp);
   }
@@ -371,6 +380,7 @@ void Assembler::lor(Register Rd, Register Rs, const Immediate& imm) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_or_imm_R0(imm.x_)) {
     or_imm_R0_(imm.x_);
   } else {
+    ASSERT(!Rs.is(rtmp));
     mov(rtmp, imm);
     lor(Rd, Rs, rtmp);
   }
@@ -386,6 +396,7 @@ void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(imm.x_)) {
     xor_imm_R0_(imm.x_);
   } else {
+    ASSERT(!Rs.is(rtmp));
     mov(rtmp, imm);
     lxor(Rd, Rs, rtmp);
   }
