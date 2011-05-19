@@ -131,7 +131,7 @@ const Register r13 = { 13 };    // ABI callee saved, context pointer for JIT
 const Register r14 = { 14 };    // ABI FP, idem for JIT
 const Register r15 = { 15 };    // ABI SP, idem for JIT
 
-const Register rtmp = r3;       // super scratch register
+//const Register rtmp = r3;       // super scratch register
 const Register fp = r14;        // Frame Pointer
 const Register sp = r15;        // Stack Pointer
 const Register cp = r13;        // Context Pointer
@@ -659,7 +659,7 @@ class Assembler : public AssemblerBase {
 
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
-  void add(Register Rd, const Immediate& imm);
+  void add(Register Rd, const Immediate& imm, Register rtmp = r3);
   void add(Register Rd, Register Rs, const Immediate& imm);
   void add(Register Rd, Register Rs, Register Rt);
 
@@ -671,8 +671,8 @@ class Assembler : public AssemblerBase {
   void jmp(Register Rd)         { jmp_indRd_(Rd); }
   void jsr(Register Rd)         { jsr_indRd_(Rd); }
 
-  void jmp(Handle<Code> code, RelocInfo::Mode rmode);
-  void jsr(Handle<Code> code, RelocInfo::Mode rmode);
+  void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = r3);
+  void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = r3);
 
   void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
   void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }      // is Rd > Rs ?
@@ -685,36 +685,36 @@ class Assembler : public AssemblerBase {
 
   void addv(Register Rd, Register Rs, Register Rt);
 
-  void asr(Register Rd, Register Rs, const Immediate& imm);    // arithmetic shift right
-  void asl(Register Rd, Register Rs, const Immediate& imm);    // arithmetic shift left
+  void asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);    // arithmetic shift right
+  void asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);    // arithmetic shift left
 
-  void lsl(Register Rd, Register Rs, const Immediate& imm);
+  void lsl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void lsl(Register Rd, Register Rs, Register Rt);
-  void lsr(Register Rd, Register Rs, const Immediate& imm);
+  void lsr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
 
-  void land(Register Rd, Register Rs, const Immediate& imm);
+  void land(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void land(Register Rd, Register Rs, Register Rt);
 
   void lnot(Register Rd, Register Rs) { not_(Rs, Rd); }
 
-  void lor(Register Rd, Register Rs, const Immediate& imm);
+  void lor(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void lor(Register Rd, Register Rs, Register Rt);
 
-  void lxor(Register Rd, Register Rs, const Immediate& imm);
+  void lxor(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void lxor(Register Rd, Register Rs, Register Rt);
 
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };
-  void tst(Register Rd, const Immediate& imm);
+  void tst(Register Rd, const Immediate& imm, Register rtmp = r3);
 
   void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }
   void mov(Register Rd, const Immediate& imm);
   void mov(Register Rd, const Operand& src);
 
-  void mov(Register Rd, const MemOperand& src);  // load op.
-  void mov(const MemOperand& dst, Register Rd);  // store op.
+  void mov(Register Rd, const MemOperand& src, Register rtmp = r3);  // load op.
+  void mov(const MemOperand& dst, Register Rd, Register rtmp = r3);  // store op.
 
-  void ldr(Register Rd, const MemOperand& src) { mov(Rd, src); }
-  void str(Register Rs, const MemOperand& dst) { mov(dst, Rs); }
+  void ldr(Register Rd, const MemOperand& src, Register rtmp = r3) { mov(Rd, src, rtmp); }
+  void str(Register Rs, const MemOperand& dst, Register rtmp = r3) { mov(dst, Rs, rtmp); }
 
   void mul(Register Rd, Register Rs, Register Rt);
 
@@ -723,8 +723,8 @@ class Assembler : public AssemblerBase {
   void push(Register src);
   void push(DwVfpRegister src);
   // push an immediate on the stack: use rtmp register for that
-  void push(const Immediate& imm);
-  void push(const Operand& op);
+  void push(const Immediate& imm, Register rtmp = r3);
+  void push(const Operand& op, Register rtmp = r3);
   void pushm(RegList src, bool doubles = false);
 
   void pop(Register dst);

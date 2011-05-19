@@ -524,7 +524,7 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
 }
 
 
-// Clobbers: rtmp, r0, r1, r2
+// Clobbers: r0, r1, r2, r3
 // Live-in: fp, cp
 // Live-out: fp, cp
 void FullCodeGenerator::EmitDeclaration(Variable* variable,
@@ -699,7 +699,7 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   __ UNIMPLEMENTED_BREAK();
 }
 
-// clobbers: rtmp, r0, r1
+// clobbers: r0, r1, r3
 // live-in: fp, sp, cp
 // live-out: fp, sp, cp
 void FullCodeGenerator::EmitVariableLoad(Variable* var) {
@@ -746,8 +746,8 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
 
       MemOperand slot_operand = EmitSlotSearch(slot, r0);
       __ mov(r0, slot_operand);
-      __ LoadRoot(rtmp, Heap::kTheHoleValueRootIndex);
-      __ cmpeq(r0, rtmp);
+      __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
+      __ cmpeq(r0, r3);
       __ bf(&no_hole);
       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
       __ bind(&no_hole);
