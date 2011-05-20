@@ -263,7 +263,14 @@ void FullCodeGenerator::ClearAccumulator() {
 
 
 void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  __ UNIMPLEMENTED_BREAK();
+  // Call the runtime to declare the globals.
+  // The context is the first argument.
+  __ mov(r2, Operand(pairs));
+  __ mov(r1, Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
+  __ mov(r0, Immediate(Smi::FromInt(strict_mode_flag())));
+  __ Push(cp, r2, r1, r0);
+  __ CallRuntime(Runtime::kDeclareGlobals, 4);
+  // Return value is ignored.
 }
 
 
