@@ -757,6 +757,10 @@ class Assembler : public AssemblerBase {
   // write a comment.
   void RecordComment(const char* msg, bool force = false);
 
+  // Record code generator line mapping through comments.
+  // Use --code-comments to enable.
+  void RecordFunctionLine(const char* function, int line);
+
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);

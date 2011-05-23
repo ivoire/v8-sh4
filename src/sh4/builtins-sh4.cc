@@ -39,7 +39,14 @@ namespace v8 {
 namespace internal {
 
 
+#ifdef DEBUG
+#define RECORD_LINE() ACCESS_MASM(masm) RecordFunctionLine(__FUNCTION__, __LINE__)
+#define __ RECORD_LINE(); ACCESS_MASM(masm)
+#else
+#define RECORD_LINE() ((void)0)
 #define __ ACCESS_MASM(masm)
+#endif
+
 
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm,

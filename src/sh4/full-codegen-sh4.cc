@@ -41,7 +41,14 @@
 namespace v8 {
 namespace internal {
 
+#ifdef DEBUG
+#define RECORD_LINE() ACCESS_MASM(masm_) RecordFunctionLine(__FUNCTION__, __LINE__)
+#define __ RECORD_LINE(); ACCESS_MASM(masm_)
+#else
+#define RECORD_LINE() ((void)0)
 #define __ ACCESS_MASM(masm_)
+#endif
+
 
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
