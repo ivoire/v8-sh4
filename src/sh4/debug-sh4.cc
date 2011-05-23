@@ -37,7 +37,14 @@ namespace internal {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
+#ifdef DEBUG
+#define RECORD_LINE() ACCESS_MASM(masm) RecordFunctionLine(__FUNCTION__, __LINE__)
+#define __ RECORD_LINE(); ACCESS_MASM(masm)
+#else
+#define RECORD_LINE() ((void)0)
 #define __ ACCESS_MASM(masm)
+#endif
+
 
 void BreakLocationIterator::ClearDebugBreakAtReturn() {
   UNIMPLEMENTED();
