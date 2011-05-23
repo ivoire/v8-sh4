@@ -660,16 +660,16 @@ class Assembler : public AssemblerBase {
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
   void add(Register Rd, const Immediate& imm, Register rtmp = r3);
-  void add(Register Rd, Register Rs, const Immediate& imm);
+  void add(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void add(Register Rd, Register Rs, Register Rt);
 
-  void bt(Label* L)             { branch(L, branch_true); }
-  void bf(Label* L)             { branch(L, branch_false); }
-  void jmp(Label* L)            { branch(L, branch_unconditional); }
-  void jsr(Label* L)            { branch(L, branch_subroutine); }
+  void bt(Label* L, Register rtmp = r3)    { branch(L, rtmp, branch_true); }
+  void bf(Label* L, Register rtmp = r3)    { branch(L, rtmp, branch_false); }
+  void jmp(Label* L, Register rtmp = r3)   { branch(L, rtmp, branch_unconditional); }
+  void jsr(Label* L, Register rtmp = r3)   { branch(L, rtmp, branch_subroutine); }
 
-  void jmp(Register Rd)         { jmp_indRd_(Rd); }
-  void jsr(Register Rd)         { jsr_indRd_(Rd); }
+  void jmp(Register Rd)                    { jmp_indRd_(Rd); }
+  void jsr(Register Rd)                    { jsr_indRd_(Rd); }
 
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = r3);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = r3);
@@ -680,7 +680,7 @@ class Assembler : public AssemblerBase {
   void cmpgtu(Register Rd, Register Rs) { cmphi_(Rs, Rd); }     // is Rd u> Rs ?
   void cmpgeu(Register Rd, Register Rs) { cmphs_(Rs, Rd); }     // is Rd u>= Rs ?
 
-  void sub(Register Rd, Register Rs, const Immediate& imm);
+  void sub(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void sub(Register Rd, Register Rs, Register Rt);
 
   void addv(Register Rd, Register Rs, Register Rt);
@@ -784,12 +784,12 @@ class Assembler : public AssemblerBase {
 
  private:
   // code generation wrappers
-  void branch(Label* L, branch_type type);
-  void branch(int offset, branch_type type, bool patched_later);
-  void bt(int offset, bool patched_later);
-  void bf(int offset, bool patched_later);
-  void jmp(int offset, bool patched_later);
-  void jsr(int offset, bool patched_later);
+  void branch(Label* L, Register rtmp, branch_type type);
+  void branch(int offset, Register rtmp, branch_type type, bool patched_later);
+  void bt(int offset, Register rtmp, bool patched_later);
+  void bf(int offset, Register rtmp, bool patched_later);
+  void jmp(int offset, Register rtmp, bool patched_later);
+  void jsr(int offset, Register rtmp, bool patched_later);
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos);
