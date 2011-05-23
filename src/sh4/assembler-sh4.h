@@ -668,8 +668,8 @@ class Assembler : public AssemblerBase {
   void jmp(Label* L, Register rtmp = r3)   { branch(L, rtmp, branch_unconditional); }
   void jsr(Label* L, Register rtmp = r3)   { branch(L, rtmp, branch_subroutine); }
 
-  void jmp(Register Rd)                    { jmp_indRd_(Rd); }
-  void jsr(Register Rd)                    { jsr_indRd_(Rd); }
+  void jmp(Register Rd)                    { jmp_indRd_(Rd); nop_(); }
+  void jsr(Register Rd)                    { jsr_indRd_(Rd); nop_(); }
 
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = r3);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = r3);
@@ -731,7 +731,7 @@ class Assembler : public AssemblerBase {
   void pop(DwVfpRegister dst);
   void popm(RegList dst, bool doubles = false);
 
-  void rts() { rts_(); }
+  void rts() { rts_(); nop_(); }
 
   // Exception-generating instructions and debugging support
   void stop(const char* msg);
