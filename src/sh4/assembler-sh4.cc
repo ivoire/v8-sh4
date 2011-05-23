@@ -246,12 +246,12 @@ void Assembler::add(Register Rd, const Immediate& imm, Register rtmp) {
 }
 
 
-void Assembler::add(Register Rd, Register Rs, const Immediate& imm) {
+void Assembler::add(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rs.code() != Rd.code()) {
     mov(Rd, imm);
     add_(Rs, Rd);
   } else {
-    add(Rd, imm);
+    add(Rd, imm, rtmp);
   }
 }
 
@@ -268,8 +268,8 @@ void Assembler::add(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::sub(Register Rd, Register Rs, const Immediate& imm) {
-  add(Rd, Rs, Immediate(-imm.x_));
+void Assembler::sub(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+  add(Rd, Rs, Immediate(-imm.x_), rtmp);
 }
 
 
@@ -479,16 +479,16 @@ void Assembler::next(Label* L) {
 }
 
 
-void Assembler::branch(Label* L, branch_type type) {
+void Assembler::branch(Label* L, Register rtmp, branch_type type) {
   if (L->is_bound()) {
     ASSERT(L->pos() != kEndOfChain);
-    branch(L->pos() - (int)pc_, type, false);
+    branch(L->pos() - (int)pc_, rtmp, type, false);
   } else {
     if (L->is_linked()) {
       ASSERT(L->pos() != kEndOfChain);
-      branch(L->pos(), type, true);
+      branch(L->pos(), rtmp, type, true);
     } else {
-      branch(kEndOfChain, type, true);   // Patched later on
+      branch(kEndOfChain, rtmp, type, true);   // Patched later on
     }
     // Compensate the place of the constant (sizeof(uint32_t))
     // Constant pool is always emited last in the sequence
@@ -516,16 +516,16 @@ void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   nop_();
 }
 
-void Assembler::branch(int offset, branch_type type, bool patched_later) {
+void Assembler::branch(int offset, Register rtmp, branch_type type, bool patched_later) {
   switch(type) {
   case branch_true:
-    bt(offset, patched_later); break;
+    bt(offset, rtmp, patched_later); break;
   case branch_false:
-    bf(offset, patched_later); break;
+    bf(offset, rtmp, patched_later); break;
   case branch_unconditional:
-    jmp(offset, patched_later); break;
+    jmp(offset, rtmp, patched_later); break;
   case branch_subroutine:
-    jsr(offset, patched_later); break;
+    jsr(offset, rtmp, patched_later); break;
   }
 }
 
@@ -537,14 +537,14 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant) {
 }
 
 
-void Assembler::bt(int offset, bool patched_later) {
+void Assembler::bt(int offset, Register rtmp, bool patched_later) {
   if (patched_later) {
     align();
     bf_(8);
     nop_();
-    movl_dispPC_(4, r3);
+    movl_dispPC_(4, rtmp);
     nop_();
-    braf_(r3);
+    braf_(rtmp);
     nop_();
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
@@ -556,9 +556,9 @@ void Assembler::bt(int offset, bool patched_later) {
       int nop_count = align();
       bf_(8);
       nop_();
-      movl_dispPC_(4, r3);
+      movl_dispPC_(4, rtmp);
       nop_();
-      braf_(r3);
+      braf_(rtmp);
       nop_();
       *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 8 - 2*nop_count;
       pc_ += sizeof(uint32_t);
@@ -567,15 +567,14 @@ void Assembler::bt(int offset, bool patched_later) {
 }
 
 
-void Assembler::bf(int offset, bool patched_later) {
-  //TODO: rename offset to pos and keep this meaning
+void Assembler::bf(int offset, Register rtmp, bool patched_later) {
   if (patched_later) {
     align();
     bt_(8);
     nop_();
-    movl_dispPC_(4, r3);
+    movl_dispPC_(4, rtmp);
     nop_();
-    braf_(r3);
+    braf_(rtmp);
     nop_();
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
@@ -587,9 +586,9 @@ void Assembler::bf(int offset, bool patched_later) {
       int nop_count = align();
       bt_(8);
       nop_();
-      movl_dispPC_(4, r3);
+      movl_dispPC_(4, rtmp);
       nop_();
-      braf_(r3);
+      braf_(rtmp);
       nop_();
       *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 8 - 2*nop_count;
       pc_ += sizeof(uint32_t);
@@ -598,9 +597,7 @@ void Assembler::bf(int offset, bool patched_later) {
 }
 
 
-void Assembler::jmp(int offset, bool patched_later) {
-  //TODO: rename offset to pos and keep this meaning
-
+void Assembler::jmp(int offset, Register rtmp, bool patched_later) {
   // TODO: on other architectures we have:
   // positions_recorder()->WriteRecordedPositions();
   // check if this is necessary
@@ -609,9 +606,9 @@ void Assembler::jmp(int offset, bool patched_later) {
   if (patched_later) {
     // There is no way to know the size of the offset: take the worst case
     align();
-    movl_dispPC_(4, r3);
+    movl_dispPC_(4, rtmp);
     nop();
-    braf_(r3);
+    braf_(rtmp);
     nop_();
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
@@ -623,9 +620,9 @@ void Assembler::jmp(int offset, bool patched_later) {
       nop_();
     } else {
       int nop_count = align();
-      movl_dispPC_(4, r3);
+      movl_dispPC_(4, rtmp);
       nop();
-      braf_(r3);
+      braf_(rtmp);
       nop_();
       *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 4 - 2*nop_count;
       pc_ += sizeof(uint32_t);
@@ -633,9 +630,7 @@ void Assembler::jmp(int offset, bool patched_later) {
   }
 }
 
-void Assembler::jsr(int offset, bool patched_later) {
-  //TODO: rename offset to pos and keep this meaning
-
+void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
   // TODO: on other architectures we have:
   // positions_recorder()->WriteRecordedPositions();
   // check if this is necessary
@@ -644,9 +639,9 @@ void Assembler::jsr(int offset, bool patched_later) {
   if (patched_later) {
     // There is no way to know the size of the offset: take the worst case
     align();
-    movl_dispPC_(4, r3);
+    movl_dispPC_(4, rtmp);
     nop();
-    bsrf_(r3);
+    bsrf_(rtmp);
     nop_();
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
@@ -658,9 +653,9 @@ void Assembler::jsr(int offset, bool patched_later) {
       nop_();
     } else {
       int nop_count = align();
-      movl_dispPC_(4, r3);
+      movl_dispPC_(4, rtmp);
       nop();
-      bsrf_(r3);
+      bsrf_(rtmp);
       nop_();
       *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 4 - 2*nop_count;
       pc_ += sizeof(uint32_t);
