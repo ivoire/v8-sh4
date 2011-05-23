@@ -830,10 +830,8 @@ void Assembler::stop(const char* msg) {
 
 
 void Assembler::bkpt() {
-  // Encode directly a BRK
-  //dw(0x003b);
-
-  // Use a privileged instruction
+  // Use a privileged instruction.
+  // Will generate an illegal instruction exception code: 0x180.
   ldtlb_();
 }
 
