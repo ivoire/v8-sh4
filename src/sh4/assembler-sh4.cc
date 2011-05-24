@@ -745,6 +745,7 @@ void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
     if (FITS_SH4_movl_dispRd(dst.offset_)) {
       movl_dispRd_(Rd, dst.offset_, dst.rm_);
     } else {
+      ASSERT(!Rd.is(rtmp));
       add(rtmp, dst.rm_, Immediate(dst.offset_));
       movl_indRd_(Rd, rtmp);
     }

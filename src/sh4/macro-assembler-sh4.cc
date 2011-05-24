@@ -265,6 +265,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
+  // ARM -> ST40 mapping: ip -> r4
   // Setup the frame structure on the stack
   ASSERT_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   ASSERT_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -283,14 +284,15 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
     mov(r3, Immediate(0));
     mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r3);
   }
-//  mov(r3, Operand(CodeObject()));     //TODO: relocation !!
-  mov(MemOperand(fp, ExitFrameConstants::kCodeOffset), r3);
+
+  mov(r4, Operand(CodeObject()));
+  mov(MemOperand(fp, ExitFrameConstants::kCodeOffset), r4);
 
   // Save the frame pointer and the context in top.
-  mov(r3, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
-  mov(MemOperand(r3), fp);
-  mov(r3, Operand(ExternalReference(Isolate::k_context_address, isolate())));
-  mov(MemOperand(r3), cp);
+  mov(r4, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  mov(MemOperand(r4), fp);
+  mov(r4, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  mov(MemOperand(r4), cp);
 
   // Optionally save all double registers.
   if (save_doubles)
@@ -307,8 +309,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Set the exit frame sp value to point just before the return address
   // location.
-  add(r3, sp, Immediate(kPointerSize));
-  mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r3);
+  add(r4, sp, Immediate(kPointerSize));
+  mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r4);
 }
 
 
