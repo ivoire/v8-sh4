@@ -800,7 +800,11 @@ class CallWrapper {
 };
 
 
-#define ACCESS_MASM(masm) masm->
+#ifdef DEBUG
+# define ACCESS_MASM(masm) masm->RecordFunctionLine(__FUNCTION__, __LINE__); masm->
+#else
+# define ACCESS_MASM(masm) masm->
+#endif
 
 
 } }  // namespace v8::internal
