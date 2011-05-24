@@ -61,8 +61,9 @@
 #define LEAVE_V8(isolate) \
   i::VMState __state__((isolate), i::EXTERNAL)
 #else
-#define ENTER_V8(isolate) ((void) 0)
-#define LEAVE_V8(isolate) ((void) 0)
+/* Note that we reference isolate in order to avoid unused var warnings. */
+#define ENTER_V8(isolate) ((void) isolate)
+#define LEAVE_V8(isolate) ((void) isolate)
 #endif
 
 namespace v8 {

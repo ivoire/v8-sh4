@@ -85,7 +85,8 @@ class LogMessageBuilder;
       logger->Call;                                 \
   } while (false)
 #else
-#define LOG(isolate, Call) ((void) 0)
+// Note that we reference isolate in order to avoid unused var warnings.
+#define LOG(isolate, Call) ((void) isolate)
 #endif
 
 #define LOG_EVENTS_AND_TAGS_LIST(V) \
@@ -153,7 +154,9 @@ class Logger {
   void EnsureTickerStarted();
   void EnsureTickerStopped();
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
   Sampler* sampler();
+#endif
 
   // Frees resources acquired in Setup.
   void TearDown();
