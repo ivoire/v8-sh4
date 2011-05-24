@@ -506,7 +506,7 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
                                0 : num_arguments - kRegisterPassedArguments;
 
-  if (frame_alignment > 0) {
+  if (frame_alignment > kPointerSize) {
     RECORD_LINE();
     mov(scratch, sp);
     sub(sp, sp, Immediate((stack_passed_arguments + 1) * kPointerSize));
@@ -1098,7 +1098,7 @@ void MacroAssembler::Ret() {
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   RECORD_LINE();
-  mov(r5, Immediate(builtin));
+  mov(r1, Immediate(builtin));
   CEntryStub stub(1);
   RECORD_LINE();
   jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
@@ -1112,7 +1112,7 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
   RECORD_LINE();
-  mov(r4, Immediate(num_arguments));
+  mov(r0, Immediate(num_arguments));
   JumpToExternalReference(ext);
 }
 
