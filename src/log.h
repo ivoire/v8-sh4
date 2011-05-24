@@ -78,6 +78,7 @@ class SlidingStateWindow;
 class Ticker;
 
 #undef LOG
+#ifdef ENABLE_LOGGING_AND_PROFILING
 #define LOG(isolate, Call)                          \
   do {                                              \
     v8::internal::Logger* logger =                  \
@@ -85,6 +86,10 @@ class Ticker;
     if (logger->is_logging())                       \
       logger->Call;                                 \
   } while (false)
+#else
+// Note that we reference isolate in order to avoid unused var warnings.
+#define LOG(isolate, Call) ((void) isolate)
+#endif
 
 #define LOG_EVENTS_AND_TAGS_LIST(V)                                     \
   V(CODE_CREATION_EVENT,            "code-creation")                    \
@@ -154,7 +159,9 @@ class Logger {
   void EnsureTickerStarted();
   void EnsureTickerStopped();
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
   Sampler* sampler();
+#endif
 
   // Frees resources acquired in Setup.
   // When a temporary file is used for the log, returns its stream descriptor,

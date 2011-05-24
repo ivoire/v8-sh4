@@ -1553,8 +1553,13 @@ void Heap::SwitchScavengingVisitorsTableIfProfilingWasEnabled() {
 
   if (isolate()->logger()->is_logging() |
       CpuProfiler::is_profiling(isolate()) ||
+#ifdef ENABLE_LOGGING_AND_PROFILING
       (isolate()->heap_profiler() != NULL &&
-       isolate()->heap_profiler()->is_profiling())) {
+       isolate()->heap_profiler()->is_profiling())
+#else
+      (0)
+#endif
+      ) {
     // If one of the isolates is doing scavenge at this moment of time
     // it might see this table in an inconsitent state when
     // some of the callbacks point to

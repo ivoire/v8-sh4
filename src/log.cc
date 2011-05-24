@@ -1664,9 +1664,11 @@ bool Logger::Setup() {
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
 Sampler* Logger::sampler() {
   return ticker_;
 }
+#endif
 
 
 void Logger::EnsureTickerStarted() {
@@ -1734,8 +1736,10 @@ bool SamplerRegistry::IterateActiveSamplers(VisitSampler func, void* param) {
 
 
 static void ComputeCpuProfiling(Sampler* sampler, void* flag_ptr) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   bool* flag = reinterpret_cast<bool*>(flag_ptr);
   *flag |= sampler->IsProfiling();
+#endif
 }
 
 
@@ -1749,6 +1753,7 @@ SamplerRegistry::State SamplerRegistry::GetState() {
 
 
 void SamplerRegistry::AddActiveSampler(Sampler* sampler) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   ASSERT(sampler->IsActive());
   ScopedLock lock(mutex_);
   if (active_samplers_ == NULL) {
@@ -1757,16 +1762,19 @@ void SamplerRegistry::AddActiveSampler(Sampler* sampler) {
     ASSERT(!active_samplers_->Contains(sampler));
   }
   active_samplers_->Add(sampler);
+#endif
 }
 
 
 void SamplerRegistry::RemoveActiveSampler(Sampler* sampler) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   ASSERT(sampler->IsActive());
   ScopedLock lock(mutex_);
   ASSERT(active_samplers_ != NULL);
   bool removed = active_samplers_->RemoveElement(sampler);
   ASSERT(removed);
   USE(removed);
+#endif
 }
 
 } }  // namespace v8::internal

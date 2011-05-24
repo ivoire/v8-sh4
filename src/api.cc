@@ -56,11 +56,17 @@
 
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
+#ifdef ENABLE_VMSTATE_TRACKING
 #define ENTER_V8(isolate)                                        \
   ASSERT((isolate)->IsInitialized());                           \
   i::VMState __state__((isolate), i::OTHER)
 #define LEAVE_V8(isolate) \
   i::VMState __state__((isolate), i::EXTERNAL)
+#else
+/* Note that we reference isolate in order to avoid unused var warnings. */
+#define ENTER_V8(isolate) ((void) isolate)
+#define LEAVE_V8(isolate) ((void) isolate)
+#endif
 
 namespace v8 {
 

@@ -1278,7 +1278,13 @@ Handle<Context> Isolate::GetCallingGlobalContext() {
 
 
 char* Isolate::ArchiveThread(char* to) {
-  if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
+  if (RuntimeProfiler::IsEnabled() && 
+#ifdef ENABLE_VMSTATE_TRACKING
+      current_vm_state() == JS
+#else
+      0
+#endif
+      ) {
     RuntimeProfiler::IsolateExitedJS(this);
   }
   memcpy(to, reinterpret_cast<char*>(thread_local_top()),
@@ -1300,7 +1306,13 @@ char* Isolate::RestoreThread(char* from) {
   thread_local_top()->simulator_ = Simulator::current(this);
 #endif
 #endif
-  if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
+  if (RuntimeProfiler::IsEnabled() &&
+#ifdef ENABLE_VMSTATE_TRACKING
+      current_vm_state() == JS
+#else
+      0
+#endif
+      ) {
     RuntimeProfiler::IsolateEnteredJS(this);
   }
   ASSERT(context() == NULL || context()->IsContext());
