@@ -239,9 +239,9 @@ void MacroAssembler::UnimplementedBreak(const char *file, int line) {
 }
 
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
-  // r4-r7: preserved
+  // r4-r7: must be preserved
   RECORD_LINE();
-  Push(cp, fp, pr);
+  Push(pr, fp, cp);
   mov(r3, Immediate(Smi::FromInt(type)));
   push(r3);
   mov(r3, Operand(CodeObject()));
@@ -251,20 +251,23 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
-  // r4: preserved
-  // r5: preserved
-  // r6: preserved
+  // r4, r5, r6: must be preserved
 
   // Drop the execution stack down to the frame pointer and restore
   // the caller frame pointer and return address.
   RECORD_LINE();
   mov(sp, fp);
-  Pop(fp, pr);
+  Pop(pr, fp);
 }
 
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
-  // ARM -> ST40 mapping: ip -> r4
+  // ARM -> ST40 mapping: ip -> r2
+
+  // r0, r1, cp: must be preserved
+  // sp, fp: input/output
+  // Actual clobbers: r2
+
   // Setup the frame structure on the stack
   ASSERT_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   ASSERT_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
@@ -272,30 +275,31 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   RECORD_LINE();
   // Save PR and FP
-  push(pr);
-  push(fp);
+  Push(pr, fp);
   // Setup a new frame pointer
   mov(fp, sp);
 
   // Reserve room for saved entry sp and code object
   sub(sp, sp, Immediate(2*kPointerSize));
   if (emit_debug_code()) {
-    mov(r4, Immediate(0));
-    mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r4);
+    mov(r2, Immediate(0));
+    mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r2);
   }
 
-  mov(r4, Operand(CodeObject()));
-  mov(MemOperand(fp, ExitFrameConstants::kCodeOffset), r4);
+  mov(r2, Operand(CodeObject()));
+  mov(MemOperand(fp, ExitFrameConstants::kCodeOffset), r2);
 
   // Save the frame pointer and the context in top.
-  mov(r4, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
-  mov(MemOperand(r4), fp);
-  mov(r4, Operand(ExternalReference(Isolate::k_context_address, isolate())));
-  mov(MemOperand(r4), cp);
+  mov(r2, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  mov(MemOperand(r2), fp);
+  mov(r2, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  mov(MemOperand(r2), cp);
 
   // Optionally save all double registers.
-  if (save_doubles)
-    pushm(kAllRegisters, true);
+  if (save_doubles) {
+    RECORD_LINE();
+    UNIMPLEMENTED_BREAK();
+  }
 
   // Reserve place for the return address and stack space and align the frame
   // preparing for calling the runtime function.
@@ -308,41 +312,44 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Set the exit frame sp value to point just before the return address
   // location.
-  add(r4, sp, Immediate(kPointerSize));
-  mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r4);
+  add(r2, sp, Immediate(kPointerSize));
+  mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r2);
 }
 
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
+  // input: argument_count
+  // r0, r1: results must be preserved
+  // sp: stack pointer
+  // fp: frame pointer
+
+  // Actual clobbers: r2, r3
+
   RECORD_LINE();
-  // Clear top frame.
-  mov(r3, Immediate(0));
-  mov(r2, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
-  mov(MemOperand(r2), r3);
-
-  // Restore current context from top and clear it in debug mode.
-  mov(r3, Operand(ExternalReference(Isolate::k_context_address, isolate())));
-  mov(cp, MemOperand(r3));
-
-  // Pop the doubles if needed
   if (save_doubles) {
-    // Calculate the stack location of the saved doubles and restore them.
-    const int offset = 2 * kPointerSize;
-    sub(sp, fp, Immediate(offset + DwVfpRegister::kNumRegisters * kDoubleSize));
-    popm(kAllRegisters, true);
+    RECORD_LINE();
+    UNIMPLEMENTED_BREAK();
   }
 
+  // Clear top frame.
+  mov(r2, Immediate(0));
+  mov(r3, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  str(r2, MemOperand(r3));
+  
+  // Restore current context from top and clear it in debug mode.
+  mov(r2, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  ldr(cp, MemOperand(r2));
+  
   // Tear down the exit frame, pop the arguments, and return.
   mov(sp, fp);
-  pop(fp);
-  pop(pr);
-
+      
+  Pop(pr, fp);
   if (argument_count.is_valid()) {
-    // sp = sp + argument_count << kPointerSizeLog2
-    ASSERT(!argument_count.is(r3));
-    lsl(r3, argument_count, Immediate(kPointerSizeLog2));
-    add(sp, sp, r3);
+    ASSERT(!argument_count.is(r2));
+    ASSERT(!argument_count.is(r3)); 
+    lsl(r2, argument_count, Immediate(kPointerSizeLog2));
+    add(sp, sp, r2);
   }
 }
 
@@ -359,6 +366,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 
   // Check whether the expected and actual arguments count match. If not,
   // setup registers according to contract with ArgumentsAdaptorTrampoline:
+  // ARM -> SH4
   //  r0 -> r4: actual arguments count
   //  r1 -> r5: function (passed through to callee)
   //  r2 -> r6: expected arguments count
@@ -395,7 +403,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       mov(r3, Immediate((actual.immediate())));
       cmpeq(expected.reg(), r3);
       bt(&regular_invoke);
-      mov(r0, Immediate(actual.immediate()));
+      mov(r4, Immediate(actual.immediate()));
     } else {
       cmpeq(expected.reg(), actual.reg());
       bt(&regular_invoke);
@@ -478,9 +486,11 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true) {
-  if (isolate() != NULL)
+  printf("%s: isolate 0x%x\n", __FUNCTION__, (unsigned)arg_isolate); fflush(stdout);
+  if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
+  }
 }
 
 
@@ -569,20 +579,26 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     RECORD_LINE();
     UNIMPLEMENTED_BREAK();
   } else {
+    // Must preserve r4-r8, r0-r2 are available.
     ASSERT(try_location == IN_JS_ENTRY);
     RECORD_LINE();
     // The frame pointer does not point to a JS frame so we save NULL
     // for ebp. We expect the code throwing an exception to check ebp
     // before dereferencing it to restore the context.
+    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
+           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
+           && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+    push(pr);
+    push(Immediate(0)); // Null FP
     push(Immediate(StackHandler::ENTRY));
-    push(Immediate(0));
-
     // Save the current handler as the next handler.
-    push(Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+    mov(r0, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+    mov(r1, MemOperand(r0));
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    push(r1);
 
     // Link this handler as the new current one.
-    mov(sp, Operand(ExternalReference(Isolate::k_handler_address,
-                                      isolate())));
+    mov(MemOperand(r0), sp);
   }
 }
 

@@ -94,7 +94,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
-    // Argument to NewContext is the function, which is in r1.
+    // Argument to NewContext is the function, which is in r5.
     __ push(r5);
     if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(heap_slots);

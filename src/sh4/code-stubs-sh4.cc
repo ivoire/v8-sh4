@@ -725,7 +725,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r7: argc
   // r8: argv
   Isolate* isolate = masm->isolate();
-  __ mov(r3, Immediate(-1));       // Push a bad frame pointer to fail if it is used.
+  __ mov(r0, Immediate(-1));       // Push a bad frame pointer to fail if it is used.
+  __ push(r0);
+
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ mov(r2, Immediate(Smi::FromInt(marker)));
   __ mov(r1, Immediate(Smi::FromInt(marker)));
@@ -733,7 +735,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(r0, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
   __ mov(r0, MemOperand(r0));
 
-  __ push(r3);
   __ push(r2);
   __ push(r1);
   __ push(r0);
@@ -743,11 +744,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 //  // If this is the outermost JS call, set js_entry_sp value.
-//  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
-//  __ mov(r0, Operand(ExternalReference(js_entry_sp)));
-//  __ mov(r1, MemOperand(r1));
-//  __ cmp(r2, Operand(0, RelocInfo::NONE));
-//  __ mov(MemOperand(r2), fp);
+  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
+  Label skip;
+  __ mov(r0, Operand(ExternalReference(js_entry_sp)));
+  __ mov(r1, MemOperand(r0));
+  __ cmpeq(r1, Immediate(0));
+  __ bf(&skip);
+  __ mov(MemOperand(r0), fp);
+  __ bind(&skip);
 #endif
 
 
@@ -774,11 +778,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ mov(r3, Operand(ExternalReference::the_hole_value_location(isolate)));
-  __ mov(r1, MemOperand(r3));
-  __ mov(r3, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(r0, Operand(ExternalReference::the_hole_value_location(isolate)));
+  __ mov(r1, MemOperand(r0));
+  __ mov(r0, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                        isolate)));
-  __ mov(MemOperand(r3), r1);
+  __ mov(MemOperand(r0), r1);
 
   // Invoke the function by calling through JS entry trampoline builtin.
   // Notice that we cannot store a reference to the trampoline code directly in
@@ -793,43 +797,48 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   if (is_construct) {
     ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
                                       isolate);
-    __ mov(r3, Operand(construct_entry));
+    __ mov(r0, Operand(construct_entry));
   } else {
     ExternalReference entry(Builtins::kJSEntryTrampoline, isolate);
-    __ mov(r3, Operand(entry));
+    __ mov(r0, Operand(entry));
   }
-  __ mov(r3, MemOperand(r3));  // deref address
+  __ mov(r0, MemOperand(r0));  // deref address
 
   // JSEntryTrampoline
-  __ add(r3, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jsr(r3);
+  __ add(r0, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ jsr(r0);
+
+  // r0 may hold a result here, do not use it
 
   // Unlink this frame from the handler chain. When reading the
   // address of the next handler, there is no need to use the address
   // displacement since the current stack pointer (sp) points directly
   // to the stack handler.
-  __ mov(r7, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
-  __ mov(MemOperand(r3), r7);
+  __ mov(r1, MemOperand(sp, StackHandlerConstants::kNextOffset));
+  __ mov(r2, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
+  __ mov(MemOperand(r2), r1);
   // No need to restore registers
   __ add(sp, sp, Immediate(StackHandlerConstants::kSize));
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   // If current FP value is the same as js_entry_sp value, it means that
   // the current function is the outermost.
-//  __ mov(r5, Operand(ExternalReference(js_entry_sp)));
-//  __ ldr(r6, MemOperand(r5));
-//  __ cmp(fp, Operand(r6));
-//  __ mov(r6, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-//  __ str(r6, MemOperand(r5), eq);
+  Label skip_out;
+  __ mov(r5, Operand(ExternalReference(js_entry_sp)));
+  __ ldr(r6, MemOperand(r5));
+  __ cmpeq(fp, Operand(r6));
+  __ bf(&skip_out);
+  __ mov(r6, Immediate(0));
+  __ str(r6, MemOperand(r5));
+  __ bind(&skip_out);
 #endif
 
   __ bind(&exit);  // r0 holds result
   // Restore the top frame descriptors from the stack.
-  __ pop(r7);
-  __ mov(r3,
+  __ pop(r1);
+  __ mov(r2,
          Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
-  __ mov(MemOperand(r3), r7);
+  __ mov(MemOperand(r2), r1);
 
   // Reset the stack to the callee saved registers.
   __ add(sp, sp, Immediate(-EntryFrameConstants::kCallerFPOffset));

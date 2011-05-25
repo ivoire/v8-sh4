@@ -141,6 +141,7 @@ void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Called from Generate_JS_Entry
+  // ARM -> SH4
   // r0 -> r4: code entry
   // r1 -> r5: function
   // r2 -> r6: receiver
@@ -167,19 +168,19 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ push(r6);
 
   // Copy arguments to the stack in a loop.
-  // r1 -> r5: function
-  // r3 -> r7: argc
-  // r4 -> r8: argv, i.e. points to first arg
+  // r5: function
+  // r7: argc
+  // r8: argv, i.e. points to first arg
   Label loop, entry;
-  __ lsl(r3, r7, Immediate(kPointerSizeLog2));
-  __ add(r6, r8, r3);
+  __ lsl(r0, r7, Immediate(kPointerSizeLog2));
+  __ add(r6, r8, r0);
   // r6 points past last arg.
   __ jmp(&entry);
   __ bind(&loop);
-    __ mov(r1, MemOperand(r8, kPointerSize));     // read next parameter
+    __ mov(r0, MemOperand(r8, kPointerSize));     // read next parameter
     __ add(r8, r8, Immediate(kPointerSize));      // mov the r8 pointer onto the next parameter
-    __ mov(r1, MemOperand(r1));  // dereference handle
-    __ push(r1);  // push parameter
+    __ mov(r0, MemOperand(r0));  // dereference handle
+    __ push(r0);  // push parameter
   __ bind(&entry);
     __ cmpeq(r8, r6);
   __ bf(&loop);
@@ -189,6 +190,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ LoadRoot(r8, Heap::kUndefinedValueRootIndex);
   __ mov(r9, r8);
   __ mov(r10, r8);
+  __ mov(r11, r8);
 
   // Invoke the code and pass argc as r4.
   __ mov(r4, r7);
