@@ -550,7 +550,7 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant) {
 void Assembler::bt(int offset, Register rtmp, bool patched_later) {
   if (patched_later) {
     align();
-    bf_(8);
+    bf_(12);
     nop_();
     movl_dispPC_(4, rtmp);
     nop_();
@@ -564,7 +564,7 @@ void Assembler::bt(int offset, Register rtmp, bool patched_later) {
       nop_();
     } else {
       int nop_count = align();
-      bf_(8);
+      bf_(12);
       nop_();
       movl_dispPC_(4, rtmp);
       nop_();
@@ -580,7 +580,7 @@ void Assembler::bt(int offset, Register rtmp, bool patched_later) {
 void Assembler::bf(int offset, Register rtmp, bool patched_later) {
   if (patched_later) {
     align();
-    bt_(8);
+    bt_(12);
     nop_();
     movl_dispPC_(4, rtmp);
     nop_();
@@ -594,7 +594,7 @@ void Assembler::bf(int offset, Register rtmp, bool patched_later) {
       nop_();
     } else {
       int nop_count = align();
-      bt_(8);
+      bt_(12);
       nop_();
       movl_dispPC_(4, rtmp);
       nop_();
