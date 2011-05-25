@@ -58,10 +58,11 @@ static const RegList kCalleeSaved =
   1 <<  9  |  //  r9
   1 <<  10 |  //  r10
   1 <<  11 |  //  r11
-  1 <<  12 |  //  r12
-  1 <<  13;   //  r13
+  1 <<  12 |  //  r12 (roots in JS)
+  1 <<  13 |  //  r13 (cp in JS)
+  1 <<  14;   //  r14 (fp in JS)
 
-static const int kNumCalleeSaved = 6;
+static const int kNumCalleeSaved = 7;
 
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
