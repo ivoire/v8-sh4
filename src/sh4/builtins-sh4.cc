@@ -47,7 +47,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   //  -- r0                 : number of arguments excluding receiver
   //  -- r1                 : called function (only guaranteed when
   //                          extra_args requires it)
-  //  -- cp                 : context FIXME(STM) does CP exist and what does it mean here ?
+  //  -- cp                 : context
   //  -- sp[0]              : last argument
   //  -- ...
   //  -- sp[4 * (argc - 1)] : first argument (argc == r0)
@@ -190,7 +190,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ mov(r10, r8);
 
   // Invoke the code and pass argc as r4.
-  __ mov(r4, Operand(r7));
+  __ mov(r4, r7);
+
+  // r4: argc
+  // r5: function
   if (is_construct) {
     __ Call(masm->isolate()->builtins()->JSConstructCall(),
             RelocInfo::CODE_TARGET);
