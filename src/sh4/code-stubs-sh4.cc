@@ -803,7 +803,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // JSEntryTrampoline
   __ add(r3, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jsr(r3);
-  __ nop();
 
   // Unlink this frame from the handler chain. When reading the
   // address of the next handler, there is no need to use the address
