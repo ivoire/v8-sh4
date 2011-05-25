@@ -150,7 +150,6 @@ void MacroAssembler::Call(
   RECORD_LINE();
   mov(r3, Operand(target, rmode));
   jsr(r3);
-  nop();
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
 
