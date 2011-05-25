@@ -109,9 +109,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // r4: number of arguments
   // r5: called object
   __ bind(&non_function_call);
-  // Set expected number of arguments to zero (not changing r0).
-  __ mov(r4, Immediate(0));
-  __ GetBuiltinEntry(r6, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  // r6: expected number of arguments to zero (not changing r0).
+  __ mov(r6, Immediate(0));
+  // r7: builtin entry
+  __ GetBuiltinEntry(r7, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
@@ -230,7 +231,7 @@ static void Generate_LazyCompileHelper(MacroAssembler* masm, Runtime::FunctionId
 
   // Push the function on the stack as the argument to the runtime function.
   __ push(r5);
-  __ CallRuntime(fid, 1);
+  __ CallRuntime(Runtime::kLazyCompile, 1);
   // Calculate the entry point.
   __ add(r6, r4, Immediate(Code::kHeaderSize - kHeapObjectTag));
   // Restore saved function.
@@ -240,7 +241,7 @@ static void Generate_LazyCompileHelper(MacroAssembler* masm, Runtime::FunctionId
   __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
-  __ jsr(r6);
+  __ jmp(r6);
 }
 
 
@@ -321,7 +322,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 1. Make sure we have at least one argument.
   // r4: actual number of arguments
   { Label done;
-    __ tst(r4, r4);     // FIXME ????
+    __ tst(r4, r4);
     __ bf(&done);
     __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
     __ push(r6);
