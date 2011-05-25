@@ -10,7 +10,7 @@ then
   exit 1
 fi
 
-tests=$(echo $tests | grep '<' | sed 's/<$//')
+tests=$(echo $tests | grep '<' | sed 's/<//g')
 total=0
 failed=0
 
@@ -18,7 +18,7 @@ echo "Running the tests..."
 for name in $tests
 do
   echo "=== $name ==="
-  $CCTEST $name > /dev/null 2>&1
+  $CCTEST $name >/dev/null 2>&1
   if [ $? != 0 ]
   then
     echo "...FAILED"
