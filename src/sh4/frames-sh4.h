@@ -61,14 +61,14 @@ static const RegList kCalleeSaved =
   1 <<  12 |  //  r12
   1 <<  13;   //  r13
 
-static const int kNumCalleeSaved = 8;
+static const int kNumCalleeSaved = 6;
 
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
 
 // Number of registers for which space is reserved in safepoints.
-static const int kNumSafepointRegisters = 8;
+static const int kNumSafepointRegisters = 16;
 
 // ----------------------------------------------------
 
