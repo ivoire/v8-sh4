@@ -392,7 +392,6 @@ enum ScaleFactor {
 
 class Operand BASE_EMBEDDED {
  public:
-  INLINE(explicit Operand(Register reg));
   INLINE(explicit Operand(int32_t immediate, RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
   explicit Operand(Handle<Object> handle);
@@ -639,8 +638,6 @@ class Assembler : public AssemblerBase {
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
   static const int kPatchDebugBreakSlotAddressOffset = kInstrSize; // FIXME(STM)
-
-  static const int kJSReturnSequenceLength = 6; // FIXME(STM)
 
   // The debug break slot must be able to contain a call instruction.
   static const int kDebugBreakSlotLength = kInstrSize; // FIXME(STM)

@@ -305,13 +305,6 @@ Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) {
 }
 
 
-Operand::Operand(Register reg) {
-  rx_ = reg;
-  imm32_ = 0;
-  rmode_ = RelocInfo::NONE;
-}
-
-
 Operand::Operand(const ExternalReference& f) {
   rx_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(f.address());
