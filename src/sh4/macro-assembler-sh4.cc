@@ -281,8 +281,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Reserve room for saved entry sp and code object
   sub(sp, sp, Immediate(2*kPointerSize));
   if (emit_debug_code()) {
-    mov(r3, Immediate(0));
-    mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r3);
+    mov(r4, Immediate(0));
+    mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r4);
   }
 
   mov(r4, Operand(CodeObject()));
