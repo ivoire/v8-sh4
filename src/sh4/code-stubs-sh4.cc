@@ -747,9 +747,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address, isolate);
   Label skip;
   __ mov(r0, Operand(ExternalReference(js_entry_sp)));
-  __ mov(r1, MemOperand(r0));
-  __ cmpeq(r1, Immediate(0));
+  __ mov(r0, MemOperand(r0));
+  __ mov(r1, Immediate(0));
+  __ cmpeq(r0, r1);
   __ bf(&skip);
+  __ mov(r0, Operand(ExternalReference(js_entry_sp)));
   __ mov(MemOperand(r0), fp);
   __ bind(&skip);
 #endif
@@ -826,7 +828,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label skip_out;
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ ldr(r6, MemOperand(r5));
-  __ cmpeq(fp, Operand(r6));
+  __ cmpeq(fp, r6);
   __ bf(&skip_out);
   __ mov(r6, Immediate(0));
   __ str(r6, MemOperand(r5));
