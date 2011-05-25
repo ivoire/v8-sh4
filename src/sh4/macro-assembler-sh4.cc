@@ -486,7 +486,6 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
       allow_stub_calls_(true) {
-  printf("%s: isolate 0x%x\n", __FUNCTION__, (unsigned)arg_isolate); fflush(stdout);
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
