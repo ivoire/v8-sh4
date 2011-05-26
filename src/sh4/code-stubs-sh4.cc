@@ -911,9 +911,6 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Copy of ARM version
-// ARM r3 -> r10
-#define r3 r10
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
 
@@ -945,32 +942,32 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Get the function to call from the stack.
   // function, receiver [, arguments]
-  __ ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
+  __ ldr(r5, MemOperand(sp, (argc_ + 1) * kPointerSize));
 
   // Check that the function is really a JavaScript function.
-  // r1: pushed function (to be verified)
-  __ JumpIfSmi(r1, &slow);
+  // r5: pushed function (to be verified)
+  __ JumpIfSmi(r5, &slow);
   // Get the map of the function object.
-  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
+  __ CompareObjectType(r5, r2, r2, JS_FUNCTION_TYPE, eq);
   __ bf(&slow);
 
   // Fast-case: Invoke the function now.
-  // r1: pushed function
+  // r5: pushed function
   ParameterCount actual(argc_);
-  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+  __ InvokeFunction(r5, actual, JUMP_FUNCTION);
 
   // Slow-case: Non-function called.
   __ bind(&slow);
   // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
   // of the original receiver from the call site).
-  __ str(r1, MemOperand(sp, argc_ * kPointerSize));
-  __ mov(r0, Operand(argc_));  // Setup the number of arguments.
-  __ mov(r2, Immediate/*TODO:Operand*/(0));
-  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+  __ str(r5, MemOperand(sp, argc_ * kPointerSize));
+  __ mov(r4, Operand(argc_));  // Setup the number of arguments.
+  __ mov(r6, Immediate/*TODO:Operand*/(0));
+  __ GetBuiltinEntry(r7, Builtins::CALL_NON_FUNCTION);
+  // r4, r5, r6, r7: arguments to trampoline
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
-#undef r3  //r10
 
 
 // -------------------------------------------------------------------------

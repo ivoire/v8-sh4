@@ -661,7 +661,9 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+  // r5 for SH4: mandatory
+  __ mov(sh4_r5, r1);
+  __ InvokeFunction(sh4_r5, actual, JUMP_FUNCTION);
 }
 
 
@@ -740,7 +742,9 @@ static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
 
   // Invoke the function.
   ParameterCount actual(argc);
-  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+  // r5 for SH4: mandatory
+  __ mov(sh4_r5, r1);
+  __ InvokeFunction(sh4_r5, actual, JUMP_FUNCTION);
 }
 
 
