@@ -425,10 +425,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
  else {
     if (actual.is_immediate()) {
-      mov(r3, Immediate((actual.immediate())));
-      cmpeq(expected.reg(), r3);
+      cmpeq(expected.reg(), Immediate((actual.immediate())));
       bt(&regular_invoke);
-      mov(r4, Immediate(actual.immediate()));
+      mov(r0, Immediate(actual.immediate()));
     } else {
       cmpeq(expected.reg(), actual.reg());
       bt(&regular_invoke);
@@ -447,9 +446,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       if (call_wrapper != NULL) call_wrapper->BeforeCall(2 * kInstrSize);
       Call(adaptor, RelocInfo::CODE_TARGET);
       if (call_wrapper != NULL) call_wrapper->AfterCall();
-      jmp(done);
+      b(done);
     } else {
-      jmp(adaptor, RelocInfo::CODE_TARGET);
+      Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&regular_invoke);
   }
@@ -462,6 +461,9 @@ void MacroAssembler::InvokeCode(Register code,
                                 InvokeFlag flag,
                                 CallWrapper* call_wrapper) {
   Label done;
+  // r5: must hold function pointer
+  // actual: must be r4 if register
+  ASSERT(actual.is_immediate() || actual.reg().is(r4));
 
   RECORD_LINE();
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
@@ -473,7 +475,7 @@ void MacroAssembler::InvokeCode(Register code,
     if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
-    jsr(code);
+    jmp(code);
   }
 
   // Continue here if InvokePrologue does handle the invocation due to
@@ -487,19 +489,21 @@ void MacroAssembler::InvokeFunction(Register fun,
                                     InvokeFlag flag,
                                     CallWrapper* call_wrapper) {
   // Contract with called JS functions requires that function is passed in r5.
+  // Also enforce that actual is passed in r4 if not immediate
   ASSERT(fun.is(r5));
+  ASSERT(actual.is_immediate() || actual.reg().is(r4));
 
   Register expected_reg = r6;
   Register code_reg = r7;
 
   RECORD_LINE();
-  mov(code_reg, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
-  mov(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
-  mov(expected_reg,
+  ldr(code_reg, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
+  ldr(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
+  ldr(expected_reg,
       FieldMemOperand(code_reg,
                       SharedFunctionInfo::kFormalParameterCountOffset));
   asr(expected_reg, expected_reg, Immediate(kSmiTagSize));
-  mov(code_reg,
+  ldr(code_reg,
       FieldMemOperand(r5, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
