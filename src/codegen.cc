@@ -40,23 +40,21 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
 
 #ifdef DEBUG
 
 Comment::Comment(MacroAssembler* masm, const char* msg)
     : masm_(masm), msg_(msg) {
-  __ RecordComment(msg);
+  masm_->RecordComment(msg);
 }
 
 
 Comment::~Comment() {
-  if (msg_[0] == '[') __ RecordComment("]");
+  if (msg_[0] == '[') masm_->RecordComment("]");
 }
 
 #endif  // DEBUG
 
-#undef __
 
 
 void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
