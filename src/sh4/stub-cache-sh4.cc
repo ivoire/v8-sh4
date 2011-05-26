@@ -268,6 +268,24 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
+                                                       int index,
+                                                       Register prototype) {
+  // Load the global or builtins object from the current context.
+  __ ldr(prototype, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Load the global context from the global or builtins object.
+  __ ldr(prototype,
+         FieldMemOperand(prototype, GlobalObject::kGlobalContextOffset));
+  // Load the function from the global context.
+  __ ldr(prototype, MemOperand(prototype, Context::SlotOffset(index)));
+  // Load the initial map.  The global functions all have initial maps.
+  __ ldr(prototype,
+         FieldMemOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
+  // Load the prototype from the initial map.
+  __ ldr(prototype, FieldMemOperand(prototype, Map::kPrototypeOffset));
+}
+
+
 MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
                                                 JSObject* holder,
                                                 int index,

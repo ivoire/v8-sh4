@@ -663,7 +663,13 @@ class Assembler : public AssemblerBase {
   void bt(Label* L, Register rtmp = r3)    { branch(L, rtmp, branch_true); }
   void bf(Label* L, Register rtmp = r3)    { branch(L, rtmp, branch_false); }
   void jmp(Label* L, Register rtmp = r3)   { branch(L, rtmp, branch_unconditional); }
+  void b(Label* L, Register rtmp = r3)   { jmp(L, rtmp); }
   void jsr(Label* L, Register rtmp = r3)   { branch(L, rtmp, branch_subroutine); }
+
+  // Check the code size generated from label to here.
+  int InstructionsGeneratedSince(Label* l) {
+    return (pc_offset() - l->pos()) / kInstrSize;
+  }
 
   void jmp(Register Rd)                    { jmp_indRd_(Rd); nop_(); }
   void jsr(Register Rd)                    { jsr_indRd_(Rd); nop_(); }
@@ -676,6 +682,14 @@ class Assembler : public AssemblerBase {
   void cmpge(Register Rd, Register Rs) { cmpge_(Rs, Rd); }      // is Rd >= Rs ?
   void cmpgtu(Register Rd, Register Rs) { cmphi_(Rs, Rd); }     // is Rd u> Rs ?
   void cmpgeu(Register Rd, Register Rs) { cmphs_(Rs, Rd); }     // is Rd u>= Rs ?
+  void cmpeq(Register Rd, const Immediate& imm, Register rtmp = r3) { mov(rtmp, imm); cmpeq_(rtmp, Rd); }
+  void cmpgeu(Register Rd, const Immediate& imm, Register rtmp = r3) { mov(rtmp, imm); cmphs_(rtmp, Rd); }
+
+  void cmpeq_r0_raw_immediate(int raw_immediate) { cmpeq_imm_R0_((int8_t)raw_immediate); }
+  int fits_raw_immediate(int raw_immediate) { return (raw_immediate & ~0xFF) == 0; };
+  int GetCmpImmediateRawImmediate(Instr instr);
+  Register GetCmpImmediateRegister(Instr instr);
+  bool IsCmpImmediate(Instr instr);
 
   void sub(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void sub(Register Rd, Register Rs, Register Rt);

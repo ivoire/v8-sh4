@@ -643,6 +643,8 @@ class MacroAssembler: public Assembler {
 
   void Drop(int stack_elements);
 
+  void Jump(intptr_t target, RelocInfo::Mode rmode);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode);
   void Call(Label* target) { call(target); }
   void Call(Handle<Code> code, RelocInfo::Mode rmode);
   void Call(intptr_t target, RelocInfo::Mode rmode);

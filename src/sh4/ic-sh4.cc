@@ -648,18 +648,214 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
-  UNIMPLEMENTED();
+// Copy from ARM
+#define r3 r10
+#define ip r11
+// The generated code does not accept smi keys.
+// The generated code falls through if both probes miss.
+static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
+                                          int argc,
+                                          Code::Kind kind) {
+  // ----------- S t a t e -------------
+  //  -- r1    : receiver
+  //  -- r2    : name
+  // -----------------------------------
+  Label number, non_number, non_string, boolean, probe, miss;
+
+  // Probe the stub cache.
+  Code::Flags flags = Code::ComputeFlags(kind,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC,
+                                         Code::kNoExtraICState,
+                                         NORMAL,
+                                         argc);
+  Isolate::Current()->stub_cache()->GenerateProbe(
+      masm, flags, r1, r2, r3, r4, r5);
+
+  // If the stub cache probing failed, the receiver might be a value.
+  // For value objects, we use the map of the prototype objects for
+  // the corresponding JSValue for the cache and that is what we need
+  // to probe.
+  //
+  // Check for number.
+  __ tst(r1, Immediate/*TODO:Operand*/(kSmiTagMask));
+  __ bt(&number);
+  __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE, eq);
+  __ bf(&non_number);
+  __ bind(&number);
+  StubCompiler::GenerateLoadGlobalFunctionPrototype(
+      masm, Context::NUMBER_FUNCTION_INDEX, r1);
+  __ b(&probe);
+
+  // Check for string.
+  __ bind(&non_number);
+  __ cmpgeu(r3, Immediate/*TODO:Operand*/(FIRST_NONSTRING_TYPE));
+  __ bt(&non_string);
+  StubCompiler::GenerateLoadGlobalFunctionPrototype(
+      masm, Context::STRING_FUNCTION_INDEX, r1);
+  __ b(&probe);
+
+  // Check for boolean.
+  __ bind(&non_string);
+  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  __ cmpeq(r1, ip);
+  __ bt(&boolean);
+  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+  __ cmpeq(r1, ip);
+  __ bf(&miss);
+  __ bind(&boolean);
+  StubCompiler::GenerateLoadGlobalFunctionPrototype(
+      masm, Context::BOOLEAN_FUNCTION_INDEX, r1);
+
+  // Probe the stub cache for the value object.
+  __ bind(&probe);
+  Isolate::Current()->stub_cache()->GenerateProbe(
+      masm, flags, r1, r2, r3, r4, r5);
+
+  __ bind(&miss);
+}
+#undef r3 //r10
+#undef ip //r11
+
+
+// Copy from ARM
+static void GenerateFunctionTailCall(MacroAssembler* masm,
+                                     int argc,
+                                     Label* miss,
+                                     Register scratch) {
+  // r1: function
+
+  // Check that the value isn't a smi.
+  __ tst(r1, Immediate/*TODO:Operand*/(kSmiTagMask));
+  __ bt(miss);
+
+  // Check that the value is a JSFunction.
+  __ CompareObjectType(r1, scratch, scratch, JS_FUNCTION_TYPE, eq);
+  __ bf(miss);
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
 }
 
 
+// Copy from ARM
+#define r3 r10
+static void GenerateCallNormal(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  // Get the receiver of the function from the stack into r1.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+
+  GenerateStringDictionaryReceiverCheck(masm, r1, r0, r3, r4, &miss);
+
+  // r0: elements
+  // Search the dictionary - put result in register r1.
+  GenerateDictionaryLoad(masm, &miss, r0, r2, r1, r3, r4);
+
+  GenerateFunctionTailCall(masm, argc, &miss, r4);
+
+  __ bind(&miss);
+}
+#undef r3 //r10
+
+
+// Copy from ARM
+#define r3 r10
+static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Isolate* isolate = masm->isolate();
+
+  if (id == IC::kCallIC_Miss) {
+    __ IncrementCounter(isolate->counters()->call_miss(), 1, r3, r4);
+  } else {
+    __ IncrementCounter(isolate->counters()->keyed_call_miss(), 1, r3, r4);
+  }
+
+  // Get the receiver of the function from the stack.
+  __ ldr(r3, MemOperand(sp, argc * kPointerSize));
+
+  __ EnterInternalFrame();
+
+  // Push the receiver and the name of the function.
+  __ Push(r3, r2);
+
+  // Call the entry.
+  __ mov(r0, Immediate/*TODO:Operand*/(2));
+  __ mov(r1, Operand(ExternalReference(IC_Utility(id), isolate)));
+
+  CEntryStub stub(1);
+  __ CallStub(&stub);
+
+  // Move result to r1 and leave the internal frame.
+  __ mov(r1, r0);
+  __ LeaveInternalFrame();
+
+  // Check if the receiver is a global object of some sort.
+  // This can happen only for regular CallIC but not KeyedCallIC.
+  if (id == IC::kCallIC_Miss) {
+    Label invoke, global;
+    __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
+    __ tst(r2, Immediate/*TODO:Operand*/(kSmiTagMask));
+    __ bt(&invoke);
+    __ CompareObjectType(r2, r3, r3, JS_GLOBAL_OBJECT_TYPE, eq);
+    __ bt(&global);
+    __ cmpeq(r3, Immediate/*TODO:Operand*/(JS_BUILTINS_OBJECT_TYPE));
+    __ bf(&invoke);
+
+    // Patch the receiver on the stack.
+    __ bind(&global);
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+    __ str(r2, MemOperand(sp, argc * kPointerSize));
+    __ bind(&invoke);
+  }
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+}
+#undef r3 //r10
+
+
+// Copy from ARM
 void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  GenerateCallMiss(masm, argc, IC::kCallIC_Miss);
 }
 
+// Copy from ARM
+void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
 
+  // Get the receiver of the function from the stack into r1.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+  GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC);
+  GenerateMiss(masm, argc);
+}
+
+// Copy from ARM
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
-  UNIMPLEMENTED();
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  GenerateCallNormal(masm, argc);
+  GenerateMiss(masm, argc);
 }
 
 

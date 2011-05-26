@@ -87,9 +87,9 @@ class JumpPatchSite BASE_EMBEDDED {
 
   void EmitPatchInfo() {
     int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
-    Register reg;
-    reg.set_code(delta_to_patch_site / kOff12Mask);
-    __ cmp_raw_immediate(reg, delta_to_patch_site % kOff12Mask);
+    // Ensure that the delta fits into a 8 bits mask.
+    ASSERT((delta_to_patch_site & ~kOff8Mask) == 0);
+    __ cmp_r0_raw_immediate(delta_to_patch_site);
 #ifdef DEBUG
     info_emitted_ = true;
 #endif
