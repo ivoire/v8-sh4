@@ -1715,7 +1715,8 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ VariableProxy");
+  EmitVariableLoad(expr->var());
 }
 
 
