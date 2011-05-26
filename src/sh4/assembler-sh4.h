@@ -820,6 +820,10 @@ class Assembler : public AssemblerBase {
 
   int pc_offset() const { return pc_ - buffer_; }
 
+  // Return in Rd the value of pc_after + offset.
+  // Where pc_after is the pc after this operation.
+  void addpc(Register Rd, int offset);
+
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
@@ -845,6 +849,7 @@ class Assembler : public AssemblerBase {
   void bf(int offset, Register rtmp, bool patched_later);
   void jmp(int offset, Register rtmp, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
+
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos);

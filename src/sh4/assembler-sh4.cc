@@ -737,6 +737,17 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
 }
 
 
+void Assembler::addpc(Register Rd, int offset) {
+  // We compute a pc+offset value where the pc
+  // is the pc after this code sequence.
+  // In order to do this, we do a bsr and get the link register.
+  bsr_(0);
+  nop_();
+  sts_PR_(r3);
+  add_imm_(4+offset, r3);
+}
+
+
 void Assembler::mov(Register Rd, const Operand& src) {
   if (src.rx_.is_valid())
     mov_(src.rx_, Rd);
