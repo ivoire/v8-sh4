@@ -222,6 +222,18 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 }
 
 
+void MacroAssembler::IsObjectJSStringType(Register object,
+                                          Register scratch,
+                                          Label* fail) {
+  ASSERT(kNotStringTag != 0);
+
+  ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  tst(scratch, Immediate(kIsNotStringMask));
+  bf(fail);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   RECORD_LINE();
