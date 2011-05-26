@@ -911,6 +911,68 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 }
 
 
+// Copy of ARM version
+// ARM r3 -> r10
+#define r3 r10
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+  Label slow;
+
+  // If the receiver might be a value (string, number or boolean) check for this
+  // and box it if it is.
+  if (ReceiverMightBeValue()) {
+    // Get the receiver from the stack.
+    // function, receiver [, arguments]
+    Label receiver_is_value, receiver_is_js_object;
+    __ ldr(r1, MemOperand(sp, argc_ * kPointerSize));
+
+    // Check if receiver is a smi (which is a number value).
+    __ JumpIfSmi(r1, &receiver_is_value);
+
+    // Check if the receiver is a valid JS object.
+    __ CompareObjectType(r1, r2, r2, FIRST_JS_OBJECT_TYPE, ge);
+    __ bt(&receiver_is_js_object);
+
+    // Call the runtime to box the value.
+    __ bind(&receiver_is_value);
+    __ EnterInternalFrame();
+    __ push(r1);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
+    __ LeaveInternalFrame();
+    __ str(r0, MemOperand(sp, argc_ * kPointerSize));
+
+    __ bind(&receiver_is_js_object);
+  }
+
+  // Get the function to call from the stack.
+  // function, receiver [, arguments]
+  __ ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
+
+  // Check that the function is really a JavaScript function.
+  // r1: pushed function (to be verified)
+  __ JumpIfSmi(r1, &slow);
+  // Get the map of the function object.
+  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
+  __ bf(&slow);
+
+  // Fast-case: Invoke the function now.
+  // r1: pushed function
+  ParameterCount actual(argc_);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+
+  // Slow-case: Non-function called.
+  __ bind(&slow);
+  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+  // of the original receiver from the call site).
+  __ str(r1, MemOperand(sp, argc_ * kPointerSize));
+  __ mov(r0, Operand(argc_));  // Setup the number of arguments.
+  __ mov(r2, Immediate/*TODO:Operand*/(0));
+  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+          RelocInfo::CODE_TARGET);
+}
+#undef r3  //r10
+
+
 // -------------------------------------------------------------------------
 // StringCharAtGenerator
 

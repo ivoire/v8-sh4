@@ -41,8 +41,72 @@
 namespace v8 {
 namespace internal {
 
-
 #define __ ACCESS_MASM(masm_)
+
+
+// A patch site is a location in the code which it is possible to patch. This
+// class has a number of methods to emit the code which is patchable and the
+// method EmitPatchInfo to record a marker back to the patchable code. 
+// On SH4 this marker is a cmp #uu, r0 operation, this limits the range
+// of #uu to 0..+255 instructions for the distance betwen the patch and the label.
+// The #uu (8 bits interpreted as unsigned value) is the delta from the pc to 
+// the first instruction of the patchable code.
+// Note: the delta is always positive, hence, we can encode the unsigned value
+// and use the full 8 bits range.
+class JumpPatchSite BASE_EMBEDDED {
+ public:
+  explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
+#ifdef DEBUG
+    info_emitted_ = false;
+#endif
+  }
+
+  ~JumpPatchSite() {
+    ASSERT(patch_site_.is_bound() == info_emitted_);
+  }
+
+  // When initially emitting this ensure that a jump is always generated to skip
+  // the inlined smi code.
+  void EmitJumpIfNotSmi(Register reg, Label* target) {
+    ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    __ bind(&patch_site_);
+    __ cmpeq(reg, reg);
+    // Don't use b(al, ...) as that might emit the constant pool right after the
+    // branch. After patching when the branch is no longer unconditional
+    // execution can continue into the constant pool.
+    __ bt(target);  // Always taken before patched.
+  }
+
+  // When initially emitting this ensure that a jump is never generated to skip
+  // the inlined smi code.
+  void EmitJumpIfSmi(Register reg, Label* target) {
+    ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    __ bind(&patch_site_);
+    __ cmpeq(reg, reg);
+    __ bf(target);  // Never taken before patched.
+  }
+
+  void EmitPatchInfo() {
+    int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
+    ASSERT(delta_to_patch_site >= 0);
+    // Ensure that the delta fits into the raw immediate.
+    ASSERT(masm_->fits_raw_immediate(delta_to_patch_site));
+    __ cmpeq_r0_raw_immediate(delta_to_patch_site);
+#ifdef DEBUG
+    info_emitted_ = true;
+#endif
+  }
+
+  bool is_bound() const { return patch_site_.is_bound(); }
+
+ private:
+  MacroAssembler* masm_;
+  Label patch_site_;
+#ifdef DEBUG
+  bool info_emitted_;
+#endif
+};
+
 
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
@@ -773,6 +837,32 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
 }
 
 
+void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
+  Counters* counters = isolate()->counters();
+  switch (ic->kind()) {
+    case Code::LOAD_IC:
+      __ IncrementCounter(counters->named_load_full(), 1, r1, r2);
+      break;
+    case Code::KEYED_LOAD_IC:
+      __ IncrementCounter(counters->keyed_load_full(), 1, r1, r2);
+      break;
+    case Code::STORE_IC:
+      __ IncrementCounter(counters->named_store_full(), 1, r1, r2);
+      break;
+    case Code::KEYED_STORE_IC:
+      __ IncrementCounter(counters->keyed_store_full(), 1, r1, r2);
+    default:
+      break;
+  }
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  if (patch_site != NULL && patch_site->is_bound()) {
+    patch_site->EmitPatchInfo();
+  } else {
+    __ nop();  // Signals no inlined code.
+  }
+}
+
+
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
   __ UNIMPLEMENTED_BREAK();
 }
@@ -928,181 +1018,259 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 }
 
 
+void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
+                                            Expression* key,
+                                            RelocInfo::Mode mode) {
+  // Load the key.
+  VisitForAccumulatorValue(key);
+
+  // Swap the name of the function and the receiver on the stack to follow
+  // the calling convention for call ICs.
+  __ pop(r1);
+  __ push(r0);
+  __ push(r1);
+
+  // Code common for calls using the IC.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  { PreservePositionScope scope(masm()->positions_recorder());
+    for (int i = 0; i < arg_count; i++) {
+      VisitForStackValue(args->at(i));
+    }
+  }
+  // Record source position for debugger.
+  SetSourcePosition(expr->position());
+  // Call the IC initialization code.
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count, in_loop);
+  __ ldr(r2, MemOperand(sp, (arg_count + 1) * kPointerSize));  // Key.
+  EmitCallIC(ic, mode);
+  RecordJSReturnSite(expr);
+  // Restore context register.
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  context()->DropAndPlug(1, r0);  // Drop the key still on the stack.
+}
+
+
+void FullCodeGenerator::EmitCallWithStub(Call* expr) {
+  // Code common for calls using the call stub.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  { PreservePositionScope scope(masm()->positions_recorder());
+    for (int i = 0; i < arg_count; i++) {
+      VisitForStackValue(args->at(i));
+    }
+  }
+  // Record source position for debugger.
+  SetSourcePosition(expr->position());
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
+  __ CallStub(&stub);
+  RecordJSReturnSite(expr);
+  // Restore context register.
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  context()->DropAndPlug(1, r0);
+}
+
+
+void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
+                                                      int arg_count) {
+  // Push copy of the first argument or undefined if it doesn't exist.
+  if (arg_count > 0) {
+    __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
+  } else {
+    __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+  }
+  __ push(r1);
+
+  // Push the receiver of the enclosing function and do runtime call.
+  __ ldr(r1, MemOperand(fp, (2 + scope()->num_parameters()) * kPointerSize));
+  __ push(r1);
+  // Push the strict mode flag.
+  __ mov(r1, Immediate/*TODO:Operand*/(Smi::FromInt(strict_mode_flag())));
+  __ push(r1);
+
+  __ CallRuntime(flag == SKIP_CONTEXT_LOOKUP
+                 ? Runtime::kResolvePossiblyDirectEvalNoLookup
+                 : Runtime::kResolvePossiblyDirectEval, 4);
+}
+
+
 void FullCodeGenerator::VisitCall(Call* expr) {
-  __ UNIMPLEMENTED_BREAK();
-// #ifdef DEBUG
-//   // We want to verify that RecordJSReturnSite gets called on all paths
-//   // through this function.  Avoid early returns.
-//   expr->return_is_recorded_ = false;
-// #endif
+#ifdef DEBUG
+  // We want to verify that RecordJSReturnSite gets called on all paths
+  // through this function.  Avoid early returns.
+  expr->return_is_recorded_ = false;
+#endif
 
-//   Comment cmnt(masm_, "[ Call");
-//   Expression* fun = expr->expression();
-//   Variable* var = fun->AsVariableProxy()->AsVariable();
+  Comment cmnt(masm_, "[ Call");
+  Expression* fun = expr->expression();
+  Variable* var = fun->AsVariableProxy()->AsVariable();
 
-//   if (var != NULL && var->is_possibly_eval()) {
-//     // In a call to eval, we first call %ResolvePossiblyDirectEval to
-//     // resolve the function we need to call and the receiver of the
-//     // call.  Then we call the resolved function using the given
-//     // arguments.
-//     ZoneList<Expression*>* args = expr->arguments();
-//     int arg_count = args->length();
+  if (var != NULL && var->is_possibly_eval()) {
+    // In a call to eval, we first call %ResolvePossiblyDirectEval to
+    // resolve the function we need to call and the receiver of the
+    // call.  Then we call the resolved function using the given
+    // arguments.
+    ZoneList<Expression*>* args = expr->arguments();
+    int arg_count = args->length();
 
-//     { PreservePositionScope pos_scope(masm()->positions_recorder());
-//       VisitForStackValue(fun);
-//       __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-//       __ push(r2);  // Reserved receiver slot.
+    { PreservePositionScope pos_scope(masm()->positions_recorder());
+      VisitForStackValue(fun);
+      __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+      __ push(r2);  // Reserved receiver slot.
 
-//       // Push the arguments.
-//       for (int i = 0; i < arg_count; i++) {
-//         VisitForStackValue(args->at(i));
-//       }
+      // Push the arguments.
+      for (int i = 0; i < arg_count; i++) {
+        VisitForStackValue(args->at(i));
+      }
 
-//       // If we know that eval can only be shadowed by eval-introduced
-//       // variables we attempt to load the global eval function directly
-//       // in generated code. If we succeed, there is no need to perform a
-//       // context lookup in the runtime system.
-//       Label done;
-//       if (var->AsSlot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
-//         Label slow;
-//         EmitLoadGlobalSlotCheckExtensions(var->AsSlot(),
-//                                           NOT_INSIDE_TYPEOF,
-//                                           &slow);
-//         // Push the function and resolve eval.
-//         __ push(r0);
-//         EmitResolvePossiblyDirectEval(SKIP_CONTEXT_LOOKUP, arg_count);
-//         __ jmp(&done);
-//         __ bind(&slow);
-//       }
+      // If we know that eval can only be shadowed by eval-introduced
+      // variables we attempt to load the global eval function directly
+      // in generated code. If we succeed, there is no need to perform a
+      // context lookup in the runtime system.
+      Label done;
+      if (var->AsSlot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
+        Label slow;
+        EmitLoadGlobalSlotCheckExtensions(var->AsSlot(),
+                                          NOT_INSIDE_TYPEOF,
+                                          &slow);
+        // Push the function and resolve eval.
+        __ push(r0);
+        EmitResolvePossiblyDirectEval(SKIP_CONTEXT_LOOKUP, arg_count);
+        __ jmp(&done);
+        __ bind(&slow);
+      }
 
-//       // Push copy of the function (found below the arguments) and
-//       // resolve eval.
-//       __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
-//       __ push(r1);
-//       EmitResolvePossiblyDirectEval(PERFORM_CONTEXT_LOOKUP, arg_count);
-//       if (done.is_linked()) {
-//         __ bind(&done);
-//       }
+      // Push copy of the function (found below the arguments) and
+      // resolve eval.
+      __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
+      __ push(r1);
+      EmitResolvePossiblyDirectEval(PERFORM_CONTEXT_LOOKUP, arg_count);
+      if (done.is_linked()) {
+        __ bind(&done);
+      }
 
-//       // The runtime call returns a pair of values in r0 (function) and
-//       // r1 (receiver). Touch up the stack with the right values.
-//       __ str(r0, MemOperand(sp, (arg_count + 1) * kPointerSize));
-//       __ str(r1, MemOperand(sp, arg_count * kPointerSize));
-//     }
+      // The runtime call returns a pair of values in r0 (function) and
+      // r1 (receiver). Touch up the stack with the right values.
+      __ str(r0, MemOperand(sp, (arg_count + 1) * kPointerSize));
+      __ str(r1, MemOperand(sp, arg_count * kPointerSize));
+    }
 
-//     // Record source position for debugger.
-//     SetSourcePosition(expr->position());
-//     InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
-//     CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
-//     __ CallStub(&stub);
-//     RecordJSReturnSite(expr);
-//     // Restore context register.
-//     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-//     context()->DropAndPlug(1, r0);
-//   } else if (var != NULL && !var->is_this() && var->is_global()) {
-//     // Push global object as receiver for the call IC.
-//     __ ldr(r0, GlobalObjectOperand());
-//     __ push(r0);
-//     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
-//   } else if (var != NULL && var->AsSlot() != NULL &&
-//              var->AsSlot()->type() == Slot::LOOKUP) {
-//     // Call to a lookup slot (dynamically introduced variable).
-//     Label slow, done;
+    // Record source position for debugger.
+    SetSourcePosition(expr->position());
+    InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+    CallFunctionStub stub(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
+    __ CallStub(&stub);
+    RecordJSReturnSite(expr);
+    // Restore context register.
+    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    context()->DropAndPlug(1, r0);
+  } else if (var != NULL && !var->is_this() && var->is_global()) {
+    // Push global object as receiver for the call IC.
+    __ ldr(r0, GlobalObjectOperand());
+    __ push(r0);
+    EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
+  } else if (var != NULL && var->AsSlot() != NULL &&
+             var->AsSlot()->type() == Slot::LOOKUP) {
+    // Call to a lookup slot (dynamically introduced variable).
+    Label slow, done;
 
-//     { PreservePositionScope scope(masm()->positions_recorder());
-//       // Generate code for loading from variables potentially shadowed
-//       // by eval-introduced variables.
-//       EmitDynamicLoadFromSlotFastCase(var->AsSlot(),
-//                                       NOT_INSIDE_TYPEOF,
-//                                       &slow,
-//                                       &done);
-//     }
+    { PreservePositionScope scope(masm()->positions_recorder());
+      // Generate code for loading from variables potentially shadowed
+      // by eval-introduced variables.
+      EmitDynamicLoadFromSlotFastCase(var->AsSlot(),
+                                      NOT_INSIDE_TYPEOF,
+                                      &slow,
+                                      &done);
+    }
 
-//     __ bind(&slow);
-//     // Call the runtime to find the function to call (returned in r0)
-//     // and the object holding it (returned in edx).
-//     __ push(context_register());
-//     __ mov(r2, Operand(var->name()));
-//     __ push(r2);
-//     __ CallRuntime(Runtime::kLoadContextSlot, 2);
-//     __ Push(r0, r1);  // Function, receiver.
+    __ bind(&slow);
+    // Call the runtime to find the function to call (returned in r0)
+    // and the object holding it (returned in edx).
+    __ push(context_register());
+    __ mov(r2, Operand(var->name()));
+    __ push(r2);
+    __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    __ Push(r0, r1);  // Function, receiver.
 
-//     // If fast case code has been generated, emit code to push the
-//     // function and receiver and have the slow path jump around this
-//     // code.
-//     if (done.is_linked()) {
-//       Label call;
-//       __ jmp(&call);
-//       __ bind(&done);
-//       // Push function.
-//       __ push(r0);
-//       // Push global receiver.
-//       __ ldr(r1, GlobalObjectOperand());
-//       __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
-//       __ push(r1);
-//       __ bind(&call);
-//     }
+    // If fast case code has been generated, emit code to push the
+    // function and receiver and have the slow path jump around this
+    // code.
+    if (done.is_linked()) {
+      Label call;
+      __ jmp(&call);
+      __ bind(&done);
+      // Push function.
+      __ push(r0);
+      // Push global receiver.
+      __ ldr(r1, GlobalObjectOperand());
+      __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+      __ push(r1);
+      __ bind(&call);
+    }
 
-//     EmitCallWithStub(expr);
-//   } else if (fun->AsProperty() != NULL) {
-//     // Call to an object property.
-//     Property* prop = fun->AsProperty();
-//     Literal* key = prop->key()->AsLiteral();
-//     if (key != NULL && key->handle()->IsSymbol()) {
-//       // Call to a named property, use call IC.
-//       { PreservePositionScope scope(masm()->positions_recorder());
-//         VisitForStackValue(prop->obj());
-//       }
-//       EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
-//     } else {
-//       // Call to a keyed property.
-//       // For a synthetic property use keyed load IC followed by function call,
-//       // for a regular property use keyed CallIC.
-//       if (prop->is_synthetic()) {
-//         // Do not visit the object and key subexpressions (they are shared
-//         // by all occurrences of the same rewritten parameter).
-//         ASSERT(prop->obj()->AsVariableProxy() != NULL);
-//         ASSERT(prop->obj()->AsVariableProxy()->var()->AsSlot() != NULL);
-//         Slot* slot = prop->obj()->AsVariableProxy()->var()->AsSlot();
-//         MemOperand operand = EmitSlotSearch(slot, r1);
-//         __ ldr(r1, operand);
+    EmitCallWithStub(expr);
+  } else if (fun->AsProperty() != NULL) {
+    // Call to an object property.
+    Property* prop = fun->AsProperty();
+    Literal* key = prop->key()->AsLiteral();
+    if (key != NULL && key->handle()->IsSymbol()) {
+      // Call to a named property, use call IC.
+      { PreservePositionScope scope(masm()->positions_recorder());
+        VisitForStackValue(prop->obj());
+      }
+      EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
+    } else {
+      // Call to a keyed property.
+      // For a synthetic property use keyed load IC followed by function call,
+      // for a regular property use keyed CallIC.
+      if (prop->is_synthetic()) {
+        // Do not visit the object and key subexpressions (they are shared
+        // by all occurrences of the same rewritten parameter).
+        ASSERT(prop->obj()->AsVariableProxy() != NULL);
+        ASSERT(prop->obj()->AsVariableProxy()->var()->AsSlot() != NULL);
+        Slot* slot = prop->obj()->AsVariableProxy()->var()->AsSlot();
+        MemOperand operand = EmitSlotSearch(slot, r1);
+        __ ldr(r1, operand);
 
-//         ASSERT(prop->key()->AsLiteral() != NULL);
-//         ASSERT(prop->key()->AsLiteral()->handle()->IsSmi());
-//         __ mov(r0, Operand(prop->key()->AsLiteral()->handle()));
+        ASSERT(prop->key()->AsLiteral() != NULL);
+        ASSERT(prop->key()->AsLiteral()->handle()->IsSmi());
+        __ mov(r0, Operand(prop->key()->AsLiteral()->handle()));
 
-//         // Record source code position for IC call.
-//         SetSourcePosition(prop->position());
+        // Record source code position for IC call.
+        SetSourcePosition(prop->position());
 
-//         Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
-//         EmitCallIC(ic, RelocInfo::CODE_TARGET);
-//         __ ldr(r1, GlobalObjectOperand());
-//         __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
-//         __ Push(r0, r1);  // Function, receiver.
-//         EmitCallWithStub(expr);
-//       } else {
-//         { PreservePositionScope scope(masm()->positions_recorder());
-//           VisitForStackValue(prop->obj());
-//         }
-//         EmitKeyedCallWithIC(expr, prop->key(), RelocInfo::CODE_TARGET);
-//       }
-//     }
-//   } else {
-//     { PreservePositionScope scope(masm()->positions_recorder());
-//       VisitForStackValue(fun);
-//     }
-//     // Load global receiver object.
-//     __ ldr(r1, GlobalObjectOperand());
-//     __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
-//     __ push(r1);
-//     // Emit function call.
-//     EmitCallWithStub(expr);
-//   }
+        Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
+        EmitCallIC(ic, RelocInfo::CODE_TARGET);
+        __ ldr(r1, GlobalObjectOperand());
+        __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+        __ Push(r0, r1);  // Function, receiver.
+        EmitCallWithStub(expr);
+      } else {
+        { PreservePositionScope scope(masm()->positions_recorder());
+          VisitForStackValue(prop->obj());
+        }
+        EmitKeyedCallWithIC(expr, prop->key(), RelocInfo::CODE_TARGET);
+      }
+    }
+  } else {
+    { PreservePositionScope scope(masm()->positions_recorder());
+      VisitForStackValue(fun);
+    }
+    // Load global receiver object.
+    __ ldr(r1, GlobalObjectOperand());
+    __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+    __ push(r1);
+    // Emit function call.
+    EmitCallWithStub(expr);
+  }
 
-// #ifdef DEBUG
-//   // RecordJSReturnSite should have been called.
-//   ASSERT(expr->return_is_recorded_);
-// #endif
+#ifdef DEBUG
+  // RecordJSReturnSite should have been called.
+  ASSERT(expr->return_is_recorded_);
+#endif
 }
 
 
@@ -1243,6 +1411,94 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 void FullCodeGenerator::VisitProperty(Property* expr) {
   __ UNIMPLEMENTED_BREAK();
 }
+
+
+void FullCodeGenerator::EmitCallWithIC(Call* expr,
+                                       Handle<Object> name,
+                                       RelocInfo::Mode mode) {
+  // Code common for calls using the IC.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  { PreservePositionScope scope(masm()->positions_recorder());
+    for (int i = 0; i < arg_count; i++) {
+      VisitForStackValue(args->at(i));
+    }
+    __ mov(r2, Operand(name));
+  }
+  // Record source position for debugger.
+  SetSourcePosition(expr->position());
+  // Call the IC initialization code.
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeCallInitialize(arg_count, in_loop);
+  EmitCallIC(ic, mode);
+  RecordJSReturnSite(expr);
+  // Restore context register.
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  context()->Plug(r0);
+}
+
+
+void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
+    Slot* slot,
+    TypeofState typeof_state,
+    Label* slow) {
+  Register current = cp;
+  Register next = r1;
+  Register temp = r2;
+
+  Scope* s = scope();
+  while (s != NULL) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ ldr(temp, ContextOperand(current, Context::EXTENSION_INDEX));
+        __ tst(temp, temp);
+        __ bf(slow);
+      }
+      // Load next context in chain.
+      __ ldr(next, ContextOperand(current, Context::CLOSURE_INDEX));
+      __ ldr(next, FieldMemOperand(next, JSFunction::kContextOffset));
+      // Walk the rest of the chain without clobbering cp.
+      current = next;
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s->is_eval_scope()) {
+    Label loop, fast;
+    if (!current.is(next)) {
+      __ Move(next, current);
+    }
+    __ bind(&loop);
+    // Terminate at global context.
+    __ ldr(temp, FieldMemOperand(next, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    __ cmpeq(temp, ip);
+    __ bt(&fast);
+    // Check that extension is NULL.
+    __ ldr(temp, ContextOperand(next, Context::EXTENSION_INDEX));
+    __ tst(temp, temp);
+    __ bf(slow);
+    // Load next context in chain.
+    __ ldr(next, ContextOperand(next, Context::CLOSURE_INDEX));
+    __ ldr(next, FieldMemOperand(next, JSFunction::kContextOffset));
+    __ b(&loop);
+    __ bind(&fast);
+  }
+
+  __ ldr(r0, GlobalObjectOperand());
+  __ mov(r2, Operand(slot->var()->name()));
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+      ? RelocInfo::CODE_TARGET
+      : RelocInfo::CODE_TARGET_CONTEXT;
+  Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+  EmitCallIC(ic, mode);
+}
+
 
 // clobbers: r0, r1, r3
 // live-in: fp, sp, cp

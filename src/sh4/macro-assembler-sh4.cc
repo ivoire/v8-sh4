@@ -131,6 +131,18 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 }
 
 
+void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode) {
+  RECORD_LINE();
+  mov(r3, Operand(target, rmode));
+  jmp(r3);
+}
+
+void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  RECORD_LINE();
+  Jump(reinterpret_cast<intptr_t>(code.location()), rmode);
+}
+
 void MacroAssembler::Call(
     intptr_t target, RelocInfo::Mode rmode) {
   //TODO: check whether this is necessaery

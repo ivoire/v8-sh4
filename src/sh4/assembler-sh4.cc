@@ -448,6 +448,24 @@ void Assembler::dd(uint32_t data) {
   pc_ += sizeof(uint32_t);
 }
 
+bool Assembler::IsCmpImmediate(Instr instr) {
+  return (instr & 0xFF00) == 0x8800;
+}
+
+
+Register Assembler::GetCmpImmediateRegister(Instr instr) {
+  ASSERT(IsCmpImmediate(instr));
+  // The instruction is cmpeq #ii, r0, return r0
+  return r0;
+}
+
+
+int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
+  ASSERT(IsCmpImmediate(instr));
+  // The instruction is cmpeq #ii, r0, return #ii
+  return (int8_t)(instr & 0xFF);
+}
+
 
 const int kEndOfChain = 0;
 
