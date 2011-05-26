@@ -119,6 +119,10 @@ class MacroAssembler: public Assembler {
                    Register scratch0,
                    Register scratch1);
 
+  void RecordWrite(Register object,
+                   Register offset,
+                   Register scratch0,
+                   Register scratch1);
   // For the page containing |object| mark the region covering
   // [address] dirty. The object address must be in the first 8K of an
   // allocated page.  All 3 registers are clobbered by the operation,

@@ -460,6 +460,96 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 }
 
 
+// Checks the receiver for special cases (value type, slow case bits).
+// Falls through for regular JS object.
+static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
+                                           Register receiver,
+                                           Register map,
+                                           Register scratch,
+                                           int interceptor_bit,
+                                           Label* slow) {
+  // Check that the object isn't a smi.
+  __ JumpIfSmi(receiver, slow);
+  // Get the map of the receiver.
+  __ ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  // Check bit field.
+  __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
+  __ tst(scratch,
+         Immediate((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
+  __ bf(slow);
+  // Check that the object is some kind of JS object EXCEPT JS Value type.
+  // In the case that the object is a value-wrapper object,
+  // we enter the runtime system to make sure that indexing into string
+  // objects work as intended.
+  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
+  __ ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ cmpge(scratch, Immediate(JS_OBJECT_TYPE));   // 'lower than' negated
+  __ bf(slow);
+}
+
+
+// Loads an indexed element from a fast case array.
+// If not_fast_array is NULL, doesn't perform the elements map check.
+static void GenerateFastArrayLoad(MacroAssembler* masm,
+                                  Register receiver,
+                                  Register key,
+                                  Register elements,
+                                  Register scratch1,
+                                  Register scratch2,
+                                  Register result,
+                                  Label* not_fast_array,
+                                  Label* out_of_range) {
+  // Register use:
+  //
+  // receiver - holds the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // elements - holds the elements of the receiver on exit.
+  //
+  // result   - holds the result on exit if the load succeeded.
+  //            Allowed to be the the same as 'receiver' or 'key'.
+  //            Unchanged on bailout so 'receiver' and 'key' can be safely
+  //            used by further computation.
+  //
+  // Scratch registers:
+  //
+  // scratch1 - used to hold elements map and elements length.
+  //            Holds the elements map if not_fast_array branch is taken.
+  //
+  // scratch2 - used to hold the loaded value.
+
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  if (not_fast_array != NULL) {
+    // Check that the object is in fast mode and writable.
+    __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+    __ cmpeq(scratch1, ip);
+    __ bf(not_fast_array);
+  } else {
+    __ AssertFastElements(elements);
+  }
+  // Check that the key (index) is within bounds.
+  __ ldr(scratch1, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ cmphs(key, scratch1);
+  __ bt(out_of_range);
+  // Fast case: Do the load.
+  __ add(scratch1, elements, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  // The key is a smi.
+  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  __ lsl(scratch2, key, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(scratch2, MemOperand(scratch1, scratch2));
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmpeq(scratch2, ip);
+  // In case the loaded value is the_hole we have to consult GetProperty
+  // to ensure the prototype chain is searched.
+  __ bt(out_of_range);
+  __ mov(result, scratch2);
+}
+
+
 // Checks whether a key is an array index string or a symbol string.
 // Falls through if a key is a symbol.
 static void GenerateKeyStringCheck(MacroAssembler* masm,
@@ -840,10 +930,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
 
-  //TODO
-  __ UNIMPLEMENTED_BREAK();
-  //GenerateKeyedLoadReceiverCheck(
-  //    masm, receiver, r2, r3, Map::kHasIndexedInterceptor, &slow);
+  GenerateKeyedLoadReceiverCheck(
+      masm, receiver, r2, r3, Map::kHasIndexedInterceptor, &slow);
 
   // Check the "has fast elements" bit in the receiver's map which is
   // now in r2.
@@ -851,10 +939,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ tst(r3, Immediate(1 << Map::kHasFastElements));
   __ bt(&check_number_dictionary);
 
-  //TODO
-  __ UNIMPLEMENTED_BREAK();
-  //GenerateFastArrayLoad(
-  //  masm, receiver, key, r4, r3, r2, r0, NULL, &slow);
+  GenerateFastArrayLoad(
+    masm, receiver, key, r4, r3, r2, r0, NULL, &slow);
   __ IncrementCounter(isolate->counters()->keyed_load_generic_smi(), 1, r2, r3);
   __ Ret();
 
@@ -882,10 +968,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&check_string);
   GenerateKeyStringCheck(masm, key, r2, r3, &index_string, &slow);
 
-  //TODO
-  __ UNIMPLEMENTED_BREAK();
-  //GenerateKeyedLoadReceiverCheck(
-  //  masm, receiver, r2, r3, Map::kHasNamedInterceptor, &slow);
+  GenerateKeyedLoadReceiverCheck(
+    masm, receiver, r2, r3, Map::kHasNamedInterceptor, &slow);
 
   // If the receiver is a fast-case object, check the keyed lookup
   // cache. Otherwise probe the dictionary.
@@ -930,17 +1014,16 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ lsl(r6, r3, Immediate(kPointerSizeLog2));
   __ ldr(r5, MemOperand(r4, r6));
   __ ldrb(r6, FieldMemOperand(r2, Map::kInObjectPropertiesOffset));
-  __ UNIMPLEMENTED_BREAK();
-  //TODO __ sub(r5, r5, r6, SetCC);
-  //TODO __ b(ge, &property_array_property);//TODO
+  __ sub(r5, r5, r6);
+  __ cmpge(r5, Immediate(0));
+  __ bt(&property_array_property);
 
   // Load in-object property.
   __ ldrb(r6, FieldMemOperand(r2, Map::kInstanceSizeOffset));
   __ add(r6, r6, r5);  // Index from start of object.
   __ sub(r1, r1, Immediate(kHeapObjectTag));  // Remove the heap tag.
-  //TODO: CHECK
-  __ UNIMPLEMENTED_BREAK();
-  //__ ldr(r0, MemOperand(r1, r6, LSL, kPointerSizeLog2));
+  __ lsl(r0, r6, Immediate(kPointerSizeLog2));
+  __ ldr(r0, MemOperand(r1, r0));
   __ lsl(r6, r6, Immediate(kPointerSizeLog2));
   __ ldr(r0, MemOperand(r1, r6));
   __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(),
@@ -1194,9 +1277,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&noret);
   // Update write barrier for the elements array address.
   __ sub(r4, r5, /*TODO:Operand()*/elements);
-  //TODO
-  __ UNIMPLEMENTED_BREAK();
-  //__ RecordWrite(elements, Operand(r4), r5, r6);
+  __ RecordWrite(elements, r4, r5, r6);
 
   __ Ret();
 }

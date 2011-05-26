@@ -286,6 +286,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
+  // Parameters are on stack as if calling JS function
   // ARM -> ST40 mapping: ip -> r2
 
   // r0, r1, cp: must be preserved
@@ -1278,6 +1279,45 @@ void MacroAssembler::RecordWrite(Register object,
     mov(scratch1, Immediate(BitCast<int32_t>(kZapValue)));
   }
 }
+
+
+// Will clobber 4 registers: object, offset, scratch, r3 (ARM:ip). The
+// register 'object' contains a heap object pointer. The heap object
+// tag is shifted away.
+void MacroAssembler::RecordWrite(Register object,
+                                 Register offset,
+                                 Register scratch0,
+                                 Register scratch1) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are cp.
+  ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
+  // Also check that the scratch are not r3 (super scratch).
+  ASSERT(!object.is(r3) && !scratch0.is(r3) && !scratch1.is(r3));
+
+  Label done;
+
+  // First, test that the object is not in the new space.  We cannot set
+  // region marks for new space pages.
+  InNewSpace(object, scratch0, eq, &done);
+
+  // Add offset into the object.
+  add(scratch0, object, offset);
+
+  // Record the actual write.
+  RecordWriteHelper(object, scratch0, scratch1);
+
+  bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    mov(object, Operand(BitCast<int32_t>(kZapValue)));
+    mov(scratch0, Operand(BitCast<int32_t>(kZapValue)));
+    mov(scratch1, Operand(BitCast<int32_t>(kZapValue)));
+  }
+}
+
 
 
 // Will clobber 4 registers: object, address, scratch, r3 (ARM:ip).  The
