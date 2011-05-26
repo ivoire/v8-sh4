@@ -588,7 +588,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // sp: stack pointer
   // fp: frame pointer
   //  Callee-saved register r8 still holds argc.
-  __ LeaveExitFrame(save_doubles_, r4);
+  __ LeaveExitFrame(save_doubles_, r8);
   __ rts();
 
   // check if we should retry or throw exception
