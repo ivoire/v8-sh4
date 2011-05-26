@@ -563,7 +563,28 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ mov(r4, r8);
   __ mov(r5, r10);
   __ mov(r6, Operand(ExternalReference::isolate_address()));
+
+  // TODO(1242173): To let the GC traverse the return address of the exit
+  // frames, we need to know where the return address is. Right now,
+  // we store it on the stack to be able to find it again, but we never
+  // restore from it in case of changes, which makes it impossible to
+  // support moving the C entry code stub. This should be fixed, but currently
+  // this is OK because the CEntryStub gets generated so early in the V8 boot
+  // sequence that it is not moving ever.
+
+  // Compute the return address in pr to return to after the jsr below.
+  // We use the addpc operation for this with an offset of 6.
+  // We add 3 * kInstrSize to the pc after the addpc for the size of
+  // the sequence: [str, jsr, nop(delay slot)].
+  __ addpc(r3, 3 * Assembler::kInstrSize);
+#ifdef DEBUG
+  int old_pc = masm->pc_offset();
+#endif
+  __ str(r3, MemOperand(sp, 0));
   __ jsr(r9);
+#ifdef DEBUG
+  ASSERT(masm->pc_offset() - old_pc == 3 * Assembler::kInstrSize);
+#endif
 
   if (always_allocate) {
     // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
