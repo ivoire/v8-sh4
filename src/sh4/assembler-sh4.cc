@@ -143,6 +143,12 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->origin = this;
 }
 
+// Debugging.
+void Assembler::RecordJSReturn() {
+  positions_recorder()->WriteRecordedPositions();
+  CheckBuffer();
+  RecordRelocInfo(RelocInfo::JS_RETURN);
+}
 
 void Assembler::RecordComment(const char* msg, bool force) {
   if (FLAG_code_comments) {
