@@ -1286,7 +1286,42 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
 
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Handle<String> name = expr->name();
+  if (name->length() > 0 && name->Get(0) == '_') {
+    Comment cmnt(masm_, "[ InlineRuntimeCall");
+    EmitInlineRuntimeCall(expr);
+    return;
+  }
+
+  Comment cmnt(masm_, "[ CallRuntime");
+  ZoneList<Expression*>* args = expr->arguments();
+
+  if (expr->is_jsruntime()) {
+    // Prepare for calling JS runtime function.
+    __ ldr(r0, GlobalObjectOperand());
+    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kBuiltinsOffset));
+    __ push(r0);
+  }
+
+  // Push the arguments ("left-to-right").
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    VisitForStackValue(args->at(i));
+  }
+
+  if (expr->is_jsruntime()) {
+    // Call the JS runtime function.
+    __ mov(r2, Operand(expr->name()));
+    Handle<Code> ic =
+        isolate()->stub_cache()->ComputeCallInitialize(arg_count, NOT_IN_LOOP);
+    EmitCallIC(ic, RelocInfo::CODE_TARGET);
+    // Restore context register.
+    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  } else {
+    // Call the C runtime function.
+    __ CallRuntime(expr->function(), arg_count);
+  }
+  context()->Plug(r0);
 }
 
 
@@ -1415,7 +1450,20 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 
 
 void FullCodeGenerator::VisitProperty(Property* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ Property");
+  Expression* key = expr->key();
+
+  if (key->IsPropertyName()) {
+    VisitForAccumulatorValue(expr->obj());
+    EmitNamedPropertyLoad(expr);
+    context()->Plug(r0);
+  } else {
+    VisitForStackValue(expr->obj());
+    VisitForAccumulatorValue(expr->key());
+    __ pop(r1);
+    EmitKeyedPropertyLoad(expr);
+    context()->Plug(r0);
+  }
 }
 
 
@@ -1752,7 +1800,9 @@ void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
 
 
 void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
-  __ UNIMPLEMENTED_BREAK();
+  // Immediates cannot be pushed directly.
+  __ mov(result_register(), Operand(lit));
+  __ push(result_register());
 }
 
 
