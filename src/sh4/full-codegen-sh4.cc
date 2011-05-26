@@ -279,19 +279,18 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 
 
 //
-// ***************************
-// *** WARNING: READ CAREFULLY
-// ***************************
+// ************************************************
+// *** WARNING: ARM to SH4 mapping. READ CAREFULLY.
+// ************************************************
 // Starting from this point, we use a systematic mapping for converting
-// Some registers must be checked:
-// ARM: pc -> need manual check
-// ARM: r10 -> need to be changed to roots
+// ARM code to SH4 code.
+// Some registers must be checked, see defines below.
 // if needing an additional register, use sh4_r8
 // all other registers unchanged
 //
 // For this we define a fixed mapping based on #define.
-// Unimplemented functions should come from the ARM implementation
-// in full-codegen-arm.cc
+// All functions should come from the ARM implementation
+// in ic-arm.cc
 // If this latter file is updated, please also update this one.
 //
 #define r0 sh4_r0

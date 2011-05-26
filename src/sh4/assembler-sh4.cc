@@ -756,6 +756,19 @@ void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 
+void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
+  if (src.offset_ == 0) {
+    movb_indRs_(src.rm_, Rd);
+  } else if(!src.rn_.is_valid()) {
+    add(rtmp, src.rm_, Immediate(src.offset_));
+    movb_indRs_(rtmp, Rd);
+  } else {
+    add(rtmp, src.rm_, src.rn_);
+    movb_indRs_(rtmp, Rd);
+  }
+}
+
+
 void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
   if (dst.offset_ == 0) {
     movl_indRd_(Rd, dst.rm_);

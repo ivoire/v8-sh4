@@ -695,8 +695,26 @@ class Assembler : public AssemblerBase {
   void cmpge(Register Rd, Register Rs) { cmpge_(Rs, Rd); }      // is Rd >= Rs ?
   void cmpgtu(Register Rd, Register Rs) { cmphi_(Rs, Rd); }     // is Rd u> Rs ?
   void cmpgeu(Register Rd, Register Rs) { cmphs_(Rs, Rd); }     // is Rd u>= Rs ?
-  void cmpeq(Register Rd, const Immediate& imm, Register rtmp = r3) { mov(rtmp, imm); cmpeq_(rtmp, Rd); }
-  void cmpgeu(Register Rd, const Immediate& imm, Register rtmp = r3) { mov(rtmp, imm); cmphs_(rtmp, Rd); }
+  void cmpeq(Register Rd, const Immediate& imm, Register rtmp = r3) { 
+    mov(rtmp, imm); cmpeq_(rtmp, Rd); }
+  void cmpgt(Register Rd, const Immediate& imm, Register rtmp = r3) {
+    mov(rtmp, imm); cmpgt_(rtmp, Rd); }
+  void cmpge(Register Rd, const Immediate& imm, Register rtmp = r3) {
+    mov(rtmp, imm); cmpge_(rtmp, Rd); }
+  void cmpgtu(Register Rd, const Immediate& imm, Register rtmp = r3) {
+    mov(rtmp, imm); cmphi_(rtmp, Rd); }
+  void cmpgeu(Register Rd, const Immediate& imm, Register rtmp = r3) {
+    mov(rtmp, imm); cmphs_(rtmp, Rd); }
+
+  void cmphs(Register Rd, Register Rs) { // Alias for cmpgeu
+    cmpgeu(Rd, Rs); }
+  void cmphs(Register Rd, const Immediate& imm, // Alias for cmpgeu
+	     Register rtmp = r3) { cmpgeu(Rd, imm, rtmp); }
+
+  void cmphi(Register Rd, Register Rs) { // Alias for cmpgtu
+    cmpgtu(Rd, Rs); }
+  void cmphi(Register Rd, const Immediate& imm, // Alias for cmpgtu
+	     Register rtmp = r3) { cmpgtu(Rd, imm, rtmp); }
 
   void cmpeq_r0_raw_immediate(int raw_immediate) { cmpeq_imm_R0_((int8_t)raw_immediate); }
   int fits_raw_immediate(int raw_immediate) { return (raw_immediate & ~0xFF) == 0; };
@@ -720,6 +738,7 @@ class Assembler : public AssemblerBase {
   void land(Register Rd, Register Rs, Register Rt);
 
   void lnot(Register Rd, Register Rs) { not_(Rs, Rd); }
+  void mvn(Register Rd, Register Rs) { lnot(Rd, Rs); } // Alias for lnot()
 
   void lor(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void lor(Register Rd, Register Rs, Register Rt);
@@ -727,6 +746,12 @@ class Assembler : public AssemblerBase {
   void lxor(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r3);
   void lxor(Register Rd, Register Rs, Register Rt);
 
+  void eor(Register Rd, Register Rs, const Immediate& imm,// Alias for lxor
+	   Register rtmp = r3) { lxor(Rd, Rs, imm, rtmp); }
+  void eor(Register Rd, Register Rs, Register Rt)  { // Alias for lxor
+    lxor(Rd, Rs, Rt);
+  }
+    
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };
   void tst(Register Rd, const Immediate& imm, Register rtmp = r3);
 
@@ -735,9 +760,11 @@ class Assembler : public AssemblerBase {
   void mov(Register Rd, const Operand& src);
 
   void mov(Register Rd, const MemOperand& src, Register rtmp = r3);  // load op.
+  void movb(Register Rd, const MemOperand& src, Register rtmp = r3); // load op.
   void mov(const MemOperand& dst, Register Rd, Register rtmp = r3);  // store op.
 
   void ldr(Register Rd, const MemOperand& src, Register rtmp = r3) { mov(Rd, src, rtmp); }
+  void ldrb(Register Rd, const MemOperand& src, Register rtmp = r3) { movb(Rd, src, rtmp); }
   void str(Register Rs, const MemOperand& dst, Register rtmp = r3) { mov(dst, Rs, rtmp); }
 
   void mul(Register Rd, Register Rs, Register Rt);
