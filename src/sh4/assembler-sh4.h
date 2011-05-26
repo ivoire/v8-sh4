@@ -138,6 +138,19 @@ const Register cp = r13;        // Context Pointer
 const Register pr = { -2 };     // Link register
 const Register roots = r12;     // Root Table Pointer
 
+const Register sh4_r0 = r0;
+const Register sh4_r1 = r1;
+const Register sh4_r2 = r2;
+const Register sh4_r3 = r3;
+const Register sh4_r4 = r4;
+const Register sh4_r5 = r5;
+const Register sh4_r6 = r6;
+const Register sh4_r7 = r7;
+const Register sh4_r8 = r8;
+const Register sh4_r9 = r9;
+const Register sh4_r10 = r10;
+const Register sh4_r11 = r11;
+
 
 // Single word VFP register.
 struct SwVfpRegister {

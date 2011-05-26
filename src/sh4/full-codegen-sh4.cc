@@ -282,16 +282,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 // ***************************
 // *** WARNING: READ CAREFULLY
 // ***************************
-// Starting from this point, we use a systematic mapping for converting 
-// ARM code to SH4 code.
-// ARM: ip -> r11
-// ARM: r3 -> r10
-// ARM: r8 -> cp
-// ARM: r10 -> roots
-// ARM: r11 -> fp
-// ARM: lr -> pr
+// Starting from this point, we use a systematic mapping for converting
+// Some registers must be checked:
 // ARM: pc -> need manual check
-// if needing an additional register, use r10
+// ARM: r10 -> need to be changed to roots
+// if needing an additional register, use sh4_r8
 // all other registers unchanged
 //
 // For this we define a fixed mapping based on #define.
@@ -299,13 +294,25 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 // in full-codegen-arm.cc
 // If this latter file is updated, please also update this one.
 //
-#define ip r11
-#define r3 r10
-#define r8 cp
-#define r10 roots
-#define r11 fp
+#define r0 sh4_r0
+#define r1 sh4_r1
+#define r2 sh4_r2
+#define r3 sh4_r10
+#define r4 sh4_r4
+#define r5 sh4_r5
+#define r6 sh4_r6
+#define r7 sh4_r7
+#define r8 "should be cp"
+#define r9 sh4_r9
+#define ip sh4_r11
 #define lr pr
-#define pc "unexpected"
+#define pc "to be checked"
+#define r10 "should be roots"
+#define r11 "Unexpected"
+#define r12 "Unexpected"
+#define r13 "Unexpected"
+#define r14 "Unexpected"
+#define r15 "Unexpected"
 
 
 MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
