@@ -244,7 +244,10 @@ void MacroAssembler::DebugBreak() {
 
 void MacroAssembler::Drop(int stack_elements) {
   RECORD_LINE();
-  UNIMPLEMENTED_BREAK();
+  if (stack_elements > 0) {
+    RECORD_LINE();
+    add(sp, sp, Immediate(stack_elements * kPointerSize));
+  }
 }
 
 void MacroAssembler::UnimplementedBreak(const char *file, int line) {
@@ -1137,7 +1140,6 @@ void MacroAssembler::StoreRoot(Register source,
 void MacroAssembler::Ret() {
   RECORD_LINE();
   rts();
-  nop();
 }
 
 
