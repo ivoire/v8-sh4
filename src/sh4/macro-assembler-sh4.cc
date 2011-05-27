@@ -60,7 +60,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   RECORD_LINE();
   // Make sure that the function has an instance prototype.
   Label non_instance;
-  mov(scratch, FieldMemOperand(result, Map::kBitFieldOffset));  // FIXME: mov.b ??
+  ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
   tst(scratch, Immediate(1 << Map::kHasNonInstancePrototype));
   bf(&non_instance);
 
@@ -1420,7 +1420,7 @@ void MacroAssembler::CompareObjectType(Register object,
                                        InstanceType type,
                                        Condition cond) {
   RECORD_LINE();
-  mov(map, FieldMemOperand(object, HeapObject::kMapOffset));
+  ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, type_reg, type, cond);
 }
 
@@ -1430,8 +1430,9 @@ void MacroAssembler::CompareInstanceType(Register map,
                                          InstanceType type,
                                          Condition cond) {
   ASSERT(!map.is(r3));
+  ASSERT(!type_reg.is(r3));
   RECORD_LINE();
-  mov(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset)); //FIXME: mov.b ??
+  ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   mov(r3, Immediate(type));
   switch(cond) {
   case eq:

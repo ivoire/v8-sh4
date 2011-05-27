@@ -1034,7 +1034,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // Fetch the instance type of the receiver into result register.
   __ mov(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ mov(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));  // FIXME: mov.b ??
+  __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   // If the receiver is not a string trigger the non-string case.
   __ tst(result_, Immediate(kIsNotStringMask));
   __ bf(receiver_not_string_);
@@ -1072,7 +1072,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // Get the first of the two strings and load its instance type.
   __ mov(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
   __ mov(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ mov(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));  // FIXME mov.b ??
+  __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   // If the first cons component is also non-flat, then go to runtime.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(result_, Immediate(kStringRepresentationMask));
@@ -1098,7 +1098,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ bind(&ascii_string);
   __ lsr(scratch_, scratch_, Immediate(kSmiTagSize));
   __ add(scratch_, object_, scratch_);
-  __ mov(result_, FieldMemOperand(scratch_, SeqAsciiString::kHeaderSize));      // FIXME: mov.b ??
+  __ ldrb(result_, FieldMemOperand(scratch_, SeqAsciiString::kHeaderSize));
 
   __ bind(&got_char_code);
   __ lsl(result_, result_, Immediate(kSmiTagSize));
@@ -1135,7 +1135,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ pop(object_);
   // Reload the instance type.
   __ mov(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ mov(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));  // FIXME: mov.b ??
+  __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
   call_helper.AfterCall(masm);
   // If index is still not a smi, it must be out of range.
   __ JumpIfNotSmi(scratch_, index_out_of_range_);
