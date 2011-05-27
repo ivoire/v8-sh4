@@ -643,7 +643,7 @@ class Assembler : public AssemblerBase {
   static const int kInstrSize = sizeof(Instr);
 
   // and the return address
-  static const int kCallTargetAddressOffset = 2 * kInstrSize;
+  static const int kCallTargetAddressOffset = 8 * kInstrSize;
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = kInstrSize; // FIXME(STM)
