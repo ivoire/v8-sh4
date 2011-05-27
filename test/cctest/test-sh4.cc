@@ -36,7 +36,7 @@ TEST(sh4_1) {
   CHECK_EQ(0x1244,  script->Run()->Int32Value());
 }
 
-TEST(sh4_100) {
+TEST(sh4_2) {
   // Disable compilation of natives.
   i::FLAG_disable_native_files = true;
   i::FLAG_full_compiler = false;
@@ -49,4 +49,19 @@ TEST(sh4_100) {
   v8::Handle<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(0x1234,  script->Run()->Int32Value());
 }
+
+TEST(sh4_3) {
+  // Disable compilation of natives.
+  i::FLAG_disable_native_files = true;
+  i::FLAG_full_compiler = false;
+
+  v8::HandleScope scope;
+  LocalContext env;  // from cctest.h
+
+  const char* c_source = "\"foo\" + \"bar\" != \"foobar\";";
+  v8::Handle<v8::String> source = v8::String::New(c_source);
+  v8::Handle<v8::Script> script = v8::Script::Compile(source);
+  CHECK_EQ(0,  script->Run()->Int32Value());
+}
+
 
