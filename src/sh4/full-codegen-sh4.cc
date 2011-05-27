@@ -375,13 +375,6 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void FullCodeGenerator::DoTest(Label* if_true,
-                               Label* if_false,
-                               Label* fall_through) {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
 void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
   __ UNIMPLEMENTED_BREAK();
 }
@@ -655,7 +648,332 @@ void FullCodeGenerator::EmitRegExpExec(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitReturnSequence() {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ Return sequence");
+  if (return_label_.is_bound()) {
+    __ b(&return_label_);
+  } else {
+    __ bind(&return_label_);
+    if (FLAG_trace) {
+      // Push the return value on the stack as the parameter.
+      // Runtime::TraceExit returns its parameter in r0.
+      __ push(r0);
+      __ CallRuntime(Runtime::kTraceExit, 1);
+    }
+
+    // TODO: is it necessary for SH4?
+    // Apparently the return sequence must be fixed for some debugger support.
+    // We remove this constraint on SH4.
+// #ifdef DEBUG
+//     // Add a label for checking the size of the code used for returning.
+//     Label check_exit_codesize;
+//     masm_->bind(&check_exit_codesize);
+// #endif
+    // Make sure that the constant pool is not emitted inside of the return
+    // sequence.
+    { 
+      // SH4: removed
+      // Assembler::BlockConstPoolScope block_const_pool(masm_);
+      // Here we use masm_-> instead of the __ macro to avoid the code coverage
+      // tool from instrumenting as we rely on the code size here.
+      int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
+      CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
+      __ RecordJSReturn();
+      masm_->mov(sp, fp);
+      masm_->Pop(lr, fp);
+      masm_->add(sp, sp, Immediate(sp_delta));
+      masm_->Ret();
+    }
+
+// #ifdef DEBUG
+//     // Check that the size of the code used for returning is large enough
+//     // for the debugger's requirements.
+//     ASSERT(Assembler::kJSReturnSequenceInstructions <=
+//            masm_->InstructionsGeneratedSince(&check_exit_codesize));
+// #endif
+  }
+}
+
+
+void FullCodeGenerator::EffectContext::Plug(Slot* slot) const {
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::Plug(Slot* slot) const {
+  codegen()->Move(result_register(), slot);
+}
+
+
+void FullCodeGenerator::StackValueContext::Plug(Slot* slot) const {
+  codegen()->Move(result_register(), slot);
+  __ push(result_register());
+}
+
+
+void FullCodeGenerator::TestContext::Plug(Slot* slot) const {
+  // For simplicity we always test the accumulator register.
+  codegen()->Move(result_register(), slot);
+  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+  codegen()->DoTest(true_label_, false_label_, fall_through_);
+}
+
+
+void FullCodeGenerator::EffectContext::Plug(Heap::RootListIndex index) const {
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::Plug(
+    Heap::RootListIndex index) const {
+  __ LoadRoot(result_register(), index);
+}
+
+
+void FullCodeGenerator::StackValueContext::Plug(
+    Heap::RootListIndex index) const {
+  __ LoadRoot(result_register(), index);
+  __ push(result_register());
+}
+
+
+void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const {
+  codegen()->PrepareForBailoutBeforeSplit(TOS_REG,
+                                          true,
+                                          true_label_,
+                                          false_label_);
+  if (index == Heap::kUndefinedValueRootIndex ||
+      index == Heap::kNullValueRootIndex ||
+      index == Heap::kFalseValueRootIndex) {
+    if (false_label_ != fall_through_) __ b(false_label_);
+  } else if (index == Heap::kTrueValueRootIndex) {
+    if (true_label_ != fall_through_) __ b(true_label_);
+  } else {
+    __ LoadRoot(result_register(), index);
+    codegen()->DoTest(true_label_, false_label_, fall_through_);
+  }
+}
+
+
+void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::Plug(
+    Handle<Object> lit) const {
+  __ mov(result_register(), Operand(lit));
+}
+
+
+void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
+  // Immediates cannot be pushed directly.
+  __ mov(result_register(), Operand(lit));
+  __ push(result_register());
+}
+
+
+void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
+  codegen()->PrepareForBailoutBeforeSplit(TOS_REG,
+                                          true,
+                                          true_label_,
+                                          false_label_);
+  ASSERT(!lit->IsUndetectableObject());  // There are no undetectable literals.
+  if (lit->IsUndefined() || lit->IsNull() || lit->IsFalse()) {
+    if (false_label_ != fall_through_) __ b(false_label_);
+  } else if (lit->IsTrue() || lit->IsJSObject()) {
+    if (true_label_ != fall_through_) __ b(true_label_);
+  } else if (lit->IsString()) {
+    if (String::cast(*lit)->length() == 0) {
+      if (false_label_ != fall_through_) __ b(false_label_);
+    } else {
+      if (true_label_ != fall_through_) __ b(true_label_);
+    }
+  } else if (lit->IsSmi()) {
+    if (Smi::cast(*lit)->value() == 0) {
+      if (false_label_ != fall_through_) __ b(false_label_);
+    } else {
+      if (true_label_ != fall_through_) __ b(true_label_);
+    }
+  } else {
+    // For simplicity we always test the accumulator register.
+    __ mov(result_register(), Operand(lit));
+    codegen()->DoTest(true_label_, false_label_, fall_through_);
+  }
+}
+
+
+void FullCodeGenerator::EffectContext::DropAndPlug(int count,
+                                                   Register reg) const {
+  ASSERT(count > 0);
+  __ Drop(count);
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
+    int count,
+    Register reg) const {
+  ASSERT(count > 0);
+  __ Drop(count);
+  __ Move(result_register(), reg);
+}
+
+
+void FullCodeGenerator::StackValueContext::DropAndPlug(int count,
+                                                       Register reg) const {
+  ASSERT(count > 0);
+  if (count > 1) __ Drop(count - 1);
+  __ str(reg, MemOperand(sp, 0));
+}
+
+
+void FullCodeGenerator::TestContext::DropAndPlug(int count,
+                                                 Register reg) const {
+  ASSERT(count > 0);
+  // For simplicity we always test the accumulator register.
+  __ Drop(count);
+  __ Move(result_register(), reg);
+  codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+  codegen()->DoTest(true_label_, false_label_, fall_through_);
+}
+
+
+void FullCodeGenerator::EffectContext::Plug(Label* materialize_true,
+                                            Label* materialize_false) const {
+  ASSERT(materialize_true == materialize_false);
+  __ bind(materialize_true);
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::Plug(
+    Label* materialize_true,
+    Label* materialize_false) const {
+  Label done;
+  __ bind(materialize_true);
+  __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+  __ bind(materialize_false);
+  __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
+  __ bind(&done);
+}
+
+
+void FullCodeGenerator::StackValueContext::Plug(
+    Label* materialize_true,
+    Label* materialize_false) const {
+  Label done;
+  __ bind(materialize_true);
+  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  __ push(ip);
+  __ jmp(&done);
+  __ bind(materialize_false);
+  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+  __ push(ip);
+  __ bind(&done);
+}
+
+
+void FullCodeGenerator::TestContext::Plug(Label* materialize_true,
+                                          Label* materialize_false) const {
+  ASSERT(materialize_true == true_label_);
+  ASSERT(materialize_false == false_label_);
+}
+
+
+void FullCodeGenerator::EffectContext::Plug(bool flag) const {
+}
+
+
+void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
+  Heap::RootListIndex value_root_index =
+      flag ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex;
+  __ LoadRoot(result_register(), value_root_index);
+}
+
+
+void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
+  Heap::RootListIndex value_root_index =
+      flag ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex;
+  __ LoadRoot(ip, value_root_index);
+  __ push(ip);
+}
+
+
+void FullCodeGenerator::TestContext::Plug(bool flag) const {
+  codegen()->PrepareForBailoutBeforeSplit(TOS_REG,
+                                          true,
+                                          true_label_,
+                                          false_label_);
+  if (flag) {
+    if (true_label_ != fall_through_) __ b(true_label_);
+  } else {
+    if (false_label_ != fall_through_) __ b(false_label_);
+  }
+}
+
+
+void FullCodeGenerator::DoTest(Label* if_true,
+                               Label* if_false,
+                               Label* fall_through) {
+  // TODO: implement fast code as below
+//   if (CpuFeatures::IsSupported(VFP3)) {
+//     CpuFeatures::Scope scope(VFP3);
+//     // Emit the inlined tests assumed by the stub.
+//     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+//     __ cmp(result_register(), ip);
+//     __ b(eq, if_false);
+//     __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+//     __ cmp(result_register(), ip);
+//     __ b(eq, if_true);
+//     __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+//     __ cmp(result_register(), ip);
+//     __ b(eq, if_false);
+//     STATIC_ASSERT(kSmiTag == 0);
+//     __ tst(result_register(), result_register());
+//     __ b(eq, if_false);
+//     __ JumpIfSmi(result_register(), if_true);
+
+//     // Call the ToBoolean stub for all other cases.
+//     ToBooleanStub stub(result_register());
+//     __ CallStub(&stub);
+//     __ tst(result_register(), result_register());
+//   } else 
+  {
+    // Call the runtime to find the boolean value of the source and then
+    // translate it into control flow to the pair of labels.
+    __ push(result_register());
+    __ CallRuntime(Runtime::kToBool, 1);
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+    __ cmpeq(r0, ip);
+  }
+
+  // The stub returns nonzero for true.
+  Split(ne, if_true, if_false, fall_through);
+}
+
+
+void FullCodeGenerator::Split(Condition cond,
+			      Label* if_true,
+                              Label* if_false,
+                              Label* fall_through) {
+  // We use ne for inverting conditions.
+  ASSERT(cond == ne || cond == eq);
+  if (if_false == fall_through) {
+    if (cond == ne) {
+      __ bf(if_true);
+    } else {
+      __ bt(if_true);
+    }
+  } else if (if_true == fall_through) {
+    if (cond == ne) {
+      __ bt(if_false);
+    } else {
+      __ bf(if_false);
+    }
+  } else {
+    if (cond == ne) {
+      __ bf(if_true);
+    } else {
+      __ bt(if_true);
+    }
+    __ b(if_false);
+  }
 }
 
 
@@ -1750,142 +2068,6 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
       break;
   }
   __ Call(ic, mode);
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::StackValueContext::Plug(Slot* slot) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::Plug(
-    Label* materialize_true,
-    Label* materialize_false) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::Plug(Slot* slot) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::Plug(
-    Handle<Object> lit) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::Plug(
-    Heap::RootListIndex index) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::StackValueContext::Plug(
-    Heap::RootListIndex index) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
-    int count,
-    Register reg) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
-  // Immediates cannot be pushed directly.
-  __ mov(result_register(), Operand(lit));
-  __ push(result_register());
-}
-
-
-void FullCodeGenerator::StackValueContext::DropAndPlug(int count,
-                                                       Register reg) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::StackValueContext::Plug(
-    Label* materialize_true,
-    Label* materialize_false) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::TestContext::Plug(Slot* slot) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::TestContext::DropAndPlug(int count,
-                                                 Register reg) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::TestContext::Plug(Label* materialize_true,
-                                          Label* materialize_false) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::TestContext::Plug(bool flag) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::EffectContext::Plug(Slot* slot) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::EffectContext::Plug(Heap::RootListIndex index) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::EffectContext::DropAndPlug(int count,
-                                                   Register reg) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::EffectContext::Plug(Label* materialize_true,
-                                            Label* materialize_false) const {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void FullCodeGenerator::EffectContext::Plug(bool flag) const {
-  __ UNIMPLEMENTED_BREAK();
 }
 
 
