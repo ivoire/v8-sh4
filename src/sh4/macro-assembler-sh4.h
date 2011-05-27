@@ -132,6 +132,19 @@ class MacroAssembler: public Assembler {
                    Register address,
                    Register scratch);
 
+  // Mark the register as dead. Put the pattern 0xFFFFFFDE into the register.
+  void Dead(Register dead) {
+    // Fit in a single SH4 mov_imm_ instruction
+    mov(dead, Immediate((int)0xFFFFFFDE));
+  }
+
+  // Mark up to four registers dead at a time.
+  void Dead(Register d1, Register d2, Register d3 = no_reg, Register d4 = no_reg) {
+    Dead(d1); Dead(d2);
+    if (d3.is_valid()) Dead(d3);
+    if (d4.is_valid()) Dead(d4);
+  }
+
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
     ASSERT(!src1.is(src2));
