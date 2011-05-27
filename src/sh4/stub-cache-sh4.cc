@@ -88,7 +88,7 @@ static void GenerateStringCheck(MacroAssembler* masm,
 
   // Check that the object is a string.
   __ mov(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ mov(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));        // FIXME: mov.b ??
+  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   __ land(scratch2, scratch1, Immediate(kIsNotStringMask));
   // The cast is to resolve the overload for the argument of 0x0.
   __ mov(r3, Immediate(static_cast<int32_t>(kStringTag)));
