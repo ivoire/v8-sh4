@@ -101,7 +101,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ bf(&non_function_call);
 
   // Jump to the function-specific construct stub.
-  __ mov(r3, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(r2, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
   __ mov(r2, FieldMemOperand(r2, SharedFunctionInfo::kConstructStubOffset));
   __ add(r3, r2, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jsr(r3);
