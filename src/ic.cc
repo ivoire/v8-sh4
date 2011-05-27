@@ -2062,11 +2062,9 @@ CompareIC::State CompareIC::TargetState(State state,
 RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
-  UNIMPLEMENTED();
-  //CompareIC ic(isolate, static_cast<Token::Value>(Smi::cast(args[2])->value()));
-  //ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
-  //return ic.target();
-  return 0;
+  CompareIC ic(isolate, static_cast<Token::Value>(Smi::cast(args[2])->value()));
+  ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
+  return ic.target();
 }
 
 

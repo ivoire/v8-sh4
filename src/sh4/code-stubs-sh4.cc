@@ -932,6 +932,11 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 }
 
 
+void CompareStub::Generate(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
 
@@ -990,6 +995,15 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
+
+const char* CompareStub::GetName() {
+  UNIMPLEMENTED();
+}
+
+
+int CompareStub::MinorKey() {
+  UNIMPLEMENTED();
+}
 
 // -------------------------------------------------------------------------
 // StringCharAtGenerator

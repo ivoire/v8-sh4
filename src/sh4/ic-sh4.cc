@@ -1422,6 +1422,34 @@ void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
 
 #undef __
 
+
+Condition CompareIC::ComputeCondition(Token::Value op) {
+  switch (op) {
+    case Token::EQ_STRICT:
+    case Token::EQ:
+      return eq;
+    case Token::LT:
+      return lt;
+    case Token::GT:
+      // Reverse left and right operands to obtain ECMA-262 conversion order.
+      return lt;
+    case Token::LTE:
+      // Reverse left and right operands to obtain ECMA-262 conversion order.
+      return ge;
+    case Token::GTE:
+      return ge;
+    default:
+      UNREACHABLE();
+      return kNoCondition;
+  }
+}
+
+
+void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
+  UNIMPLEMENTED();
+}
+
+
 void PatchInlinedSmiCode(Address address) {
   UNIMPLEMENTED();
 }
