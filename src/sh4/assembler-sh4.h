@@ -277,7 +277,7 @@ const DwVfpRegister dr14  = {  14 };
 
 enum Condition {
   // any value < 0 is considered no_condition
-  no_condition  = -1,
+  kNoCondition = -1,
 
   eq = 0,       // equal
   ne = 1,       // not equal
