@@ -1599,7 +1599,35 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
 
 void FullCodeGenerator::VisitCallNew(CallNew* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ CallNew");
+  // According to ECMA-262, section 11.2.2, page 44, the function
+  // expression in new calls must be evaluated before the
+  // arguments.
+
+  // Push constructor on the stack.  If it's not a function it's used as
+  // receiver for CALL_NON_FUNCTION, otherwise the value on the stack is
+  // ignored.
+  VisitForStackValue(expr->expression());
+
+  // Push the arguments ("left-to-right") on the stack.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    VisitForStackValue(args->at(i));
+  }
+
+  // Call the construct call builtin that handles allocation and
+  // constructor invocation.
+  SetSourcePosition(expr->position());
+
+  // Load function and argument count into r1 and r0.
+  __ mov(r0, Immediate(arg_count));
+  __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
+
+  Handle<Code> construct_builtin =
+      isolate()->builtins()->JSConstructCall();
+  __ Call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
+  context()->Plug(r0);
 }
 
 
