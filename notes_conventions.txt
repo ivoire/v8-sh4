@@ -1,0 +1,41 @@
+in macro-assembler-arm/sh4.cc:
+- TailCallRuntime(), CallRuntime(), InvokeBuiltin():
+  - Entry: no reg convention, all parameters on stack
+  - Exit: result in r0
+
+- CallStub():
+  - Entry: depends of the kind of stub, but register convention may be expected.
+    Stick to the r0-r3 registers for SH4 as for ARM.
+    See CallStubs below for a list of known stubs and conventions.
+  - Exit: result in r0
+
+ic-arm/sh4.cc:
+- EmitCallIC():
+  - Entry: depends of the called builtin IC, but register conventions may be expected.
+    Stick to the r0-r3 registers for SH4 as for ARM.
+    See CallICs builtins below for a list of known CallIC and conventions.
+  - Exit: result in r0
+
+fullcodegen-arm/sh4.cc:
+- VisitForAccumulatorValue():
+  - Entry: void
+  - Exit: r0 (result_register())
+
+* CallStubs
+List of Call Stubs, stubs are called through the CallStub() call but are generated ...Stub::Generate():
+- ToNumberStub, GenericUnaryOpStub:
+  - Entry: r0 (result_register())
+  - Exit: r0 (result_register())
+- StringAddStub, NumberToStringStub
+  - Entry: args on stack
+  - Exit: r0
+
+* CallICs builtins
+- StoreIC_Initialize_Strict, StoreIC_Initialize:
+  - Entry: r0 (rhs value), r1 (object), r2 (variable name)
+  - Exit: void
+
+
+** Misc:
+CpuFeatures::IsSupported(VFP3): used in a number of generated code for optimizing paired accesses.
+                                to be checked if we can use aslso the SH4 double load/store.
