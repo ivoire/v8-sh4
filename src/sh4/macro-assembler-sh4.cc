@@ -950,6 +950,98 @@ void MacroAssembler::Abort(const char* msg) {
   //}
 }
 
+
+void MacroAssembler::AllocateInNewSpace(int object_size,
+                                        Register result,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Label* gc_required,
+                                        AllocationFlags flags) {
+  RECORD_LINE();
+  if (!FLAG_inline_new) {
+    if (emit_debug_code()) {
+      // Trash the registers to simulate an allocation failure.
+      mov(result, Operand(0x7091));
+      mov(scratch1, Operand(0x7191));
+      mov(scratch2, Operand(0x7291));
+    }
+    RECORD_LINE();
+    jmp(gc_required);
+    return;
+  }
+
+  ASSERT(!result.is(scratch1));
+  ASSERT(!result.is(scratch2));
+  ASSERT(!scratch1.is(scratch2));
+  ASSERT(!result.is(r3));
+  ASSERT(!scratch1.is(r3));
+  ASSERT(!scratch2.is(r3));
+
+  // Make object size into bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    object_size *= kPointerSize;
+  }
+  ASSERT_EQ(0, object_size & kObjectAlignmentMask);
+
+  // Check relative positions of allocation top and limit addresses.
+  // The values must be adjacent in memory to allow the use of LDM.
+  // Also, assert that the registers are numbered such that the values
+  // are loaded in the correct order.
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate());
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address(isolate());
+  intptr_t top   =
+      reinterpret_cast<intptr_t>(new_space_allocation_top.address());
+  intptr_t limit =
+      reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
+  ASSERT((limit - top) == kPointerSize);
+
+  // Set up allocation top address and object size registers.
+  Register topaddr = scratch1;
+  Register obj_size_reg = scratch2;
+  mov(topaddr, Operand(new_space_allocation_top));
+  mov(obj_size_reg, Immediate(object_size));
+
+  // This code stores a temporary value in ip. This is OK, as the code below
+  // does not need ip for implicit literal generation.
+  if ((flags & RESULT_CONTAINS_TOP) == 0) {
+    // Load allocation top into result and allocation limit into r3 (ARM:ip).
+    // ARM code: ldm(ia, topaddr, result.bit() | ip.bit());
+    mov(result, MemOperand(topaddr));
+    mov(r3, MemOperand(topaddr, 4));
+  } else {
+    if (emit_debug_code()) {
+      // Assert that result actually contains top on entry. ip is used
+      // immediately below so this use of ip does not cause difference with
+      // respect to register content between debug and release mode.
+      mov(r3, MemOperand(topaddr));
+      cmpeq(result, r3);
+      Check("Unexpected allocation top");
+    }
+    RECORD_LINE();
+    // Load allocation limit into ip. Result already contains allocation top.
+    mov(r3, MemOperand(topaddr, limit - top));
+  }
+
+  RECORD_LINE();
+  // Calculate new top and bail out if new space is exhausted. Use result
+  // to calculate the new top.
+  addv(scratch2, result, obj_size_reg);
+  bt(gc_required);
+  RECORD_LINE();
+  cmpgtu(scratch2, r3);
+  bt(gc_required);
+  RECORD_LINE();
+  mov(MemOperand(topaddr), scratch2);
+
+  // Tag object if requested.
+  if ((flags & TAG_OBJECT) != 0) {
+    add(result, result, Immediate(kHeapObjectTag));
+  }
+}
+
+
 void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Register result,
                                         Register scratch1,
@@ -1008,7 +1100,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   RECORD_LINE();
   // ARM code: mov(topaddr, Operand(new_space_allocation_top));
   // SH4 code:
-  mov(topaddr, Immediate(new_space_allocation_top));
+  mov(topaddr, Operand(new_space_allocation_top));
 
   // This code stores a temporary value in r3 (ARM:ip). This is OK, as the code below
   // does not need r3 (ARM:ip) for implicit literal generation.
