@@ -783,6 +783,7 @@ void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
     add(rtmp, src.rm_, src.rn_);
     movb_indRs_(rtmp, Rd);
   }
+  extub_(Rd, Rd);
 }
 
 
