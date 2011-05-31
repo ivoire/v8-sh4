@@ -126,17 +126,12 @@ const Register r8 = { 8 };      // ABI callee saved, idem for JIT
 const Register r9 = { 9 };      // ABI callee saved, idem for JIT
 const Register r10 = { 10 };    // ABI callee saved, idem for JIT
 const Register r11 = { 11 };    // ABI callee saved, idem for JIT
-const Register r12 = { 12 };    // ABI GP, root table pointer for JIT
-const Register r13 = { 13 };    // ABI callee saved, context pointer for JIT
-const Register r14 = { 14 };    // ABI FP, idem for JIT
-const Register r15 = { 15 };    // ABI SP, idem for JIT
+const Register roots = { 12 };  // ABI GP, root table pointer for JIT
+const Register cp = { 13 };     // ABI callee saved, context pointer for JIT
+const Register fp = { 14 };     // ABI FP, idem for JIT
+const Register sp = { 15 };     // ABI SP, idem for JIT
 
-//const Register rtmp = r3;       // super scratch register
-const Register fp = r14;        // Frame Pointer
-const Register sp = r15;        // Stack Pointer
-const Register cp = r13;        // Context Pointer
 const Register pr = { -2 };     // Link register
-const Register roots = r12;     // Root Table Pointer
 
 const Register sh4_r0 = r0;
 const Register sh4_r1 = r1;
