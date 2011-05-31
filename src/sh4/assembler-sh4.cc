@@ -748,6 +748,15 @@ void Assembler::addpc(Register Rd, int offset, Register rtmp) {
 }
 
 
+void Assembler::mov(Register Rd, Register Rs, Condition cond) {
+  ASSERT(cond == ne || cond == eq);
+  // If cond is eq, we move Rs into Rd, otherwise, nop
+  if (cond == eq) bf_(0); // Jump after sequence if T bit is false
+  else bt_(0); // Jump after sequence if T bit is true
+  mov_(Rs, Rd);
+}
+
+
 void Assembler::mov(Register Rd, const Operand& src) {
   if (src.rx_.is_valid())
     mov_(src.rx_, Rd);
@@ -783,7 +792,7 @@ void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
     add(rtmp, src.rm_, src.rn_);
     movb_indRs_(rtmp, Rd);
   }
-  extub_(Rd, Rd);
+  extub_(Rd, Rd);       // zero extension
 }
 
 

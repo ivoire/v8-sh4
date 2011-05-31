@@ -981,7 +981,14 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
 
 
 void FullCodeGenerator::EmitStringAdd(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT_EQ(2, args->length());
+
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+
+  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
@@ -1679,6 +1686,45 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 }
 
 
+void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
+  ASSERT(!context()->IsEffect());
+  ASSERT(!context()->IsTest());
+  VariableProxy* proxy = expr->AsVariableProxy();
+  if (proxy != NULL && !proxy->var()->is_this() && proxy->var()->is_global()) {
+    Comment cmnt(masm_, "Global variable");
+    __ ldr(r0, GlobalObjectOperand());
+    __ mov(r2, Operand(proxy->name()));
+    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+    // Use a regular load, not a contextual load, to avoid a reference
+    // error.
+    EmitCallIC(ic, RelocInfo::CODE_TARGET);
+    PrepareForBailout(expr, TOS_REG);
+    context()->Plug(r0);
+  } else if (proxy != NULL &&
+             proxy->var()->AsSlot() != NULL &&
+             proxy->var()->AsSlot()->type() == Slot::LOOKUP) {
+    Label done, slow;
+
+    // Generate code for loading from variables potentially shadowed
+    // by eval-introduced variables.
+    Slot* slot = proxy->var()->AsSlot();
+    EmitDynamicLoadFromSlotFastCase(slot, INSIDE_TYPEOF, &slow, &done);
+
+    __ bind(&slow);
+    __ mov(r0, Operand(proxy->name()));
+    __ Push(cp, r0);
+    __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    PrepareForBailout(expr, TOS_REG);
+    __ bind(&done);
+
+    context()->Plug(r0);
+  } else {
+    // This expression cannot throw a reference error at the top level.
+    context()->HandleExpression(expr);
+  }
+}
+
+
 void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
   __ UNIMPLEMENTED_BREAK();
 }
@@ -2049,7 +2095,157 @@ void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 
 
 void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  switch (expr->op()) {
+    case Token::DELETE: {
+      Comment cmnt(masm_, "[ UnaryOperation (DELETE)");
+      Property* prop = expr->expression()->AsProperty();
+      Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
+
+      if (prop != NULL) {
+        if (prop->is_synthetic()) {
+          // Result of deleting parameters is false, even when they rewrite
+          // to accesses on the arguments object.
+          context()->Plug(false);
+        } else {
+          VisitForStackValue(prop->obj());
+          VisitForStackValue(prop->key());
+          __ mov(r1, Immediate(Smi::FromInt(strict_mode_flag())));
+          __ push(r1);
+          __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
+          context()->Plug(r0);
+        }
+      } else if (var != NULL) {
+        // Delete of an unqualified identifier is disallowed in strict mode
+        // but "delete this" is.
+        ASSERT(strict_mode_flag() == kNonStrictMode || var->is_this());
+        if (var->is_global()) {
+          __ ldr(r2, GlobalObjectOperand());
+          __ mov(r1, Operand(var->name()));
+          __ mov(r0, Immediate(Smi::FromInt(kNonStrictMode)));
+          __ Push(r2, r1, r0);
+          __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
+          context()->Plug(r0);
+        } else if (var->AsSlot() != NULL &&
+                   var->AsSlot()->type() != Slot::LOOKUP) {
+          // Result of deleting non-global, non-dynamic variables is false.
+          // The subexpression does not have side effects.
+          context()->Plug(false);
+        } else {
+          // Non-global variable.  Call the runtime to try to delete from the
+          // context where the variable was introduced.
+          __ push(context_register());
+          __ mov(r2, Operand(var->name()));
+          __ push(r2);
+          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          context()->Plug(r0);
+        }
+      } else {
+        // Result of deleting non-property, non-variable reference is true.
+        // The subexpression may have side effects.
+        VisitForEffect(expr->expression());
+        context()->Plug(true);
+      }
+      break;
+    }
+
+    case Token::VOID: {
+      Comment cmnt(masm_, "[ UnaryOperation (VOID)");
+      VisitForEffect(expr->expression());
+      context()->Plug(Heap::kUndefinedValueRootIndex);
+      break;
+    }
+
+    case Token::NOT: {
+      Comment cmnt(masm_, "[ UnaryOperation (NOT)");
+      if (context()->IsEffect()) {
+        // Unary NOT has no side effects so it's only necessary to visit the
+        // subexpression.  Match the optimizing compiler by not branching.
+        VisitForEffect(expr->expression());
+      } else {
+        Label materialize_true, materialize_false;
+        Label* if_true = NULL;
+        Label* if_false = NULL;
+        Label* fall_through = NULL;
+
+        // Notice that the labels are swapped.
+        context()->PrepareTest(&materialize_true, &materialize_false,
+                               &if_false, &if_true, &fall_through);
+        if (context()->IsTest()) ForwardBailoutToChild(expr);
+        VisitForControl(expr->expression(), if_true, if_false, fall_through);
+        context()->Plug(if_false, if_true);  // Labels swapped.
+      }
+      break;
+    }
+
+    case Token::TYPEOF: {
+      Comment cmnt(masm_, "[ UnaryOperation (TYPEOF)");
+      { StackValueContext context(this);
+        VisitForTypeofValue(expr->expression());
+      }
+      __ CallRuntime(Runtime::kTypeof, 1);
+      context()->Plug(r0);
+      break;
+    }
+
+    case Token::ADD: {
+      Comment cmt(masm_, "[ UnaryOperation (ADD)");
+      VisitForAccumulatorValue(expr->expression());
+      Label no_conversion;
+      __ tst(result_register(), Immediate(kSmiTagMask));
+      __ bt(&no_conversion);
+      ToNumberStub convert_stub;
+      __ CallStub(&convert_stub);
+      __ bind(&no_conversion);
+      context()->Plug(result_register());
+      break;
+    }
+
+    case Token::SUB: {
+      Comment cmt(masm_, "[ UnaryOperation (SUB)");
+      bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
+      UnaryOverwriteMode overwrite =
+          can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+      GenericUnaryOpStub stub(Token::SUB, overwrite, NO_UNARY_FLAGS);
+      // GenericUnaryOpStub expects the argument to be in the
+      // accumulator register r0.
+      VisitForAccumulatorValue(expr->expression());
+      __ CallStub(&stub);
+      context()->Plug(r0);
+      break;
+    }
+
+    case Token::BIT_NOT: {
+      Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
+      // The generic unary operation stub expects the argument to be
+      // in the accumulator register r0.
+      VisitForAccumulatorValue(expr->expression());
+      Label done;
+      bool inline_smi_code = ShouldInlineSmiCase(expr->op());
+      if (inline_smi_code) {
+        Label call_stub;
+        __ JumpIfNotSmi(r0, &call_stub);
+        __ mvn(r0, r0);
+        // Bit-clear inverted smi-tag.
+        __ bic(r0, r0, Immediate(kSmiTagMask));
+        __ b(&done);
+        __ bind(&call_stub);
+      }
+      bool overwrite = expr->expression()->ResultOverwriteAllowed();
+      UnaryOpFlags flags = inline_smi_code
+          ? NO_UNARY_SMI_CODE_IN_STUB
+          : NO_UNARY_FLAGS;
+      UnaryOverwriteMode mode =
+          overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
+      GenericUnaryOpStub stub(Token::BIT_NOT, mode, flags);
+      __ CallStub(&stub);
+      __ bind(&done);
+      context()->Plug(r0);
+      break;
+    }
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 

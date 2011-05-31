@@ -672,6 +672,11 @@ class Assembler : public AssemblerBase {
   void bf(Label* L, Register rtmp = r11)    { branch(L, rtmp, branch_false); }
   void jmp(Label* L, Register rtmp = r11)   { branch(L, rtmp, branch_unconditional); }
   void b(Label* L, Register rtmp = r11)   { jmp(L, rtmp); }
+  void b(Condition cond, Label* L, Register rtmp = r3)   { 
+    ASSERT(cond == ne || cond == eq);
+    branch(L, rtmp, cond == eq ? branch_true: branch_false);
+  }
+
   void jsr(Label* L, Register rtmp = r11)   { branch(L, rtmp, branch_subroutine); }
 
   // Check the code size generated from label to here.
@@ -700,6 +705,10 @@ class Assembler : public AssemblerBase {
     mov(rtmp, imm); cmphi_(rtmp, Rd); }
   void cmpgeu(Register Rd, const Immediate& imm, Register rtmp = r11) {
     mov(rtmp, imm); cmphs_(rtmp, Rd); }
+
+  void cmp(Register Rd, Register Rs) { cmpeq(Rd, Rs); } // Alias for cmpeq
+  void cmp(Register Rd, const Immediate& imm, Register rtmp = r11) { // Alias for cmpeq
+    cmpeq(Rd, imm, rtmp); }
 
   void cmphs(Register Rd, Register Rs) { // Alias for cmpgeu
     cmpgeu(Rd, Rs); }
@@ -731,6 +740,9 @@ class Assembler : public AssemblerBase {
 
   void land(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);
   void land(Register Rd, Register Rs, Register Rt);
+  void bic(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11) { //bit clear
+    land(Rd, Rs, Immediate(~imm.x_), rtmp);
+  }
 
   void lnot(Register Rd, Register Rs) { not_(Rs, Rd); }
   void mvn(Register Rd, Register Rs) { lnot(Rd, Rs); } // Alias for lnot()
@@ -750,17 +762,20 @@ class Assembler : public AssemblerBase {
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };
   void tst(Register Rd, const Immediate& imm, Register rtmp = r11);
 
+  void mov(Register Rd, Register Rs, Condition cond); // Conditional move
   void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }
   void mov(Register Rd, const Immediate& imm);
   void mov(Register Rd, const Operand& src);
 
   void mov(Register Rd, const MemOperand& src, Register rtmp = r11);  // load op.
-  void movb(Register Rd, const MemOperand& src, Register rtmp = r11); // load op.
+  void movb(Register Rd, const MemOperand& src, Register rtmp = r11); // unsigned 8 bit load op.
   void mov(const MemOperand& dst, Register Rd, Register rtmp = r11);  // store op.
 
   void ldr(Register Rd, const MemOperand& src, Register rtmp = r11) { mov(Rd, src, rtmp); }
   void ldrb(Register Rd, const MemOperand& src, Register rtmp = r11) { movb(Rd, src, rtmp); }
   void str(Register Rs, const MemOperand& dst, Register rtmp = r11) { mov(dst, Rs, rtmp); }
+  void strh(Register Rs, const MemOperand& dst, Register rtmp = r11) { mov(dst, Rs, rtmp); }
+  void strb(Register Rs, const MemOperand& dst, Register rtmp = r11) { mov(dst, Rs, rtmp); }
 
   void mul(Register Rd, Register Rs, Register Rt);
 
