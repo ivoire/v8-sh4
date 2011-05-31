@@ -353,6 +353,39 @@ class MacroAssembler: public Assembler {
     bf(not_smi_label);
   }
 
+  // Jump if either of the registers contain a non-smi.
+  void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
+  // Jump if either of the registers contain a smi.
+  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
+
+  // ---------------------------------------------------------------------------
+  // String utilities
+
+  // Checks if both objects are sequential ASCII strings and jumps to label
+  // if either is not. Assumes that neither object is a smi.
+  void JumpIfNonSmisNotBothSequentialAsciiStrings(Register object1,
+                                                  Register object2,
+                                                  Register scratch1,
+                                                  Register scratch2,
+                                                  Label* failure);
+
+  // Checks if both objects are sequential ASCII strings and jumps to label
+  // if either is not.
+  void JumpIfNotBothSequentialAsciiStrings(Register first,
+                                           Register second,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* not_flat_ascii_strings);
+
+  // Checks if both instance types are sequential ASCII strings and jumps to
+  // label if either is not.
+  void JumpIfBothInstanceTypesAreNotSequentialAscii(
+      Register first_object_instance_type,
+      Register second_object_instance_type,
+      Register scratch1,
+      Register scratch2,
+      Label* failure);
+
   // Assumes input is a heap object.
   void JumpIfNotNumber(Register reg, TypeInfo info, Label* on_not_number);
 
@@ -701,12 +734,12 @@ class MacroAssembler: public Assembler {
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(const char* msg, bool value = true);
+  void Assert(Condition cond, const char* msg);
 
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
-  void Check(const char* msg, bool value = true);
+  void Check(Condition cond, const char* msg);
 
   // Print a message to stdout and abort execution.
   void Abort(const char* msg);
@@ -719,24 +752,6 @@ class MacroAssembler: public Assembler {
   bool generating_stub() { return generating_stub_; }
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
   bool allow_stub_calls() { return allow_stub_calls_; }
-
-  // ---------------------------------------------------------------------------
-  // String utilities.
-
-  // Check whether the instance type represents a flat ascii string. Jump to the
-  // label if not. If the instance type can be scratched specify same register
-  // for both instance type and scratch.
-  void JumpIfInstanceTypeIsNotSequentialAscii(Register instance_type,
-                                              Register scratch,
-                                              Label* on_not_flat_ascii_string);
-
-  // Checks if both objects are sequential ASCII strings, and jumps to label
-  // if either is not.
-  void JumpIfNotBothSequentialAsciiStrings(Register object1,
-                                           Register object2,
-                                           Register scratch1,
-                                           Register scratch2,
-                                           Label* on_not_flat_ascii_strings);
 
  private:
   void CallCFunctionHelper(Register function,

@@ -194,7 +194,14 @@ void MacroAssembler::Call(
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments) {
-  // All parameters are on the stack.  r0 has the return value after call.
+  // No register conventions on entry.
+  // All parameters are on stack.
+  // Return value in r0 after call.
+#ifdef DEBUG
+  // Clobber parameter registers on entry.
+  Dead(r0, r1, r2, r3);
+  Dead(r4, r5, r6, r7);
+#endif
 
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
@@ -774,6 +781,15 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeJSFlags flags,
                                    CallWrapper* call_wrapper) {
+  // No register conventions on entry.
+  // All parameters are on stack.
+  // Return value in r0 after call.
+#ifdef DEBUG
+  // Clobber parameter registers on entry.
+  Dead(r0, r1, r2, r3);
+  Dead(r4, r5, r6, r7);
+#endif
+
   RECORD_LINE();
   GetBuiltinEntry(r2, id);
   if (flags == CALL_JS) {
@@ -854,12 +870,9 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 }
 
 
-void MacroAssembler::Assert(const char* msg, bool value) {
-  RECORD_LINE();
-  if (emit_debug_code()) {
-    RECORD_LINE();
-    Check(msg, value);
-  }
+void MacroAssembler::Assert(Condition cond, const char* msg) {
+  if (emit_debug_code())
+    Check(cond, msg);
 }
 
 
@@ -889,18 +902,9 @@ void MacroAssembler::AssertFastElements(Register elements) {
 
 void MacroAssembler::Check(const char* msg, bool value) {
   Label L;
-  // ARM code {
-  // b(cond, &L)
-  // Abort(msg);
-  // }
-  // SH4 code {
   RECORD_LINE();
-  if (value)
-    bt(&L);
-  else
-    bf(&L);
+  b(cond, &L);
   Abort(msg);
-  // }
   // will not return here
   bind(&L);
 }
@@ -1488,18 +1492,91 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
+void MacroAssembler::JumpIfNotBothSmi(Register reg1,
+                                      Register reg2,
+                                      Label* on_not_both_smi) {
+  STATIC_ASSERT(kSmiTag == 0);
+  tst(reg1, Immediate(kSmiTagMask));
+  b(ne, on_not_both_smi);
+  tst(reg2, Immediate(kSmiTagMask));
+  b(ne, on_not_both_smi);
+}
+
+
+void MacroAssembler::JumpIfEitherSmi(Register reg1,
+                                     Register reg2,
+                                     Label* on_either_smi) {
+  STATIC_ASSERT(kSmiTag == 0);
+  tst(reg1, Immediate(kSmiTagMask));
+  b(eq, on_either_smi);
+  tst(reg2, Immediate(kSmiTagMask));
+  b(eq, on_either_smi);
+}
+
+
+void MacroAssembler::AbortIfSmi(Register object) {
+  STATIC_ASSERT(kSmiTag == 0);
+  tst(object, Operand(kSmiTagMask));
+  Assert(ne, "Operand is a smi");
+}
+
+
+void MacroAssembler::AbortIfNotSmi(Register object) {
+  STATIC_ASSERT(kSmiTag == 0);
+  tst(object, Immediate(kSmiTagMask));
+  Assert(eq, "Operand is not smi");
+}
+
+
 void MacroAssembler::AbortIfNotString(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
-  RECORD_LINE();
   tst(object, Immediate(kSmiTagMask));
-  Assert("Operand is not a string");
+  Assert(ne, "Operand is not a string");
   RECORD_LINE();
   push(object);
-  mov(object, FieldMemOperand(object, HeapObject::kMapOffset));
+  ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(object, object, FIRST_NONSTRING_TYPE, hs);
   pop(object);
-  Assert("Operand is not a string", false);
-  RECORD_LINE();
+  Assert(ne, "Operand is not a string");
+}
+
+
+void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
+    Register first,
+    Register second,
+    Register scratch1,
+    Register scratch2,
+    Label* failure) {
+  // Test that both first and second are sequential ASCII strings.
+  // Assume that they are non-smis.
+  ldr(scratch1, FieldMemOperand(first, HeapObject::kMapOffset));
+  ldr(scratch2, FieldMemOperand(second, HeapObject::kMapOffset));
+  ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  ldrb(scratch2, FieldMemOperand(scratch2, Map::kInstanceTypeOffset));
+
+  JumpIfBothInstanceTypesAreNotSequentialAscii(scratch1,
+                                               scratch2,
+                                               scratch1,
+                                               scratch2,
+                                               failure);
+}
+
+
+void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
+                                                         Register second,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         Label* failure) {
+  // Check that neither is a smi.
+  STATIC_ASSERT(kSmiTag == 0);
+  land(scratch1, first, second);
+  tst(scratch1, Immediate(kSmiTagMask));
+  b(eq, failure);
+  JumpIfNonSmisNotBothSequentialAsciiStrings(first,
+                                             second,
+                                             scratch1,
+                                             scratch2,
+                                             failure);
 }
 
 
