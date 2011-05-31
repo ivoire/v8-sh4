@@ -810,14 +810,14 @@ void Assembler::mul(Register Rd, Register Rs, Register Rt) {
 
 void Assembler::pop(Register dst) {
   if (dst.is(pr))
-    ldsl_incRd_PR_(r15);
+    ldsl_incRd_PR_(sp);
   else
-    movl_incRs_(r15, dst);
+    movl_incRs_(sp, dst);
 }
 
 
 void Assembler::pop(DwVfpRegister dst) {
-  fmov_incRs_(r15, dst);
+  fmov_incRs_(sp, dst);
 }
 
 
@@ -840,14 +840,14 @@ void Assembler::popm(RegList dst, bool doubles) {
 
 void Assembler::push(Register src) {
   if (src.is(pr))
-    stsl_PR_decRd_(r15);
+    stsl_PR_decRd_(sp);
   else
-    movl_decRd_(src, r15);
+    movl_decRd_(src, sp);
 }
 
 
 void Assembler::push(DwVfpRegister src) {
-  fmov_decRd_(src, r15);
+  fmov_decRd_(src, sp);
 }
 
 
