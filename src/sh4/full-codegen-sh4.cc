@@ -108,13 +108,42 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+
+//
+// ************************************************
+// *** WARNING: ARM to SH4 mapping. READ CAREFULLY.
+// ************************************************
+// Starting from this point, we use a systematic mapping for converting
+// ARM code to SH4 code.
+// Some registers must be checked, see defines below.
+// if needing an additional register, use sh4_r8
+// all other registers unchanged
+//
+// For this we define a fixed mapping based on #define.
+// All functions should come from the ARM implementation
+// in ic-arm.cc
+// If this latter file is updated, please also update this one.
+//
+#define r8 "should be cp"
+#define ip sh4_r11
+#define lr pr
+#define pc "to be checked"
+#define r10 "should be roots"
+#define r11 "Unexpected"
+#define r12 "Unexpected"
+#define r13 "Unexpected"
+#define r14 "Unexpected"
+#define r15 "Unexpected"
+
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
 // argument count matches the formal parameter count expected by the
 // function.
 //
 // The live registers are:
-//   o r5: the JS function object being called (ie, ourselves)
+//   o r1: the JS function object being called (ie, ourselves)
 //   o cp: our context
 //   o fp: our caller's frame pointer
 //   o sp: stack pointer
@@ -137,18 +166,18 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 
   int locals_count = scope()->num_stack_slots();
 
-  __ Push(pr, fp, cp, r5);
+  __ Push(pr, fp, cp, r1);
   if (locals_count > 0) {
     // Load undefined value here, so the value is ready for the loop
     // below.
-    __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   }
   // Adjust fp to point to caller's fp.
   __ add(fp, sp, Immediate(2 * kPointerSize));
 
   { Comment cmnt(masm_, "[ Allocate locals");
     for (int i = 0; i < locals_count; i++) {
-      __ push(r0);
+      __ push(ip);
     }
   }
 
@@ -158,8 +187,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
-    // Argument to NewContext is the function, which is in r5.
-    __ push(r5);
+    // Argument to NewContext is the function, which is in r1.
+    __ push(r1);
     if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
@@ -169,7 +198,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     function_in_register = false;
     // Context is returned in both r0 and cp.  It replaces the context
     // passed to us.  It's saved in the stack and kept live in cp.
-    __ mov(MemOperand(fp, StandardFrameConstants::kContextOffset), cp);
+    __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     // Copy any necessary parameters into the context.
     int num_parameters = scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
@@ -178,15 +207,15 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
         // Load parameter from stack.
-        __ mov(r0, MemOperand(fp, parameter_offset));
+        __ ldr(r0, MemOperand(fp, parameter_offset));
         // Store it in the context.
         __ mov(MemOperand(cp, Context::SlotOffset(slot->index())), r0);
         // Update the write barrier. This clobbers all involved
         // registers, so we have to use two more registers to avoid
         // clobbering cp.
-        __ mov(r0, cp);
-        __ RecordWrite(r0/*input/scratch*/, Context::SlotOffset(slot->index()),
-		       r1 /*scratch*/, r2 /*scratch*/);
+        __ mov(r2, cp);
+        __ RecordWrite(r2/*input/scratch*/, Context::SlotOffset(slot->index()),
+		       r3 /*scratch*/, r0 /*scratch*/);
       }
     }
   }
@@ -197,16 +226,16 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     Comment cmnt(masm_, "[ Allocate arguments object");
     if (!function_in_register) {
       // Load this again, if it's used by the local context below.
-      __ mov(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+      __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     } else {
-      __ mov(r0, r5);
+      __ mov(r3, r1);
     }
     // Receiver is just before the parameters on the caller's stack.
     int offset = scope()->num_parameters() * kPointerSize;
     __ add(r2, fp,
            Immediate(StandardFrameConstants::kCallerSPOffset + offset));
     __ mov(r1, Immediate(Smi::FromInt(scope()->num_parameters())));
-    __ Push(r0, r2, r1);
+    __ Push(r3, r2, r1);
 
     // Arguments to ArgumentsAccessStub:
     //   function, receiver address, parameter count.
@@ -220,8 +249,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     Variable* arguments_shadow = scope()->arguments_shadow();
     if (arguments_shadow != NULL) {
       // Duplicate the value; move-to-slot operation might clobber registers.
-      __ mov(r4, r0);
-      Move(arguments_shadow->AsSlot(), r4/*src*/, r1/*scratch*/, r2/*scratch*/);
+      __ mov(r3, r0);
+      Move(arguments_shadow->AsSlot(), r3/*src*/, r1/*scratch*/, r2/*scratch*/);
     }
     Move(arguments->AsSlot(), r0/*src*/, r1/*scratch*/, r2/*scratch*/);
   }
@@ -249,8 +278,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(AstNode::kFunctionEntryId, NO_REGISTERS);
       Label ok;
-      __ LoadRoot(r0, Heap::kStackLimitRootIndex);
-      __ cmpgeu(sp, r0);
+      __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+      __ cmpgeu(sp, ip);
       __ bt(&ok);
       StackCheckStub stub;
       __ CallStub(&stub);
@@ -276,42 +305,6 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   // of the stack check table.
   //masm()->CheckConstPool(true, false);
 }
-
-
-//
-// ************************************************
-// *** WARNING: ARM to SH4 mapping. READ CAREFULLY.
-// ************************************************
-// Starting from this point, we use a systematic mapping for converting
-// ARM code to SH4 code.
-// Some registers must be checked, see defines below.
-// if needing an additional register, use sh4_r8
-// all other registers unchanged
-//
-// For this we define a fixed mapping based on #define.
-// All functions should come from the ARM implementation
-// in ic-arm.cc
-// If this latter file is updated, please also update this one.
-//
-#define r0 sh4_r0
-#define r1 sh4_r1
-#define r2 sh4_r2
-#define r3 sh4_r10
-#define r4 sh4_r4
-#define r5 sh4_r5
-#define r6 sh4_r6
-#define r7 sh4_r7
-#define r8 "should be cp"
-#define r9 sh4_r9
-#define ip sh4_r11
-#define lr pr
-#define pc "to be checked"
-#define r10 "should be roots"
-#define r11 "Unexpected"
-#define r12 "Unexpected"
-#define r13 "Unexpected"
-#define r14 "Unexpected"
-#define r15 "Unexpected"
 
 
 MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
