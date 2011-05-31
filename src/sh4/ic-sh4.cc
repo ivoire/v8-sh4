@@ -56,16 +56,7 @@ namespace internal {
 // in ic-arm.cc
 // If this latter file is updated, please also update this one.
 //
-#define r0 sh4_r0
-#define r1 sh4_r1
-#define r2 sh4_r2
-#define r3 sh4_r10
-#define r4 sh4_r4
-#define r5 sh4_r5
-#define r6 sh4_r6
-#define r7 sh4_r7
 #define r8 "should be cp"
-#define r9 sh4_r9
 #define ip sh4_r11
 #define lr pr
 #define pc "to be checked"
@@ -661,9 +652,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
   // Invoke the function.
   ParameterCount actual(argc);
-  // r5 for SH4: mandatory
-  __ mov(sh4_r5, r1);
-  __ InvokeFunction(sh4_r5, actual, JUMP_FUNCTION);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
 }
 
 
@@ -742,9 +731,7 @@ static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
 
   // Invoke the function.
   ParameterCount actual(argc);
-  // r5 for SH4: mandatory
-  __ mov(sh4_r5, r1);
-  __ InvokeFunction(sh4_r5, actual, JUMP_FUNCTION);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
 }
 
 

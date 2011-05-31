@@ -47,7 +47,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
                                              Label* miss) {
-  ASSERT(!result.is(r3) && !scratch.is(r3));
+  ASSERT(!result.is(r11) && !scratch.is(r11));
 
   RECORD_LINE();
   // Check that the receiver isn't a smi.
@@ -72,8 +72,8 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // If the prototype or initial map is the hole, don't return it and
   // simply miss the cache instead. This will allow us to allocate a
   // prototype object on-demand in the runtime system.
-  LoadRoot(r3, Heap::kTheHoleValueRootIndex);
-  cmpeq(result, r3);
+  LoadRoot(r11, Heap::kTheHoleValueRootIndex);
+  cmpeq(result, r11);
   bt(miss);
   
   RECORD_LINE();
@@ -126,15 +126,14 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   STATIC_ASSERT(kSmiTag == 0);
   RECORD_LINE();
   Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
-  lsl(r3, hash, Immediate(kSmiTagSize));
-  mov(index, r3);
+  lsl(index, hash, Immediate(kSmiTagSize));
 }
 
 
 void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode) {
   RECORD_LINE();
-  mov(r3, Operand(target, rmode));
-  jmp(r3);
+  mov(r11, Operand(target, rmode));
+  jmp(r11);
 }
 
 void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
@@ -160,8 +159,8 @@ void MacroAssembler::Call(
   //positions_recorder()->WriteRecordedPositions();
 
   RECORD_LINE();
-  mov(r3, Operand(target, rmode));
-  jsr(r3);
+  mov(r11, Operand(target, rmode));
+  jsr(r11);
 
   ASSERT(kCallTargetAddressOffset == 8 * kInstrSize);
 
@@ -266,19 +265,19 @@ void MacroAssembler::UnimplementedBreak(const char *file, int line) {
 }
 
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
-  // r4-r7: must be preserved
+  // r0-r3: must be preserved
   RECORD_LINE();
   Push(pr, fp, cp);
-  mov(r3, Immediate(Smi::FromInt(type)));
-  push(r3);
-  mov(r3, Operand(CodeObject()));
-  push(r3);
+  mov(r11, Immediate(Smi::FromInt(type)));
+  push(r11);
+  mov(r11, Operand(CodeObject()));
+  push(r11);
   add(fp, sp, Immediate(3 * kPointerSize));  // Adjust FP to point to saved FP.
 }
 
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
-  // r4, r5, r6: must be preserved
+  // r0, r1, r2: must be preserved
 
   // Drop the execution stack down to the frame pointer and restore
   // the caller frame pointer and return address.
@@ -395,17 +394,17 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // Check whether the expected and actual arguments count match. If not,
   // setup registers according to contract with ArgumentsAdaptorTrampoline:
   // ARM -> SH4
-  //  r0 -> r4: actual arguments count
-  //  r1 -> r5: function (passed through to callee)
-  //  r2 -> r6: expected arguments count
-  //  r3 -> r7: callee code entry
+  //  r0: actual arguments count
+  //  r1: function (passed through to callee)
+  //  r2: expected arguments count
+  //  r3: callee code entry
 
   // The code below is made a lot easier because the calling code already sets
   // up actual and expected registers according to the contract if values are
   // passed in registers.
-  ASSERT(actual.is_immediate() || actual.reg().is(r4));
-  ASSERT(expected.is_immediate() || expected.reg().is(r6));
-  ASSERT((!code_constant.is_null() && code_reg.is(no_reg)) || code_reg.is(r7));
+  ASSERT(actual.is_immediate() || actual.reg().is(r0));
+  ASSERT(expected.is_immediate() || expected.reg().is(r2));
+  ASSERT((!code_constant.is_null() && code_reg.is(no_reg)) || code_reg.is(r3));
 
   RECORD_LINE();
   if (expected.is_immediate()) {
@@ -413,7 +412,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     if (expected.immediate() == actual.immediate()) {
       definitely_matches = true;
     } else {
-      mov(r4, Immediate(actual.immediate()));
+      mov(r0, Immediate(actual.immediate()));
       const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
       if (expected.immediate() == sentinel) {
         // Don't worry about adapting arguments for builtins that
@@ -422,7 +421,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         // arguments.
         definitely_matches = true;
       } else {
-        mov(r6, Immediate(expected.immediate()));
+        mov(r2, Immediate(expected.immediate()));
       }
     }
   }
@@ -440,8 +439,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   RECORD_LINE();
   if (!definitely_matches) {
     if (!code_constant.is_null()) {
-      mov(r7, Operand(code_constant));
-      add(r7, r7, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      mov(r3, Operand(code_constant));
+      add(r3, r3, Immediate(Code::kHeaderSize - kHeapObjectTag));
     }
     Handle<Code> adaptor =
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -464,9 +463,9 @@ void MacroAssembler::InvokeCode(Register code,
                                 InvokeFlag flag,
                                 CallWrapper* call_wrapper) {
   Label done;
-  // r5: must hold function pointer
-  // actual: must be r4 if register
-  ASSERT(actual.is_immediate() || actual.reg().is(r4));
+  // r1: must hold function pointer
+  // actual: must be r0 if register
+  ASSERT(actual.is_immediate() || actual.reg().is(r0));
 
   RECORD_LINE();
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
@@ -491,23 +490,23 @@ void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     CallWrapper* call_wrapper) {
-  // Contract with called JS functions requires that function is passed in r5.
-  // Also enforce that actual is passed in r4 if not immediate
-  ASSERT(fun.is(r5));
-  ASSERT(actual.is_immediate() || actual.reg().is(r4));
+  // Contract with called JS functions requires that function is passed in r1.
+  // Also enforce that actual is passed in r0 if not immediate
+  ASSERT(fun.is(r1));
+  ASSERT(actual.is_immediate() || actual.reg().is(r0));
 
-  Register expected_reg = r6;
-  Register code_reg = r7;
+  Register expected_reg = r2;
+  Register code_reg = r3;
 
   RECORD_LINE();
-  ldr(code_reg, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
-  ldr(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
+  ldr(code_reg, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
   ldr(expected_reg,
       FieldMemOperand(code_reg,
                       SharedFunctionInfo::kFormalParameterCountOffset));
   asr(expected_reg, expected_reg, Immediate(kSmiTagSize));
   ldr(code_reg,
-      FieldMemOperand(r5, JSFunction::kCodeEntryOffset));
+      FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
   InvokeCode(code_reg, expected, actual, flag, call_wrapper);
@@ -610,7 +609,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     RECORD_LINE();
     UNIMPLEMENTED_BREAK();
   } else {
-    // Must preserve r4-r8, r0-r2 are available.
+    // Must preserve r0-r4, r5-r7 are available.
     ASSERT(try_location == IN_JS_ENTRY);
     RECORD_LINE();
     // The frame pointer does not point to a JS frame so we save NULL
@@ -623,13 +622,12 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     push(Immediate(0)); // Null FP
     push(Immediate(StackHandler::ENTRY));
     // Save the current handler as the next handler.
-    mov(r0, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
-    mov(r1, MemOperand(r0));
+    mov(r7, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+    mov(r6, MemOperand(r7));
     ASSERT(StackHandlerConstants::kNextOffset == 0);
-    push(r1);
-
+    push(r6);
     // Link this handler as the new current one.
-    mov(MemOperand(r0), sp);
+    str(sp, MemOperand(r7));
   }
 }
 
@@ -647,12 +645,12 @@ void MacroAssembler::Throw(Register value) {
   RECORD_LINE();
   // Drop the sp to the top of the handler.
   mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
-  mov(sp, MemOperand(r3));
+  ldr(sp, MemOperand(r3));
 
   // Restore the next handler and frame pointer, discard handler state.
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(r2);
-  mov(MemOperand(r3), r2);
+  str(r2, MemOperand(r3));
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
   pop(r3);
   pop(fp);
@@ -661,8 +659,7 @@ void MacroAssembler::Throw(Register value) {
   // not NULL.  The frame pointer is NULL in the exception handler of a
   // JS entry frame.
   Label restore, restore_end;
-  mov(r3, Immediate(0));
-  cmpeq(fp, r3);
+  cmpeq(fp, Immediate(0));
   bf(&restore);
   RECORD_LINE();
   // Set cp to NULL if fp is NULL.
@@ -671,7 +668,7 @@ void MacroAssembler::Throw(Register value) {
   bind(&restore);
   RECORD_LINE();
   // Restore cp otherwise.
-  mov(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   bind(&restore_end);
   RECORD_LINE();
   STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
@@ -694,7 +691,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   RECORD_LINE();
   // Drop sp to the top stack handler.
   mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
-  mov(sp, MemOperand(r3));
+  ldr(sp, MemOperand(r3));
 
   // Unwind the handlers until the ENTRY handler is found.
   Label loop, done;
@@ -702,8 +699,8 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   RECORD_LINE();
   // Load the type of the current stack handler.
   const int kStateOffset = StackHandlerConstants::kStateOffset;
-  mov(r3, MemOperand(sp, kStateOffset));
-  mov(r2, Operand(StackHandler::ENTRY));
+  ldr(r2, MemOperand(sp, kStateOffset));
+  mov(r3, Operand(StackHandler::ENTRY));
   cmpeq(r2, r3);
   bt(&done);
   RECORD_LINE();
@@ -716,9 +713,9 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
 
   // Set the top handler address to next handler past the current ENTRY handler.
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
   pop(r2);
-  mov(MemOperand(r3), r2);
+  mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  str(r2, MemOperand(r3));
 
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
@@ -726,15 +723,15 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
         Isolate::k_external_caught_exception_address, isolate());
     RECORD_LINE();
     mov(r0, Immediate(false));
-    mov(r3, Operand(external_caught));
-    mov(MemOperand(r0), r3);
+    mov(r2, Operand(external_caught));
+    str(r2, MemOperand(r0));
 
     // Set pending exception and r0 to out of memory exception.
     Failure* out_of_memory = Failure::OutOfMemoryException();
     mov(r0, Immediate(reinterpret_cast<int32_t>(out_of_memory)));
-    mov(r3, Operand(ExternalReference(Isolate::k_pending_exception_address,
+    mov(r2, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                       isolate())));
-    mov(MemOperand(r3), r0);
+    str(r0, MemOperand(r2));
   }
 
   // Stack layout at this point. See also StackHandlerConstants.
@@ -745,14 +742,13 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   RECORD_LINE();
   // Discard handler state (r3 is not used) and restore frame pointer.
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  pop(r3);
+  pop(r2);
   pop(fp);
   // Before returning we restore the context from the frame pointer if
   // not NULL.  The frame pointer is NULL in the exception handler of a
   // JS entry frame.
   Label restore, restore_end;
-  mov(r3, Immediate(0));
-  cmpeq(fp, r3);
+  cmpeq(fp, Immediate(0));
   bf(&restore);
   RECORD_LINE();
   // Set cp to NULL if fp is NULL.
@@ -761,7 +757,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   bind(&restore);
   RECORD_LINE();
   // Restore cp otherwise.
-  mov(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   bind(&restore_end);
   RECORD_LINE();
   STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
@@ -779,51 +775,53 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeJSFlags flags,
                                    CallWrapper* call_wrapper) {
   RECORD_LINE();
-  GetBuiltinEntry(r6, id);
+  GetBuiltinEntry(r2, id);
   if (flags == CALL_JS) {
     RECORD_LINE();
     if (call_wrapper != NULL) call_wrapper->BeforeCall(2 * kInstrSize);
-    jsr(r6);
+    jsr(r2);
     if (call_wrapper != NULL) call_wrapper->AfterCall();
   } else {
     ASSERT(flags == JUMP_JS);
     RECORD_LINE();
-    jmp(r6);
+    jmp(r2);
   }
 }
 
 
 void MacroAssembler::GetBuiltinFunction(Register target,
                                         Builtins::JavaScript id) {
-  ASSERT(!target.is(r3));
+  ASSERT(!target.is(r11));
   RECORD_LINE();
   // Load the builtins object into target register.
-  mov(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  mov(target, FieldMemOperand(target, GlobalObject::kBuiltinsOffset));
+  ldr(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  ldr(target, FieldMemOperand(target, GlobalObject::kBuiltinsOffset));
   // Load the JavaScript builtin function from the builtins object.
-  mov(target, FieldMemOperand(target,
+  ldr(target, FieldMemOperand(target,
                           JSBuiltinsObject::OffsetOfFunctionWithId(id)));
 }
 
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  ASSERT(!target.is(r3));
+  //FIXME: why r1 ??
+  ASSERT(!target.is(r1));
   RECORD_LINE();
-  GetBuiltinFunction(target, id);
+  GetBuiltinFunction(r1, id);
   RECORD_LINE();
   // Load the code entry point from the builtins object.
-  mov(target, MemOperand(target, JSFunction::kCodeEntryOffset));
+  ldr(target, MemOperand(r1, JSFunction::kCodeEntryOffset));
 }
 
 
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
+  //FIXME: assert on rtmp ?
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
     mov(scratch1, Immediate(value));
     mov(scratch2, Operand(ExternalReference(counter)));
-    mov(MemOperand(scratch2), scratch1);
+    str(scratch1, MemOperand(scratch2));
   }
 }
 
@@ -837,7 +835,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
     mov(scratch2, Operand(ExternalReference(counter)));
     mov(scratch1, MemOperand(scratch2));
     add(scratch1, scratch1, Immediate(value));
-    mov(MemOperand(scratch2), scratch1);
+    str(scratch1, MemOperand(scratch2));
   }
 }
 
@@ -851,7 +849,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
     mov(scratch2, Operand(ExternalReference(counter)));
     mov(scratch1, MemOperand(scratch2));
     sub(scratch1, scratch1, Immediate(value));
-    mov(MemOperand(scratch2), scratch1);
+    str(scratch1, MemOperand(scratch2));
   }
 }
 
@@ -866,20 +864,19 @@ void MacroAssembler::Assert(const char* msg, bool value) {
 
 
 void MacroAssembler::AssertFastElements(Register elements) {
-  ASSERT(!elements.is(r3));
   RECORD_LINE();
   if (emit_debug_code()) {
-    ASSERT(!elements.is(r3));
+    ASSERT(!elements.is(r11));
     Label ok;
     RECORD_LINE();
     push(elements);
     mov(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
-    LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
-    cmpeq(elements, r3);
+    LoadRoot(r11, Heap::kFixedArrayMapRootIndex);
+    cmpeq(elements, r11);
     bt(&ok);
     RECORD_LINE();
-    LoadRoot(r3, Heap::kFixedCOWArrayMapRootIndex);
-    cmpeq(elements, r3);
+    LoadRoot(r11, Heap::kFixedCOWArrayMapRootIndex);
+    cmpeq(elements, r11);
     bt(&ok);
     RECORD_LINE();
     Abort("JSObject with fast elements map has slow elements");
@@ -973,9 +970,9 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
-  ASSERT(!result.is(r3));
-  ASSERT(!scratch1.is(r3));
-  ASSERT(!scratch2.is(r3));
+  ASSERT(!result.is(r11));
+  ASSERT(!scratch1.is(r11));
+  ASSERT(!scratch2.is(r11));
 
   // Make object size into bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
@@ -1009,19 +1006,19 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
     // Load allocation top into result and allocation limit into r3 (ARM:ip).
     // ARM code: ldm(ia, topaddr, result.bit() | ip.bit());
     mov(result, MemOperand(topaddr));
-    mov(r3, MemOperand(topaddr, 4));
+    mov(r11, MemOperand(topaddr, 4));
   } else {
     if (emit_debug_code()) {
       // Assert that result actually contains top on entry. ip is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
-      mov(r3, MemOperand(topaddr));
-      cmpeq(result, r3);
+      ldr(r11, MemOperand(topaddr));
+      cmpeq(result, r11);
       Check("Unexpected allocation top");
     }
     RECORD_LINE();
     // Load allocation limit into ip. Result already contains allocation top.
-    mov(r3, MemOperand(topaddr, limit - top));
+    ldr(r11, MemOperand(topaddr, limit - top));
   }
 
   RECORD_LINE();
@@ -1030,7 +1027,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   addv(scratch2, result, obj_size_reg);
   bt(gc_required);
   RECORD_LINE();
-  cmpgtu(scratch2, r3);
+  cmpgtu(scratch2, r11);
   bt(gc_required);
   RECORD_LINE();
   mov(MemOperand(topaddr), scratch2);
@@ -1076,9 +1073,9 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
-  ASSERT(!result.is(r3));
-  ASSERT(!scratch1.is(r3));
-  ASSERT(!scratch2.is(r3));
+  ASSERT(!result.is(r11));
+  ASSERT(!scratch1.is(r11));
+  ASSERT(!scratch2.is(r11));
 
   // Check relative positions of allocation top and limit addresses.
   // The values must be adjacent in memory to allow the use of LDM.
@@ -1110,7 +1107,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     // ARM code: ldm(ia, topaddr, result.bit() | ip.bit());
     // SH4 code {
     mov(result, MemOperand(topaddr));
-    mov(r3, MemOperand(topaddr, 4));
+    mov(r11, MemOperand(topaddr, 4));
     // }
   } else {
     if (emit_debug_code()) {
@@ -1124,8 +1121,8 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
       // Check(eq, "Unexpected allocation top");
       // }
       // SH4 code {
-      mov(r3, MemOperand(topaddr));
-      cmpeq(result, r3);
+      mov(r11, MemOperand(topaddr));
+      cmpeq(result, r11);
       Check("Unexpected allocation top");
       // }
     }
@@ -1133,7 +1130,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     // Load allocation limit into r3 (ARM: ip). Result already contains allocation top.
     // ARM code: ldr(ip, MemOperand(topaddr, limit - top));
     // SH4 code:
-    mov(r3, MemOperand(topaddr, limit - top));
+    mov(r11, MemOperand(topaddr, limit - top));
   }
 
   RECORD_LINE();
@@ -1162,7 +1159,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // SH4 code {
   bt(gc_required);
   RECORD_LINE();
-  cmpgtu(scratch2, r3);
+  cmpgtu(scratch2, r11);
   bt(gc_required);
   RECORD_LINE();
   // }
@@ -1293,12 +1290,12 @@ void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 int eq_0_ne_1,
                                 Label* branch) {
-  ASSERT(!scratch.is(r3));
+  ASSERT(!scratch.is(r11));
   ASSERT(eq_0_ne_1 == 0 || eq_0_ne_1 == 1);
   RECORD_LINE();
   land(scratch, object, Immediate(ExternalReference::new_space_mask(isolate())));
   mov(r3, Immediate(ExternalReference::new_space_start(isolate())));
-  cmpeq(scratch, r3);
+  cmpeq(scratch, r11);
   if (eq_0_ne_1 == 0) {
     RECORD_LINE();
     bt(branch);
@@ -1312,7 +1309,7 @@ void MacroAssembler::InNewSpace(Register object,
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register address,
                                        Register scratch) {
-  ASSERT(!scratch.is(r3));
+  ASSERT(!scratch.is(r11));
   RECORD_LINE();
   if (emit_debug_code()) {
     // Check that the object is not in new space.
@@ -1333,14 +1330,14 @@ void MacroAssembler::RecordWriteHelper(Register object,
 
   // Mark region dirty.
   mov(scratch, MemOperand(object, Page::kDirtyFlagOffset));
-  mov(r3, Immediate(1));
-  lsl(r3, r3, address);
-  lor(scratch, scratch, r3);
+  mov(r11, Immediate(1));
+  lsl(r11, r11, address);
+  lor(scratch, scratch, r11);
   mov(MemOperand(object, Page::kDirtyFlagOffset), scratch);
 }
 
 
-// Will clobber 4 registers: object, scratch0/1, r3 (ARM:ip).  The
+// Will clobber 4 registers: object, scratch0/1, r11 (ARM:ip).  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
@@ -1390,8 +1387,8 @@ void MacroAssembler::RecordWrite(Register object,
   // context register, so we check that none of the clobbered
   // registers are cp.
   ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
-  // Also check that the scratch are not r3 (super scratch).
-  ASSERT(!object.is(r3) && !scratch0.is(r3) && !scratch1.is(r3));
+  // Also check that the scratch are not r11 (super scratch).
+  ASSERT(!object.is(r11) && !scratch0.is(r11) && !scratch1.is(r11));
 
   Label done;
 
@@ -1418,7 +1415,7 @@ void MacroAssembler::RecordWrite(Register object,
 
 
 
-// Will clobber 4 registers: object, address, scratch, r3 (ARM:ip).  The
+// Will clobber 4 registers: object, address, scratch, r11 (ARM:ip).  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
@@ -1453,7 +1450,7 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-// Clobbers: r3, dst
+// Clobbers: r11, dst
 // live-in: cp
 // live-out: cp, dst
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
@@ -1483,8 +1480,8 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   // not CONTEXT.
   if (emit_debug_code()) {
     RECORD_LINE();
-    mov(r3, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-    cmpeq(dst, r3);
+    mov(r11, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+    cmpeq(dst, r11);
     Check("Yo dawg, I heard you liked function contexts "
 	  "so I put function contexts in all your contexts");
   }
@@ -1521,18 +1518,18 @@ void MacroAssembler::CompareInstanceType(Register map,
                                          Register type_reg,
                                          InstanceType type,
                                          Condition cond) {
-  ASSERT(!map.is(r3));
-  ASSERT(!type_reg.is(r3));
+  ASSERT(!map.is(r11));
+  ASSERT(!type_reg.is(r11));
   RECORD_LINE();
   ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  mov(r3, Immediate(type));
+  mov(r11, Immediate(type));
   switch(cond) {
   case eq:
     RECORD_LINE();
-    cmpeq(type_reg, r3); break;
+    cmpeq(type_reg, r11); break;
   case ge:
     RECORD_LINE();
-    cmpge(type_reg, r3); break;
+    cmpge(type_reg, r11); break;
   default:
     UNIMPLEMENTED_BREAK();
   }
@@ -1544,7 +1541,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
                               bool is_heap_object) {
-  ASSERT(!obj.is(r3));
+  ASSERT(!obj.is(r11));
   RECORD_LINE();
   if (!is_heap_object) {
     RECORD_LINE();
@@ -1552,8 +1549,8 @@ void MacroAssembler::CheckMap(Register obj,
   }
   RECORD_LINE();
   mov(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  mov(r3, Operand(map));
-  cmpeq(scratch, r3);
+  mov(r11, Operand(map));
+  cmpeq(scratch, r11);
   bf(fail);
   RECORD_LINE();
 
@@ -1565,7 +1562,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Heap::RootListIndex index,
                               Label* fail,
                               bool is_heap_object) {
-  ASSERT(!obj.is(r3));
+  ASSERT(!obj.is(r11));
   RECORD_LINE();
   if (!is_heap_object) {
     RECORD_LINE();
@@ -1573,8 +1570,8 @@ void MacroAssembler::CheckMap(Register obj,
   }
   RECORD_LINE();
   mov(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  LoadRoot(r3, index);
-  cmpeq(scratch, r3);
+  LoadRoot(r11, index);
+  cmpeq(scratch, r11);
   bf(fail);
   RECORD_LINE();
 }
