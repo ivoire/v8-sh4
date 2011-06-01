@@ -1672,7 +1672,114 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ CompareOperation");
+  SetSourcePosition(expr->position());
+
+  // Always perform the comparison for its control flow.  Pack the result
+  // into the expression's context after the comparison is performed.
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  // First we try a fast inlined version of the compare when one of
+  // the operands is a literal.
+  Token::Value op = expr->op();
+  Expression* left = expr->left();
+  Expression* right = expr->right();
+  if (TryLiteralCompare(op, left, right, if_true, if_false, fall_through)) {
+    context()->Plug(if_true, if_false);
+    return;
+  }
+
+  VisitForStackValue(expr->left());
+  switch (op) {
+    case Token::IN:
+      VisitForStackValue(expr->right());
+      __ InvokeBuiltin(Builtins::IN, CALL_JS);
+      PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
+      __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+      __ cmp(r0, ip);
+      Split(eq, if_true, if_false, fall_through);
+      break;
+
+    case Token::INSTANCEOF: {
+      VisitForStackValue(expr->right());
+      InstanceofStub stub(InstanceofStub::kNoFlags);
+      __ CallStub(&stub);
+      PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+      // The stub returns 0 for true.
+      __ tst(r0, r0);
+      Split(eq, if_true, if_false, fall_through);
+      break;
+    }
+
+    default: {
+      VisitForAccumulatorValue(expr->right());
+      Condition cond = eq;
+      bool strict = false;
+      switch (op) {
+        case Token::EQ_STRICT:
+          strict = true;
+          // Fall through
+        case Token::EQ:
+          cond = eq;
+          __ pop(r1);
+          break;
+        case Token::LT:
+          cond = lt;
+          __ pop(r1);
+          break;
+        case Token::GT:
+          // Reverse left and right sides to obtain ECMA-262 conversion order.
+          cond = lt;
+          __ mov(r1, result_register());
+          __ pop(r0);
+         break;
+        case Token::LTE:
+          // Reverse left and right sides to obtain ECMA-262 conversion order.
+          cond = ge;
+          __ mov(r1, result_register());
+          __ pop(r0);
+          break;
+        case Token::GTE:
+          cond = ge;
+          __ pop(r1);
+          break;
+        case Token::IN:
+        case Token::INSTANCEOF:
+        default:
+          UNREACHABLE();
+      }
+
+      bool inline_smi_code = ShouldInlineSmiCase(op);
+      JumpPatchSite patch_site(masm_);
+      if (inline_smi_code) {
+        Label slow_case;
+        __ lor(r2, r0, r1);
+        patch_site.EmitJumpIfNotSmi(r2, &slow_case);
+        __ cmp(r1, r0);
+        Split(cond, if_true, if_false, NULL);
+        __ bind(&slow_case);
+      }
+
+      // Record position and call the compare IC.
+      SetSourcePosition(expr->position());
+      Handle<Code> ic = CompareIC::GetUninitialized(op);
+      EmitCallIC(ic, &patch_site);
+      PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+      __ cmp(r0, Immediate(0));
+      Split(cond, if_true, if_false, fall_through);
+    }
+  }
+
+  // Convert the result of the comparison into one expected for this
+  // expression's context.
+  context()->Plug(if_true, if_false);
+
 }
 
 
@@ -1722,6 +1829,83 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     // This expression cannot throw a reference error at the top level.
     context()->HandleExpression(expr);
   }
+}
+
+
+bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
+                                          Expression* left,
+                                          Expression* right,
+                                          Label* if_true,
+                                          Label* if_false,
+                                          Label* fall_through) {
+  if (op != Token::EQ && op != Token::EQ_STRICT) return false;
+
+  // Check for the pattern: typeof <expression> == <string literal>.
+  Literal* right_literal = right->AsLiteral();
+  if (right_literal == NULL) return false;
+  Handle<Object> right_literal_value = right_literal->handle();
+  if (!right_literal_value->IsString()) return false;
+  UnaryOperation* left_unary = left->AsUnaryOperation();
+  if (left_unary == NULL || left_unary->op() != Token::TYPEOF) return false;
+  Handle<String> check = Handle<String>::cast(right_literal_value);
+
+  { AccumulatorValueContext context(this);
+    VisitForTypeofValue(left_unary->expression());
+  }
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+
+  if (check->Equals(isolate()->heap()->number_symbol())) {
+    __ JumpIfSmi(r0, if_true);
+    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r0, ip);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (check->Equals(isolate()->heap()->string_symbol())) {
+    __ JumpIfSmi(r0, if_false);
+    // Check for undetectable objects => false.
+    __ CompareObjectType(r0, r0, r1, FIRST_NONSTRING_TYPE);
+    __ b(ge, if_false);
+    __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
+    __ tst(r1, Immediate(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, fall_through);
+  } else if (check->Equals(isolate()->heap()->boolean_symbol())) {
+    __ CompareRoot(r0, Heap::kTrueValueRootIndex);
+    __ b(eq, if_true);
+    __ CompareRoot(r0, Heap::kFalseValueRootIndex);
+    Split(eq, if_true, if_false, fall_through);
+  } else if (check->Equals(isolate()->heap()->undefined_symbol())) {
+    __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
+    __ b(eq, if_true);
+    __ JumpIfSmi(r0, if_false);
+    // Check for undetectable objects => true.
+    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
+    __ tst(r1, Immediate(1 << Map::kIsUndetectable));
+    Split(ne, if_true, if_false, fall_through);
+
+  } else if (check->Equals(isolate()->heap()->function_symbol())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r1, r0, FIRST_FUNCTION_CLASS_TYPE);
+    Split(ge, if_true, if_false, fall_through);
+
+  } else if (check->Equals(isolate()->heap()->object_symbol())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareRoot(r0, Heap::kNullValueRootIndex);
+    __ b(eq, if_true);
+    // Check for JS objects => true.
+    __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE, hs);
+    __ bf(if_false);
+    __ CompareInstanceType(r0, r1, FIRST_FUNCTION_CLASS_TYPE, hs);
+    __ bt(if_false);
+    // Check for undetectable objects => false.
+    __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
+    __ tst(r1, Immediate(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, fall_through);
+  } else {
+    if (if_false != fall_through) __ jmp(if_false);
+  }
+
+  return true;
 }
 
 

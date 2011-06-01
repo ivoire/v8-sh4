@@ -1608,6 +1608,17 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
+
+void MacroAssembler::CallExternalReference(const ExternalReference& ext,
+                                           int num_arguments) {
+  mov(r0, Operand(num_arguments));
+  mov(r1, Operand(ext));
+
+  CEntryStub stub(1);
+  CallStub(&stub);
+}
+
+
 void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
                                                int num_arguments,
                                                int result_size) {
@@ -1619,6 +1630,7 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   mov(r0, Immediate(num_arguments));
   JumpToExternalReference(ext);
 }
+
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
                                      int num_arguments,
@@ -1998,13 +2010,24 @@ void MacroAssembler::CompareInstanceType(Register map,
   switch(cond) {
   case eq:
     RECORD_LINE();
-    cmpeq(type_reg, r11); break;
+    cmpeq(type_reg, Immediate(type)); break;
   case ge:
     RECORD_LINE();
-    cmpge(type_reg, r11); break;
+    cmpge(type_reg, Immediate(type)); break;
+  case hs:
+    RECORD_LINE();
+    cmphs(type_reg, Immediate(type)); break;
   default:
-    UNIMPLEMENTED_BREAK();
+    UNIMPLEMENTED();
   }
+}
+
+
+void MacroAssembler::CompareRoot(Register obj,
+                                 Heap::RootListIndex index) {
+  ASSERT(!obj.is(r11));
+  LoadRoot(r11, index);
+  cmpeq(obj, r11);
 }
 
 

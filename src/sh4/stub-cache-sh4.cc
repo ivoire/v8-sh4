@@ -523,17 +523,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
-
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
-
-void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
