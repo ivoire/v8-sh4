@@ -26,7 +26,7 @@ List of Call Stubs, stubs are called through the CallStub() call but are generat
 - ToNumberStub, GenericUnaryOpStub:
   - Entry: r0 (result_register())
   - Exit: r0 (result_register())
-- StringAddStub, NumberToStringStub
+- StringAddStub, NumberToStringStub, SubStringStub, StringCompareStub:
   - Entry: args on stack
   - Exit: r0
 

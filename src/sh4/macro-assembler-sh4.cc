@@ -114,6 +114,113 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
 }
 
 
+// Tries to get a signed int32 out of a double precision floating point heap
+// number. Rounds towards 0. Branch to 'not_int32' if the double is out of the
+// 32bits signed integer range.
+void MacroAssembler::ConvertToInt32(Register source,
+                                    Register dest,
+                                    Register scratch,
+                                    Register scratch2,
+                                    Register double_scratch,
+                                    Label *not_int32) {
+  // TODO: SH4, check VFP code
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  //   CpuFeatures::Scope scope(VFP3);
+  //   sub(scratch, source, Operand(kHeapObjectTag));
+  //   vldr(double_scratch, scratch, HeapNumber::kValueOffset);
+  //   vcvt_s32_f64(double_scratch.low(), double_scratch);
+  //   vmov(dest, double_scratch.low());
+  //   // Signed vcvt instruction will saturate to the minimum (0x80000000) or
+  //   // maximun (0x7fffffff) signed 32bits integer when the double is out of
+  //   // range. When substracting one, the minimum signed integer becomes the
+  //   // maximun signed integer.
+  //   sub(scratch, dest, Operand(1));
+  //   cmp(scratch, Operand(LONG_MAX - 1));
+  //   // If equal then dest was LONG_MAX, if greater dest was LONG_MIN.
+  //   b(ge, not_int32);
+  // } else 
+  {
+    // This code is faster for doubles that are in the ranges -0x7fffffff to
+    // -0x40000000 or 0x40000000 to 0x7fffffff. This corresponds almost to
+    // the range of signed int32 values that are not Smis.  Jumps to the label
+    // 'not_int32' if the double isn't in the range -0x80000000.0 to
+    // 0x80000000.0 (excluding the endpoints).
+    Label right_exponent, done;
+    // Get exponent word.
+    ldr(scratch, FieldMemOperand(source, HeapNumber::kExponentOffset));
+    // Get exponent alone in scratch2.
+    Ubfx(scratch2,
+         scratch,
+         HeapNumber::kExponentShift,
+         HeapNumber::kExponentBits);
+    // Load dest with zero.  We use this either for the final shift or
+    // for the answer.
+    mov(dest, Immediate(0));
+    // Check whether the exponent matches a 32 bit signed int that is not a Smi.
+    // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased). This is
+    // the exponent that we are fastest at and also the highest exponent we can
+    // handle here.
+    const uint32_t non_smi_exponent = HeapNumber::kExponentBias + 30;
+    // The non_smi_exponent, 0x41d, is too big for ARM's immediate field so we
+    // split it up to avoid a constant pool entry.  You can't do that in general
+    // for cmp because of the overflow flag, but we know the exponent is in the
+    // range 0-2047 so there is no overflow.
+    int fudge_factor = 0x400;
+    sub(scratch2, scratch2, Immediate(fudge_factor));
+    cmpeq(scratch2, Immediate(non_smi_exponent - fudge_factor));
+    // If we have a match of the int32-but-not-Smi exponent then skip some
+    // logic.
+    bt(&right_exponent);
+    // If the exponent is higher than that then go to slow case.  This catches
+    // numbers that don't fit in a signed int32, infinities and NaNs.
+    cmpgt(scratch2, Immediate(non_smi_exponent - fudge_factor));
+    bt(not_int32);
+
+    // We know the exponent is smaller than 30 (biased).  If it is less than
+    // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+    // it rounds to zero.
+    const uint32_t zero_exponent = HeapNumber::kExponentBias + 0;
+    sub(scratch2, scratch2, Immediate(zero_exponent - fudge_factor));
+    cmpge(scratch2, Immediate(0));
+    // Dest already has a Smi zero.
+    bf(&done);
+
+    // We have an exponent between 0 and 30 in scratch2.  Subtract from 30 to
+    // get how much to shift down.
+    rsb(dest, scratch2, Immediate(30));
+
+    bind(&right_exponent);
+    // Get the top bits of the mantissa.
+    land(scratch2, scratch, Immediate(HeapNumber::kMantissaMask));
+    // Put back the implicit 1.
+    lor(scratch2, scratch2, Immediate(1 << HeapNumber::kExponentShift));
+    // Shift up the mantissa bits to take up the space the exponent used to
+    // take. We just orred in the implicit bit so that took care of one and
+    // we want to leave the sign bit 0 so we subtract 2 bits from the shift
+    // distance.
+    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
+    lsl(scratch2, scratch2, Immediate(shift_distance));
+    // Put sign in zero flag.
+    tst(scratch, Immediate(HeapNumber::kSignMask));
+    // Get the second half of the double. For some exponents we don't
+    // actually need this because the bits get shifted out again, but
+    // it's probably slower to test than just to do it.
+    ldr(scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
+    // Shift down 22 bits to get the last 10 bits.
+    lsr(scratch, scratch, Immediate(32 - shift_distance));
+    lor(scratch, scratch2, scratch);
+    // Move down according to the exponent.
+    ldr(scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
+    lsr(dest, scratch, dest);
+    // Fix sign if sign bit was set.
+    Label skip;
+    b(eq, &skip);
+    rsb(dest, dest, Immediate(0));
+    bind(&done);
+  }
+}
+
+
 void MacroAssembler::IndexFromHash(Register hash, Register index) {
   // If the hash field contains an array index pick it out. The assert checks
   // that the constants for the maximum number of digits for an array index
@@ -778,6 +885,51 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 }
 
 
+void MacroAssembler::Ldrd(Register dst1, Register dst2,
+                          const MemOperand& src) {
+  ASSERT(src.rm().is(no_reg));
+  ASSERT_EQ(0, dst1.code() % 2);
+  ASSERT_EQ(dst1.code() + 1, dst2.code());
+
+  // Generate two ldr instructions if ldrd is not available.
+  //  if (CpuFeatures::IsSupported(ARMv7)) {
+  //    CpuFeatures::Scope scope(ARMv7);
+  //    ldrd(dst1, dst2, src, cond);
+  //  } else
+  {
+    MemOperand src2(src);
+    src2.set_offset(src2.offset() + 4);
+    if (dst1.is(src.rn())) {
+      ldr(dst2, src2);
+      ldr(dst1, src);
+    } else {
+      ldr(dst1, src);
+      ldr(dst2, src2);
+    }
+  }
+}
+
+
+void MacroAssembler::Strd(Register src1, Register src2,
+                          const MemOperand& dst) {
+  ASSERT(dst.rm().is(no_reg));
+  ASSERT_EQ(0, src1.code() % 2);
+  ASSERT_EQ(src1.code() + 1, src2.code());
+
+  // Generate two str instructions if strd is not available.
+  //  if (CpuFeatures::IsSupported(ARMv7)) {
+  //    CpuFeatures::Scope scope(ARMv7);
+  //    strd(src1, src2, dst, cond);
+  //  } else
+  {
+    MemOperand dst2(dst);
+    dst2.set_offset(dst2.offset() + 4);
+    str(src1, dst);
+    str(src2, dst2);
+  }
+}
+
+
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeJSFlags flags,
                                    CallWrapper* call_wrapper) {
@@ -876,6 +1028,17 @@ void MacroAssembler::Assert(Condition cond, const char* msg) {
 }
 
 
+void MacroAssembler::AssertRegisterIsRoot(Register reg,
+                                          Heap::RootListIndex index) {
+  ASSERT(!reg.is(r3));
+  if (emit_debug_code()) {
+    LoadRoot(r3, index);
+    cmp(reg, r3);
+    Check(eq, "Register did not match expected root");
+  }
+}
+
+
 void MacroAssembler::AssertFastElements(Register elements) {
   RECORD_LINE();
   if (emit_debug_code()) {
@@ -900,7 +1063,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
 }
 
 
-void MacroAssembler::Check(const char* msg, bool value) {
+void MacroAssembler::Check(Condition cond, const char* msg) {
   Label L;
   RECORD_LINE();
   b(cond, &L);
@@ -962,27 +1125,33 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
-      mov(result, Operand(0x7091));
-      mov(scratch1, Operand(0x7191));
-      mov(scratch2, Operand(0x7291));
+      // ARM code {
+      // mov(result, Immediate(0x7091));
+      // mov(scratch1, Immediate(0x7191));
+      // mov(scratch2, Immediate(0x7291));
+      // }
+      // SH4 code {
+      RECORD_LINE();
+      mov(result, Immediate(0x7091));
+      mov(scratch1, Immediate(0x7191));
+      mov(scratch2, Immediate(0x7291));
+      // }
     }
+    // ARM code: jmp(gc_required);
+    // SH4 code:
     RECORD_LINE();
     jmp(gc_required);
     return;
   }
 
+  // Assert that the register arguments are different and that none of
+  // them are ip. ip is used explicitly in the code generated below.
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
   ASSERT(!result.is(r11));
   ASSERT(!scratch1.is(r11));
   ASSERT(!scratch2.is(r11));
-
-  // Make object size into bytes.
-  if ((flags & SIZE_IN_WORDS) != 0) {
-    object_size *= kPointerSize;
-  }
-  ASSERT_EQ(0, object_size & kObjectAlignmentMask);
 
   // Check relative positions of allocation top and limit addresses.
   // The values must be adjacent in memory to allow the use of LDM.
@@ -992,52 +1161,95 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
       ExternalReference::new_space_allocation_top_address(isolate());
   ExternalReference new_space_allocation_limit =
       ExternalReference::new_space_allocation_limit_address(isolate());
-  intptr_t top   =
+  intptr_t top =
       reinterpret_cast<intptr_t>(new_space_allocation_top.address());
   intptr_t limit =
       reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
   ASSERT((limit - top) == kPointerSize);
 
-  // Set up allocation top address and object size registers.
+  // Set up allocation top address.
   Register topaddr = scratch1;
   Register obj_size_reg = scratch2;
-  mov(topaddr, Operand(new_space_allocation_top));
+
+  RECORD_LINE();
+  // ARM code: {
+  //  mov(topaddr, Operand(new_space_allocation_top));
+  //  mov(obj_size_reg, Operand(object_size));
+  // }
+  // SH4 code:
+  mov(topaddr, Immediate(new_space_allocation_top));
   mov(obj_size_reg, Immediate(object_size));
 
-  // This code stores a temporary value in ip. This is OK, as the code below
-  // does not need ip for implicit literal generation.
+  // This code stores a temporary value in r11 (ARM:ip). This is OK, as the code below
+  // does not need r11 (ARM:ip) for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    // Load allocation top into result and allocation limit into r3 (ARM:ip).
+    RECORD_LINE();
+    // Load allocation top into result and allocation limit into r11 (ARM:ip).
     // ARM code: ldm(ia, topaddr, result.bit() | ip.bit());
+    // SH4 code {
     mov(result, MemOperand(topaddr));
     mov(r11, MemOperand(topaddr, 4));
+    // }
   } else {
     if (emit_debug_code()) {
-      // Assert that result actually contains top on entry. ip is used
+      RECORD_LINE();
+      // Assert that result actually contains top on entry. r11 (ARM:ip) is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
-      ldr(r11, MemOperand(topaddr));
-      cmpeq(result, r11);
-      Check("Unexpected allocation top");
+      // ARM code {
+      // ldr(ip, MemOperand(topaddr));
+      // cmp(result, ip);
+      // Check(eq, "Unexpected allocation top");
+      // }
+      // SH4 code {
+      mov(r11, MemOperand(topaddr));
+      cmp(result, r11);
+      Check(eq, "Unexpected allocation top");
+      // }
     }
     RECORD_LINE();
-    // Load allocation limit into ip. Result already contains allocation top.
-    ldr(r11, MemOperand(topaddr, limit - top));
+    // Load allocation limit into r11 (ARM: ip). Result already contains allocation top.
+    // ARM code: ldr(ip, MemOperand(topaddr, limit - top));
+    // SH4 code:
+    mov(r11, MemOperand(topaddr, limit - top));
   }
 
   RECORD_LINE();
   // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top.
+  // to calculate the new top. 
+  // ARM code {
+  // add(scratch2, result, Operand(object_size), SetCC);
+  // b(cs, gc_required);
+  // cmp(scratch2, Operand(ip));
+  // b(hi, gc_required);
+  // }
+  // SH4 code {
   addv(scratch2, result, obj_size_reg);
   bt(gc_required);
   RECORD_LINE();
   cmpgtu(scratch2, r11);
   bt(gc_required);
   RECORD_LINE();
+  // }
+
+  // Update allocation top. result temporarily holds the new top.
+  if (emit_debug_code()) {
+    // ARM code {
+    // tst(scratch2, Operand(kObjectAlignmentMask));
+    // Check(eq, "Unaligned allocation in new space");
+    // }
+    RECORD_LINE();
+    tst(scratch2, Immediate(kObjectAlignmentMask));
+    Check(eq, "Unaligned allocation in new space");
+  }
+  // ARM code: str(scratch2, MemOperand(topaddr));
+  // SH4 code:
+  RECORD_LINE();
   mov(MemOperand(topaddr), scratch2);
 
   // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
+    RECORD_LINE();
     add(result, result, Immediate(kHeapObjectTag));
   }
 }
@@ -1103,11 +1315,11 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // SH4 code:
   mov(topaddr, Operand(new_space_allocation_top));
 
-  // This code stores a temporary value in r3 (ARM:ip). This is OK, as the code below
-  // does not need r3 (ARM:ip) for implicit literal generation.
+  // This code stores a temporary value in r11 (ARM:ip). This is OK, as the code below
+  // does not need r11 (ARM:ip) for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     RECORD_LINE();
-    // Load allocation top into result and allocation limit into r3 (ARM:ip).
+    // Load allocation top into result and allocation limit into r11 (ARM:ip).
     // ARM code: ldm(ia, topaddr, result.bit() | ip.bit());
     // SH4 code {
     mov(result, MemOperand(topaddr));
@@ -1116,22 +1328,22 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   } else {
     if (emit_debug_code()) {
       RECORD_LINE();
-      // Assert that result actually contains top on entry. r3 (ARM:ip) is used
+      // Assert that result actually contains top on entry. r11 (ARM:ip) is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
       // ARM code {
       // ldr(ip, MemOperand(topaddr));
-      // cmp(result, r3);
+      // cmp(result, ip);
       // Check(eq, "Unexpected allocation top");
       // }
       // SH4 code {
       mov(r11, MemOperand(topaddr));
       cmpeq(result, r11);
-      Check("Unexpected allocation top");
+      Check(eq, "Unexpected allocation top");
       // }
     }
     RECORD_LINE();
-    // Load allocation limit into r3 (ARM: ip). Result already contains allocation top.
+    // Load allocation limit into r11 (ARM: ip). Result already contains allocation top.
     // ARM code: ldr(ip, MemOperand(topaddr, limit - top));
     // SH4 code:
     mov(r11, MemOperand(topaddr, limit - top));
@@ -1176,7 +1388,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     // }
     RECORD_LINE();
     tst(scratch2, Immediate(kObjectAlignmentMask));
-    Check("Unaligned allocation in new space");
+    Check(eq, "Unaligned allocation in new space");
   }
   // ARM code: str(scratch2, MemOperand(topaddr));
   // SH4 code:
@@ -1188,6 +1400,158 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     RECORD_LINE();
     add(result, result, Immediate(kHeapObjectTag));
   }
+}
+
+ 
+void MacroAssembler::InitializeNewString(Register string,
+                                         Register length,
+                                         Heap::RootListIndex map_index,
+                                         Register scratch1,
+                                         Register scratch2) {
+  RECORD_LINE();
+  lsl(scratch1, length, Immediate(kSmiTagSize));
+  LoadRoot(scratch2, map_index);
+  str(scratch1, FieldMemOperand(string, String::kLengthOffset));
+  mov(scratch1, Operand(String::kEmptyHashField));
+  str(scratch2, FieldMemOperand(string, HeapObject::kMapOffset));
+  str(scratch1, FieldMemOperand(string, String::kHashFieldOffset));
+}
+
+
+  // Allocate a sequential string. All the header fields of the string object
+  // are initialized.
+void MacroAssembler::AllocateTwoByteString(Register result,
+                                           Register length,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Register scratch3,
+                                           Label* gc_required) {
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  RECORD_LINE();
+  lsl(scratch1, length, Immediate(1));  // Length in bytes, not chars.
+  add(scratch1, scratch1,
+      Immediate(kObjectAlignmentMask + SeqTwoByteString::kHeaderSize));
+  land(scratch1, scratch1, Immediate(~kObjectAlignmentMask));
+
+  // Allocate two-byte string in new space.
+  AllocateInNewSpace(scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  RECORD_LINE();
+  InitializeNewString(result,
+                      length,
+                      Heap::kStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
+void MacroAssembler::AllocateAsciiString(Register result,
+                                         Register length,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Register scratch3,
+                                         Label* gc_required) {
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
+  ASSERT(kCharSize == 1);
+  RECORD_LINE();
+  add(scratch1, length,
+      Immediate(kObjectAlignmentMask + SeqAsciiString::kHeaderSize));
+  land(scratch1, scratch1, Immediate(~kObjectAlignmentMask));
+
+  // Allocate ASCII string in new space.
+  AllocateInNewSpace(scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  RECORD_LINE();
+  // Set the map, length and hash field.
+  InitializeNewString(result,
+                      length,
+                      Heap::kAsciiStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
+void MacroAssembler::AllocateAsciiConsString(Register result,
+                                             Register length,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* gc_required) {
+  RECORD_LINE();
+  AllocateInNewSpace(ConsString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  RECORD_LINE();
+  InitializeNewString(result,
+                      length,
+                      Heap::kConsAsciiStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
+void MacroAssembler::AllocateTwoByteConsString(Register result,
+                                               Register length,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  RECORD_LINE();
+  AllocateInNewSpace(ConsString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  RECORD_LINE();
+  InitializeNewString(result,
+                      length,
+                      Heap::kConsStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
+// Allocates a heap number or jumps to the need_gc label if the young space
+// is full and a scavenge is needed.
+void MacroAssembler::AllocateHeapNumber(Register result,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Register heap_number_map,
+                                        Label* gc_required) {
+  // Allocate an object in the heap for the heap number and tag it as a heap
+  // object.
+  RECORD_LINE();
+  AllocateInNewSpace(HeapNumber::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Store heap number map in the allocated object.
+  RECORD_LINE();
+  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  RECORD_LINE();
+  str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
 }
 
 // Copies a fixed number of fields of heap objects from src to dst.
@@ -1298,7 +1662,7 @@ void MacroAssembler::InNewSpace(Register object,
   ASSERT(eq_0_ne_1 == 0 || eq_0_ne_1 == 1);
   RECORD_LINE();
   land(scratch, object, Immediate(ExternalReference::new_space_mask(isolate())));
-  mov(r3, Immediate(ExternalReference::new_space_start(isolate())));
+  mov(r11, Immediate(ExternalReference::new_space_start(isolate())));
   cmpeq(scratch, r11);
   if (eq_0_ne_1 == 0) {
     RECORD_LINE();
@@ -1380,7 +1744,7 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-// Will clobber 4 registers: object, offset, scratch, r3 (ARM:ip). The
+// Will clobber 4 registers: object, offset, scratch, r11 (ARM:ip). The
 // register 'object' contains a heap object pointer. The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object,
@@ -1486,7 +1850,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     RECORD_LINE();
     mov(r11, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
     cmpeq(dst, r11);
-    Check("Yo dawg, I heard you liked function contexts "
+    Check(eq, "Yo dawg, I heard you liked function contexts "
 	  "so I put function contexts in all your contexts");
   }
 }
@@ -1516,7 +1880,7 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 
 void MacroAssembler::AbortIfSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
-  tst(object, Operand(kSmiTagMask));
+  tst(object, Immediate(kSmiTagMask));
   Assert(ne, "Operand is a smi");
 }
 
@@ -1577,6 +1941,37 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                              scratch1,
                                              scratch2,
                                              failure);
+}
+
+
+void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
+    Register first,
+    Register second,
+    Register scratch1,
+    Register scratch2,
+    Label* failure) {
+  int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  land(scratch1, first, Immediate(kFlatAsciiStringMask));
+  land(scratch2, second, Immediate(kFlatAsciiStringMask));
+  cmp(scratch1, Immediate(kFlatAsciiStringTag));
+  b(ne, failure);
+  // Ignore second test if first test failed.
+  cmp(scratch2, Immediate(kFlatAsciiStringTag));
+  b(ne, failure);
+}
+
+
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
+                                                            Register scratch,
+                                                            Label* failure) {
+  int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  land(scratch, type, Immediate(kFlatAsciiStringMask));
+  cmp(scratch, Immediate(kFlatAsciiStringTag));
+  b(ne, failure);
 }
 
 

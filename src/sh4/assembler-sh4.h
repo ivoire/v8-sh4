@@ -418,6 +418,19 @@ class MemOperand BASE_EMBEDDED {
   INLINE(explicit MemOperand(Register Rd, int32_t offset = 0));
   INLINE(explicit MemOperand(Register Rd, Register offset));
 
+  void set_offset(int32_t offset) {
+      ASSERT(rm_.is(no_reg));
+      offset_ = offset;
+  }
+
+  uint32_t offset() const {
+      ASSERT(rm_.is(no_reg));
+      return offset_;
+  }
+
+  Register rn() const { return rn_; }
+  Register rm() const { return rm_; }
+
  private:
   Register rm_;
   Register rn_;
@@ -672,7 +685,7 @@ class Assembler : public AssemblerBase {
   void bf(Label* L, Register rtmp = r11)    { branch(L, rtmp, branch_false); }
   void jmp(Label* L, Register rtmp = r11)   { branch(L, rtmp, branch_unconditional); }
   void b(Label* L, Register rtmp = r11)   { jmp(L, rtmp); }
-  void b(Condition cond, Label* L, Register rtmp = r3)   { 
+  void b(Condition cond, Label* L, Register rtmp = r11)   { 
     ASSERT(cond == ne || cond == eq);
     branch(L, rtmp, cond == eq ? branch_true: branch_false);
   }
@@ -729,7 +742,15 @@ class Assembler : public AssemblerBase {
   void sub(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);
   void sub(Register Rd, Register Rs, Register Rt);
 
+  void rsb(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11) { // Reverse sub: imm - Rs
+    mov(rtmp, imm); rsb(Rd, Rs, rtmp);
+  }
+  void rsb(Register Rd, Register Rs, Register Rt) { // Reverse sub: Rt - Rs
+    sub(Rd, Rt, Rs);
+  }
+
   void addv(Register Rd, Register Rs, Register Rt);
+  void subv(Register Rd, Register Rs, Register Rt, Register rtmp = r11);
 
   void asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);    // arithmetic shift right
   void asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);    // arithmetic shift left
@@ -737,6 +758,7 @@ class Assembler : public AssemblerBase {
   void lsl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);
   void lsl(Register Rd, Register Rs, Register Rt);
   void lsr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);
+  void lsr(Register Rd, Register Rs, Register Rt, Register rtmp = r11);
 
   void land(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);
   void land(Register Rd, Register Rs, Register Rt);
@@ -763,18 +785,22 @@ class Assembler : public AssemblerBase {
   void tst(Register Rd, const Immediate& imm, Register rtmp = r11);
 
   void mov(Register Rd, Register Rs, Condition cond); // Conditional move
+  void mov(Register Rd, const Immediate& imm, Condition cond); // Conditional move
   void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }
   void mov(Register Rd, const Immediate& imm);
   void mov(Register Rd, const Operand& src);
 
   void mov(Register Rd, const MemOperand& src, Register rtmp = r11);  // load op.
   void movb(Register Rd, const MemOperand& src, Register rtmp = r11); // unsigned 8 bit load op.
+  void movw(Register Rd, const MemOperand& src, Register rtmp = r11); // unsigned 16 bit load op.
   void mov(const MemOperand& dst, Register Rd, Register rtmp = r11);  // store op.
+  void movw(const MemOperand& dst, Register Rd, Register rtmp = r11);  // store 16 bits op.
 
   void ldr(Register Rd, const MemOperand& src, Register rtmp = r11) { mov(Rd, src, rtmp); }
   void ldrb(Register Rd, const MemOperand& src, Register rtmp = r11) { movb(Rd, src, rtmp); }
+  void ldrh(Register Rd, const MemOperand& src, Register rtmp = r11) { movw(Rd, src, rtmp); }
   void str(Register Rs, const MemOperand& dst, Register rtmp = r11) { mov(dst, Rs, rtmp); }
-  void strh(Register Rs, const MemOperand& dst, Register rtmp = r11) { mov(dst, Rs, rtmp); }
+  void strh(Register Rs, const MemOperand& dst, Register rtmp = r11) { movw(dst, Rs, rtmp); }
   void strb(Register Rs, const MemOperand& dst, Register rtmp = r11) { mov(dst, Rs, rtmp); }
 
   void mul(Register Rd, Register Rs, Register Rt);

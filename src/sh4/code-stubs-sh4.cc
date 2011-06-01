@@ -825,6 +825,155 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
+// Copy from ARM
+#include "map-sh4.h" // Define register map
+void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
+  Label slow, done;
+
+  // Entry value in r0
+  // Exit value in r0
+
+  Register heap_number_map = r6;
+  __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
+  if (op_ == Token::SUB) {
+    if (include_smi_code_) {
+      // Check whether the value is a smi.
+      Label try_float;
+      __ tst(r0, Immediate(kSmiTagMask));
+      __ b(ne, &try_float);
+
+      // Go slow case if the value of the expression is zero
+      // to make sure that we switch between 0 and -0.
+      if (negative_zero_ == kStrictNegativeZero) {
+        // If we have to check for zero, then we can check for the max negative
+        // smi while we are at it.
+        __ bic(ip, r0, Immediate(0x80000000));
+	__ cmp(ip, Immediate(0));
+        __ b(eq, &slow);
+        __ rsb(r0, r0, Immediate(0));
+        __ Ret();
+      } else {
+        // The value of the expression is a smi and 0 is OK for -0.  Try
+        // optimistic subtraction '0 - value'.
+	Label skip;
+	__ mov(ip, Immediate(0));
+        __ subv(r0, ip, r0);
+	__ bt(&skip);
+        __ Ret();
+	__ bind(&skip);
+        // We don't have to reverse the optimistic neg since the only case
+        // where we fall through is the minimum negative Smi, which is the case
+        // where the neg leaves the register unchanged.
+        __ jmp(&slow);  // Go slow on max negative Smi.
+      }
+      __ bind(&try_float);
+    } else if (FLAG_debug_code) {
+      __ tst(r0, Immediate(kSmiTagMask));
+      __ Assert(ne, "Unexpected smi operand.");
+    }
+
+    __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r1, heap_number_map);
+    __ b(ne, &slow);
+    // r0 is a heap number.  Get a new heap number in r1.
+    if (overwrite_ == UNARY_OVERWRITE) {
+      __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      __ eor(r2, r2, Immediate(HeapNumber::kSignMask));  // Flip sign.
+      __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+    } else {
+      __ AllocateHeapNumber(r1, r2, r3, r6, &slow);
+      __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+      __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      __ str(r3, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
+      __ eor(r2, r2, Immediate(HeapNumber::kSignMask));  // Flip sign.
+      __ str(r2, FieldMemOperand(r1, HeapNumber::kExponentOffset));
+      __ mov(r0, r1);
+    }
+  } else if (op_ == Token::BIT_NOT) {
+    if (include_smi_code_) {
+      Label non_smi;
+      __ JumpIfNotSmi(r0, &non_smi);
+      __ mvn(r0, r0);
+      // Bit-clear inverted smi-tag.
+      __ bic(r0, r0, Immediate(kSmiTagMask));
+      __ Ret();
+      __ bind(&non_smi);
+    } else if (FLAG_debug_code) {
+      __ tst(r0, Immediate(kSmiTagMask));
+      __ Assert(ne, "Unexpected smi operand.");
+    }
+
+    // Check if the operand is a heap number.
+    __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    __ cmp(r1, heap_number_map);
+    __ b(ne, &slow);
+
+    // Convert the heap number in r0 to an untagged integer in r1.
+    __ ConvertToInt32(r0, r1, r2, r3, no_reg, &slow);
+
+    // Do the bitwise operation (move negated) and check if the result
+    // fits in a smi.
+    Label try_float;
+    __ mvn(r1, r1);
+    __ add(r2, r1, Immediate(0x40000000));
+    __ cmpge(r2, Immediate(0));
+    __ bf(&try_float);
+    __ lsl(r0, r1, Immediate(kSmiTagSize));
+    __ b(&done);
+
+    __ bind(&try_float);
+    if (!overwrite_ == UNARY_OVERWRITE) {
+      // Allocate a fresh heap number, but don't overwrite r0 until
+      // we're sure we can do it without going through the slow case
+      // that needs the value in r0.
+      __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
+      __ mov(r0, r2);
+    }
+    
+    // TODO: check fast version with float for SH4
+    // if (CpuFeatures::IsSupported(VFP3)) {
+    //   // Convert the int32 in r1 to the heap number in r0. r2 is corrupted.
+    //   CpuFeatures::Scope scope(VFP3);
+    //   __ vmov(s0, r1);
+    //   __ vcvt_f64_s32(d0, s0);
+    //   __ sub(r2, r0, Operand(kHeapObjectTag));
+    //   __ vstr(d0, r2, HeapNumber::kValueOffset);
+    // } else 
+    {
+      // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
+      // have to set up a frame.
+      WriteInt32ToHeapNumberStub stub(r1, r0, r2);
+      __ push(lr);
+      __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+      __ pop(lr);
+    }
+  } else {
+    UNIMPLEMENTED();
+  }
+
+  __ bind(&done);
+  __ Ret();
+
+  // Handle the slow case by jumping to the JavaScript builtin.
+  __ bind(&slow);
+  __ push(r0);
+  switch (op_) {
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_JS);
+      break;
+    case Token::BIT_NOT:
+      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_JS);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+#include "map-sh4.h" // Undefine register map
+
+
 void FastNewContextStub::Generate(MacroAssembler* masm) {
   UNIMPLEMENTED();
   // // Try to allocate the context in new space.
@@ -932,7 +1081,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // of the original receiver from the call site).
   __ str(r1, MemOperand(sp, argc_ * kPointerSize));
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
-  __ mov(r2, Immediate/*TODO:Operand*/(0));
+  __ mov(r2, Immediate(0));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
   // r0, r1, r2, r3: arguments to trampoline
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -948,6 +1097,61 @@ const char* CompareStub::GetName() {
 int CompareStub::MinorKey() {
   UNIMPLEMENTED();
 }
+
+
+// Copy from ARM
+#include "map-sh4.h" // Define register map
+// See comment for class.
+void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
+  Label max_negative_int;
+  // the_int_ has the answer which is a signed int32 but not a Smi.
+  // We test for the special value that has a different exponent.  This test
+  // has the neat side effect of setting the flags according to the sign.
+  STATIC_ASSERT(HeapNumber::kSignMask == 0x80000000u);
+  __ cmpeq(the_int_, Immediate(0x80000000u));
+  __ bt(&max_negative_int);
+  // Set up the correct exponent in scratch_.  All non-Smi int32s have the same.
+  // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased).
+  uint32_t non_smi_exponent =
+      (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
+  __ mov(scratch_, Immediate(non_smi_exponent));
+  __ cmpge(the_int_, Immediate(0));
+  Label skip;
+  __ bt(&skip);
+  // Set the sign bit in scratch_ if the value was negative.
+  __ lor(scratch_, scratch_, Immediate(HeapNumber::kSignMask));
+  // Subtract from 0 if the value was negative.
+  __ rsb(the_int_, the_int_, Immediate(0));
+  __ bind(&skip);
+  // We should be masking the implict first digit of the mantissa away here,
+  // but it just ends up combining harmlessly with the last digit of the
+  // exponent that happens to be 1.  The sign bit is 0 so we shift 10 to get
+  // the most significant 1 to hit the last bit of the 12 bit sign and exponent.
+  ASSERT(((1 << HeapNumber::kExponentShift) & non_smi_exponent) != 0);
+  const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
+  __ lsr(ip, the_int_, Immediate(shift_distance));
+  __ lor(scratch_, scratch_, ip);
+  __ str(scratch_, FieldMemOperand(the_heap_number_,
+                                   HeapNumber::kExponentOffset));
+  __ lsl(scratch_, the_int_, Immediate(32 - shift_distance));
+  __ str(scratch_, FieldMemOperand(the_heap_number_,
+                                   HeapNumber::kMantissaOffset));
+  __ Ret();
+
+  __ bind(&max_negative_int);
+  // The max negative int32 is stored as a positive number in the mantissa of
+  // a double because it uses a sign bit instead of using two's complement.
+  // The actual mantissa bits stored are all 0 because the implicit most
+  // significant 1 bit is not stored.
+  non_smi_exponent += 1 << HeapNumber::kExponentShift;
+  __ mov(ip, Immediate(HeapNumber::kSignMask | non_smi_exponent));
+  __ str(ip, FieldMemOperand(the_heap_number_, HeapNumber::kExponentOffset));
+  __ mov(ip, Immediate(0));
+  __ str(ip, FieldMemOperand(the_heap_number_, HeapNumber::kMantissaOffset));
+  __ Ret();
+}
+#include "map-sh4.h" // Undefine register map
+
 
 // -------------------------------------------------------------------------
 // StringCharAtGenerator
@@ -1167,13 +1371,13 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
 
   __ bind(&loop);
   __ ldrb(scratch, MemOperand(src));
-  __ add(src, src, 1);
+  __ add(src, src, Immediate(1));
   // Perform sub between load and dependent store to get the load time to
   // complete.
   __ sub(count, count, Immediate(1));
   __ cmpgt(count, Immediate(0));
   __ strb(scratch, MemOperand(dest));
-  __ add(dest, dest, 1);
+  __ add(dest, dest, Immediate(1));
   // last iteration.
   __ bt(&loop);
 
@@ -1208,7 +1412,6 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   }
 
   const int kReadAlignment = 4;
-  const int kReadAlignmentMask = kReadAlignment - 1;
   // Ensure that reading an entire aligned word containing the last character
   // of a string will not read outside the allocated area (because we pad up
   // to kObjectAlignment).
@@ -1217,14 +1420,14 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   // Nothing to do for zero characters.
   Label done;
   if (!ascii) {
-    __ add(count, count, Immediate(count), SetCC);
+    __ add(count, count, count);
   } 
-  __ cmp(count, Operand(0, RelocInfo::NONE));
+  __ cmp(count, Immediate(0));
   __ b(eq, &done);
 
   // Assume that you cannot read (or write) unaligned.
   Label byte_loop;
-  __ add(count, dest, Immediate(count));
+  __ add(count, dest, count);
   Register limit = count;  
   // TODO: SH4 implementation is not optimized, always copy byte per byte.
   // See ARM version for example of optimized code.
@@ -1235,13 +1438,12 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   __ add(src,src, Immediate(1));
   __ strb(scratch1, MemOperand(dest));
   __ add(dest, dest, Immediate(1));
-  __ cmpge(dest, Operand(limit));
+  __ cmpge(dest, limit);
   __ bf(&byte_loop);
 
   __ bind(&done);
 }
 
-  //TODO: continue there
 void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
                                                         Register c1,
                                                         Register c2,
@@ -1251,34 +1453,38 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
                                                         Register scratch4,
                                                         Register scratch5,
                                                         Label* not_found) {
+  // Returns result in r0 if found.
+
   // Register scratch3 is the general scratch register in this function.
   Register scratch = scratch3;
 
   // Make sure that both characters are not digits as such strings has a
   // different hash algorithm. Don't try to look for these in the symbol table.
   Label not_array_index;
-  __ sub(scratch, c1, Operand(static_cast<int>('0')));
-  __ cmp(scratch, Operand(static_cast<int>('9' - '0')));
-  __ b(hi, &not_array_index);
-  __ sub(scratch, c2, Operand(static_cast<int>('0')));
-  __ cmp(scratch, Operand(static_cast<int>('9' - '0')));
+  __ sub(scratch, c1, Immediate(static_cast<int>('0')));
+  __ cmphi(scratch, Immediate(static_cast<int>('9' - '0')));
+  __ bt(&not_array_index);
+  __ sub(scratch, c2, Immediate(static_cast<int>('0')));
+  __ cmp(scratch, Immediate(static_cast<int>('9' - '0')));
 
   // If check failed combine both characters into single halfword.
   // This is required by the contract of the method: code at the
   // not_found branch expects this combination in c1 register
-  __ orr(c1, c1, Operand(c2, LSL, kBitsPerByte), LeaveCC, ls);
-  __ b(ls, not_found);
+  __ lsl(scratch, c2, Immediate(kBitsPerByte));
+  __ lor(c1, c1, scratch);
+  __ b(not_found);
 
   __ bind(&not_array_index);
   // Calculate the two character string hash.
   Register hash = scratch1;
-  StringHelper::GenerateHashInit(masm, hash, c1);
-  StringHelper::GenerateHashAddCharacter(masm, hash, c2);
-  StringHelper::GenerateHashGetHash(masm, hash);
+  StringHelper::GenerateHashInit(masm, hash, c1, scratch);
+  StringHelper::GenerateHashAddCharacter(masm, hash, c2, scratch);
+  StringHelper::GenerateHashGetHash(masm, hash, scratch);
 
   // Collect the two characters in a register.
   Register chars = c1;
-  __ orr(chars, chars, Operand(c2, LSL, kBitsPerByte));
+  __ lsl(scratch, c2, Immediate(kBitsPerByte));
+  __ lor(chars, chars, scratch);
 
   // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
   // hash:  hash of two character string.
@@ -1294,13 +1500,13 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   // Calculate capacity mask from the symbol table capacity.
   Register mask = scratch2;
   __ ldr(mask, FieldMemOperand(symbol_table, SymbolTable::kCapacityOffset));
-  __ mov(mask, Operand(mask, ASR, 1));
-  __ sub(mask, mask, Operand(1));
+  __ asr(mask, mask, Immediate(1));
+  __ sub(mask, mask, Immediate(1));
 
   // Calculate untagged address of the first element of the symbol table.
   Register first_symbol_table_element = symbol_table;
   __ add(first_symbol_table_element, symbol_table,
-         Operand(SymbolTable::kElementsStartOffset - kHeapObjectTag));
+         Immediate(SymbolTable::kElementsStartOffset - kHeapObjectTag));
 
   // Registers
   // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
@@ -1320,28 +1526,26 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
     // Calculate entry in symbol table.
     if (i > 0) {
-      __ add(candidate, hash, Operand(SymbolTable::GetProbeOffset(i)));
+      __ add(candidate, hash, Immediate(SymbolTable::GetProbeOffset(i)));
     } else {
       __ mov(candidate, hash);
     }
 
-    __ and_(candidate, candidate, Operand(mask));
+    __ land(candidate, candidate, mask);
 
     // Load the entry from the symble table.
     STATIC_ASSERT(SymbolTable::kEntrySize == 1);
-    __ ldr(candidate,
-           MemOperand(first_symbol_table_element,
-                      candidate,
-                      LSL,
-                      kPointerSizeLog2));
+    __ lsl(scratch, candidate, Immediate(kPointerSizeLog2));
+    __ add(scratch, first_symbol_table_element, scratch);
+    __ ldr(candidate, MemOperand(scratch));
 
     // If entry is undefined no string with this hash can be found.
     Label is_string;
-    __ CompareObjectType(candidate, scratch, scratch, ODDBALL_TYPE);
-    __ b(ne, &is_string);
+    __ CompareObjectType(candidate, scratch, scratch, ODDBALL_TYPE, ne);
+    __ bt(&is_string);
 
-    __ cmp(undefined, candidate);
-    __ b(eq, not_found);
+    __ cmpeq(undefined, candidate);
+    __ bt(not_found);
     // Must be null (deleted entry).
     if (FLAG_debug_code) {
       __ LoadRoot(ip, Heap::kNullValueRootIndex);
@@ -1359,7 +1563,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
     // If length is not 2 the string is not a candidate.
     __ ldr(scratch, FieldMemOperand(candidate, String::kLengthOffset));
-    __ cmp(scratch, Operand(Smi::FromInt(2)));
+    __ cmp(scratch, Immediate(Smi::FromInt(2)));
     __ b(ne, &next_probe[i]);
 
     // Check if the two characters match.
@@ -1382,37 +1586,52 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
 void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
-                                    Register character) {
+                                    Register character,
+                                    Register scratch) {
+  // Added a scratch parameter for the SH4 implementation compared to ARM.
   // hash = character + (character << 10);
-  __ add(hash, character, Operand(character, LSL, 10));
+  __ lsl(hash, character, Immediate(10));
+  __ add(hash, character, hash);
   // hash ^= hash >> 6;
-  __ eor(hash, hash, Operand(hash, ASR, 6));
+  __ asr(scratch, hash, Immediate(6));
+  __ eor(hash, hash, scratch);
 }
 
 
 void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
                                             Register hash,
-                                            Register character) {
+                                            Register character,
+                                            Register scratch) {
+
+  // Added a scratch parameter for the SH4 implementation compared to ARM.
   // hash += character;
-  __ add(hash, hash, Operand(character));
+  __ add(hash, hash, character);
   // hash += hash << 10;
-  __ add(hash, hash, Operand(hash, LSL, 10));
+  __ lsl(scratch, hash, Immediate(10));
+  __ add(hash, hash, scratch);
   // hash ^= hash >> 6;
-  __ eor(hash, hash, Operand(hash, ASR, 6));
+  __ asr(scratch, hash, Immediate(6));
+  __ eor(hash, hash, scratch);
 }
 
 
 void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
-                                       Register hash) {
+                                       Register hash,
+				       Register scratch) {
+  // Added a scratch parameter for the SH4 implementation compared to ARM.
   // hash += hash << 3;
-  __ add(hash, hash, Operand(hash, LSL, 3));
+  __ lsl(scratch, hash, Immediate(3));
+  __ add(hash, hash, scratch);
   // hash ^= hash >> 11;
-  __ eor(hash, hash, Operand(hash, ASR, 11));
+  __ asr(scratch, hash, Immediate(11));
+  __ eor(hash, hash, scratch);
   // hash += hash << 15;
-  __ add(hash, hash, Operand(hash, LSL, 15), SetCC);
+  __ lsl(scratch, hash, Immediate(15));
+  __ add(hash, hash, scratch);
 
   // if (hash == 0) hash = 27;
-  __ mov(hash, Operand(27), LeaveCC, ne);
+  __ cmp(hash, Immediate(27));
+  __ mov(hash, Immediate(27), ne);
 }
 
 
@@ -1443,22 +1662,23 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kFromOffset == kToOffset + 4);
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
+  __ JumpIfNotBothSmi(to, from, &runtime);
   // I.e., arithmetic shift right by one un-smi-tags.
-  __ mov(r2, Operand(to, ASR, 1), SetCC);
-  __ mov(r3, Operand(from, ASR, 1), SetCC, cc);
-  // If either to or from had the smi tag bit set, then carry is set now.
-  __ b(cs, &runtime);  // Either "from" or "to" is not a smi.
-  __ b(mi, &runtime);  // From is negative.
+  __ asr(r2, to, Immediate(1));
+  __ asr(r3, from, Immediate(1));
+  __ cmpge(r3, Immediate(0));
+  __ bf(&runtime);  // From is negative.
 
   // Both to and from are smis.
 
-  __ sub(r2, r2, Operand(r3), SetCC);
-  __ b(mi, &runtime);  // Fail if from > to.
+  __ sub(r2, r2, r3);
+  __ cmpge(r2, Immediate(0)); 
+  __ bf(&runtime);  // Fail if from > to.
   // Special handling of sub-strings of length 1 and 2. One character strings
   // are handled in the runtime system (looked up in the single character
   // cache). Two character strings are looked for in the symbol cache.
-  __ cmp(r2, Operand(2));
-  __ b(lt, &runtime);
+  __ cmpge(r2, Immediate(2));
+  __ bf(&runtime);
 
   // r2: length
   // r3: from index (untaged smi)
@@ -1468,7 +1688,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Make sure first argument is a sequential (or flat) string.
   __ ldr(r5, MemOperand(sp, kStringOffset));
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(r5, Operand(kSmiTagMask));
+  __ tst(r5, Immediate(kSmiTagMask));
   __ b(eq, &runtime);
   Condition is_string = masm->IsObjectStringType(r5, r1);
   __ b(NegateCondition(is_string), &runtime);
@@ -1480,12 +1700,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r6 (a.k.a. to): to (smi)
   // r7 (a.k.a. from): from offset (smi)
   Label seq_string;
-  __ and_(r4, r1, Operand(kStringRepresentationMask));
+  __ land(r4, r1, Immediate(kStringRepresentationMask));
   STATIC_ASSERT(kSeqStringTag < kConsStringTag);
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
-  __ cmp(r4, Operand(kConsStringTag));
-  __ b(gt, &runtime);  // External strings go to runtime.
-  __ b(lt, &seq_string);  // Sequential strings are handled directly.
+  __ cmpgt(r4, Immediate(kConsStringTag));
+  __ bt(&runtime);  // External strings go to runtime.
+  __ cmpge(r4, Immediate(kConsStringTag));
+  __ bf(&seq_string);  // Sequential strings are handled directly.
 
   // Cons string. Try to recurse (once) on the first substring.
   // (This adds a little more generality than necessary to handle flattened
@@ -1493,7 +1714,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ ldr(r5, FieldMemOperand(r5, ConsString::kFirstOffset));
   __ ldr(r4, FieldMemOperand(r5, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r4, Map::kInstanceTypeOffset));
-  __ tst(r1, Operand(kStringRepresentationMask));
+  __ tst(r1, Immediate(kStringRepresentationMask));
   STATIC_ASSERT(kSeqStringTag == 0);
   __ b(ne, &runtime);  // Cons and External strings go to runtime.
 
@@ -1507,8 +1728,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r6 (a.k.a. to): to (smi)
   // r7 (a.k.a. from): from offset (smi)
   __ ldr(r4, FieldMemOperand(r5, String::kLengthOffset));
-  __ cmp(r4, Operand(to));
-  __ b(lt, &runtime);  // Fail if to > length.
+  __ cmpge(r4, to);
+  __ bf(&runtime);  // Fail if to > length.
   to = no_reg;
 
   // r1: instance type.
@@ -1518,17 +1739,17 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r7 (a.k.a. from): from offset (smi)
   // Check for flat ASCII string.
   Label non_ascii_flat;
-  __ tst(r1, Operand(kStringEncodingMask));
+  __ tst(r1, Immediate(kStringEncodingMask));
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ b(eq, &non_ascii_flat);
 
   Label result_longer_than_two;
-  __ cmp(r2, Operand(2));
-  __ b(gt, &result_longer_than_two);
+  __ cmpgt(r2, Immediate(2));
+  __ bt(&result_longer_than_two);
 
   // Sub string of length 2 requested.
   // Get the two characters forming the sub string.
-  __ add(r5, r5, Operand(r3));
+  __ add(r5, r5, r3);
   __ ldrb(r3, FieldMemOperand(r5, SeqAsciiString::kHeaderSize));
   __ ldrb(r4, FieldMemOperand(r5, SeqAsciiString::kHeaderSize + 1));
 
@@ -1538,7 +1759,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
       masm, r3, r4, r1, r5, r6, r7, r9, &make_two_character_string);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->sub_string_native(), 1, r3, r4);
-  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ add(sp, sp, Immediate(3 * kPointerSize));
   __ Ret();
 
   // r2: result string length.
@@ -1547,7 +1768,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ AllocateAsciiString(r0, r2, r4, r5, r9, &runtime);
   __ strh(r3, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
   __ IncrementCounter(counters->sub_string_native(), 1, r3, r4);
-  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ add(sp, sp, Immediate(3 * kPointerSize));
   __ Ret();
 
   __ bind(&result_longer_than_two);
@@ -1560,10 +1781,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r5: string.
   // r7 (a.k.a. from): from offset (smi)
   // Locate first character of result.
-  __ add(r1, r0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(r1, r0, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   // Locate 'from' character of string.
-  __ add(r5, r5, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ add(r5, r5, Operand(from, ASR, 1));
+  __ add(r5, r5, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ asr(r6, from, Immediate(1));
+  __ add(r5, r5, r6);
 
   // r0: result string.
   // r1: first character of result string.
@@ -1573,7 +1795,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   StringHelper::GenerateCopyCharactersLong(masm, r1, r5, r2, r3, r4, r6, r7, r9,
                                            COPY_ASCII | DEST_ALWAYS_ALIGNED);
   __ IncrementCounter(counters->sub_string_native(), 1, r3, r4);
-  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ add(sp, sp, Immediate(3 * kPointerSize));
   __ Ret();
 
   __ bind(&non_ascii_flat);
@@ -1589,12 +1811,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r2: result string length.
   // r5: string.
   // Locate first character of result.
-  __ add(r1, r0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ add(r1, r0, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // Locate 'from' character of string.
-  __ add(r5, r5, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ add(r5, r5, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // As "from" is a smi it is 2 times the value which matches the size of a two
   // byte character.
-  __ add(r5, r5, Operand(from));
+  __ add(r5, r5, from);
   from = no_reg;
 
   // r0: result string.
@@ -1605,7 +1827,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   StringHelper::GenerateCopyCharactersLong(
       masm, r1, r5, r2, r3, r4, r6, r7, r9, DEST_ALWAYS_ALIGNED);
   __ IncrementCounter(counters->sub_string_native(), 1, r3, r4);
-  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ add(sp, sp, Immediate(3 * kPointerSize));
   __ Ret();
 
   // Just jump to runtime to create the sub string.
@@ -1621,54 +1843,63 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register scratch2,
                                                         Register scratch3,
                                                         Register scratch4) {
-  Label compare_lengths;
+  Label compare_lengths, skip;
   // Find minimum length and length difference.
   __ ldr(scratch1, FieldMemOperand(left, String::kLengthOffset));
   __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
-  __ sub(scratch3, scratch1, Operand(scratch2), SetCC);
+  __ sub(scratch3, scratch1, scratch2);
+  __ cmpge(scratch1, scratch2);
   Register length_delta = scratch3;
-  __ mov(scratch1, scratch2, LeaveCC, gt);
+  __ mov(scratch1, scratch2, eq);
   Register min_length = scratch1;
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(min_length, Operand(min_length));
+  __ tst(min_length, min_length);
   __ b(eq, &compare_lengths);
 
   // Untag smi.
-  __ mov(min_length, Operand(min_length, ASR, kSmiTagSize));
+  __ asr(min_length, min_length, Immediate(kSmiTagSize));
 
   // Setup registers so that we only need to increment one register
   // in the loop.
   __ add(scratch2, min_length,
-         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ add(left, left, Operand(scratch2));
-  __ add(right, right, Operand(scratch2));
+         Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(left, left, scratch2);
+  __ add(right, right, scratch2);
   // Registers left and right points to the min_length character of strings.
-  __ rsb(min_length, min_length, Operand(-1));
+  __ rsb(min_length, min_length, Immediate(-1));
   Register index = min_length;
   // Index starts at -min_length.
 
   {
     // Compare loop.
-    Label loop;
+    Label loop, end_loop;
     __ bind(&loop);
-    // Compare characters.
-    __ add(index, index, Operand(1), SetCC);
-    __ ldrb(scratch2, MemOperand(left, index), ne);
-    __ ldrb(scratch4, MemOperand(right, index), ne);
     // Skip to compare lengths with eq condition true.
-    __ b(eq, &compare_lengths);
+    __ add(index, index, Immediate(1));
+    __ cmpge(index, Immediate(0));
+    __ bt(&compare_lengths);
+    // Compare characters.
+    __ ldrb(scratch2, MemOperand(left, index));
+    __ ldrb(scratch4, MemOperand(right, index));
     __ cmp(scratch2, scratch4);
     __ b(eq, &loop);
-    // Fallthrough with eq condition false.
+
+    // Fallthrough with last byte differing.
+    Label lower;
+    __ cmpge(scratch2, scratch4);
+    __ bf(&lower);
+    __ mov(r0, Immediate(Smi::FromInt(GREATER)));
+    __ Ret();
+    __ bind(&lower);
+    __ mov(r0, Immediate(Smi::FromInt(LESS)));
+    __ Ret();
   }
   // Compare lengths -  strings up to min-length are equal.
+  Label diff;
   __ bind(&compare_lengths);
   ASSERT(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
   // Use zero length_delta as result.
-  __ mov(r0, Operand(length_delta), SetCC, eq);
-  // Fall through to here if characters compare not-equal.
-  __ mov(r0, Operand(Smi::FromInt(GREATER)), LeaveCC, gt);
-  __ mov(r0, Operand(Smi::FromInt(LESS)), LeaveCC, lt);
+  __ mov(r0, length_delta);
   __ Ret();
 }
 
@@ -1688,9 +1919,9 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ b(ne, &not_same);
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
-  __ mov(r0, Operand(Smi::FromInt(EQUAL)));
+  __ mov(r0, Immediate(Smi::FromInt(EQUAL)));
   __ IncrementCounter(counters->string_compare_native(), 1, r1, r2);
-  __ add(sp, sp, Operand(2 * kPointerSize));
+  __ add(sp, sp, Immediate(2 * kPointerSize));
   __ Ret();
 
   __ bind(&not_same);
@@ -1700,7 +1931,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   // Compare flat ASCII strings natively. Remove arguments from stack first.
   __ IncrementCounter(counters->string_compare_native(), 1, r2, r3);
-  __ add(sp, sp, Operand(2 * kPointerSize));
+  __ add(sp, sp, Immediate(2 * kPointerSize));
   GenerateCompareFlatAsciiStrings(masm, r1, r0, r2, r3, r4, r5);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
@@ -1857,9 +2088,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   }
   Label non_ascii, allocated, ascii_data;
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ tst(r4, Operand(kStringEncodingMask));
+  __ tst(r4, Immediate(kStringEncodingMask));
   __ b(eq, &non_ascii);
-  __ tst(r5, Operand(kStringEncodingMask));
+  __ tst(r5, Immediate(kStringEncodingMask));
   __ b(eq, &non_ascii);
 
   // Allocate an ASCII cons string.

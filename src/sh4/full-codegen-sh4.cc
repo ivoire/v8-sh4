@@ -1085,7 +1085,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
           // Check that we're not inside a 'with'.
           __ mov(r1, ContextOperand(cp, Context::FCONTEXT_INDEX));
           __ cmpeq(r1, cp);
-          __ Check("Unexpected declaration in current context.");
+          __ Check(eq, "Unexpected declaration in current context.");
         }
         if (mode == Variable::CONST) {
           __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
