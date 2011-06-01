@@ -36,7 +36,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-
 // Copy from ARM
 #include "map-sh4.h" // Define register map
 void ToNumberStub::Generate(MacroAssembler* masm) {
@@ -153,8 +152,6 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // r0 (when parameter) or r0 (when return value)
   // r1 (when parameter)
-  // r2
-  // r3
 
   // Check that the key is a smi.
   Label slow;
@@ -207,11 +204,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ ldr(r0, MemOperand(r3, kDisplacement));
   __ rts();
 
-  // Slow-case: Handle non-smi or out-of-bounds access to arguments
-  // by calling the runtime system.
   __ bind(&slow);
-  // SH4 live-in: r1
-  // SH4 live-out: empty
   __ push(r1);
   __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
 }
