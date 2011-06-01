@@ -39,7 +39,7 @@ namespace internal {
 class TranscendentalCacheStub: public CodeStub {
  public:
   enum ArgumentType {
-    TAGGED = 0,
+    TAGGED = 0 << TranscendentalCache::kTranscendentalTypeBits,
     UNTAGGED = 1 << TranscendentalCache::kTranscendentalTypeBits
   };
 
@@ -50,23 +50,24 @@ class TranscendentalCacheStub: public CodeStub {
  private:
   TranscendentalCache::Type type_;
   ArgumentType argument_type_;
+  void GenerateCallCFunction(MacroAssembler* masm, Register scratch);
 
   Major MajorKey() { return TranscendentalCache; }
   int MinorKey() { return type_ | argument_type_; }
   Runtime::FunctionId RuntimeFunction();
-  void GenerateOperation(MacroAssembler* masm);
 };
 
 
 class ToBooleanStub: public CodeStub {
  public:
-  ToBooleanStub() { }
+  explicit ToBooleanStub(Register tos) : tos_(tos) { }
 
   void Generate(MacroAssembler* masm);
 
  private:
+  Register tos_;
   Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
+  int MinorKey() { return tos_.code(); }
 };
 
 
@@ -78,7 +79,7 @@ class TypeRecordingBinaryOpStub: public CodeStub {
         operands_type_(TRBinaryOpIC::UNINITIALIZED),
         result_type_(TRBinaryOpIC::UNINITIALIZED),
         name_(NULL) {
-    UNIMPLEMENTED();
+    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 
   TypeRecordingBinaryOpStub(
@@ -87,7 +88,6 @@ class TypeRecordingBinaryOpStub: public CodeStub {
       TRBinaryOpIC::TypeInfo result_type = TRBinaryOpIC::UNINITIALIZED)
       : op_(OpBits::decode(key)),
         mode_(ModeBits::decode(key)),
-        use_sse3_(SSE3Bits::decode(key)),
         operands_type_(operands_type),
         result_type_(result_type),
         name_(NULL) { }
@@ -100,7 +100,6 @@ class TypeRecordingBinaryOpStub: public CodeStub {
 
   Token::Value op_;
   OverwriteMode mode_;
-  bool use_sse3_;
 
   // Operand type information determined at runtime.
   TRBinaryOpIC::TypeInfo operands_type_;
@@ -121,22 +120,32 @@ class TypeRecordingBinaryOpStub: public CodeStub {
   }
 #endif
 
-  // Minor key encoding in 16 bits RRRTTTSOOOOOOOMM.
+  // Minor key encoding in 16 bits RRRTTTVOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 7> {};
-  class SSE3Bits: public BitField<bool, 9, 1> {};
+  class VFP3Bits: public BitField<bool, 9, 1> {};
   class OperandTypeInfoBits: public BitField<TRBinaryOpIC::TypeInfo, 10, 3> {};
   class ResultTypeInfoBits: public BitField<TRBinaryOpIC::TypeInfo, 13, 3> {};
 
   Major MajorKey() { return TypeRecordingBinaryOp; }
   int MinorKey() {
-    UNIMPLEMENTED();
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_)
+           /*| VFP3Bits::encode(use_vfp3_)*/
+           | OperandTypeInfoBits::encode(operands_type_)
+           | ResultTypeInfoBits::encode(result_type_);
   }
 
   void Generate(MacroAssembler* masm);
   void GenerateGeneric(MacroAssembler* masm);
+  void GenerateSmiSmiOperation(MacroAssembler* masm);
+  void GenerateFPOperation(MacroAssembler* masm,
+                           bool smi_operands,
+                           Label* not_numbers,
+                           Label* gc_required);
   void GenerateSmiCode(MacroAssembler* masm,
-                       Label* slow,
+                       Label* use_runtime,
+                       Label* gc_required,
                        SmiCodeGenerateHeapNumberResults heapnumber_results);
   void GenerateLoadArguments(MacroAssembler* masm);
   void GenerateReturn(MacroAssembler* masm);
@@ -144,11 +153,19 @@ class TypeRecordingBinaryOpStub: public CodeStub {
   void GenerateSmiStub(MacroAssembler* masm);
   void GenerateInt32Stub(MacroAssembler* masm);
   void GenerateHeapNumberStub(MacroAssembler* masm);
+  void GenerateOddballStub(MacroAssembler* masm);
   void GenerateStringStub(MacroAssembler* masm);
+  void GenerateBothStringStub(MacroAssembler* masm);
   void GenerateGenericStub(MacroAssembler* masm);
   void GenerateAddStrings(MacroAssembler* masm);
+  void GenerateCallRuntime(MacroAssembler* masm);
 
-  void GenerateHeapResultAllocation(MacroAssembler* masm, Label* alloc_failure);
+  void GenerateHeapResultAllocation(MacroAssembler* masm,
+                                    Register result,
+                                    Register heap_number_map,
+                                    Register scratch1,
+                                    Register scratch2,
+                                    Label* gc_required);
   void GenerateRegisterArgsPush(MacroAssembler* masm);
   void GenerateTypeTransition(MacroAssembler* masm);
   void GenerateTypeTransitionWithSavedArgs(MacroAssembler* masm);
@@ -156,11 +173,12 @@ class TypeRecordingBinaryOpStub: public CodeStub {
   virtual int GetCodeKind() { return Code::TYPE_RECORDING_BINARY_OP_IC; }
 
   virtual InlineCacheState GetICState() {
-    UNIMPLEMENTED();
+    return TRBinaryOpIC::ToState(operands_type_);
   }
 
   virtual void FinishCode(Code* code) {
-    UNIMPLEMENTED();
+    code->set_type_recording_binary_op_type(operands_type_);
+    code->set_type_recording_binary_op_result_type(result_type_);
   }
 
   friend class CodeGenerator;
@@ -263,7 +281,7 @@ class StringAddStub: public CodeStub {
                                Register arg,
                                Register scratch1,
                                Register scratch2,
-                               Register scratch2,
+                               Register scratch3,
                                Register scratch4,
                                Label* slow);
 
@@ -283,13 +301,13 @@ class SubStringStub: public CodeStub {
 };
 
 
+
 class StringCompareStub: public CodeStub {
  public:
-  explicit StringCompareStub() {
-  }
+  StringCompareStub() { }
 
-  // Compare two flat ascii strings and returns result in eax after popping two
-  // arguments from the stack.
+  // Compare two flat ASCII strings and returns result in r0.
+  // Does not use the stack.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                               Register left,
                                               Register right,

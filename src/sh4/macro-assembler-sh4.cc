@@ -105,6 +105,12 @@ void MacroAssembler::CallStub(CodeStub* stub) {
 }
 
 
+void MacroAssembler::TailCallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
 void MacroAssembler::IllegalOperation(int num_arguments) {
   RECORD_LINE();
   if (num_arguments > 0) {

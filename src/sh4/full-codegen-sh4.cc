@@ -380,7 +380,10 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      OverwriteMode mode) {
-  __ UNIMPLEMENTED_BREAK();
+  __ pop(r1);
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), NULL);
+  context()->Plug(r0);
 }
 
 
