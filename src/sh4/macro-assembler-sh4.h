@@ -318,6 +318,10 @@ class MacroAssembler: public Assembler {
                 Label* fail,
                 bool is_heap_object);
 
+  // Compare the object in a register to a value from the root list.
+  // Uses the ip register as scratch.
+  void CompareRoot(Register obj, Heap::RootListIndex index);
+
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type
   // contains the instance_type. The registers map and instance_type can be the
@@ -661,7 +665,7 @@ class MacroAssembler: public Assembler {
                                               int num_arguments);
 
   // Convenience function: call an external reference.
-  void CallExternalReference(ExternalReference ref, int num_arguments);
+  void CallExternalReference(const ExternalReference& ref, int num_arguments);
 
   // Tail call of a runtime routine (jump).
   // Like JumpToExternalReference, but also takes care of passing the number

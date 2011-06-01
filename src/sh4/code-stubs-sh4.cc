@@ -451,6 +451,11 @@ Handle<Code> GetTypeRecordingBinaryOpStub(int key,
 }
 
 
+void InstanceofStub::Generate(MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
 Register InstanceofStub::left() {
   UNIMPLEMENTED();
 }
@@ -2281,8 +2286,54 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
 
   __ bind(&done);
 }
-#include "map-sh4.h" // Undefine register map
 
+
+void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::SMIS);
+  Label miss;
+  __ lor(r2, r1, r0);
+  __ tst(r2, Immediate(kSmiTagMask));
+  __ b(ne, &miss);
+
+  if (GetCondition() == eq) {
+    // For equality we do not care about the sign of the result.
+    __ sub(r0, r0, r1);
+    __ cmpeq(r0, Immediate(0));
+  } else {
+    // Untag before subtracting to avoid handling overflow.
+    __ SmiUntag(r1);
+    __ asr(ip, r0, Immediate(kSmiTagSize));
+    __ sub(r0, r1, ip);
+  }
+  __ Ret();
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
+void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
+  __ Push(r1, r0);
+  __ push(lr);
+
+  // Call the runtime system in a fresh internal frame.
+  ExternalReference miss =
+      ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
+  __ EnterInternalFrame();
+  __ Push(r1, r0);
+  __ mov(ip, Immediate(Smi::FromInt(op_)));
+  __ push(ip);
+  __ CallExternalReference(miss, 3);
+  __ LeaveInternalFrame();
+  // Compute the entry point of the rewritten stub.
+  __ add(r2, r0, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  // Restore registers.
+  __ pop(lr);
+  __ pop(r0);
+  __ pop(r1);
+  __ jmp(r2);
+}
+#include "map-sh4.h" // Undefine register map
 
 
 #undef __
