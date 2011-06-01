@@ -313,6 +313,20 @@ void Assembler::addv(Register Rd, Register Rs, Register Rt) {
   }
 }
 
+ 
+void Assembler::subv(Register Rd, Register Rs, Register Rt, Register rtmp) {
+  if (Rs.code() == Rd.code())
+    subv_(Rt, Rd);
+  else if (Rt.code() == Rd.code()) {
+    mov_(Rs, rtmp);
+    subv_(Rt, rtmp);
+    mov_(rtmp, Rd);
+  } else {
+    mov_(Rs, Rd);
+    subv_(Rt, Rd);
+  }
+}
+
 
 void Assembler::asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rs.code() != Rd.code())
@@ -371,10 +385,20 @@ void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm, Register rtm
     shlr2_(Rd);
   } else {
     ASSERT(!Rd.is(rtmp));
-    mov(rtmp, Immediate(32 - imm.x_));
+    mov(rtmp, Immediate(-imm.x_));
     shld_(rtmp, Rd);
   }
 }
+
+
+void Assembler::lsr(Register Rd, Register Rs, Register Rt, Register rtmp) {
+  ASSERT(!Rs.is(rtmp));
+  if (Rs.code() != Rd.code())
+    mov_(Rs, Rd);
+  neg_(Rt, rtmp);
+  shld_(rtmp, Rd);
+}
+
 
 void Assembler::land(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_and_imm_R0(imm.x_)) {
@@ -757,6 +781,23 @@ void Assembler::mov(Register Rd, Register Rs, Condition cond) {
 }
 
 
+void Assembler::mov(Register Rd, const Immediate& imm, Condition cond) {
+  ASSERT(cond == ne || cond == eq);
+  if (FITS_SH4_mov_imm(imm.x_)) {
+    // If cond is eq, we move Rs into Rd, otherwise, nop
+    if (cond == eq) bf_(0); // Jump after sequence if T bit is false
+    else bt_(0); // Jump after sequence if T bit is true
+    mov_imm_(imm.x_, Rd);
+  } else {
+    Label skip;
+    if (cond == eq) bf(&skip);
+    else bt(&skip);
+    mov(Rd, imm);
+    bind(&skip);
+  }
+}
+
+
 void Assembler::mov(Register Rd, const Operand& src) {
   if (src.rx_.is_valid())
     mov_(src.rx_, Rd);
@@ -796,7 +837,22 @@ void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 
+void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
+  if (src.offset_ == 0) {
+    movw_indRs_(src.rm_, Rd);
+  } else if(!src.rn_.is_valid()) {
+    add(rtmp, src.rm_, Immediate(src.offset_));
+    movw_indRs_(rtmp, Rd);
+  } else {
+    add(rtmp, src.rm_, src.rn_);
+    movw_indRs_(rtmp, Rd);
+  }
+  extuw_(Rd, Rd); // Zero extension
+}
+
+
 void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
+  ASSERT(!dst.rn_.is_valid()); // @(Rm + Rn) mode not supported for store
   if (dst.offset_ == 0) {
     movl_indRd_(Rd, dst.rm_);
   } else {
@@ -807,6 +863,18 @@ void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
       add(rtmp, dst.rm_, Immediate(dst.offset_));
       movl_indRd_(Rd, rtmp);
     }
+  }
+}
+
+
+void Assembler::movw(const MemOperand& dst, Register Rd, Register rtmp) {
+  ASSERT(!dst.rn_.is_valid()); // @(Rm + Rn) mode not supported for store
+  if (dst.offset_ == 0) {
+    movw_indRd_(Rd, dst.rm_);
+  } else {
+    ASSERT(!Rd.is(rtmp));
+    add(rtmp, dst.rm_, Immediate(dst.offset_));
+    movw_indRd_(Rd, rtmp);
   }
 }
 

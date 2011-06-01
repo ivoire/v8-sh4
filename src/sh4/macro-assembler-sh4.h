@@ -184,6 +184,15 @@ class MacroAssembler: public Assembler {
     pop(src1);
   }
 
+  // Load two consecutive registers with two consecutive memory locations.
+  void Ldrd(Register dst1,
+            Register dst2,
+            const MemOperand& src);
+
+  // Store two consecutive registers to two consecutive memory locations.
+  void Strd(Register src1,
+            Register src2,
+            const MemOperand& dst);
 
   void IsObjectJSStringType(Register object,
                             Register scratch,
@@ -386,16 +395,25 @@ class MacroAssembler: public Assembler {
       Register scratch2,
       Label* failure);
 
+  // Check if instance type is sequential ASCII string and jump to label if
+  // it is not.
+  void JumpIfInstanceTypeIsNotSequentialAscii(Register type,
+                                              Register scratch,
+                                              Label* failure);
+
   // Assumes input is a heap object.
   void JumpIfNotNumber(Register reg, TypeInfo info, Label* on_not_number);
 
-  // Assumes input is a heap number.  Jumps on things out of range.  Also jumps
-  // on the min negative int32.  Ignores frational parts.
-  void ConvertToInt32(Register dst,
-                      Register src,      // Can be the same as dst.
-                      Register scratch,  // Can be no_reg or dst, but not src.
-                      TypeInfo info,
-                      Label* on_not_int32);
+  // Convert the HeapNumber pointed to by source to a 32bits signed integer
+  // dest. If the HeapNumber does not fit into a 32bits signed integer branch
+  // to not_int32 label. If VFP3 is available double_scratch is used but not
+  // scratch2. TODO: SH4, use fp reg.
+  void ConvertToInt32(Register source,
+                      Register dest,
+                      Register scratch,
+                      Register scratch2,
+                      Register double_scratch,
+                      Label *not_int32);
 
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object);
@@ -484,6 +502,7 @@ class MacroAssembler: public Assembler {
   void AllocateHeapNumber(Register result,
                           Register scratch1,
                           Register scratch2,
+                          Register heap_number_map,
                           Label* gc_required);
 
   // Allocate a sequential string. All the header fields of the string object
@@ -508,11 +527,14 @@ class MacroAssembler: public Assembler {
 
   // Allocate a raw cons string object. Only the map field of the result is
   // initialized.
-  void AllocateConsString(Register result,
-                          Register scratch1,
-                          Register scratch2,
-                          Label* gc_required);
+  void AllocateTwoByteConsString(Register result,
+                                 Register length,
+                                 Register scratch1,
+                                 Register scratch2,
+                                 Label* gc_required);
+
   void AllocateAsciiConsString(Register result,
+                               Register length,
                                Register scratch1,
                                Register scratch2,
                                Label* gc_required);
@@ -576,6 +598,18 @@ class MacroAssembler: public Assembler {
                                Register result,
                                Register scratch,
                                Label* miss);
+
+  // Load and check the instance type of an object for being a string.
+  // Loads the type into the second argument register.
+  // Returns a condition that will be enabled if the object was a string.
+  Condition IsObjectStringType(Register obj,
+                               Register type) {
+    ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset));
+    ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
+    tst(type, Immediate(kIsNotStringMask));
+    ASSERT_EQ(0, kStringTag);
+    return eq;
+  }
 
   // Generates code for reporting that an illegal operation has
   // occurred.
@@ -736,6 +770,7 @@ class MacroAssembler: public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cond, const char* msg);
 
+  void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
@@ -778,6 +813,12 @@ class MacroAssembler: public Assembler {
   void LeaveFrame(StackFrame::Type type);
 
   void LeaveExitFrameEpilogue();
+
+  void InitializeNewString(Register string,
+                           Register length,
+                           Heap::RootListIndex map_index,
+                           Register scratch1,
+                           Register scratch2);
 
   // Allocation support helpers.
   void LoadAllocationTopHelper(Register result,
