@@ -298,6 +298,25 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 }
 
 
+void Assembler::cmp(Condition &cond, Register Rd, Register Rs) {
+  cond = eq;
+  switch(cond) {
+  case ne:
+    cond = ne;
+  case eq:
+    cmpeq(Rd, Rs);
+    break;
+  case lt:
+    cond = ne;
+  case ge:
+    cmpge(Rd, Rs);
+    break;
+  default:
+    UNIMPLEMENTED();
+  }
+}
+
+
 Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) {
   rx_ = no_reg;
   imm32_ = immediate;

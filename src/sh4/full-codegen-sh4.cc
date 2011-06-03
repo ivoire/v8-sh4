@@ -1774,7 +1774,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Handle<Code> ic = CompareIC::GetUninitialized(op);
       EmitCallIC(ic, &patch_site);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-      __ cmp(r0, Immediate(0));
+      __ cmp(cond, r0, Immediate(0));
       Split(cond, if_true, if_false, fall_through);
     }
   }
@@ -1866,8 +1866,8 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
   } else if (check->Equals(isolate()->heap()->string_symbol())) {
     __ JumpIfSmi(r0, if_false);
     // Check for undetectable objects => false.
-    __ CompareObjectType(r0, r0, r1, FIRST_NONSTRING_TYPE);
-    __ b(ge, if_false);
+    __ CompareObjectType(r0, r0, r1, FIRST_NONSTRING_TYPE, ge);
+    __ bt(if_false);
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
     __ tst(r1, Immediate(1 << Map::kIsUndetectable));
     Split(eq, if_true, if_false, fall_through);

@@ -723,6 +723,10 @@ class Assembler : public AssemblerBase {
   void cmp(Register Rd, const Immediate& imm, Register rtmp = r11) { // Alias for cmpeq
     cmpeq(Rd, imm, rtmp); }
 
+  INLINE(void cmp(Condition& cond, Register Rd, Register Rs));
+  void cmp(Condition& cond, Register Rd, const Immediate& imm, Register rtmp = r11) {
+    mov(rtmp, imm); return cmp(cond, Rd, rtmp); }
+
   void cmphs(Register Rd, Register Rs) { // Alias for cmpgeu
     cmpgeu(Rd, Rs); }
   void cmphs(Register Rd, const Immediate& imm, // Alias for cmpgeu
