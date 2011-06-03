@@ -838,7 +838,7 @@ class Assembler : public AssemblerBase {
 
   void call(Label* L);
 
-  void emit(Instr x) { *reinterpret_cast<uint16_t*>(pc_) = x; pc_ += sizeof(uint16_t); }
+  void emit(Instr x) { CheckBuffer(); *reinterpret_cast<uint16_t*>(pc_) = x; pc_ += sizeof(uint16_t); }
 
 
   // Mark address of the ExitJSFrame code.
