@@ -172,6 +172,9 @@ static void AllocateJSArray(MacroAssembler* masm,
                             Register scratch2,
                             bool fill_with_hole,
                             Label* gc_required) {
+  ASSERT(!array_function.is(r11) && !array_size.is(r11) && !result.is(r11) &&
+         !elements_array_storage.is(r11) && !elements_array_end.is(r11) &&
+         !scratch1.is(r11) && !scratch2.is(r11));
   Label not_empty, allocated;
 
   // Load the initial map from the array function.
@@ -473,7 +476,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kConstructStubOffset));
   __ add(r3, r2, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jsr(r3);   // FIXME: jsr or jmp ???
+  __ jmp(r3);
 
   // r0: number of arguments
   // r1: called object
