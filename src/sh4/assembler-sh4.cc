@@ -503,12 +503,14 @@ void Assembler::bind(Label* L) {
   // label can only be bound once
   ASSERT(!L->is_bound());
 
+  // Jump directly to the current PC
   int target_pos = (int)pc_;
 
   // List the linked to patch
   while (L->is_linked()) {
     // Compute the current position
-    uint16_t* p_pos = reinterpret_cast<uint16_t*>(L->pos());
+    // L->pos() is the offset from the begining of the buffer
+    uint16_t* p_pos = reinterpret_cast<uint16_t*>(L->pos() + buffer_);
 
     // Compute the next before the patch
     next(L);
@@ -527,7 +529,7 @@ void Assembler::bind(Label* L) {
 
 void Assembler::next(Label* L) {
   ASSERT(L->is_linked());
-  int link = *reinterpret_cast<uint32_t*>(L->pos());
+  int link = *reinterpret_cast<uint32_t*>(L->pos() + buffer_);
   if (link > 0) {
     L->link_to(link);
   } else {
@@ -550,7 +552,8 @@ void Assembler::branch(Label* L, Register rtmp, branch_type type) {
     }
     // Compensate the place of the constant (sizeof(uint32_t))
     // Constant pool is always emited last in the sequence
-    int pos = reinterpret_cast<int>(pc_) - sizeof(uint32_t);
+    // the position is defined as an offset from the begining of the buffer
+    int pos = pc_offset() - sizeof(uint32_t);
     L->link_to(pos);  // Link to the constant
   }
 }
