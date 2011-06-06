@@ -67,7 +67,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
   // JumpToExternalReference expects r0 to contain the number of arguments
   // including the receiver and the extra arguments.
-  __ add(r0, Immediate(num_extra_args + 1));
+  __ add(r0, r0, Immediate(num_extra_args + 1));
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
@@ -184,7 +184,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 
   // Check whether an empty sized array is requested.
   __ tst(array_size, array_size);
-  __ bf(&not_empty);
+  __ b(ne, &not_empty);
 
   // If an empty array is requested allocate a small elements array anyway. This
   // keeps the code below free of special casing for the empty array.
@@ -315,8 +315,8 @@ static void ArrayNativeCode(MacroAssembler* masm,
   Label argc_one_or_more, argc_two_or_more;
 
   // Check for array construction with zero arguments or one.
-  __ cmpeq(r0, Immediate(0));
-  __ bf(&argc_one_or_more);
+  __ cmp(r0, Immediate(0));
+  __ b(ne, &argc_one_or_more);
 
   // Handle construction of an empty array.
   AllocateEmptyJSArray(masm,
@@ -832,7 +832,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
     __ mov(r2, Immediate(0));
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
-    __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+    __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
     __ bind(&function);
   }
@@ -850,7 +850,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   __ cmpeq(r2, r0);  // Check formal and actual parameter counts.
   __ bt(&end);
-  __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+  __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
   __ bind(&end);
   ParameterCount expected(0);
@@ -937,7 +937,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ bind(&call_to_object);
   __ push(r0);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
-  __ jmp(&push_receiver);
+  __ b(&push_receiver);
 
   // Use the current global receiver object as the receiver.
   __ bind(&use_global_receiver);
@@ -956,7 +956,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Copy all arguments from the array to the stack.
   Label entry, loop;
   __ ldr(r0, MemOperand(fp, kIndexOffset));
-  __ jmp(&entry);
+  __ b(&entry);
 
   // Load the current argument from the arguments array and push it to the
   // stack.
@@ -1059,13 +1059,13 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     Label copy;
     __ bind(&copy);
-    __ ldr(r11, MemOperand(r4, 0));
+    __ ldr(r11, MemOperand(r0, 0));
     __ push(r11);
     __ cmpeq(r0, r2);  // Compare before moving to next argument.
     __ sub(r0, r0, Immediate(kPointerSize));
     __ bf(&copy);
 
-    __ jmp(&invoke);
+    __ b(&invoke);
   }
 
   {  // Too few parameters: Actual < expected
@@ -1088,7 +1088,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label copy;
     __ bind(&copy);
     // Adjust load for return address and receiver.
-    __ mov(r11, MemOperand(r0, 2 * kPointerSize));
+    __ ldr(r11, MemOperand(r0, 2 * kPointerSize));
     __ push(r11);
     __ cmpeq(r0, fp);  // Compare before moving to next argument.
     __ sub(r0, r0, Immediate(kPointerSize));
