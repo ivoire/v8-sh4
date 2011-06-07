@@ -275,7 +275,9 @@ void MacroAssembler::Call(
   mov(r11, Operand(target, rmode));
   jsr(r11);
 
-  ASSERT(kCallTargetAddressOffset == 8 * kInstrSize);
+  // The offset from the const pool to the return adress after
+  // the jsr/nop. Ref to assembler-sh4.h for kCallTargetAddressOffset.
+  ASSERT(kCallTargetAddressOffset == 4 + 2 * kInstrSize);
 
 
   //TODO: check whether this is necessaery
@@ -2076,6 +2078,40 @@ void MacroAssembler::CheckMap(Register obj,
   bf(fail);
   RECORD_LINE();
 }
+
+
+CodePatcher::CodePatcher(byte* address, int instructions)
+    : address_(address),
+      instructions_(instructions),
+      size_(instructions * Assembler::kInstrSize),
+      masm_(Isolate::Current(), address, size_ + Assembler::kGap) {
+  // Create a new macro assembler pointing to the address of the code to patch.
+  // The size is adjusted with kGap on order for the assembler to generate size
+  // bytes of instructions without failing with buffer size constraints.
+  ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
+}
+
+
+CodePatcher::~CodePatcher() {
+  // Indicate that code has changed.
+  CPU::FlushICache(address_, size_);
+
+  // Check that the code was patched as expected.
+  ASSERT(masm_.pc_ == address_ + size_);
+  ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
+}
+
+
+void CodePatcher::EmitCondition(Condition cond) {
+  Instr instr = Assembler::instr_at(masm_.pc_);
+  ASSERT(cond == eq || cond == ne);
+  ASSERT(Assembler::IsBranch(instr));
+  instr = (instr & ~0x200); // Changed to bt
+  if (cond == ne) 
+    instr |= 0x200; // Changed to bf
+  masm_.emit(instr);
+}
+
 
 } }  // namespace v8::internal
 

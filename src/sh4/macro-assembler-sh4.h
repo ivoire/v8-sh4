@@ -855,14 +855,19 @@ class MacroAssembler: public Assembler {
 // an assertion.
 class CodePatcher {
  public:
-  CodePatcher(byte* address, int size);
+  CodePatcher(byte* address, int instructions);
   virtual ~CodePatcher();
 
   // Macro assembler to emit code.
   MacroAssembler* masm() { return &masm_; }
 
+  // Emit the condition part of an instruction leaving the rest of the current
+  // instruction unchanged.
+  void EmitCondition(Condition cond);
+
  private:
   byte* address_;  // The address of the code being patched.
+  int instructions_;  // Number of instructions of the expected patch size.
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
 };

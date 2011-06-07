@@ -478,8 +478,48 @@ void Assembler::dd(uint32_t data) {
   pc_ += sizeof(uint32_t);
 }
 
+
+Register Assembler::GetRn(Instr instr) {
+  ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
+  Register reg;
+  reg.code_ = (instr & 0x0F00) >> 8; // extract Rn from cmp/xx Rm, Rn
+  return reg;
+}
+
+
+Register Assembler::GetRm(Instr instr) {
+  ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
+  Register reg;
+  reg.code_ = (instr & 0x00F0) >> 4; // extract Rn from cmp/xx Rm, Rn
+  return reg;
+}
+
+
+bool Assembler::IsMovImmediate(Instr instr) {
+  return (instr & 0xF000) == 0xE000; // mov #ii, Rn
+}
+
+
+bool Assembler::IsBranch(Instr instr) {
+  return (instr & 0xF900) == 0x8900; // bt|bf|bt/s|bf/s instrs.
+}
+
+
+Condition Assembler::GetCondition(Instr instr) {
+  ASSERT(IsBranch(instr));
+  return (instr & 0x200) == 0x200 ? 
+    ne : // bf| bf/s
+    eq;  // bt|bt/s
+}
+
+
+bool Assembler::IsCmpRegister(Instr instr) {
+  return (instr & 0xF00F) == 0x3000; // cmp/eq Rm, Rn
+}
+
+
 bool Assembler::IsCmpImmediate(Instr instr) {
-  return (instr & 0xFF00) == 0x8800;
+  return (instr & 0xFF00) == 0x8800; // cmp/eq #ii, R0
 }
 
 
