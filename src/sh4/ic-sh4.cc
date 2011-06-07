@@ -1438,7 +1438,76 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 
 void PatchInlinedSmiCode(Address address) {
-  UNIMPLEMENTED();
+  Address cmp_instruction_address =
+      address + Assembler::kCallTargetAddressOffset;
+
+  // If the instruction following the call is not a cmp #ii, rx, nothing
+  // was inlined.
+  Instr instr = Assembler::instr_at(cmp_instruction_address);
+  if (!Assembler::IsCmpImmediate(instr)) {
+    return;
+  }
+
+  // The delta to the start of the map check instruction and the
+  // condition code uses at the patched jump.
+  int delta = Assembler::GetCmpImmediateRawImmediate(instr);
+
+  // If the delta is 0 the instruction is cmp #0, r0 which also signals that
+  // nothing was inlined.
+  if (delta == 0) {
+    return;
+  }
+
+#ifdef DEBUG
+  if (FLAG_trace_ic) {
+    PrintF("[  patching ic at %p, cmp=%p, delta=%d\n",
+           address, cmp_instruction_address, delta);
+  }
+#endif
+
+  Address patch_address =
+      cmp_instruction_address - delta * Assembler::kInstrSize;
+  Instr instr_at_patch = Assembler::instr_at(patch_address);
+  Instr instr_before_patch = 
+    Assembler::instr_at(patch_address - Assembler::kInstrSize);
+  Instr branch_instr =
+      Assembler::instr_at(patch_address + Assembler::kInstrSize);
+  ASSERT(Assembler::IsCmpRegister(instr_at_patch));
+  ASSERT_EQ(Assembler::GetRn(instr_at_patch).code(),
+            Assembler::GetRm(instr_at_patch).code());
+  ASSERT(Assembler::IsMovImmediate(instr_before_patch));
+  ASSERT_EQ(Assembler::GetRn(instr_before_patch).code(), sh4_r11.code());
+  ASSERT(Assembler::IsBranch(branch_instr));
+  if (Assembler::GetCondition(branch_instr) == eq) {
+    // This is patching a "jump if not smi" site to be active.
+    // Changing
+    //   mov #kSmiTagMask, r11
+    //   cmp rx, rx
+    //   bt <target>
+    // to
+    //   mov #kSmiTagMask, r11
+    //   tst rx, r11
+    //   bf <target>
+    CodePatcher patcher(patch_address, 2);
+    Register reg = Assembler::GetRn(instr_at_patch);
+    patcher.masm()->tst(reg, sh4_r11);
+    patcher.EmitCondition(ne);
+  } else {
+    ASSERT(Assembler::GetCondition(branch_instr) == ne);
+    // This is patching a "jump if smi" site to be active.
+    // Changing
+    //   mov #kSmiTagMask, r11
+    //   cmp rx, rx
+    //   bf <target>
+    // to
+    //   mov #kSmiTagMask, r11
+    //   tst rx, r11
+    //   bt <target>
+    CodePatcher patcher(patch_address, 2);
+    Register reg = Assembler::GetRn(instr_at_patch);
+    patcher.masm()->tst(reg, sh4_r11);
+    patcher.EmitCondition(eq);
+  }
 }
 
 

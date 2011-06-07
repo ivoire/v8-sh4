@@ -650,15 +650,25 @@ class Assembler : public AssemblerBase {
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);
 
-  // and the return address
-  static const int kCallTargetAddressOffset = 8 * kInstrSize;
+  // Distance between the instruction referring to the address of the call
+  // target and the return address.
+  // The call sequence is:
+  // mov.l const_pool, rx
+  // ..
+  // const_pool:
+  // .long call_address       @ call_address
+  // jsr rx
+  // nop
+  // ...                      @ return address (put in pr by the jsr)
+  static const int kCallTargetAddressOffset = 4 + 2 * kInstrSize ;
+
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
-  static const int kPatchReturnSequenceAddressOffset = kInstrSize; // FIXME(STM)
+  static const int kPatchReturnSequenceAddressOffset = 0 * kInstrSize; // FIXME(STM)
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-  static const int kPatchDebugBreakSlotAddressOffset = kInstrSize; // FIXME(STM)
+  static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize; // FIXME(STM)
 
   // The debug break slot must be able to contain a call instruction.
   static const int kDebugBreakSlotLength = kInstrSize; // FIXME(STM)
@@ -739,9 +749,21 @@ class Assembler : public AssemblerBase {
 
   void cmpeq_r0_raw_immediate(int raw_immediate) { cmpeq_imm_R0_((int8_t)raw_immediate); }
   int fits_raw_immediate(int raw_immediate) { return (raw_immediate & ~0xFF) == 0; };
-  int GetCmpImmediateRawImmediate(Instr instr);
-  Register GetCmpImmediateRegister(Instr instr);
-  bool IsCmpImmediate(Instr instr);
+
+  // Read/patch instructions
+  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(byte* pc, Instr instr) {
+    *reinterpret_cast<Instr*>(pc) = instr;
+  }
+  static Condition GetCondition(Instr instr);
+  static bool IsBranch(Instr instr);
+  static Register GetRn(Instr instr);
+  static Register GetRm(Instr instr);
+  static bool IsCmpRegister(Instr instr);
+  static bool IsCmpImmediate(Instr instr);
+  static Register GetCmpImmediateRegister(Instr instr);
+  static int GetCmpImmediateRawImmediate(Instr instr);
+  static bool IsMovImmediate(Instr instr);
 
   void sub(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);
   void sub(Register Rd, Register Rs, Register Rt);

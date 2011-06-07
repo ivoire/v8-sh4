@@ -47,12 +47,11 @@ namespace internal {
 // A patch site is a location in the code which it is possible to patch. This
 // class has a number of methods to emit the code which is patchable and the
 // method EmitPatchInfo to record a marker back to the patchable code. 
-// On SH4 this marker is a cmp #uu, r0 operation, this limits the range
-// of #uu to 0..+255 instructions for the distance betwen the patch and the label.
-// The #uu (8 bits interpreted as unsigned value) is the delta from the pc to 
+// On SH4 this marker is a cmp #ii, r0 operation, this limits the range
+// of #ii to -128..+127 instructions for the distance betwen the patch and
+// the label.
+// The #ii (8 bits signed value) is the delta from the pc to 
 // the first instruction of the patchable code.
-// Note: the delta is always positive, hence, we can encode the unsigned value
-// and use the full 8 bits range.
 class JumpPatchSite BASE_EMBEDDED {
  public:
   explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
@@ -69,6 +68,7 @@ class JumpPatchSite BASE_EMBEDDED {
   // the inlined smi code.
   void EmitJumpIfNotSmi(Register reg, Label* target) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    __ mov(r11, Immediate(kSmiTagMask));
     __ bind(&patch_site_);
     __ cmp(reg, reg);
     // Don't use b(al, ...) as that might emit the constant pool right after the
@@ -81,6 +81,7 @@ class JumpPatchSite BASE_EMBEDDED {
   // the inlined smi code.
   void EmitJumpIfSmi(Register reg, Label* target) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    __ mov(r11, Immediate(kSmiTagMask));
     __ bind(&patch_site_);
     __ cmp(reg, reg);
     __ bf(target);  // Never taken before patched.
