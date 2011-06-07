@@ -79,9 +79,8 @@ static void ProbeTable(Isolate* isolate,
 
   // Check that the flags match what we're looking for.
   __ ldr(scratch2, FieldMemOperand(scratch2, Code::kFlagsOffset));
-  __ land(scratch2, scratch2, Immediate(Code::kFlagsNotUsedInLookup));
-  __ mov(r11, Immediate(flags));
-  __ cmpeq(scratch2, r11);
+  __ bic(scratch2, scratch2, Immediate(Code::kFlagsNotUsedInLookup));
+  __ cmpeq(scratch2, Immediate(flags));
   __ bf(&miss);
 
   // Re-load code entry from cache.
@@ -138,8 +137,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ bt(&miss);
 
   // Get the map of the receiver and compute the hash.
-  __ mov(scratch, FieldMemOperand(name, String::kHashFieldOffset));
-  __ mov(r11, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
+  __ ldr(r11, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, r11);
   __ lxor(scratch, scratch, Immediate(flags));
   __ land(scratch, scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
@@ -158,6 +157,24 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
   __ bind(&miss);
+}
+
+
+void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
+                                                       int index,
+                                                       Register prototype) {
+  // Load the global or builtins object from the current context.
+  __ ldr(prototype, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Load the global context from the global or builtins object.
+  __ ldr(prototype,
+         FieldMemOperand(prototype, GlobalObject::kGlobalContextOffset));
+  // Load the function from the global context.
+  __ ldr(prototype, MemOperand(prototype, Context::SlotOffset(index)));
+  // Load the initial map.  The global functions all have initial maps.
+  __ ldr(prototype,
+         FieldMemOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
+  // Load the prototype from the initial map.
+  __ ldr(prototype, FieldMemOperand(prototype, Map::kPrototypeOffset));
 }
 
 
@@ -195,12 +212,11 @@ static void GenerateStringCheck(MacroAssembler* masm,
   __ bt(smi);
 
   // Check that the object is a string.
-  __ mov(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   __ land(scratch2, scratch1, Immediate(kIsNotStringMask));
   // The cast is to resolve the overload for the argument of 0x0.
-  __ mov(r11, Immediate(static_cast<int32_t>(kStringTag)));
-  __ cmpeq(scratch2, r11);
+  __ cmpeq(scratch2, Immediate(static_cast<int32_t>(kStringTag)));
   __ bf(non_string_object);
 }
 
@@ -264,24 +280,6 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 
   Handle<Code> ic(code);
   __ jmp(ic, RelocInfo::CODE_TARGET);
-}
-
-
-void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
-                                                       int index,
-                                                       Register prototype) {
-  // Load the global or builtins object from the current context.
-  __ ldr(prototype, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  // Load the global context from the global or builtins object.
-  __ ldr(prototype,
-         FieldMemOperand(prototype, GlobalObject::kGlobalContextOffset));
-  // Load the function from the global context.
-  __ ldr(prototype, MemOperand(prototype, Context::SlotOffset(index)));
-  // Load the initial map.  The global functions all have initial maps.
-  __ ldr(prototype,
-         FieldMemOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
-  // Load the prototype from the initial map.
-  __ ldr(prototype, FieldMemOperand(prototype, Map::kPrototypeOffset));
 }
 
 

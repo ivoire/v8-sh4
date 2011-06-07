@@ -209,12 +209,13 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // Load parameter from stack.
         __ ldr(r0, MemOperand(fp, parameter_offset));
         // Store it in the context.
-        __ mov(MemOperand(cp, Context::SlotOffset(slot->index())), r0);
+        __ mov(r1, Operand(Context::SlotOffset(slot->index())));
+        __ str(r0, MemOperand(cp, r1));
         // Update the write barrier. This clobbers all involved
         // registers, so we have to use two more registers to avoid
         // clobbering cp.
         __ mov(r2, cp);
-        __ RecordWrite(r2/*input/scratch*/, Context::SlotOffset(slot->index()),
+        __ RecordWrite(r2/*input/scratch*/, r1,
 		       r3 /*scratch*/, r0 /*scratch*/);
       }
     }
@@ -1648,7 +1649,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // code.
     if (done.is_linked()) {
       Label call;
-      __ jmp(&call);
+      __ b(&call);
       __ bind(&done);
       // Push function.
       __ push(r0);
