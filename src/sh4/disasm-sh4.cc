@@ -899,7 +899,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
 
 /*static*/ DisassemblerInterface *
 DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
-  return new DisassemblerSH4::DisassemblerSH4();
+  return new DisassemblerSH4();
 }
 
 }  // namespace disasm
