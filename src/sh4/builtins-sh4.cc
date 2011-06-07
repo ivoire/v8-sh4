@@ -139,17 +139,18 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch2: start of next object
   __ LoadRoot(scratch3, Heap::kFixedArrayMapRootIndex);
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
-  __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch3, scratch3, Immediate(kPointerSize));
+  ASSERT(!scratch1.is(r11) && !scratch2.is(r11) && !scratch3.is(r11));
+  __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch1, scratch1, Immediate(kPointerSize));
   __ mov(scratch3,  Immediate(Smi::FromInt(initial_capacity)));
   ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
-  __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch3, scratch3, Immediate(kPointerSize));
+  __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch1, scratch1, Immediate(kPointerSize));
 
   // Fill the FixedArray with the hole value.
   ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
   ASSERT(initial_capacity <= kLoopUnfoldLimit);
   __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
   for (int i = 0; i < initial_capacity; i++) {
-    __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch3, scratch3, Immediate(kPointerSize));
+    __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch1, scratch1, Immediate(kPointerSize));
   }
 }
 
@@ -1113,6 +1114,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Call the entry point.
   __ bind(&invoke);
   __ jsr(r3);
+
   // Exit frame and return.
   LeaveArgumentsAdaptorFrame(masm);
   __ rts();
@@ -1124,6 +1126,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ bind(&dont_adapt_arguments);
   __ jmp(r3);
 }
+
 
 #undef __
 
