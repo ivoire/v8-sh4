@@ -730,7 +730,7 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
   ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE);
 
 #ifdef DEBUG
-  Address instr_address = pc_;
+  int instr_address = pc_offset();
 #endif
 
   // Record the relocation location.
@@ -755,7 +755,7 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
       Address target_address = pc_;
       // Verify that target_address_address_at() is actually returning
       // the address where the target address for the instruction is stored.
-      ASSERT(target_address == target_address_address_at(instr_address));
+      ASSERT(target_address == target_address_address_at((byte*)(buffer_ + instr_address)));
     }
 #endif
     *reinterpret_cast<uint32_t*>(pc_) = imm.x_;
