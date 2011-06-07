@@ -810,45 +810,49 @@ void Assembler::mov(Register Rd, const Operand& src) {
 
 
 void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
-  if (src.offset_ == 0) {
-    movl_indRs_(src.rm_, Rd);
-  } else if(!src.rn_.is_valid()) {
-    if (FITS_SH4_movl_dispRs(src.offset_)) {
+  if (src.rn_.is_valid()) {
+    add(rtmp, src.rm_, src.rn_);
+    movl_indRs_(rtmp, Rd);
+  } else {
+    if (src.offset_ == 0) {
+      movl_indRs_(src.rm_, Rd);
+    } else if (FITS_SH4_movl_dispRs(src.offset_)) {
       movl_dispRs_(src.offset_, src.rm_, Rd);
     } else {
       add(rtmp, src.rm_, Immediate(src.offset_));
       movl_indRs_(rtmp, Rd);
     }
-  } else {
-    add(rtmp, src.rm_, src.rn_);
-    movl_indRs_(rtmp, Rd);
   }
 }
 
 
 void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
-  if (src.offset_ == 0) {
-    movb_indRs_(src.rm_, Rd);
-  } else if(!src.rn_.is_valid()) {
-    add(rtmp, src.rm_, Immediate(src.offset_));
-    movb_indRs_(rtmp, Rd);
-  } else {
+  if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
     movb_indRs_(rtmp, Rd);
+  } else {
+    if (src.offset_ == 0) {
+      movb_indRs_(src.rm_, Rd);
+    } else {
+      add(rtmp, src.rm_, Immediate(src.offset_));
+      movb_indRs_(rtmp, Rd);
+    }
   }
   extub_(Rd, Rd);       // zero extension
 }
 
 
 void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
-  if (src.offset_ == 0) {
-    movw_indRs_(src.rm_, Rd);
-  } else if(!src.rn_.is_valid()) {
-    add(rtmp, src.rm_, Immediate(src.offset_));
-    movw_indRs_(rtmp, Rd);
-  } else {
+  if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
     movw_indRs_(rtmp, Rd);
+  } else {
+    if (src.offset_ == 0) {
+      movw_indRs_(src.rm_, Rd);
+    } else {
+      add(rtmp, src.rm_, Immediate(src.offset_));
+      movw_indRs_(rtmp, Rd);
+    }
   }
   extuw_(Rd, Rd); // Zero extension
 }
