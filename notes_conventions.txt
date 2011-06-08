@@ -29,6 +29,9 @@ List of Call Stubs, stubs are called through the CallStub() call but are generat
 - StringAddStub, NumberToStringStub, SubStringStub, StringCompareStub:
   - Entry: args on stack
   - Exit: r0
+- TypeRecordingBinaryOpStub:
+  - Entry: r0, r1 for operands
+  - Exit: r0
 
 * CallICs builtins
 - StoreIC_Initialize_Strict, StoreIC_Initialize:

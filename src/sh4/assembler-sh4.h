@@ -287,7 +287,17 @@ enum Condition {
   pl = 10,      // positiv
   pz = 11,      // positiv or null
   ql = 12,      // negativ
-  qz = 13       // negativ or null
+  qz = 13,      // negativ or null
+  al = 14,	// Always
+  
+  // Aliases
+  t = eq,	// cmp eq; if SH4 cmpeq/cmp sets the T bit, t == eq
+  f = ne,	// cmp ne: if SH4 cmpeq/cmp clears the T bit, f == ne
+  vs = t,	// overflow set: if SH4 addv/subv sets the T bit, vs == t
+  vc = f,	// overflow clear: if SH4 addv/subv clears the T bit, vc == f
+  cs = t,	// carry set: if SH4 addc/subc sets the T bit, cs == t
+  cc = f	// carry clear: if SH4 addc/subc clears the T bit, vc == f
+
 };
 
 
@@ -778,6 +788,10 @@ class Assembler : public AssemblerBase {
   void addv(Register Rd, Register Rs, Register Rt);
   void subv(Register Rd, Register Rs, Register Rt, Register rtmp = r11);
 
+  void addc(Register Rd, Register Rs, Register Rt);
+  void subc(Register Rd, Register Rs, Register Rt, Register rtmp = r11);
+
+  void asr(Register Rd, Register Rs, Register Rt, Register rtmp = r11);	// arithmetic shift right
   void asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);    // arithmetic shift right
   void asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = r11);    // arithmetic shift left
 
@@ -805,6 +819,12 @@ class Assembler : public AssemblerBase {
 	   Register rtmp = r11) { lxor(Rd, Rs, imm, rtmp); }
   void eor(Register Rd, Register Rs, Register Rt)  { // Alias for lxor
     lxor(Rd, Rs, Rt);
+  }
+
+  void orr(Register Rd, Register Rs, const Immediate& imm,// Alias for lor
+	   Register rtmp = r11) { lor(Rd, Rs, imm, rtmp); }
+  void orr(Register Rd, Register Rs, Register Rt)  { // Alias for lor
+    lor(Rd, Rs, Rt);
   }
     
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };

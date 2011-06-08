@@ -307,6 +307,20 @@ void MacroAssembler::Call(
 }
 
 
+void MacroAssembler::GetLeastBitsFromSmi(Register dst,
+                                         Register src,
+                                         int num_least_bits) {
+  Ubfx(dst, src, kSmiTagSize, num_least_bits);
+}
+
+
+void MacroAssembler::GetLeastBitsFromInt32(Register dst,
+                                           Register src,
+                                           int num_least_bits) {
+  land(dst, src, Immediate((1 << num_least_bits) - 1));
+}
+
+
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments) {
   // No register conventions on entry.
@@ -1562,6 +1576,18 @@ void MacroAssembler::AllocateHeapNumber(Register result,
   str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
 }
 
+void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
+                                       Register source,  // Input.
+                                       Register scratch) {
+  ASSERT(!zeros.is(source) || !source.is(scratch));
+  ASSERT(!zeros.is(scratch));
+  //ASSERT(!scratch.is(ip));
+  //ASSERT(!source.is(ip));
+  //ASSERT(!zeros.is(ip));
+  RECORD_LINE();
+  UNIMPLEMENTED_BREAK();
+}
+
 // Copies a fixed number of fields of heap objects from src to dst.
 void MacroAssembler::CopyFields(Register dst,
                                 Register src,
@@ -1590,6 +1616,7 @@ void MacroAssembler::CopyFields(Register dst,
   }
 }
 
+
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index) {
   RECORD_LINE();
@@ -1602,9 +1629,19 @@ void MacroAssembler::StoreRoot(Register source,
   mov(MemOperand(roots, index << kPointerSizeLog2), source);
 }
 
-void MacroAssembler::Ret() {
-  RECORD_LINE();
-  rts();
+void MacroAssembler::Ret(Condition cond) {
+  ASSERT(cond == al || cond == eq || cond == ne);
+  if (cond == al) {
+    RECORD_LINE();
+    rts();
+  } else {
+    RECORD_LINE();
+    Label skip;
+    if (cond == eq) bf(&skip);
+    else bt(&skip);
+    rts();
+    bind(&skip);
+  }
 }
 
 
@@ -1873,6 +1910,32 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     Check(eq, "Yo dawg, I heard you liked function contexts "
 	  "so I put function contexts in all your contexts");
   }
+}
+
+
+void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
+    Register reg,
+    Register scratch,
+    Label* not_power_of_two_or_zero) {
+  sub(scratch, reg, Immediate(1));
+  cmpge(scratch, Immediate(0));
+  bf(not_power_of_two_or_zero);
+  tst(scratch, reg);
+  b(ne, not_power_of_two_or_zero);
+}
+
+
+void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
+    Register reg,
+    Register scratch,
+    Label* zero_and_neg,
+    Label* not_power_of_two) {
+  // TODO: check why this is the same as JumpIfNotPowerOfTwoOrZero()
+  sub(scratch, reg, Immediate(1));
+  cmpge(scratch, Immediate(0));
+  bf(zero_and_neg);
+  tst(scratch, reg);
+  b(ne, not_power_of_two);
 }
 
 

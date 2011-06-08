@@ -347,14 +347,6 @@ class MacroAssembler: public Assembler {
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 
-  // Smi tagging support.
-  void SmiTag(Register reg) {
-    add(reg, reg, reg);
-  }
-  void SmiUntag(Register reg) {
-    asr(reg, reg, Immediate(kSmiTagSize));
-  }
-
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
     tst(value, Immediate(kSmiTagMask));
@@ -625,6 +617,19 @@ class MacroAssembler: public Assembler {
   //   index - holds the overwritten index on exit.
   void IndexFromHash(Register hash, Register index);
 
+  // Get the number of least significant bits from a register
+  void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
+  void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);
+
+  // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
+  // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
+  // for 0 (31 instead of 32).  Source and scratch can be the same in which case
+  // the source is clobbered.  Source and zeros can also be the same in which
+  // case scratch should be a different register.
+  void CountLeadingZeros(Register zeros,
+                         Register source,
+                         Register scratch);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 
@@ -731,7 +736,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Utilities
 
-  void Ret();
+  void Ret(Condition cond = al);
 
   void Drop(int stack_elements);
 
@@ -791,6 +796,54 @@ class MacroAssembler: public Assembler {
   bool generating_stub() { return generating_stub_; }
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
   bool allow_stub_calls() { return allow_stub_calls_; }
+
+  // ---------------------------------------------------------------------------
+  // Number utilities
+
+  // Check whether the value of reg is a power of two and not zero. If not
+  // control continues at the label not_power_of_two. If reg is a power of two
+  // the register scratch contains the value of (reg - 1) when control falls
+  // through.
+  void JumpIfNotPowerOfTwoOrZero(Register reg,
+                                 Register scratch,
+                                 Label* not_power_of_two_or_zero);
+  // Check whether the value of reg is a power of two and not zero.
+  // Control falls through if it is, with scratch containing the mask
+  // value (reg - 1).
+  // Otherwise control jumps to the 'zero_and_neg' label if the value of reg is
+  // zero or negative, or jumps to the 'not_power_of_two' label if the value is
+  // strictly positive but not a power of two.
+  void JumpIfNotPowerOfTwoOrZeroAndNeg(Register reg,
+                                       Register scratch,
+                                       Label* zero_and_neg,
+                                       Label* not_power_of_two);
+
+  // ---------------------------------------------------------------------------
+  // Smi utilities
+
+  void SmiTag(Register reg) {
+    add(reg, reg, reg);
+  }
+  void SmiTag(Register dst, Register src) {
+    add(dst, src, src);
+  }
+
+  // Try to convert int32 to smi. If the value is to large, preserve
+  // the original value and jump to not_a_smi. Destroys scratch and
+  // sets flags.
+  void TrySmiTag(Register reg, Label* not_a_smi, Register scratch) {
+    addv(scratch, reg, reg);
+    b(vs, not_a_smi);
+    mov(reg, scratch);
+  }
+
+  void SmiUntag(Register reg) {
+    asr(reg, reg, Immediate(kSmiTagSize));
+  }
+  void SmiUntag(Register dst, Register src) {
+    asr(dst, src, Immediate(kSmiTagSize));
+  }
+
 
  private:
   void CallCFunctionHelper(Register function,

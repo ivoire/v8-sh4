@@ -1080,13 +1080,154 @@ void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
 
 
 const char* TypeRecordingBinaryOpStub::GetName() {
-  UNIMPLEMENTED();
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = NULL; //TODO: Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "TypeRecordingBinaryOpStub_%s_%s_%s",
+               op_name,
+               overwrite_name,
+               TRBinaryOpIC::GetName(operands_type_));
+  return name_;
 }
 
 
 void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
     MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // Input register: r0, r1
+  Register left = r1;
+  Register right = r0;
+  Register scratch1 = r7;
+  Register scratch2 = r9;
+
+  ASSERT(right.is(r0));
+  STATIC_ASSERT(kSmiTag == 0);
+
+  Label not_smi_result;
+  switch (op_) {
+    case Token::ADD:
+      __ addv(right, left, right);	// Add optimistically.
+      __ Ret(vc);			// Return if no overflow
+      __ sub(right, right, left);  	// Revert optimistic add.
+      break;
+    case Token::SUB:
+      __ subv(right, left, right);	// Subtract optimistically.
+      __ Ret(vc);			// Return if no overflow
+      __ sub(right, left, right);	// Revert optimistic subtract.
+      break;
+    case Token::MUL:
+      // TODO: implement optimized multiply with overflow check for SH4
+      // // Remove tag from one of the operands. This way the multiplication result
+      // // will be a smi if it fits the smi range.
+      // __ SmiUntag(ip, right);
+      // // Do multiplication
+      // // scratch1 = lower 32 bits of ip * left.
+      // // scratch2 = higher 32 bits of ip * left.
+      // __ smull(scratch1, scratch2, left, ip);
+      // // Check for overflowing the smi range - no overflow if higher 33 bits of
+      // // the result are identical.
+      // __ mov(ip, Operand(scratch1, ASR, 31));
+      // __ cmp(ip, Operand(scratch2));
+      // __ b(ne, &not_smi_result);
+      // // Go slow on zero result to handle -0.
+      // __ tst(scratch1, Operand(scratch1));
+      // __ mov(right, Operand(scratch1), LeaveCC, ne);
+      // __ Ret(ne);
+      // // We need -0 if we were multiplying a negative number with 0 to get 0.
+      // // We know one of them was zero.
+      // __ add(scratch2, right, Operand(left), SetCC);
+      // __ mov(right, Operand(Smi::FromInt(0)), LeaveCC, pl);
+      // __ Ret(pl);  // Return smi 0 if the non-zero one was positive.
+      // We fall through here if we multiplied a negative number with 0, because
+      // that would mean we should produce -0.
+      break;
+    case Token::DIV:
+      // Check for power of two on the right hand side.
+      __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
+      // Check for positive and no remainder (scratch1 contains right - 1).
+      __ orr(scratch2, scratch1, Immediate(0x80000000u));
+      __ tst(left, scratch2);
+      __ b(ne, &not_smi_result);
+
+      // Perform division by shifting.
+      __ CountLeadingZeros(scratch1, scratch1, scratch2);
+      __ rsb(scratch1, scratch1, Immediate(31));
+      __ lsr(right, left, scratch1);
+      __ Ret();
+      break;
+    case Token::MOD:
+      // Check for two positive smis.
+      __ orr(scratch1, left, right);
+      __ tst(scratch1, Immediate(0x80000000u | kSmiTagMask));
+      __ b(ne, &not_smi_result);
+
+      // Check for power of two on the right hand side.
+      __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
+
+      // Perform modulus by masking.
+      __ land(right, left, scratch1);
+      __ Ret();
+      break;
+    case Token::BIT_OR:
+      __ orr(right, left, right);
+      __ Ret();
+      break;
+    case Token::BIT_AND:
+      __ land(right, left, right);
+      __ Ret();
+      break;
+    case Token::BIT_XOR:
+      __ eor(right, left, right);
+      __ Ret();
+      break;
+    case Token::SAR:
+      // Remove tags from right operand.
+      __ GetLeastBitsFromSmi(scratch1, right, 5);
+      __ asr(right, left, scratch1);
+      // Smi tag result.
+      __ bic(right, right, Immediate(kSmiTagMask));
+      __ Ret();
+      break;
+    case Token::SHR:
+      // Remove tags from operands. We can't do this on a 31 bit number
+      // because then the 0s get shifted into bit 30 instead of bit 31.
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ lsr(scratch1, scratch1, scratch2);
+      // Unsigned shift is not allowed to produce a negative number, so
+      // check the sign bit and the sign bit after Smi tagging.
+      __ tst(scratch1, Immediate(0xc0000000));
+      __ b(ne, &not_smi_result);
+      // Smi tag result.
+      __ SmiTag(right, scratch1);
+      __ Ret();
+      break;
+    case Token::SHL:
+      // Remove tags from operands.
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ lsl(scratch1, scratch1, scratch2);
+      // Check that the signed result fits in a Smi.
+      __ add(scratch2, scratch1, Immediate(0x40000000));
+      __ cmpge(scratch2, Immediate(0));
+      __ bf(&not_smi_result);
+      __ SmiTag(right, scratch1);
+      __ Ret();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  __ bind(&not_smi_result);
 }
 
 
@@ -1404,6 +1545,74 @@ void StringCharAtGenerator::GenerateSlow(
   char_code_at_generator_.GenerateSlow(masm, call_helper);
   char_from_code_generator_.GenerateSlow(masm, call_helper);
 }
+
+
+class StringHelper : public AllStatic {
+ public:
+  // Generate code for copying characters using a simple loop. This should only
+  // be used in places where the number of characters is small and the
+  // additional setup and checking in GenerateCopyCharactersLong adds too much
+  // overhead. Copying of overlapping regions is not supported.
+  // Dest register ends at the position after the last character written.
+  static void GenerateCopyCharacters(MacroAssembler* masm,
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     Register scratch,
+                                     bool ascii);
+
+  // Generate code for copying a large number of characters. This function
+  // is allowed to spend extra time setting up conditions to make copying
+  // faster. Copying of overlapping regions is not supported.
+  // Dest register ends at the position after the last character written.
+  static void GenerateCopyCharactersLong(MacroAssembler* masm,
+                                         Register dest,
+                                         Register src,
+                                         Register count,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Register scratch3,
+                                         Register scratch4,
+                                         Register scratch5,
+                                         int flags);
+
+
+  // Probe the symbol table for a two character string. If the string is
+  // not found by probing a jump to the label not_found is performed. This jump
+  // does not guarantee that the string is not in the symbol table. If the
+  // string is found the code falls through with the string in register r0.
+  // Contents of both c1 and c2 registers are modified. At the exit c1 is
+  // guaranteed to contain halfword with low and high bytes equal to
+  // initial contents of c1 and c2 respectively.
+  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                   Register c1,
+                                                   Register c2,
+                                                   Register scratch1,
+                                                   Register scratch2,
+                                                   Register scratch3,
+                                                   Register scratch4,
+                                                   Register scratch5,
+                                                   Label* not_found);
+
+  // Generate string hash.
+  // Added a scratch parameter for the SH4 implementation compared to ARM.
+  static void GenerateHashInit(MacroAssembler* masm,
+                               Register hash,
+                               Register character,
+			       Register scratch);
+
+  static void GenerateHashAddCharacter(MacroAssembler* masm,
+                                       Register hash,
+                                       Register character,
+                                       Register scratch);
+
+  static void GenerateHashGetHash(MacroAssembler* masm,
+                                  Register hash,
+                                  Register scratch);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
+};
 
 
 // -------------------------------------------------------------------------
