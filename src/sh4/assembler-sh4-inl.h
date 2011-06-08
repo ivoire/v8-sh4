@@ -37,6 +37,7 @@
 #ifndef V8_SH4_ASSEMBLER_SH4_INL_H_
 #define V8_SH4_ASSEMBLER_SH4_INL_H_
 
+#include "sh4/assembler-sh4.h"
 #include "cpu.h"
 #include "debug.h"
 
