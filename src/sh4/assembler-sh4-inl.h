@@ -273,10 +273,11 @@ Address Assembler::target_address_address_at(Address pc) {
   // such as Assembler::mov(), Assembler::jmp(), such as Assembler::jsr().
 
   // All sequences for jmp/jsr/mov uses the same sequence as mov(), i.e.:
-  // align 4; movl pc+4 => R; nop; bra pc+4; nop; pool[0..32]
-  // We compute the address of pool[0] given the pc address before the align
+  // align 4; 
+  // movl pc+4 => R; nop; bra pc+4; nop; pool[0..32]
+  // We compute the address of pool[0] given the pc address after the align
   Address pool_address = pc;
-  pool_address = reinterpret_cast<Address>((reinterpret_cast<int32_t>(pc) + 3) & ~0x3); // align to 4 bytes boundary
+  ASSERT(reinterpret_cast<uint32_t>(pc) % 4 == 0); // check after align 
   pool_address += 4 * kInstrSize;
   return pool_address;
 }
