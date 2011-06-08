@@ -663,14 +663,17 @@ class Assembler : public AssemblerBase {
   // Distance between the instruction referring to the address of the call
   // target and the return address.
   // The call sequence is:
-  // mov.l const_pool, rx
-  // ..
+  // mov.l const_pool, rx     @ call sequence start address
+  // nop
+  // bra skip
+  // nop
   // const_pool:
-  // .long call_address       @ call_address
+  // .long call_address       
+  // skip:
   // jsr rx
   // nop
   // ...                      @ return address (put in pr by the jsr)
-  static const int kCallTargetAddressOffset = 4 + 2 * kInstrSize ;
+  static const int kCallTargetAddressOffset = 2 * kInstrSize + 4 + 4 * kInstrSize;
 
   // Distance between start of patched return sequence and the emitted address
   // to jump to.

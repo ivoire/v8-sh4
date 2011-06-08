@@ -263,7 +263,14 @@ void MacroAssembler::Call(
   // #ifdef DEBUG
   //   int pre_position = pc_offset();
   // #endif
-  
+
+  RECORD_LINE();
+
+  align(); // Force alignment such that we can check kCallTargetAddressOffset
+#ifdef DEBUG
+  int start_position = pc_offset();
+#endif
+
   // TODO: check whether this is necessary
   // Statement positions are expected to be recorded when the target
   // address is loaded. The mov method will automatically record
@@ -271,13 +278,12 @@ void MacroAssembler::Call(
   // we have to do it explicitly.
   //positions_recorder()->WriteRecordedPositions();
 
-  RECORD_LINE();
   mov(r11, Operand(target, rmode));
   jsr(r11);
 
-  // The offset from the const pool to the return adress after
+  // The offset from the start of the call sequence to the address after
   // the jsr/nop. Ref to assembler-sh4.h for kCallTargetAddressOffset.
-  ASSERT(kCallTargetAddressOffset == 4 + 2 * kInstrSize);
+  ASSERT(kCallTargetAddressOffset == pc_offset() - start_position);
 
 
   //TODO: check whether this is necessaery
