@@ -803,23 +803,21 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
   // FIXME(STM): Internal ref not handled
   ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE);
 
-#ifdef DEBUG
-  int instr_address = pc_offset();
-#endif
-
-  // Record the relocation location.
-  // Actually we record the PC of the instruction,
-  // though the target address is encoded in the constant pool below.
-  // If the code sequence changes, one must update
-  // Assembler::target_address_address_at().
-  if (imm.rmode_ != RelocInfo::NONE) RecordRelocInfo(imm.rmode_);
-
   // Move based on immediates can only be 8 bits long
   if (imm.is_int8() && imm.rmode_ == RelocInfo::NONE) {
     mov_imm_(imm.x_, Rd);
   } else {
     // Use a tiny constant pool and jump above
     align();
+#ifdef DEBUG
+    int instr_address = pc_offset();
+#endif
+    // Record the relocation location (after the align).
+    // Actually we record the PC of the instruction,
+    // though the target address is encoded in the constant pool below.
+    // If the code sequence changes, one must update
+    // Assembler::target_address_address_at().
+    if (imm.rmode_ != RelocInfo::NONE) RecordRelocInfo(imm.rmode_);
     movl_dispPC_(4, Rd);
     nop_();
     bra_(4);
