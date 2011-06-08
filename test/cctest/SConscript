@@ -104,7 +104,8 @@ SOURCES = {
     'test-disasm-arm.cc'
   ],
   'arch:sh4':  [
-    'test-sh4.cc'
+    'test-sh4.cc',
+    'test-assembler-sh4.cc'
   ],
   'arch:ia32': [
     'test-assembler-ia32.cc',
