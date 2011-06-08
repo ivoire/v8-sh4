@@ -1011,8 +1011,8 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
-  //FIXME: assert on rtmp ?
   RECORD_LINE();
+  ASSERT(!scratch1.is(r11) && !scratch2.is(r11));
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
     mov(scratch1, Immediate(value));
@@ -1025,6 +1025,7 @@ void MacroAssembler::SetCounter(StatsCounter* counter, int value,
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value > 0);
+  ASSERT(!scratch1.is(r11) && !scratch2.is(r11));
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
@@ -1039,6 +1040,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
 void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value > 0);
+  ASSERT(!scratch1.is(r11) && !scratch2.is(r11));
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) { 
     RECORD_LINE();
