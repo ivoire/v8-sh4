@@ -57,6 +57,7 @@ class JumpPatchSite BASE_EMBEDDED {
   explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
 #ifdef DEBUG
     info_emitted_ = false;
+    ASSERT(!patch_site_.is_bound());
 #endif
   }
 
@@ -88,6 +89,7 @@ class JumpPatchSite BASE_EMBEDDED {
   }
 
   void EmitPatchInfo() {
+    ASSERT(patch_site_.is_bound());
     int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
     ASSERT(delta_to_patch_site >= 0);
     // Ensure that the delta fits into the raw immediate.
@@ -2252,8 +2254,8 @@ bool FullCodeGenerator::TryLiteralCompare(Token::Value op,
 
   } else if (check->Equals(isolate()->heap()->function_symbol())) {
     __ JumpIfSmi(r0, if_false);
-    __ CompareObjectType(r0, r1, r0, FIRST_FUNCTION_CLASS_TYPE);
-    Split(ge, if_true, if_false, fall_through);
+    __ CompareObjectType(r0, r1, r0, FIRST_FUNCTION_CLASS_TYPE, ge);
+    Split(eq, if_true, if_false, fall_through);
 
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(r0, if_false);
@@ -2366,8 +2368,9 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         Label slow_case;
         __ lor(r2, r0, r1);
         patch_site.EmitJumpIfNotSmi(r2, &slow_case);
-        __ cmp(r1, r0);
-        Split(cond, if_true, if_false, NULL);
+	Condition tmp_cond = cond;
+        __ cmp(tmp_cond, r1, r0);
+        Split(tmp_cond, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
 
