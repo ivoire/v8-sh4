@@ -72,8 +72,17 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
-void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
-  __ UNIMPLEMENTED_BREAK();
+// Load the built-in Array function from the current context.
+static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
+  // Load the global context.
+
+  __ ldr(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(result,
+         FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
+  // Load the Array function from the global context.
+  __ ldr(result,
+         MemOperand(result,
+                    Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
 }
 
 
@@ -114,11 +123,11 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // result: JSObject
   // scratch1: initial map
   // scratch2: start of next object
-  __ str(scratch1, FieldMemOperand(result, JSObject::kMapOffset), scratch3);
+  __ str(scratch1, FieldMemOperand(result, JSObject::kMapOffset));
   __ LoadRoot(scratch1, Heap::kEmptyFixedArrayRootIndex);
-  __ str(scratch1, FieldMemOperand(result, JSArray::kPropertiesOffset), scratch3);
+  __ str(scratch1, FieldMemOperand(result, JSArray::kPropertiesOffset));
   // Field JSArray::kElementsOffset is initialized later.
-  __ mov(scratch3,  Immediate(0));
+  __ mov(scratch3,  Operand(0, RelocInfo::NONE));
   __ str(scratch3, FieldMemOperand(result, JSArray::kLengthOffset));
 
   // Calculate the location of the elements array and set elements array member
@@ -126,7 +135,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // result: JSObject
   // scratch2: start of next object
   __ add(scratch1, result, Immediate(JSArray::kSize));
-  __ str(scratch1, FieldMemOperand(result, JSArray::kElementsOffset), scratch3);
+  __ str(scratch1, FieldMemOperand(result, JSArray::kElementsOffset));
 
   // Clear the heap tag on the elements array.
   ASSERT(kSmiTag == 0);
@@ -139,18 +148,20 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch2: start of next object
   __ LoadRoot(scratch3, Heap::kFixedArrayMapRootIndex);
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
-  ASSERT(!scratch1.is(r11) && !scratch2.is(r11) && !scratch3.is(r11));
-  __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch1, scratch1, Immediate(kPointerSize));
+  __ str(scratch3, MemOperand(scratch1));
+  __ add(scratch1, scratch1, Immediate(kPointerSize));
   __ mov(scratch3,  Immediate(Smi::FromInt(initial_capacity)));
   ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
-  __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch1, scratch1, Immediate(kPointerSize));
+  __ str(scratch3, MemOperand(scratch1));
+  __ add(scratch1, scratch1, Immediate(kPointerSize));
 
   // Fill the FixedArray with the hole value.
   ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
   ASSERT(initial_capacity <= kLoopUnfoldLimit);
   __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
   for (int i = 0; i < initial_capacity; i++) {
-    __ str(scratch3, MemOperand(scratch1, kPointerSize)); __ add(scratch1, scratch1, Immediate(kPointerSize));
+    __ str(scratch3, MemOperand(scratch1));
+    __ add(scratch1, scratch1, Immediate(kPointerSize));
   }
 }
 
@@ -173,9 +184,6 @@ static void AllocateJSArray(MacroAssembler* masm,
                             Register scratch2,
                             bool fill_with_hole,
                             Label* gc_required) {
-  ASSERT(!array_function.is(r11) && !array_size.is(r11) && !result.is(r11) &&
-         !elements_array_storage.is(r11) && !elements_array_end.is(r11) &&
-         !scratch1.is(r11) && !scratch2.is(r11));
   Label not_empty, allocated;
 
   // Load the initial map from the array function.
@@ -204,10 +212,10 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ bind(&not_empty);
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ mov(elements_array_end,
-         Operand((JSArray::kSize + FixedArray::kHeaderSize) / kPointerSize));
+         Immediate((JSArray::kSize + FixedArray::kHeaderSize) / kPointerSize));
   __ asr(scratch1, array_size, Immediate(kSmiTagSize));
   __ add(elements_array_end,
-         elements_array_end,
+	 elements_array_end,
          scratch1);
   __ AllocateInNewSpace(
       elements_array_end,
@@ -250,22 +258,22 @@ static void AllocateJSArray(MacroAssembler* masm,
   // array_size: size of array (smi)
   __ LoadRoot(scratch1, Heap::kFixedArrayMapRootIndex);
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
-  __ str(scratch1, MemOperand(elements_array_storage, kPointerSize));
-  __ add(elements_array_storage, elements_array_storage, Immediate(kPointerSize));
+  __ str(scratch1, MemOperand(elements_array_storage));
+  __ add(elements_array_storage, elements_array_storage, 
+	 Immediate(kPointerSize));
   ASSERT(kSmiTag == 0);
-  Label dst;
   __ tst(array_size, array_size);
   // Length of the FixedArray is the number of pre-allocated elements if
   // the actual JSArray has length 0 and the size of the JSArray for non-empty
   // JSArrays. The length of a FixedArray is stored as a smi.
-  __ bf(&dst);
   __ mov(array_size,
-         Immediate(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
-  __ bind(&dst);
+         Immediate(Smi::FromInt(JSArray::kPreallocatedArrayElements)),
+         eq);
   ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
   __ str(array_size,
-         MemOperand(elements_array_storage, kPointerSize));
-  __ add(elements_array_storage, elements_array_storage, Immediate(kPointerSize));
+         MemOperand(elements_array_storage));
+  __ add(elements_array_storage, elements_array_storage,
+	 Immediate(kPointerSize));
 
   // Calculate elements array and elements array end.
   // result: JSObject
@@ -275,7 +283,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ lsl(scratch1, array_size, Immediate(kPointerSizeLog2 - kSmiTagSize));
   __ add(elements_array_end,
          elements_array_storage,
-         scratch1);
+	 scratch1);
 
   // Fill the allocated FixedArray with the hole value if requested.
   // result: JSObject
@@ -287,14 +295,14 @@ static void AllocateJSArray(MacroAssembler* masm,
     __ jmp(&entry);
     __ bind(&loop);
     __ str(scratch1,
-           MemOperand(elements_array_storage, kPointerSize));
-    __ add(elements_array_storage, elements_array_storage, Immediate(kPointerSize));
+           MemOperand(elements_array_storage));
+    __ add(elements_array_storage, elements_array_storage,
+	   Immediate(kPointerSize));
     __ bind(&entry);
     __ cmpge(elements_array_storage, elements_array_end);
     __ bf(&loop);
   }
 }
-
 
 // Create a new array for the built-in Array function. This function allocates
 // the JSArray object and the FixedArray elements array and initializes these.
@@ -332,18 +340,18 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // Setup return value, remove receiver from stack and return.
   __ mov(r0, r2);
   __ add(sp, sp, Immediate(kPointerSize));
-  __ rts();
+  __ Ret();
 
   // Check for one argument. Bail out if argument is not smi or if it is
   // negative.
   __ bind(&argc_one_or_more);
-  __ cmpeq(r0, Immediate(1));
-  __ bf(&argc_two_or_more);
+  __ cmp(r0, Immediate(1));
+  __ b(ne, &argc_two_or_more);
   ASSERT(kSmiTag == 0);
   __ ldr(r2, MemOperand(sp));  // Get the argument from the stack.
   __ land(r3, r2, Immediate(kIntptrSignBit | kSmiTagMask));
-  __ cmpeq(r3, Immediate(0));
-  __ bf(call_generic_code);
+  __ cmp(r3, Immediate(0));
+  __ b(ne, call_generic_code);
 
   // Handle construction of an empty array of a certain size. Bail out if size
   // is too large to actually allocate an elements array.
@@ -366,10 +374,10 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   true,
                   call_generic_code);
   __ IncrementCounter(counters->array_function_native(), 1, r2, r4);
-  // Setup return value (already done), remove receiver and argument from stack and return.
+  // Setup return value, remove receiver and argument from stack and return.
   __ mov(r0, r3);
   __ add(sp, sp, Immediate(2 * kPointerSize));
-  __ rts();
+  __ Ret();
 
   // Handle construction of an array from a list of arguments.
   __ bind(&argc_two_or_more);
@@ -403,8 +411,10 @@ static void ArrayNativeCode(MacroAssembler* masm,
   Label loop, entry;
   __ jmp(&entry);
   __ bind(&loop);
-  __ ldr(r2, MemOperand(sp, kPointerSize)); __ add(sp, sp, Immediate(kPointerSize));
-  __ sub(r5, r5, Immediate(kPointerSize));  __ str(r2, MemOperand(r5, -kPointerSize));
+  __ ldr(r2, MemOperand(sp));
+  __ add(sp, sp, Immediate(kPointerSize));
+  __ sub(r5, r5, Immediate(kPointerSize));
+  __ str(r2, MemOperand(r5));
   __ bind(&entry);
   __ cmpge(r4, r5);
   __ bf(&loop);
@@ -416,7 +426,40 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // sp[0]: receiver
   __ add(sp, sp, Immediate(kPointerSize));
   __ mov(r0, r3);
-  __ rts();
+  __ Ret();
+}
+
+
+void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0     : number of arguments
+  //  -- lr     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
+
+  // Get the Array function.
+  GenerateLoadArrayFunction(masm, r1);
+
+  if (FLAG_debug_code) {
+    // Initial map for the builtin Array functions should be maps.
+    __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
+    __ tst(r2, Immediate(kSmiTagMask));
+    __ Assert(ne, "Unexpected initial map for Array function");
+    __ CompareObjectType(r2, r3, r4, MAP_TYPE, eq);
+    __ Assert(eq, "Unexpected initial map for Array function");
+  }
+
+  // Run the native code for the Array function called as a normal function.
+  ArrayNativeCode(masm, &generic_array_code);
+
+  // Jump to the generic array code if the specialized code cannot handle
+  // the construction.
+  __ bind(&generic_array_code);
+
+  Handle<Code> array_code =
+      masm->isolate()->builtins()->ArrayCodeGeneric();
+  __ Jump(array_code, RelocInfo::CODE_TARGET);
 }
 
 
