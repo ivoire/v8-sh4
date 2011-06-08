@@ -1252,8 +1252,8 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // b(hi, gc_required);
   // }
   // SH4 code {
-  addv(scratch2, result, obj_size_reg);
-  bt(gc_required);
+  addc(scratch2, result, obj_size_reg);
+  b(cs,gc_required);
   RECORD_LINE();
   cmpgtu(scratch2, r11);
   bt(gc_required);
@@ -1386,13 +1386,13 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     // ARM code: add(scratch2, result, Operand(object_size, LSL, kPointerSizeLog2), SetCC);
     // SH4 code {
     lsl(object_size, object_size, Immediate(kPointerSizeLog2));
-    addv(scratch2, result, object_size);
+    addc(scratch2, result, object_size);
     // }
   } else {
     RECORD_LINE();
     // ARM code: add(scratch2, result, Operand(object_size), SetCC);
     // SH4 code:
-    addv(scratch2, result, object_size);
+    addc(scratch2, result, object_size);
   }
   RECORD_LINE();
   // ARM code {
@@ -1401,7 +1401,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // b(hi, gc_required);
   // }
   // SH4 code {
-  bt(gc_required);
+  b(cs,gc_required);
   RECORD_LINE();
   cmpgtu(scratch2, r11);
   bt(gc_required);

@@ -855,12 +855,9 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       } else {
         // The value of the expression is a smi and 0 is OK for -0.  Try
         // optimistic subtraction '0 - value'.
-	Label skip;
 	__ mov(ip, Immediate(0));
         __ subv(r0, ip, r0);
-	__ bt(&skip);
-        __ Ret();
-	__ bind(&skip);
+        __ Ret(vc);
         // We don't have to reverse the optimistic neg since the only case
         // where we fall through is the minimum negative Smi, which is the case
         // where the neg leaves the register unchanged.
