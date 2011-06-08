@@ -18,6 +18,9 @@ tmpfile=`mktemp /tmp/cctestXXXXXX`
 
 RUN_PREFIX=${RUN_PREFIX:-"env QEMU_ASSUME_KERNEL=2.6.30 /sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout 20 /home/compwork/guillon/qemu-stm/build-x86_64/sh4-linux-user/qemu-sh4 -distro -L /home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target  -x $PWD -cwd $PWD"}
 
+# Clean profiling files if present
+find . -name '*.gcda' -exec rm {} \;
+
 CCTEST="$RUN_PREFIX ./obj/test/debug/cctest"
 $CCTEST --list >$tmpfile 2>&1 || error "cannot list the tests: cctest --list failed"
 
@@ -31,6 +34,9 @@ fi
 
 total=0
 failed=0
+
+echo "Cleaning profiling files..."
+find . -name '*.gcda' -exec rm {} \;
 
 rm -f run_test.log
 echo "Running the tests..."
