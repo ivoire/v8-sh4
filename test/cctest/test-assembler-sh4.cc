@@ -164,8 +164,10 @@ TEST(4) {
 TEST(5) {
   BEGIN();
 
-  __ asr(r0, r4, r5);
-  __ asr(r0, r0, Immediate(1), r4);
+  __ asr(r1, r4, r5, r3);
+  __ asr(r1, r1, Immediate(1), r3);
+  __ asr(r4, r4, r5, r3);
+  __ add(r0, r4, r1);
   __ rts();
 
   JIT();
@@ -176,7 +178,7 @@ TEST(5) {
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 78945613, 4, 0, 0, 0));
   ::printf("f() = %d\n", res);
-  CHECK_EQ(78945613>>(4+1), res);
+  CHECK_EQ((78945613>>(4+1))+(78945613>>4), res);
 }
 
 
@@ -276,17 +278,17 @@ TEST(10) {
 
   for(int i = 0; i < 2000; i++)
     __ add(r0, r0, Immediate(1));
-  __ cmpeq(r0, Immediate(0));
+  __ cmpeq(r0, Immediate(0), r1);
   __ bt(&end);
 
   for(int i = 0; i < 2000; i++)
     __ add(r0, r0, Immediate(1));
-  __ cmpeq(r0, Immediate(0));
+  __ cmpeq(r0, Immediate(0), r1);
   __ bt(&end);
 
   for(int i = 0; i < 2000; i++)
     __ add(r0, r0, Immediate(1));
-  __ cmpeq(r0, Immediate(0));
+  __ cmpeq(r0, Immediate(0), r1);
   __ bf(&end);
 
   for(int i = 0; i < 2000; i++)
@@ -405,5 +407,88 @@ TEST(12) {
   CHECK_EQ(12+816+53+6543, res);
 }
 
+TEST(13) {
+  BEGIN();
 
+  Label error;
+
+  __ mov(r0, Immediate(2));
+  __ push(r0);
+  __ mov(r0, Immediate(3));
+  __ push(r0);
+  __ mov(r0, Immediate(5));
+  __ push(r0);
+  __ mov(r0, Immediate(7));
+  __ push(r0);
+
+  __ mov(r0, MemOperand(sp, 3 * sizeof(void*)));
+  __ cmpeq(r0, Immediate(2), r1);
+  __ bf(&error);
+
+  __ mov(r0, MemOperand(sp, 2 * sizeof(void*)));
+  __ cmpeq(r0, Immediate(3), r1);
+  __ bf(&error);
+
+  __ mov(r0, MemOperand(sp, 1 * sizeof(void*)));
+  __ cmpeq(r0, Immediate(5), r1);
+  __ bf(&error);
+
+  __ mov(r0, MemOperand(sp, 0 * sizeof(void*)));
+  __ cmpeq(r0, Immediate(7), r1);
+  __ bf(&error);
+
+  __ mov(r0, Immediate(1));
+  __ pop(r1);
+  __ pop(r1);
+  __ pop(r1);
+  __ pop(r1);
+  __ rts();
+
+  __ bind(&error);
+  __ pop(r1);
+  __ pop(r1);
+  __ pop(r1);
+  __ pop(r1);
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(1, res);
+}
+
+TEST(14) {
+  BEGIN();
+
+  Label begin, end;
+
+  __ mov(r0, Immediate(0));
+  __ bind(&begin);
+  __ cmpeq(r0, Immediate(0), r1);
+  __ bf(&end);
+
+  for(int i = 0; i < 10000; i++)
+    __ add(r0, r0, Immediate(1));
+
+  __ jmp(&begin);
+
+  __ bind(&end);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+//  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(10000, res);
+}
 #undef __
