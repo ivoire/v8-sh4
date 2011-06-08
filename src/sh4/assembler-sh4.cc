@@ -314,6 +314,19 @@ void Assembler::addv(Register Rd, Register Rs, Register Rt) {
 }
 
  
+void Assembler::addc(Register Rd, Register Rs, Register Rt) {
+  clrt_(); // Clear T bit before using addc
+  if (Rs.code() == Rd.code())
+    addc_(Rt, Rd);
+  else if (Rt.code() == Rd.code()) {
+    addc_(Rs, Rd);
+  } else {
+    mov_(Rs, Rd);
+    addc_(Rt, Rd);
+  }
+}
+
+ 
 void Assembler::subv(Register Rd, Register Rs, Register Rt, Register rtmp) {
   if (Rs.code() == Rd.code())
     subv_(Rt, Rd);
@@ -324,6 +337,21 @@ void Assembler::subv(Register Rd, Register Rs, Register Rt, Register rtmp) {
   } else {
     mov_(Rs, Rd);
     subv_(Rt, Rd);
+  }
+}
+
+
+void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
+  clrt_(); // Clear T bit before using subc
+  if (Rs.code() == Rd.code())
+    subc_(Rt, Rd);
+  else if (Rt.code() == Rd.code()) {
+    mov_(Rs, rtmp);
+    subc_(Rt, rtmp);
+    mov_(rtmp, Rd);
+  } else {
+    mov_(Rs, Rd);
+    subc_(Rt, Rd);
   }
 }
 
@@ -341,15 +369,21 @@ void Assembler::asl(Register Rd, Register Rs, const Immediate& imm, Register rtm
 }
 
 
+void Assembler::asr(Register Rd, Register Rs, Register Rt, Register rtmp) {
+  ASSERT(!Rs.is(rtmp));
+  if (Rs.code() != Rd.code())
+    mov_(Rs, Rd);
+  neg_(Rt, rtmp);
+  shad_(rtmp, Rd);
+}
+
+
 void Assembler::asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+  ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
     mov(Rd, Rs);
-  if (imm.x_ == 1) {
-    shal_(Rd);
-  } else {
-    mov(rtmp, Immediate(32 - imm.x_));
-    shad_(rtmp, Rd);
-  }
+  mov(rtmp, Immediate(-imm.x_));
+  shad_(rtmp, Rd);
 }
 
 
