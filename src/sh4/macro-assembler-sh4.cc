@@ -628,6 +628,26 @@ void MacroAssembler::InvokeCode(Register code,
 }
 
 
+void MacroAssembler::InvokeCode(Handle<Code> code,
+                                const ParameterCount& expected,
+                                const ParameterCount& actual,
+                                RelocInfo::Mode rmode,
+                                InvokeFlag flag) {
+  Label done;
+
+  InvokePrologue(expected, actual, code, no_reg, &done, flag);
+  if (flag == CALL_FUNCTION) {
+    Call(code, rmode);
+  } else {
+    Jump(code, rmode);
+  }
+
+  // Continue here if InvokePrologue does handle the invocation due to
+  // mismatched parameter counts.
+  bind(&done);
+}
+
+
 void MacroAssembler::InvokeFunction(Register fun,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
@@ -1527,8 +1547,28 @@ void MacroAssembler::InitializeNewString(Register string,
 }
 
 
-  // Allocate a sequential string. All the header fields of the string object
-  // are initialized.
+void MacroAssembler::UndoAllocationInNewSpace(Register object,
+                                              Register scratch) {
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate());
+
+  // Make sure the object has no tag before resetting top.
+  land(object, object, Immediate(~kHeapObjectTagMask));
+#ifdef DEBUG
+  // Check that the object un-allocated is below the current top.
+  mov(scratch, Immediate(new_space_allocation_top));
+  ldr(scratch, MemOperand(scratch));
+  cmpge(object, scratch);
+  Check(ne, "Undo allocation of non allocated memory");
+#endif
+  // Write the address of the object to un-allocate as the current top.
+  mov(scratch, Immediate(new_space_allocation_top));
+  str(object, MemOperand(scratch));
+}
+
+
+// Allocate a sequential string. All the header fields of the string object
+// are initialized.
 void MacroAssembler::AllocateTwoByteString(Register result,
                                            Register length,
                                            Register scratch1,
