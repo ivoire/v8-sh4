@@ -703,9 +703,6 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
 }
 
 
-// Clobbers: r0, r1, r2, r3
-// Live-in: fp, cp
-// Live-out: fp, cp
 void FullCodeGenerator::EmitDeclaration(Variable* variable,
                                         Variable::Mode mode,
                                         FunctionLiteral* function) {
@@ -719,8 +716,8 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       case Slot::PARAMETER:
       case Slot::LOCAL:
         if (mode == Variable::CONST) {
-          __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
-          __ str(r1, MemOperand(fp, SlotOffset(slot)));
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ str(ip, MemOperand(fp, SlotOffset(slot)));
         } else if (function != NULL) {
           VisitForAccumulatorValue(function);
           __ str(result_register(), MemOperand(fp, SlotOffset(slot)));
@@ -741,8 +738,8 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
           __ Check(eq, "Unexpected declaration in current context.");
         }
         if (mode == Variable::CONST) {
-          __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
-          __ str(r1, ContextOperand(cp, slot->index()));
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ str(ip, ContextOperand(cp, slot->index()));
           // No write barrier since the_hole_value is in old space.
         } else if (function != NULL) {
           VisitForAccumulatorValue(function);
@@ -815,7 +812,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
 
 
 void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
-  __ UNIMPLEMENTED_BREAK();
+  EmitDeclaration(decl->proxy()->var(), decl->mode(), decl->fun());
 }
 
 
