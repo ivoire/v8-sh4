@@ -69,12 +69,20 @@ class JumpPatchSite BASE_EMBEDDED {
   // the inlined smi code.
   void EmitJumpIfNotSmi(Register reg, Label* target) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    // For the current unbound branch sequence (in assembler_sh4.cc)
+    // to be simple to patch, we force the alignment now, such that the
+    // first instruction of the sequence after the cmp is a branch.
+    __ align();
     __ mov(r11, Immediate(kSmiTagMask));
     __ bind(&patch_site_);
     __ cmp(reg, reg);
     // Don't use b(al, ...) as that might emit the constant pool right after the
     // branch. After patching when the branch is no longer unconditional
     // execution can continue into the constant pool.
+    // Also for the later patch in PatchInlinedSmiCode, we require
+    // that the target is not bound yet.
+    ASSERT(!target->is_bound());
+    ASSERT(masm_->pc_offset() % 4 == 0);
     __ bt(target);  // Always taken before patched.
   }
 
@@ -82,9 +90,12 @@ class JumpPatchSite BASE_EMBEDDED {
   // the inlined smi code.
   void EmitJumpIfSmi(Register reg, Label* target) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
+    __ align();
     __ mov(r11, Immediate(kSmiTagMask));
     __ bind(&patch_site_);
     __ cmp(reg, reg);
+    ASSERT(!target->is_bound());
+    ASSERT(masm_->pc_offset() % 4 == 0);
     __ bf(target);  // Never taken before patched.
   }
 
