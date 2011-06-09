@@ -96,6 +96,122 @@ static void ProbeTable(Isolate* isolate,
 }
 
 
+// Helper function used to check that the dictionary doesn't contain
+// the property. This function may return false negatives, so miss_label
+// must always call a backup property check that is complete.
+// This function is safe to call if the receiver has fast properties.
+// Name must be a symbol and receiver must be a heap object.
+static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
+                                             Label* miss_label,
+                                             Register receiver,
+                                             String* name,
+                                             Register scratch0,
+                                             Register scratch1) {
+  ASSERT(name->IsSymbol());
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->negative_lookups(), 1, scratch0, scratch1);
+  __ IncrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
+
+  Label done;
+
+  const int kInterceptorOrAccessCheckNeededMask =
+      (1 << Map::kHasNamedInterceptor) | (1 << Map::kIsAccessCheckNeeded);
+
+  // Bail out if the receiver has a named interceptor or requires access checks.
+  Register map = scratch1;
+  __ ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldrb(scratch0, FieldMemOperand(map, Map::kBitFieldOffset));
+  __ tst(scratch0, Immediate(kInterceptorOrAccessCheckNeededMask));
+  __ b(ne, miss_label);
+
+  // Check that receiver is a JSObject.
+  __ ldrb(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ cmp(scratch0, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ b(lt, miss_label);
+
+  // Load properties array.
+  Register properties = scratch0;
+  __ ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  // Check that the properties array is a dictionary.
+  __ ldr(map, FieldMemOperand(properties, HeapObject::kMapOffset));
+  Register tmp = properties;
+  __ LoadRoot(tmp, Heap::kHashTableMapRootIndex);
+  __ cmp(map, tmp);
+  __ b(ne, miss_label);
+
+  // Restore the temporarily used register.
+  __ ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+
+  // Compute the capacity mask.
+  const int kCapacityOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
+
+  // Generate an unrolled loop that performs a few probes before
+  // giving up.
+  static const int kProbes = 4;
+  const int kElementsStartOffset =
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
+
+  // If names of slots in range from 1 to kProbes - 1 for the hash value are
+  // not equal to the name and kProbes-th slot is not used (its name is the
+  // undefined value), it guarantees the hash table doesn't contain the
+  // property. It's true even if some slots represent deleted properties
+  // (their names are the null value).
+  for (int i = 0; i < kProbes; i++) {
+    // scratch0 points to properties hash.
+    // Compute the masked index: (hash + i + i * i) & mask.
+    Register index = scratch1;
+    // Capacity is smi 2^n.
+    __ ldr(index, FieldMemOperand(properties, kCapacityOffset));
+    __ sub(index, index, Immediate(1));
+    __ land(index, index, Immediate(
+        Smi::FromInt(name->Hash() + StringDictionary::GetProbeOffset(i))));
+
+    // Scale the index by multiplying by the entry size.
+    ASSERT(StringDictionary::kEntrySize == 3);
+    __ lsl(scratch1, index, Immediate(1));
+    __ add(index, index, scratch1);  // index *= 3.
+
+    Register entity_name = scratch1;
+    // Having undefined at this place means the name is not contained.
+    ASSERT_EQ(kSmiTagSize, 1);
+    Register tmp = properties;
+    __ lsl(tmp, index, Immediate(1));
+    __ add(tmp, properties, tmp);
+    __ ldr(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
+
+    ASSERT(!tmp.is(entity_name));
+    __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
+    __ cmp(entity_name, tmp);
+    if (i != kProbes - 1) {
+      __ b(eq, &done);
+
+      // Stop if found the property.
+      __ cmp(entity_name, Immediate(Handle<String>(name)));
+      __ b(eq, miss_label);
+
+      // Check if the entry name is not a symbol.
+      __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
+      __ ldrb(entity_name,
+              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
+      __ tst(entity_name, Immediate(kIsSymbolMask));
+      __ b(eq, miss_label);
+
+      // Restore the properties.
+      __ ldr(properties,
+             FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+    } else {
+      // Give up probing if still not found the undefined value.
+      __ b(ne, miss_label);
+    }
+  }
+  __ bind(&done);
+  __ DecrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
+}
+
+
 void StubCache::GenerateProbe(MacroAssembler* masm,
                               Code::Flags flags,
                               Register receiver,
@@ -283,6 +399,198 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
+#include "map-sh4.h" // Define register map
+// Generate code to check that a global property cell is empty. Create
+// the property cell at compilation time if no cell exists for the
+// property.
+MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCell(
+    MacroAssembler* masm,
+    GlobalObject* global,
+    String* name,
+    Register scratch,
+    Label* miss) {
+  Object* probe;
+  { MaybeObject* maybe_probe = global->EnsurePropertyCell(name);
+    if (!maybe_probe->ToObject(&probe)) return maybe_probe;
+  }
+  JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(probe);
+  ASSERT(cell->value()->IsTheHole());
+  __ mov(scratch, Operand(Handle<Object>(cell)));
+  __ ldr(scratch,
+         FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(scratch, ip);
+  __ b(ne, miss);
+  return cell;
+}
+
+// Calls GenerateCheckPropertyCell for each global object in the prototype chain
+// from object to (but not including) holder.
+MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCells(
+    MacroAssembler* masm,
+    JSObject* object,
+    JSObject* holder,
+    String* name,
+    Register scratch,
+    Label* miss) {
+  JSObject* current = object;
+  while (current != holder) {
+    if (current->IsGlobalObject()) {
+      // Returns a cell or a failure.
+      MaybeObject* result = GenerateCheckPropertyCell(
+          masm,
+          GlobalObject::cast(current),
+          name,
+          scratch,
+          miss);
+      if (result->IsFailure()) return result;
+    }
+    ASSERT(current->IsJSObject());
+    current = JSObject::cast(current->GetPrototype());
+  }
+  return NULL;
+}
+#include "map-sh4.h" // Undefine register map
+
+#undef __
+#define __ ACCESS_MASM(masm())
+
+Register StubCompiler::CheckPrototypes(JSObject* object,
+                                       Register object_reg,
+                                       JSObject* holder,
+                                       Register holder_reg,
+                                       Register scratch1,
+                                       Register scratch2,
+                                       String* name,
+                                       int save_at_depth,
+                                       Label* miss) {
+  // Make sure there's no overlap between holder and object registers.
+  ASSERT(!scratch1.is(object_reg) && !scratch1.is(holder_reg));
+  ASSERT(!scratch2.is(object_reg) && !scratch2.is(holder_reg)
+         && !scratch2.is(scratch1));
+
+  // Keep track of the current object in register reg.
+  Register reg = object_reg;
+  int depth = 0;
+
+  if (save_at_depth == depth) {
+    __ str(reg, MemOperand(sp));
+  }
+
+  // Check the maps in the prototype chain.
+  // Traverse the prototype chain from the object and do map checks.
+  JSObject* current = object;
+  while (current != holder) {
+    depth++;
+
+    // Only global objects and objects that do not require access
+    // checks are allowed in stubs.
+    ASSERT(current->IsJSGlobalProxy() || !current->IsAccessCheckNeeded());
+
+    ASSERT(current->GetPrototype()->IsJSObject());
+    JSObject* prototype = JSObject::cast(current->GetPrototype());
+    if (!current->HasFastProperties() &&
+        !current->IsJSGlobalObject() &&
+        !current->IsJSGlobalProxy()) {
+      if (!name->IsSymbol()) {
+        MaybeObject* maybe_lookup_result = heap()->LookupSymbol(name);
+        Object* lookup_result = NULL;  // Initialization to please compiler.
+        if (!maybe_lookup_result->ToObject(&lookup_result)) {
+          set_failure(Failure::cast(maybe_lookup_result));
+          return reg;
+        }
+        name = String::cast(lookup_result);
+      }
+      ASSERT(current->property_dictionary()->FindEntry(name) ==
+             StringDictionary::kNotFound);
+
+      GenerateDictionaryNegativeLookup(masm(),
+                                       miss,
+                                       reg,
+                                       name,
+                                       scratch1,
+                                       scratch2);
+      __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+      reg = holder_reg;  // from now the object is in holder_reg
+      __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
+    } else if (heap()->InNewSpace(prototype)) {
+      // Get the map of the current object.
+      __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+      __ cmpeq(scratch1, Immediate(Handle<Map>(current->map())));
+
+      // Branch on the result of the map check.
+      __ b(ne, miss);
+
+      // Check access rights to the global object.  This has to happen
+      // after the map check so that we know that the object is
+      // actually a global object.
+      if (current->IsJSGlobalProxy()) {
+        __ CheckAccessGlobalProxy(reg, scratch1, miss);
+        // Restore scratch register to be the map of the object.  In the
+        // new space case below, we load the prototype from the map in
+        // the scratch register.
+        __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+      }
+
+      reg = holder_reg;  // from now the object is in holder_reg
+      // The prototype is in new space; we cannot store a reference
+      // to it in the code. Load it from the map.
+      __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
+    } else {
+      // Check the map of the current object.
+      __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+      __ cmp(scratch1, Immediate(Handle<Map>(current->map())));
+      // Branch on the result of the map check.
+      __ b(ne, miss);
+      // Check access rights to the global object.  This has to happen
+      // after the map check so that we know that the object is
+      // actually a global object.
+      if (current->IsJSGlobalProxy()) {
+        __ CheckAccessGlobalProxy(reg, scratch1, miss);
+      }
+      // The prototype is in old space; load it directly.
+      reg = holder_reg;  // from now the object is in holder_reg
+      __ mov(reg, Immediate(Handle<JSObject>(prototype)));
+    }
+
+    if (save_at_depth == depth) {
+      __ str(reg, MemOperand(sp));
+    }
+
+    // Go to the next object in the prototype chain.
+    current = prototype;
+  }
+
+  // Check the holder map.
+  __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+  __ cmp(scratch1, Immediate(Handle<Map>(current->map())));
+  __ b(ne, miss);
+
+  // Log the check depth.
+  LOG(masm()->isolate(), IntEvent("check-maps-depth", depth + 1));
+
+  // Perform security check for access to the global object.
+  ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
+  if (holder->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(reg, scratch1, miss);
+  };
+
+  // If we've skipped any global objects, it's not enough to verify
+  // that their maps haven't changed.  We also need to check that the
+  // property cell for the property is still empty.
+  MaybeObject* result = GenerateCheckPropertyCells(masm(),
+                                                   object,
+                                                   holder,
+                                                   name,
+                                                   scratch1,
+                                                   miss);
+  if (result->IsFailure()) set_failure(Failure::cast(result));
+
+  // Return the register containing the holder.
+  return reg;
+}
+
+
 MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
                                                 JSObject* holder,
                                                 int index,
@@ -327,14 +635,54 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
 }
 
 
+#include "map-sh4.h" // Define register map
 MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
                                                  GlobalObject* holder,
                                                  JSGlobalPropertyCell* cell,
                                                  String* name,
                                                  bool is_dont_delete) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  // If the object is the holder then we know that it's a global
+  // object which can only happen for contextual calls. In this case,
+  // the receiver cannot be a smi.
+  if (object != holder) {
+    __ tst(r0, Immediate(kSmiTagMask));
+    __ b(eq, &miss);
+  }
+
+  // Check that the map of the global has not changed.
+  CheckPrototypes(object, r0, holder, r3, r4, r1, name, &miss);
+
+  // Get the value from the cell.
+  __ mov(r3, Operand(Handle<JSGlobalPropertyCell>(cell)));
+  __ ldr(r4, FieldMemOperand(r3, JSGlobalPropertyCell::kValueOffset));
+
+  // Check for deleted property if property can actually be deleted.
+  if (!is_dont_delete) {
+    __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+    __ cmp(r4, ip);
+    __ b(eq, &miss);
+  }
+
+  __ mov(r0, r4);
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->named_load_global_stub(), 1, r1, r3);
+  __ Ret();
+
+  __ bind(&miss);
+  __ IncrementCounter(counters->named_load_global_stub_miss(), 1, r1, r3);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, name);
 }
+#include "map-sh4.h" // Undefine register map
 
 
 MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
