@@ -699,7 +699,26 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
                                                      bool should_normalize,
                                                      Label* if_true,
                                                      Label* if_false) {
-  __ UNIMPLEMENTED_BREAK();
+  // Only prepare for bailouts before splits if we're in a test
+  // context. Otherwise, we let the Visit function deal with the
+  // preparation to avoid preparing with the same AST id twice.
+  if (!context()->IsTest() || !info_->IsOptimizable()) return;
+
+  Label skip;
+  if (should_normalize) __ b(&skip);
+
+  ForwardBailoutStack* current = forward_bailout_stack_;
+  while (current != NULL) {
+    PrepareForBailout(current->expr(), state);
+    current = current->parent();
+  }
+
+  if (should_normalize) {
+    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+    __ cmp(r0, ip);
+    Split(eq, if_true, if_false, NULL);
+    __ bind(&skip);
+  }
 }
 
 
