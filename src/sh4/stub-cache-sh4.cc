@@ -126,8 +126,8 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
 
   // Check that receiver is a JSObject.
   __ ldrb(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ cmp(scratch0, Immediate(FIRST_JS_OBJECT_TYPE));
-  __ b(lt, miss_label);
+  __ cmpge(scratch0, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ b(ne, miss_label);
 
   // Load properties array.
   Register properties = scratch0;
