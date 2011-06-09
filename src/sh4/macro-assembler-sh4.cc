@@ -907,6 +907,85 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   rts();
 }
 
+#include "map-sh4.h" // Define register map
+void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
+                                            Register scratch,
+                                            Label* miss) {
+  Label same_contexts;
+
+  ASSERT(!holder_reg.is(scratch));
+  ASSERT(!holder_reg.is(ip));
+  ASSERT(!scratch.is(ip));
+
+  // Load current lexical context from the stack frame.
+  ldr(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // In debug mode, make sure the lexical context is set.
+#ifdef DEBUG
+  cmp(scratch, Immediate(0));
+  Check(ne, "we should not have an empty lexical context");
+#endif
+
+  // Load the global context of the current context.
+  int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+  ldr(scratch, FieldMemOperand(scratch, offset));
+  ldr(scratch, FieldMemOperand(scratch, GlobalObject::kGlobalContextOffset));
+
+  // Check the context is a global context.
+  if (emit_debug_code()) {
+    // TODO(119): avoid push(holder_reg)/pop(holder_reg)
+    // Cannot use ip as a temporary in this verification code. Due to the fact
+    // that ip is clobbered as part of cmp with an object Operand.
+    push(holder_reg);  // Temporarily save holder on the stack.
+    // Read the first word and compare to the global_context_map.
+    ldr(holder_reg, FieldMemOperand(scratch, HeapObject::kMapOffset));
+    LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    cmp(holder_reg, ip);
+    Check(eq, "JSGlobalObject::global_context should be a global context.");
+    pop(holder_reg);  // Restore holder.
+  }
+
+  // Check if both contexts are the same.
+  ldr(ip, FieldMemOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  cmp(scratch, ip);
+  b(eq, &same_contexts);
+
+  // Check the context is a global context.
+  if (emit_debug_code()) {
+    // TODO(119): avoid push(holder_reg)/pop(holder_reg)
+    // Cannot use ip as a temporary in this verification code. Due to the fact
+    // that ip is clobbered as part of cmp with an object Operand.
+    push(holder_reg);  // Temporarily save holder on the stack.
+    mov(holder_reg, ip);  // Move ip to its holding place.
+    LoadRoot(ip, Heap::kNullValueRootIndex);
+    cmp(holder_reg, ip);
+    Check(ne, "JSGlobalProxy::context() should not be null.");
+
+    ldr(holder_reg, FieldMemOperand(holder_reg, HeapObject::kMapOffset));
+    LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    cmp(holder_reg, ip);
+    Check(eq, "JSGlobalObject::global_context should be a global context.");
+    // Restore ip is not needed. ip is reloaded below.
+    pop(holder_reg);  // Restore holder.
+    // Restore ip to holder's context.
+    ldr(ip, FieldMemOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  }
+
+  // Check that the security token in the calling global object is
+  // compatible with the security token in the receiving global
+  // object.
+  int token_offset = Context::kHeaderSize +
+                     Context::SECURITY_TOKEN_INDEX * kPointerSize;
+
+  ldr(scratch, FieldMemOperand(scratch, token_offset));
+  ldr(ip, FieldMemOperand(ip, token_offset));
+  cmp(scratch, ip);
+  b(ne, miss);
+
+  bind(&same_contexts);
+}
+#include "map-sh4.h" // Undefine register map
+
+
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   UNIMPLEMENTED();
   return 0;

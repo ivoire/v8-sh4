@@ -250,7 +250,17 @@ Immediate::Immediate(Label* internal_offset) {
 
 
 Immediate::Immediate(Handle<Object> handle) {
-  UNIMPLEMENTED();
+  // Verify all Objects referred by code are NOT in new space.
+  Object* obj = *handle;
+  ASSERT(!HEAP->InNewSpace(obj));
+  if (obj->IsHeapObject()) {
+    x_ = reinterpret_cast<intptr_t>(handle.location());
+    rmode_ = RelocInfo::EMBEDDED_OBJECT;
+  } else {
+    // no relocation needed
+    x_ =  reinterpret_cast<intptr_t>(obj);
+    rmode_ = RelocInfo::NONE;
+  }
 }
 
 
