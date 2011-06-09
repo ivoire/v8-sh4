@@ -1503,35 +1503,43 @@ void PatchInlinedSmiCode(Address address) {
   ASSERT(Assembler::IsMovImmediate(instr_before_patch));
   ASSERT_EQ(Assembler::GetRn(instr_before_patch).code(), sh4_r11.code());
   ASSERT(Assembler::IsBranch(branch_instr));
-  if (Assembler::GetCondition(branch_instr) == eq) {
+  if (Assembler::GetCondition(branch_instr) == f) {
     // This is patching a "jump if not smi" site to be active.
     // Changing
     //   mov #kSmiTagMask, r11
     //   cmp rx, rx
-    //   bt <target>
+    //   bf <skip>        // actually a bt <target>
+    //   ...
+    //   bra <target>
+    //   skip:
     // to
     //   mov #kSmiTagMask, r11
     //   tst rx, r11
-    //   bf <target>
+    //   bt <skip>       // actually implements a bf <target>
+    //   ...
     CodePatcher patcher(patch_address, 2);
     Register reg = Assembler::GetRn(instr_at_patch);
     patcher.masm()->tst(reg, sh4_r11);
-    patcher.EmitCondition(ne);
+    patcher.EmitCondition(t);
   } else {
-    ASSERT(Assembler::GetCondition(branch_instr) == ne);
+    ASSERT(Assembler::GetCondition(branch_instr) == t);
     // This is patching a "jump if smi" site to be active.
     // Changing
     //   mov #kSmiTagMask, r11
     //   cmp rx, rx
-    //   bf <target>
+    //   bt <skip>        // actually a bf <target>
+    //   ...
+    //   bra <target>
+    //   skip:
     // to
     //   mov #kSmiTagMask, r11
     //   tst rx, r11
-    //   bt <target>
+    //   bf <target>
+    //   ...
     CodePatcher patcher(patch_address, 2);
     Register reg = Assembler::GetRn(instr_at_patch);
     patcher.masm()->tst(reg, sh4_r11);
-    patcher.EmitCondition(eq);
+    patcher.EmitCondition(f);
   }
 }
 
