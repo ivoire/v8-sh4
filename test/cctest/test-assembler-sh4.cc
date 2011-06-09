@@ -146,7 +146,7 @@ TEST(3) {
 TEST(4) {
   BEGIN();
 
-  __ asl(r0, r4, Immediate(17));
+  __ asl(r0, r4, Immediate(17), r1);
   __ asl(r0, r0, Immediate(1));
   __ rts();
 
@@ -185,8 +185,9 @@ TEST(5) {
 TEST(6) {
   BEGIN();
 
-  __ lsl(r0, r4, Immediate(17), r4);
-  __ lsl(r0, r0, Immediate(1));
+  __ lsl(r0, r4, Immediate(17), r1);
+  __ mov(r1, Immediate(1));
+  __ lsl(r0, r0, r1);
   __ rts();
 
   JIT();
@@ -491,4 +492,131 @@ TEST(14) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(10000, res);
 }
+
+TEST(15) {
+  BEGIN();
+
+  Label error;
+
+  __ mov(r1, Immediate(1));
+  __ mov(r4, Immediate(2147483647));
+  __ addv(r1, r1, r4);          // set the T bit
+  __ bf(&error, r2);
+
+  __ mov(r1, Immediate(1));
+  __ mov(r4, Immediate(2147483647-1));
+  __ addv(r1, r4, r1);          // does not set the T bit
+  __ bt(&error, r2);
+
+  __ mov(r1, Immediate(1));
+  __ mov(r4, Immediate(0));
+  __ addv(r0, r1, r4);          // does not set the T bit
+  __ bt(&error, r2);
+
+
+  __ mov(r1, Immediate(1));
+  __ mov(r4, Immediate(-2147483647-1));
+  __ subv(r1, r4, r1);          // set the T bit
+  __ bf(&error, r2);
+
+  __ mov(r1, Immediate(1));
+  __ mov(r4, Immediate(-2147483647));
+  __ subv(r1, r4, r1);          // does not set the T bit
+  __ bt(&error, r2);
+
+  __ mov(r1, Immediate(1));
+  __ mov(r4, Immediate(0));
+  __ subv(r0, r1, r4);          // does not set the T bit
+  __ bt(&error, r2);
+
+
+  __ mov(r0, Immediate(1));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(1, res);
+}
+
+TEST(16) {
+  BEGIN();
+
+  Label error;
+
+  __ mov(r1, Immediate(0x00ff00ff));
+  __ land(r1, r1, Immediate(0xff00ff00), r2);
+  __ cmpeq(r1, Immediate(0));                   // true
+  __ bf(&error, r2);
+
+  __ mov(r1, Immediate(0x00ffff00));
+  __ land(r1, r1, Immediate(0xff00ff00), r2);
+  __ cmpeq(r1, Immediate(0x0000ff00), r2);      // true
+  __ bf(&error, r2);
+
+  __ mov(r0, Immediate(0xff));
+  __ land(r0, r0, Immediate(0x0f));
+  __ cmpeq(r0, Immediate(0x0f), r2);            // true
+  __ bf(&error, r2);
+
+  __ mov(r1, Immediate(0x0f0));
+  __ mov(r2, Immediate(0xfff));
+  __ land(r1, r1, r2);
+  __ cmpeq(r1, Immediate(0x0f0), r2);           // true
+  __ bf(&error, r2);
+
+
+  __ mov(r1, Immediate(0x00ff00ff));
+  __ lor(r1, r1, Immediate(0xff00ff00), r2);
+  __ cmpeq(r1, Immediate(0xffffffff));          // true
+  __ bf(&error, r2);
+
+  __ mov(r1, Immediate(0x00ffff00));
+  __ lor(r1, r1, Immediate(0xff00ff00), r2);
+  __ cmpeq(r1, Immediate(0xffffff00), r2);      // true
+  __ bf(&error, r2);
+
+  __ mov(r0, Immediate(0xf0));
+  __ lor(r0, r0, Immediate(0x0e), r2);
+  __ cmpeq(r0, Immediate(0xfe), r2);            // true
+  __ bf(&error, r2);
+
+  __ mov(r1, Immediate(0x0f0));
+  __ mov(r2, Immediate(0xf12));
+  __ lor(r1, r1, r2);
+  __ cmpeq(r1, Immediate(0xff2), r2);           // true
+  __ bf(&error, r2);
+
+
+  __ mov(r0, Immediate(1));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(1, res);
+}
+
+
+
 #undef __
