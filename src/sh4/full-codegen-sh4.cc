@@ -870,7 +870,30 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
                                        bool pretenure) {
-  __ UNIMPLEMENTED_BREAK();
+  // Use the fast case closure allocation code that allocates in new
+  // space for nested functions that don't need literals cloning. If
+  // we're running with the --always-opt or the --prepare-always-opt
+  // flag, we need to use the runtime function so that the new function
+  // we are creating here gets a chance to have its code optimized and
+  // doesn't just get a copy of the existing unoptimized code.
+  if (!FLAG_always_opt &&
+      !FLAG_prepare_always_opt &&
+      !pretenure &&
+      scope()->is_function_scope() &&
+      info->num_literals() == 0) {
+    FastNewClosureStub stub(info->strict_mode() ? kStrictMode : kNonStrictMode);
+    __ mov(r0, Operand(info));
+    __ push(r0);
+    __ CallStub(&stub);
+  } else {
+    __ mov(r0, Operand(info));
+    __ LoadRoot(r1, pretenure ? Heap::kTrueValueRootIndex
+                              : Heap::kFalseValueRootIndex);
+    __ Push(cp, r0, r1);
+    __ CallRuntime(Runtime::kNewClosure, 3);
+  }
+  context()->Plug(r0);
+
 }
 
 

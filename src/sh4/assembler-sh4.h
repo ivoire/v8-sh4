@@ -865,6 +865,7 @@ class Assembler : public AssemblerBase {
   void pushm(RegList src, bool doubles = false);
 
   void pop(Register dst);
+  void pop() { add(sp, sp, Immediate(kPointerSize)); }
   void pop(DwVfpRegister dst);
   void popm(RegList dst, bool doubles = false);
 

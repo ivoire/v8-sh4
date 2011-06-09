@@ -64,6 +64,65 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FastNewClosureStub::Generate(MacroAssembler* masm) {
+  // Create a new closure from the given function info in new
+  // space. Set the context to the current context in cp.
+  Label gc;
+
+  // Pop the function info from the stack.
+  __ pop(r3);
+
+  // Attempt to allocate new JSFunction in new space.
+  __ AllocateInNewSpace(JSFunction::kSize,
+                        r0,
+                        r1,
+                        r2,
+                        &gc,
+                        TAG_OBJECT);
+
+  int map_index = strict_mode_ == kStrictMode
+      ? Context::STRICT_MODE_FUNCTION_MAP_INDEX
+      : Context::FUNCTION_MAP_INDEX;
+
+  // Compute the function map in the current global context and set that
+  // as the map of the allocated object.
+  __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
+  __ ldr(r2, MemOperand(r2, Context::SlotOffset(map_index)));
+  __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+
+  // Initialize the rest of the function. We don't have to update the
+  // write barrier because the allocated object is in new space.
+  __ LoadRoot(r1, Heap::kEmptyFixedArrayRootIndex);
+  __ LoadRoot(r2, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
+  __ str(r1, FieldMemOperand(r0, JSObject::kPropertiesOffset));
+  __ str(r1, FieldMemOperand(r0, JSObject::kElementsOffset));
+  __ str(r2, FieldMemOperand(r0, JSFunction::kPrototypeOrInitialMapOffset));
+  __ str(r3, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
+  __ str(cp, FieldMemOperand(r0, JSFunction::kContextOffset));
+  __ str(r1, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
+  __ str(r4, FieldMemOperand(r0, JSFunction::kNextFunctionLinkOffset));
+
+
+  // Initialize the code pointer in the function to be the one
+  // found in the shared function info object.
+  __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kCodeOffset));
+  __ add(r3, r3, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ str(r3, FieldMemOperand(r0, JSFunction::kCodeEntryOffset));
+
+  // Return result. The argument function info has been popped already.
+  __ Ret();
+
+  // Create a new closure through the slower runtime call.
+  __ bind(&gc);
+  __ LoadRoot(r4, Heap::kFalseValueRootIndex);
+  __ Push(cp, r3, r4);
+  __ TailCallRuntime(Runtime::kNewClosure, 3, 1);
+}
+
+
+
 void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register object,
                                                          Register result,
