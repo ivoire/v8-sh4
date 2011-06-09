@@ -1856,7 +1856,33 @@ void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 0);
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  // Get the frame pointer for the calling frame.
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  Label check_frame_marker;
+  __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r1, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(ne, &check_frame_marker);
+  __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ ldr(r1, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
+  __ cmp(r1, Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Split(eq, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
@@ -1911,7 +1937,28 @@ void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 2);
+
+  VisitForStackValue(args->at(0));  // Load the object.
+  VisitForAccumulatorValue(args->at(1));  // Load the value.
+  __ pop(r1);  // r0 = value. r1 = object.
+
+  Label done;
+  // If the object is a smi, return the value.
+  __ JumpIfSmi(r1, &done);
+
+  // If the object is not a value type, return the value.
+  __ CompareObjectType(r1, r2, r2, JS_VALUE_TYPE);
+  __ b(ne, &done);
+
+  // Store the value.
+  __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
+  // Update the write barrier.  Save the value as it will be
+  // overwritten by the write barrier code and is needed afterward.
+  __ RecordWrite(r1, JSValue::kValueOffset - kHeapObjectTag, r2, r3);
+
+  __ bind(&done);
+  context()->Plug(r0);
 }
 
 
