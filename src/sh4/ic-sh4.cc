@@ -1433,7 +1433,32 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
 
 
 void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
-  UNIMPLEMENTED();
+  HandleScope scope;
+  Handle<Code> rewritten;
+  State previous_state = GetState();
+  State state = TargetState(previous_state, false, x, y);
+  if (state == GENERIC) {
+    CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, r1, r0);
+    rewritten = stub.GetCode();
+  } else {
+    ICCompareStub stub(op_, state);
+    rewritten = stub.GetCode();
+  }
+  set_target(*rewritten);
+
+#ifdef DEBUG
+  if (FLAG_trace_ic) {
+    PrintF("[CompareIC (%s->%s)#%s]\n",
+           GetStateName(previous_state),
+           GetStateName(state),
+           Token::Name(op_));
+  }
+#endif
+
+  // Activate inlined smi code.
+  if (previous_state == UNINITIALIZED) {
+    PatchInlinedSmiCode(address());
+  }
 }
 
 
