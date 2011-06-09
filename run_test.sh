@@ -22,7 +22,7 @@ RUN_PREFIX=${RUN_PREFIX:-"env QEMU_ASSUME_KERNEL=2.6.30 /sw/st/gnu_compil/gnu/li
 find . -name '*.gcda' -exec rm {} \;
 
 CCTEST="$RUN_PREFIX ./obj/test/debug/cctest"
-$CCTEST --list >$tmpfile 2>&1 || error "cannot list the tests: cctest --list failed"
+$CCTEST --list >$tmpfile || error "cannot list the tests: cctest --list failed"
 
 echo "Listing the available tests..."
 if [ $# != 0 ]; then
