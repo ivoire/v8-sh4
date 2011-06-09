@@ -571,7 +571,8 @@ int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
 }
 
 
-const int kEndOfChain = 0;
+// Negative pc_offset value (aligned value)
+const int kEndOfChain = -2;
 
 void Assembler::bind(Label* L) {
   // label can only be bound once
@@ -592,12 +593,12 @@ void Assembler::bind(Label* L) {
     // Patching
     patchBranchOffset(target_pos, p_pos);
   }
-  L->bind_to(target_pos);
+  L->bind_to(pc_offset());
 
   // Keep track of the last bound label so we don't eliminate any instructions
   // before a bound label.
-  if (target_pos > last_bound_pos_)
-    last_bound_pos_ = target_pos;
+  if (pc_offset() > last_bound_pos_)
+    last_bound_pos_ = pc_offset();
 }
 
 
@@ -616,7 +617,7 @@ void Assembler::next(Label* L) {
 void Assembler::branch(Label* L, Register rtmp, branch_type type) {
   if (L->is_bound()) {
     ASSERT(L->pos() != kEndOfChain);
-    branch(L->pos() - (int)pc_, rtmp, type, false);
+    branch(L->pos() - pc_offset(), rtmp, type, false);
   } else {
     if (L->is_linked()) {
       ASSERT(L->pos() != kEndOfChain);
