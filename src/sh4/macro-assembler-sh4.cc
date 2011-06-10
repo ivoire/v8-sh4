@@ -47,7 +47,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
                                              Label* miss) {
-  ASSERT(!result.is(r11) && !scratch.is(r11));
+  ASSERT(!function.is(r11) && !result.is(r11) && !scratch.is(r11));
 
   RECORD_LINE();
   // Check that the receiver isn't a smi.
@@ -129,6 +129,10 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     Register scratch2,
                                     Register double_scratch,
                                     Label *not_int32) {
+
+  ASSERT(!source.is(r11) && !dest.is(r11) && !scratch.is(r11) &&
+         !scratch2.is(r11) && !double_scratch.is(r11));
+
   // TODO: SH4, check VFP code
   // if (CpuFeatures::IsSupported(VFP3)) {
   //   CpuFeatures::Scope scope(VFP3);
@@ -237,6 +241,7 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
   // the low kHashShift bits.
   STATIC_ASSERT(kSmiTag == 0);
+  ASSERT(!hash.is(r11) && !index.is(r11));
   RECORD_LINE();
   Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
   lsl(index, hash, Immediate(kSmiTagSize));
@@ -316,6 +321,7 @@ void MacroAssembler::Call(
 void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
+  ASSERT(!dst.is(r11) && !src.is(r11));
   Ubfx(dst, src, kSmiTagSize, num_least_bits);
 }
 
@@ -323,6 +329,7 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
 void MacroAssembler::GetLeastBitsFromInt32(Register dst,
                                            Register src,
                                            int num_least_bits) {
+  ASSERT(!dst.is(r11) && !src.is(r11));
   land(dst, src, Immediate((1 << num_least_bits) - 1));
 }
 
@@ -367,6 +374,7 @@ void MacroAssembler::IsObjectJSStringType(Register object,
                                           Register scratch,
                                           Label* fail) {
   ASSERT(kNotStringTag != 0);
+  ASSERT(!object.is(r11) && !scratch.is(r11));
 
   ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
   ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
@@ -488,6 +496,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
+  ASSERT(!argument_count.is(r11));
   // input: argument_count
   // r0, r1: results must be preserved
   // sp: stack pointer
@@ -530,6 +539,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Label* done,
                                     InvokeFlag flag,
                                     CallWrapper* call_wrapper) {
+  ASSERT(!code_reg.is(r11));
   bool definitely_matches = false;
   Label regular_invoke;
 
@@ -608,6 +618,7 @@ void MacroAssembler::InvokeCode(Register code,
   // r1: must hold function pointer
   // actual: must be r0 if register
   ASSERT(actual.is_immediate() || actual.reg().is(r0));
+  ASSERT(!code.is(r11));
 
   RECORD_LINE();
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
@@ -703,6 +714,7 @@ void MacroAssembler::PopTryHandler() {
 static const int kRegisterPassedArguments = 4;
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
+  ASSERT(!scratch.is(r11));
   int frame_alignment = OS::ActivationFrameAlignment();
 
   // Up to four simple arguments are passed in registers r4..r7.
@@ -734,6 +746,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
                                          ExternalReference function_reference,
                                          Register scratch,
                                          int num_arguments) {
+  ASSERT(!function.is(r11));
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
@@ -795,6 +808,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 
 
 void MacroAssembler::Throw(Register value) {
+  ASSERT(!value.is(r11));
   // r0 is expected to hold the exception.
   if (!value.is(r0)) {
     RECORD_LINE();
@@ -843,6 +857,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
                                       Register value) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  ASSERT(!value.is(r11));
 
   // r0 is expected to hold the exception.
   if (!value.is(r0)) {
@@ -1017,6 +1032,7 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
   ASSERT(src.rm().is(no_reg));
   ASSERT_EQ(0, dst1.code() % 2);
   ASSERT_EQ(dst1.code() + 1, dst2.code());
+  ASSERT(!dst1.is(r11) && !dst2.is(r11));
 
   // Generate two ldr instructions if ldrd is not available.
   //  if (CpuFeatures::IsSupported(ARMv7)) {
@@ -1042,6 +1058,7 @@ void MacroAssembler::Strd(Register src1, Register src2,
   ASSERT(dst.rm().is(no_reg));
   ASSERT_EQ(0, src1.code() % 2);
   ASSERT_EQ(src1.code() + 1, src2.code());
+  ASSERT(!src1.is(r11) && !src2.is(r11));
 
   // Generate two str instructions if strd is not available.
   //  if (CpuFeatures::IsSupported(ARMv7)) {
@@ -1099,7 +1116,7 @@ void MacroAssembler::GetBuiltinFunction(Register target,
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   //FIXME: why r1 ??
-  ASSERT(!target.is(r1));
+  ASSERT(!target.is(r1) && !target.is(r11));
   RECORD_LINE();
   GetBuiltinFunction(r1, id);
   RECORD_LINE();
@@ -1815,6 +1832,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 
 
 void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
+  ASSERT(!dst.is(r11) && !src.is(r11));
   ASSERT(lsb < 32);
   ASSERT(lsb + width < 32);
   // Extract unsigned value from bits src1[lsb..lsb+width-1] into dst
@@ -1829,6 +1847,7 @@ void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
 
 
 void MacroAssembler::Bfc(Register dst, int lsb, int width) {
+  ASSERT(!dst.is(r11));
   ASSERT(lsb < 32);
   ASSERT(lsb + width < 32);
   // Clear bits [lsb..lsb+width-1] of dst
@@ -1840,34 +1859,28 @@ void MacroAssembler::Bfc(Register dst, int lsb, int width) {
 
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
-                                int eq_0_ne_1,
+                                Condition cond,
                                 Label* branch) {
-  ASSERT(!scratch.is(r11));
-  ASSERT(eq_0_ne_1 == 0 || eq_0_ne_1 == 1);
+  ASSERT(!object.is(r11) && !scratch.is(r11));
+  ASSERT(cond == eq || cond == ne);
   RECORD_LINE();
   land(scratch, object, Immediate(ExternalReference::new_space_mask(isolate())));
   mov(r11, Immediate(ExternalReference::new_space_start(isolate())));
   cmpeq(scratch, r11);
-  if (eq_0_ne_1 == 0) {
-    RECORD_LINE();
-    bt(branch);
-  } else {
-    RECORD_LINE();
-    bf(branch);
-  }
+  b(cond, branch);
 }
 
 
 void MacroAssembler::RecordWriteHelper(Register object,
                                        Register address,
                                        Register scratch) {
-  ASSERT(!scratch.is(r11));
+  ASSERT(!object.is(r11) && !address.is(r11) && !scratch.is(r11));
   RECORD_LINE();
   if (emit_debug_code()) {
     // Check that the object is not in new space.
     Label not_in_new_space;
     RECORD_LINE();
-    InNewSpace(object, scratch, 1/*ne*/, &not_in_new_space);
+    InNewSpace(object, scratch, ne, &not_in_new_space);
     Abort("new-space object passed to RecordWriteHelper");
     bind(&not_in_new_space);
   }
@@ -1900,13 +1913,15 @@ void MacroAssembler::RecordWrite(Register object,
   // context register, so we check that none of the clobbered
   // registers are cp.
   ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
+  // Also check that the scratch are not r11 (super scratch).
+  ASSERT(!object.is(r11) && !scratch0.is(r11) && !scratch1.is(r11));
 
   Label done;
 
   RECORD_LINE();
   // First, test that the object is not in the new space.  We cannot set
   // region marks for new space pages.
-  InNewSpace(object, scratch0, 0/*eq*/, &done);
+  InNewSpace(object, scratch0, eq, &done);
 
   // Add offset into the object.
   add(scratch0, object, Immediate(offset));
@@ -1977,13 +1992,15 @@ void MacroAssembler::RecordWrite(Register object,
   // context register, so we check that none of the clobbered
   // registers are cp.
   ASSERT(!object.is(cp) && !address.is(cp) && !scratch.is(cp));
+  // Also check that the scratch are not r11 (super scratch).
+  ASSERT(!object.is(r11) && !address.is(r11) && !scratch.is(r11));
 
   Label done;
   RECORD_LINE();
 
   // First, test that the object is not in the new space.  We cannot set
   // region marks for new space pages.
-  InNewSpace(object, scratch, 0/*eq*/, &done);
+  InNewSpace(object, scratch, eq, &done);
 
   // Record the actual write.
   RecordWriteHelper(object, address, scratch);
@@ -2006,6 +2023,7 @@ void MacroAssembler::RecordWrite(Register object,
 // live-in: cp
 // live-out: cp, dst
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
+  ASSERT(!dst.is(r11));
   RECORD_LINE();
   if (context_chain_length > 0) {
     RECORD_LINE();
@@ -2044,6 +2062,8 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
     Register reg,
     Register scratch,
     Label* not_power_of_two_or_zero) {
+  ASSERT(!reg.is(r11) && !scratch.is(r11));
+
   sub(scratch, reg, Immediate(1));
   cmpge(scratch, Immediate(0));
   bf(not_power_of_two_or_zero);
@@ -2057,6 +2077,7 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
     Register scratch,
     Label* zero_and_neg,
     Label* not_power_of_two) {
+  ASSERT(!reg.is(r11) && !scratch.is(r11));
   // TODO: check why this is the same as JumpIfNotPowerOfTwoOrZero()
   sub(scratch, reg, Immediate(1));
   cmpge(scratch, Immediate(0));
@@ -2069,7 +2090,9 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi) {
+  ASSERT(!reg1.is(r11) && !reg2.is(r11));
   STATIC_ASSERT(kSmiTag == 0);
+
   tst(reg1, Immediate(kSmiTagMask));
   b(ne, on_not_both_smi);
   tst(reg2, Immediate(kSmiTagMask));
@@ -2080,7 +2103,9 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
 void MacroAssembler::JumpIfEitherSmi(Register reg1,
                                      Register reg2,
                                      Label* on_either_smi) {
+  ASSERT(!reg1.is(r11) && !reg2.is(r11));
   STATIC_ASSERT(kSmiTag == 0);
+
   tst(reg1, Immediate(kSmiTagMask));
   b(eq, on_either_smi);
   tst(reg2, Immediate(kSmiTagMask));
@@ -2090,6 +2115,8 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 
 void MacroAssembler::AbortIfSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
+  ASSERT(!object.is(r11));
+
   tst(object, Immediate(kSmiTagMask));
   Assert(ne, "Operand is a smi");
 }
@@ -2097,6 +2124,8 @@ void MacroAssembler::AbortIfSmi(Register object) {
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
+  ASSERT(!object.is(r11));
+
   tst(object, Immediate(kSmiTagMask));
   Assert(eq, "Operand is not smi");
 }
@@ -2104,6 +2133,8 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
 
 void MacroAssembler::AbortIfNotString(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
+  ASSERT(!object.is(r11));
+
   tst(object, Immediate(kSmiTagMask));
   Assert(ne, "Operand is not a string");
   RECORD_LINE();
@@ -2121,6 +2152,10 @@ void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
     Register scratch1,
     Register scratch2,
     Label* failure) {
+
+  ASSERT(!first.is(r11) && !second.is(r11) && !scratch1.is(r11) &&
+         !scratch2.is(r11));
+
   // Test that both first and second are sequential ASCII strings.
   // Assume that they are non-smis.
   ldr(scratch1, FieldMemOperand(first, HeapObject::kMapOffset));
@@ -2141,6 +2176,10 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                                          Register scratch1,
                                                          Register scratch2,
                                                          Label* failure) {
+
+  ASSERT(!first.is(r11) && !second.is(r11) && !scratch1.is(r11) &&
+         !scratch2.is(r11));
+
   // Check that neither is a smi.
   STATIC_ASSERT(kSmiTag == 0);
   land(scratch1, first, second);
@@ -2160,6 +2199,10 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
     Register scratch1,
     Register scratch2,
     Label* failure) {
+
+  ASSERT(!first.is(r11) && !second.is(r11) && !scratch1.is(r11) &&
+         !scratch2.is(r11));
+
   int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
   int kFlatAsciiStringTag = ASCII_STRING_TYPE;
@@ -2176,6 +2219,9 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
                                                             Register scratch,
                                                             Label* failure) {
+
+  ASSERT(!type.is(r11) && ! scratch.is(r11));
+
   int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
   int kFlatAsciiStringTag = ASCII_STRING_TYPE;
@@ -2190,6 +2236,8 @@ void MacroAssembler::CompareObjectType(Register object,
                                        Register type_reg,
                                        InstanceType type,
                                        Condition cond) {
+  ASSERT(!object.is(r11) && !map.is(r11) && !type_reg.is(r11));
+
   RECORD_LINE();
   ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, type_reg, type, cond);
@@ -2200,8 +2248,8 @@ void MacroAssembler::CompareInstanceType(Register map,
                                          Register type_reg,
                                          InstanceType type,
                                          Condition cond) {
-  ASSERT(!map.is(r11));
-  ASSERT(!type_reg.is(r11));
+  ASSERT(!map.is(r11) && !type_reg.is(r11));
+
   RECORD_LINE();
   ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   mov(r11, Immediate(type));
@@ -2234,7 +2282,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
                               bool is_heap_object) {
-  ASSERT(!obj.is(r11));
+  ASSERT(!obj.is(r11) && !scratch.is(r11));
   RECORD_LINE();
   if (!is_heap_object) {
     RECORD_LINE();
@@ -2255,7 +2303,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Heap::RootListIndex index,
                               Label* fail,
                               bool is_heap_object) {
-  ASSERT(!obj.is(r11));
+  ASSERT(!obj.is(r11) && !scratch.is(r11));
   RECORD_LINE();
   if (!is_heap_object) {
     RECORD_LINE();
