@@ -18,8 +18,8 @@ RUN_PREFIX=${RUN_PREFIX:-"env QEMU_ASSUME_KERNEL=2.6.30 $QEMU -distro -R -L $TAR
 RUN_PROFILE_PREFIX=${RUN_PROFILE_PREFIX:-"env QEMU_ASSUME_KERNEL=2.6.30 PLUGIN_SYMTAB_FILE=codegen.sym PLUGIN_TRACE=1 ${START_FUNC:+PLUGIN_TRACE_START=$START_FUNC} $QEMU -distro -tb-plugin-lib $QEMU_PLUGIN_LIB -R -L $TARGET_ROOT -x $PWD -cwd $PWD"}
 
 CCTEST=${CCTEST:-./obj/test/debug/cctest}
-CCTEST_LOG_OPTS="-print_code -print_code_stubs -print_builtin_code -code_comments -debug_code"
-CCTEST_OPTS="-debug_code"
+CCTEST_OPTS=${CCTEST_OPTS:-"-debug_code -enable_slow_asserts"}
+CCTEST_LOG_OPTS="$CCTEST_OPTS -print_code -print_code_stubs -print_builtin_code -code_comments"
 
 # Clean profiling files if present
 find . -name '*.gcda' -exec rm {} \;
@@ -27,6 +27,8 @@ find . -name '*.gcda' -exec rm {} \;
 rm -f cctest.trace codegen.trace codegen.sym 
 
 $RUN_PREFIX $CCTEST $CCTEST_LOG_OPTS $@ >codegen.trace 2>&1 || true
-tools/comments2symtab.pl <codegen.trace >codegen.sym
 
+[ "$NO_PROFILE" = "" ] || exit
+
+tools/comments2symtab.pl <codegen.trace >codegen.sym
 $RUN_PROFILE_PREFIX $CCTEST $CCTEST_OPTS $@
