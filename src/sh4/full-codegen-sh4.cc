@@ -43,6 +43,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+#include "map-sh4.h"  // For ARM -> SH4 register mapping
 
 // A patch site is a location in the code which it is possible to patch. This
 // class has a number of methods to emit the code which is patchable and the
@@ -73,7 +74,7 @@ class JumpPatchSite BASE_EMBEDDED {
     // to be simple to patch, we force the alignment now, such that the
     // first instruction of the sequence after the cmp is a branch.
     __ align();
-    __ mov(r11, Immediate(kSmiTagMask));
+    __ mov(sh4_r11, Immediate(kSmiTagMask));
     __ bind(&patch_site_);
     __ cmp(reg, reg);
     // Don't use b(al, ...) as that might emit the constant pool right after the
@@ -91,7 +92,7 @@ class JumpPatchSite BASE_EMBEDDED {
   void EmitJumpIfSmi(Register reg, Label* target) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
     __ align();
-    __ mov(r11, Immediate(kSmiTagMask));
+    __ mov(sh4_r11, Immediate(kSmiTagMask));
     __ bind(&patch_site_);
     __ cmp(reg, reg);
     ASSERT(!target->is_bound());
@@ -120,34 +121,6 @@ class JumpPatchSite BASE_EMBEDDED {
   bool info_emitted_;
 #endif
 };
-
-
-
-//
-// ************************************************
-// *** WARNING: ARM to SH4 mapping. READ CAREFULLY.
-// ************************************************
-// Starting from this point, we use a systematic mapping for converting
-// ARM code to SH4 code.
-// Some registers must be checked, see defines below.
-// if needing an additional register, use sh4_r8
-// all other registers unchanged
-//
-// For this we define a fixed mapping based on #define.
-// All functions should come from the ARM implementation
-// in ic-arm.cc
-// If this latter file is updated, please also update this one.
-//
-#define r8 "should be cp"
-#define ip sh4_r11
-#define lr pr
-#define pc "to be checked"
-#define r10 "should be roots"
-#define r11 "Unexpected"
-#define r12 "Unexpected"
-#define r13 "Unexpected"
-#define r14 "Unexpected"
-#define r15 "Unexpected"
 
 
 
