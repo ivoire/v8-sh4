@@ -52,7 +52,7 @@ TEST(sh4_2) {
 
 TEST(sh4_3) {
   // Disable compilation of natives.
-  i::FLAG_disable_native_files = true;
+  i::FLAG_disable_native_files = false;
   i::FLAG_full_compiler = false;
 
   v8::HandleScope scope;
