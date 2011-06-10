@@ -2204,7 +2204,6 @@ void MacroAssembler::CompareInstanceType(Register map,
   ASSERT(!type_reg.is(r11));
   RECORD_LINE();
   ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  mov(r11, Immediate(type));
   switch(cond) {
   case eq:
     RECORD_LINE();
