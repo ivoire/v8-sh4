@@ -105,7 +105,7 @@ class MacroAssembler: public Assembler {
   // scratch can be object itself, but it will be clobbered.
   void InNewSpace(Register object,
                   Register scratch,
-                  int eq_0_ne_1,  // 0 for "in new space?", 1 for "not in new space?"
+                  Condition cond,  // eq for "in new space?", ne for "not in new space?"
                   Label* branch);
 
   // For the page containing |object| mark the region covering
