@@ -1936,9 +1936,9 @@ void MacroAssembler::RecordWrite(Register object,
   // turned on to provoke errors.
   if (emit_debug_code()) {
     RECORD_LINE();
-    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(scratch0, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(scratch1, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(object, Immediate(BitCast<int32_t>(kSH4ZapValue)));
+    mov(scratch0, Immediate(BitCast<int32_t>(kSH4ZapValue)));
+    mov(scratch1, Immediate(BitCast<int32_t>(kSH4ZapValue)));
   }
 }
 
@@ -1974,9 +1974,9 @@ void MacroAssembler::RecordWrite(Register object,
   // Clobber all input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(object, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch0, Operand(BitCast<int32_t>(kZapValue)));
-    mov(scratch1, Operand(BitCast<int32_t>(kZapValue)));
+    mov(object, Operand(BitCast<int32_t>(kSH4ZapValue)));
+    mov(scratch0, Operand(BitCast<int32_t>(kSH4ZapValue)));
+    mov(scratch1, Operand(BitCast<int32_t>(kSH4ZapValue)));
   }
 }
 
@@ -2012,9 +2012,9 @@ void MacroAssembler::RecordWrite(Register object,
   // turned on to provoke errors.
   if (emit_debug_code()) {
     RECORD_LINE();
-    mov(object, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(address, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(scratch, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(object, Immediate(BitCast<int32_t>(kSH4ZapValue)));
+    mov(address, Immediate(BitCast<int32_t>(kSH4ZapValue)));
+    mov(scratch, Immediate(BitCast<int32_t>(kSH4ZapValue)));
   }
 }
 
