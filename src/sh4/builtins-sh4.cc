@@ -1380,8 +1380,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ lsl(r0, r0, Immediate(kSmiTagSize));
   __ mov(r4, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ Push(r0, r1, r4, fp);
   __ push(pr);
+  __ Push(fp, r4, r1, r0);
   __ add(fp, sp, Immediate(3 * kPointerSize));
 }
 
