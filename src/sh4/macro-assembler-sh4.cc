@@ -1193,14 +1193,14 @@ void MacroAssembler::AssertFastElements(Register elements) {
     Label ok;
     RECORD_LINE();
     push(elements);
-    mov(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
+    ldr(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
     LoadRoot(r11, Heap::kFixedArrayMapRootIndex);
-    cmpeq(elements, r11);
-    bt(&ok);
+    cmp(elements, r11);
+    b(eq,&ok);
     RECORD_LINE();
     LoadRoot(r11, Heap::kFixedCOWArrayMapRootIndex);
-    cmpeq(elements, r11);
-    bt(&ok);
+    cmp(elements, r11);
+    b(eq,&ok);
     RECORD_LINE();
     Abort("JSObject with fast elements map has slow elements");
     bind(&ok);
@@ -2301,12 +2301,10 @@ void MacroAssembler::CheckMap(Register obj,
     JumpIfSmi(obj, fail);
   }
   RECORD_LINE();
-  mov(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   mov(r11, Operand(map));
-  cmpeq(scratch, r11);
-  bf(fail);
-  RECORD_LINE();
-
+  cmp(scratch, r11);
+  b(ne, fail);
 }
 
 
@@ -2322,11 +2320,10 @@ void MacroAssembler::CheckMap(Register obj,
     JumpIfSmi(obj, fail);
   }
   RECORD_LINE();
-  mov(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   LoadRoot(r11, index);
-  cmpeq(scratch, r11);
-  bf(fail);
-  RECORD_LINE();
+  cmp(scratch, r11);
+  b(ne, fail);
 }
 
 
