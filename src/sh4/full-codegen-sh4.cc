@@ -866,7 +866,6 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
     __ CallRuntime(Runtime::kNewClosure, 3);
   }
   context()->Plug(r0);
-
 }
 
 
@@ -1870,7 +1869,24 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 0);
+
+  Label exit;
+  // Get the number of formal parameters.
+  __ mov(r0, Immediate(Smi::FromInt(scope()->num_parameters())));
+
+  // Check if the calling frame is an arguments adaptor frame.
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(ne, &exit);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame.
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  __ bind(&exit);
+  context()->Plug(r0);
 }
 
 

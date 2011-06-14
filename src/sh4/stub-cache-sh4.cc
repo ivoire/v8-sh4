@@ -386,6 +386,102 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 }
 
 
+#include "map-sh4.h" // Define register map
+// Generate StoreField code, value is passed in r0 register.
+// When leaving generated code after success, the receiver_reg and name_reg
+// may be clobbered.  Upon branch to miss_label, the receiver and name
+// registers have their original values.
+void StubCompiler::GenerateStoreField(MacroAssembler* masm,
+                                      JSObject* object,
+                                      int index,
+                                      Map* transition,
+                                      Register receiver_reg,
+                                      Register name_reg,
+                                      Register scratch,
+                                      Label* miss_label) {
+  // r0 : value
+  Label exit;
+
+  // Check that the receiver isn't a smi.
+  __ tst(receiver_reg, Immediate(kSmiTagMask));
+  __ b(eq, miss_label);
+
+  // Check that the map of the receiver hasn't changed.
+  __ ldr(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Immediate(Handle<Map>(object->map())));
+  __ b(ne, miss_label);
+
+  // Perform global security token check if needed.
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver_reg, scratch, miss_label);
+  }
+
+  // Stub never generated for non-global objects that require access
+  // checks.
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
+  // Perform map transition for the receiver if necessary.
+  if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
+    // The properties must be extended before we can store the value.
+    // We jump to a runtime call that extends the properties array.
+    __ push(receiver_reg);
+    __ mov(r2, Operand(Handle<Map>(transition)));
+    __ Push(r2, r0);
+    __ TailCallExternalReference(
+        ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
+                          masm->isolate()),
+        3,
+        1);
+    return;
+  }
+
+  if (transition != NULL) {
+    // Update the map of the object; no write barrier updating is
+    // needed because the map is never in new space.
+    __ mov(ip, Operand(Handle<Map>(transition)));
+    __ str(ip, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+  }
+
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
+
+  if (index < 0) {
+    // Set the property straight into the object.
+    int offset = object->map()->instance_size() + (index * kPointerSize);
+    __ str(r0, FieldMemOperand(receiver_reg, offset));
+
+    // Skip updating write barrier if storing a smi.
+    __ tst(r0, Immediate(kSmiTagMask));
+    __ b(eq, &exit);
+
+    // Update the write barrier for the array address.
+    // Pass the now unused name_reg as a scratch register.
+    __ RecordWrite(receiver_reg, offset, name_reg, scratch);
+  } else {
+    // Write to the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
+    // Get the properties array
+    __ ldr(scratch, FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
+    __ str(r0, FieldMemOperand(scratch, offset));
+
+    // Skip updating write barrier if storing a smi.
+    __ tst(r0, Immediate(kSmiTagMask));
+    __ b(eq, &exit);
+
+    // Update the write barrier for the array address.
+    // Ok to clobber receiver_reg and name_reg, since we return.
+    __ RecordWrite(scratch, offset, name_reg, receiver_reg);
+  }
+
+  // Return the value (register r0).
+  __ bind(&exit);
+  __ Ret();
+}
+#include "map-sh4.h" // Undefine register map
+
+
 void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
   ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
   Code* code = NULL;
@@ -734,8 +830,26 @@ MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
                                                   int index,
                                                   Map* transition,
                                                   String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  GenerateStoreField(masm(),
+                     object,
+                     index,
+                     transition,
+                     r1, r2, r3,
+                     &miss);
+  __ bind(&miss);
+  Handle<Code> ic = masm()->isolate()->builtins()->StoreIC_Miss();
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
 }
 
 
