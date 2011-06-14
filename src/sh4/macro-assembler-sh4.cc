@@ -43,6 +43,7 @@ namespace internal {
 #define RECORD_LINE() ((void)0)
 #endif
 
+
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
@@ -1854,6 +1855,18 @@ void MacroAssembler::Bfc(Register dst, int lsb, int width) {
   uint32_t mask = ~(((uint32_t)1 << (width + lsb)) - 1 - (((uint32_t)1 << lsb) - 1));
   RECORD_LINE();
   land(dst, dst, Immediate(mask));
+}
+
+
+MacroAssembler* MacroAssembler::RecordFunctionLine(const char* function, int line) {
+  if (FLAG_code_comments) {
+    int size = strlen("/line/")+strlen(function) + 10 + 1 + 1; /* 10(strlen of MAXINT) + 1(separator) +1(nul). */
+    char *buffer = new char[size];
+    snprintf(buffer, size, "/line/%s/%d", function, line);
+    buffer[size-1] = '\0';
+    RecordComment(buffer);
+  }
+  return this;
 }
 
 

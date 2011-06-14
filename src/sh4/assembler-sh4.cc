@@ -157,17 +157,6 @@ void Assembler::RecordComment(const char* msg, bool force) {
   }
 }
 
-void Assembler::RecordFunctionLine(const char* function, int line) {
-  if (FLAG_code_comments) {
-    int size = strlen("/line/")+strlen(function) + 10 + 1 + 1; /* 10(strlen of MAXINT) + 1(separator) +1(nul). */
-    char *buffer = new char[size]; 
-    snprintf(buffer, size, "/line/%s/%d", function, line);
-    buffer[size-1] = '\0';
-    RecordComment(buffer);
-  }
-}
-
-
 void Assembler::GrowBuffer() {
   if (!own_buffer_) FATAL("external code buffer is too small");
 
