@@ -1026,58 +1026,57 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       UNREACHABLE();
   }
 }
-#include "map-sh4.h" // Undefine register map
 
 
 void FastNewContextStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-  // // Try to allocate the context in new space.
-  // Label gc;
-  // int length = slots_ + Context::MIN_CONTEXT_SLOTS;
+  // Try to allocate the context in new space.
+  Label gc;
+  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
 
-  // // Attempt to allocate the context in new space.
-  // __ AllocateInNewSpace(FixedArray::SizeFor(length),
-  //                       r0,
-  //                       r1,
-  //                       r2,
-  //                       &gc,
-  //                       TAG_OBJECT);
+  // Attempt to allocate the context in new space.
+  __ AllocateInNewSpace(FixedArray::SizeFor(length),
+                        r0,
+                        r1,
+                        r2,
+                        &gc,
+                        TAG_OBJECT);
 
-  // // Load the function from the stack.
-  // __ ldr(r3, MemOperand(sp, 0));
+  // Load the function from the stack.
+  __ ldr(r3, MemOperand(sp, 0));
 
-  // // Setup the object header.
-  // __ LoadRoot(r2, Heap::kContextMapRootIndex);
-  // __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
-  // __ mov(r2, Operand(Smi::FromInt(length)));
-  // __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
+  // Setup the object header.
+  __ LoadRoot(r2, Heap::kContextMapRootIndex);
+  __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ mov(r2, Immediate(Smi::FromInt(length)));
+  __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
 
-  // // Setup the fixed slots.
-  // __ mov(r1, Operand(Smi::FromInt(0)));
-  // __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
-  // __ str(r0, MemOperand(r0, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  // __ str(r1, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
-  // __ str(r1, MemOperand(r0, Context::SlotOffset(Context::EXTENSION_INDEX)));
+  // Setup the fixed slots.
+  __ mov(r1, Immediate(Smi::FromInt(0)));
+  __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ str(r0, MemOperand(r0, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::EXTENSION_INDEX)));
 
-  // // Copy the global object from the surrounding context.
-  // __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  // __ str(r1, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Copy the global object from the surrounding context.
+  __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
 
-  // // Initialize the rest of the slots to undefined.
-  // __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
-  // for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
-  //   __ str(r1, MemOperand(r0, Context::SlotOffset(i)));
-  // }
+  // Initialize the rest of the slots to undefined.
+  __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
+    __ str(r1, MemOperand(r0, Context::SlotOffset(i)));
+  }
 
-  // // Remove the on-stack argument and return.
-  // __ mov(cp, r0);
-  // __ pop();
-  // __ Ret();
+  // Remove the on-stack argument and return.
+  __ mov(cp, r0);
+  __ pop();
+  __ Ret();
 
-  // // Need to collect. Call into runtime system.
-  // __ bind(&gc);
-  // __ TailCallRuntime(Runtime::kNewContext, 1, 1);
+  // Need to collect. Call into runtime system.
+  __ bind(&gc);
+  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
 }
+#include "map-sh4.h" // Undefine register map
 
 
 void CompareStub::Generate(MacroAssembler* masm) {
