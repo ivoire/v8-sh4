@@ -589,6 +589,10 @@ class CpuFeatures : public AllStatic {
 
 typedef uint16_t Instr;
 
+// Use a target specfic value instead of kZapValue
+const int kSH4ZapValue = 0xbadbaffe;
+
+
 class Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
