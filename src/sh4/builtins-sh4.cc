@@ -930,7 +930,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r2 points past last arg.
   __ jmp(&entry);
   __ bind(&loop);
-    __ ldr(r0, MemOperand(r4, kPointerSize));     // read next parameter
+    __ ldr(r0, MemOperand(r4));     // read next parameter
     __ add(r4, r4, Immediate(kPointerSize));      // mov the r4 pointer onto the next parameter
     __ ldr(r0, MemOperand(r0));  // dereference handle
     __ push(r0);  // push parameter
