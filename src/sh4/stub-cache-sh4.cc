@@ -38,6 +38,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+#include "map-sh4.h" // Define register map
 
 static void ProbeTable(Isolate* isolate,
                        MacroAssembler* masm,
@@ -58,24 +59,24 @@ static void ProbeTable(Isolate* isolate,
   ASSERT((value_off_addr - key_off_addr) % 4 == 0);
   ASSERT((value_off_addr - key_off_addr) < (256 * 4));
 
-  // Check that r11 is not used
-  ASSERT(!name.is(r11) && !offset.is(r11) && !scratch.is(r11) && !scratch2.is(r11));
+  // Check that sh4_r11 is not used
+  ASSERT(!name.is(sh4_r11) && !offset.is(sh4_r11) && !scratch.is(sh4_r11) && !scratch2.is(sh4_r11));
 
   Label miss;
   Register offsets_base_addr = scratch;
 
   // Check that the key in the entry matches the name.
   __ mov(offsets_base_addr, Immediate(key_offset));
-  __ lsl(r11, offset, Immediate(1));
-  __ ldr(r11, MemOperand(offsets_base_addr, r11));
-  __ cmpeq(name, r11);
+  __ lsl(sh4_r11, offset, Immediate(1));
+  __ ldr(sh4_r11, MemOperand(offsets_base_addr, sh4_r11));
+  __ cmpeq(name, sh4_r11);
   __ bf(&miss);
 
   // Get the code entry from the cache.
   __ add(offsets_base_addr, offsets_base_addr,
          Immediate(value_off_addr - key_off_addr));
-  __ lsl(r11, offset, Immediate(1));
-  __ ldr(scratch2, MemOperand(offsets_base_addr, r11));
+  __ lsl(sh4_r11, offset, Immediate(1));
+  __ ldr(scratch2, MemOperand(offsets_base_addr, sh4_r11));
 
   // Check that the flags match what we're looking for.
   __ ldr(scratch2, FieldMemOperand(scratch2, Code::kFlagsOffset));
@@ -84,8 +85,8 @@ static void ProbeTable(Isolate* isolate,
   __ bf(&miss);
 
   // Re-load code entry from cache.
-  __ lsl(r11, offset, Immediate(1));
-  __ mov(offset, MemOperand(offsets_base_addr, r11));
+  __ lsl(sh4_r11, offset, Immediate(1));
+  __ mov(offset, MemOperand(offsets_base_addr, sh4_r11));
 
   // Jump to the first instruction in the code stub.
   __ add(offset, offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -246,7 +247,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   ASSERT(!extra2.is(no_reg));
 
   // Check that r3 is not used
-  ASSERT(!receiver.is(r11) && !name.is(r11) && !scratch.is(r11) && !extra.is(r11) && !extra2.is(r11));
+  ASSERT(!receiver.is(sh4_r11) && !name.is(sh4_r11) && !scratch.is(sh4_r11) && !extra.is(sh4_r11) && !extra2.is(sh4_r11));
 
   // Check that the receiver isn't a smi.
   __ tst(receiver, Immediate(kSmiTagMask));
@@ -254,8 +255,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 
   // Get the map of the receiver and compute the hash.
   __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
-  __ ldr(r11, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ add(scratch, scratch, r11);
+  __ ldr(sh4_r11, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ add(scratch, scratch, sh4_r11);
   __ lxor(scratch, scratch, Immediate(flags));
   __ land(scratch, scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
 
@@ -321,7 +322,7 @@ static void GenerateStringCheck(MacroAssembler* masm,
                                 Register scratch2,
                                 Label* smi,
                                 Label* non_string_object) {
-  ASSERT(!receiver.is(r11) && !scratch1.is(r11) && !scratch2.is(r11));
+  ASSERT(!receiver.is(sh4_r11) && !scratch1.is(sh4_r11) && !scratch2.is(sh4_r11));
 
   // Check that the receiver isn't a smi.
   __ tst(receiver, Immediate(kSmiTagMask));
@@ -347,7 +348,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register scratch2,
                                             Label* miss,
                                             bool support_wrappers) {
-  ASSERT(!receiver.is(r11) && !scratch1.is(r11) && !scratch2.is(r11));
+  ASSERT(!receiver.is(sh4_r11) && !scratch1.is(sh4_r11) && !scratch2.is(sh4_r11));
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
@@ -399,7 +400,6 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
-#include "map-sh4.h" // Define register map
 // Generate code to check that a global property cell is empty. Create
 // the property cell at compilation time if no cell exists for the
 // property.
@@ -450,7 +450,6 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCells(
   }
   return NULL;
 }
-#include "map-sh4.h" // Undefine register map
 
 #undef __
 #define __ ACCESS_MASM(masm())
@@ -635,7 +634,6 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
 }
 
 
-#include "map-sh4.h" // Define register map
 MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
                                                  GlobalObject* holder,
                                                  JSGlobalPropertyCell* cell,
@@ -682,7 +680,6 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // Return the generated code.
   return GetCode(NORMAL, name);
 }
-#include "map-sh4.h" // Undefine register map
 
 
 MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
