@@ -761,6 +761,9 @@ class MacroAssembler: public Assembler {
 
   Handle<Object> CodeObject() { return code_object_; }
 
+  // Record code generator line mapping through comments.
+  // Use -code_comments to enable.
+  MacroAssembler* RecordFunctionLine(const char* function, int line);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support
@@ -943,7 +946,7 @@ class CallWrapper {
 
 
 #ifdef DEBUG
-# define ACCESS_MASM(masm) masm->RecordFunctionLine(__FUNCTION__, __LINE__); masm->
+# define ACCESS_MASM(masm) masm->RecordFunctionLine(__FUNCTION__, __LINE__)->
 #else
 # define ACCESS_MASM(masm) masm->
 #endif
