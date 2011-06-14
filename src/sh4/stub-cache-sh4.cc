@@ -386,7 +386,6 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 }
 
 
-#include "map-sh4.h" // Define register map
 // Generate StoreField code, value is passed in r0 register.
 // When leaving generated code after success, the receiver_reg and name_reg
 // may be clobbered.  Upon branch to miss_label, the receiver and name
@@ -479,7 +478,6 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   __ bind(&exit);
   __ Ret();
 }
-#include "map-sh4.h" // Undefine register map
 
 
 void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
