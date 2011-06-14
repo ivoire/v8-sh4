@@ -1109,7 +1109,107 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ ObjectLiteral");
+  __ ldr(r3, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
+  __ mov(r2, Immediate(Smi::FromInt(expr->literal_index())));
+  __ mov(r1, Operand(expr->constant_properties()));
+  int flags = expr->fast_elements()
+      ? ObjectLiteral::kFastElements
+      : ObjectLiteral::kNoFlags;
+  flags |= expr->has_function()
+      ? ObjectLiteral::kHasFunction
+      : ObjectLiteral::kNoFlags;
+  __ mov(r0, Immediate(Smi::FromInt(flags)));
+  __ Push(r3, r2, r1, r0);
+  if (expr->depth() > 1) {
+    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
+  } else {
+    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
+  }
+
+  // If result_saved is true the result is on top of the stack.  If
+  // result_saved is false the result is in r0.
+  bool result_saved = false;
+
+  // Mark all computed expressions that are bound to a key that
+  // is shadowed by a later occurrence of the same key. For the
+  // marked expressions, no store code is emitted.
+  expr->CalculateEmitStore();
+
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    ObjectLiteral::Property* property = expr->properties()->at(i);
+    if (property->IsCompileTimeValue()) continue;
+
+    Literal* key = property->key();
+    Expression* value = property->value();
+    if (!result_saved) {
+      __ push(r0);  // Save result on stack
+      result_saved = true;
+    }
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+        UNREACHABLE();
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        ASSERT(!CompileTimeValue::IsCompileTimeValue(property->value()));
+        // Fall through.
+      case ObjectLiteral::Property::COMPUTED:
+        if (key->handle()->IsSymbol()) {
+          if (property->emit_store()) {
+            VisitForAccumulatorValue(value);
+            __ mov(r2, Operand(key->handle()));
+            __ ldr(r1, MemOperand(sp));
+            Handle<Code> ic = isolate()->builtins()->StoreIC_Initialize();
+            EmitCallIC(ic, RelocInfo::CODE_TARGET);
+            PrepareForBailoutForId(key->id(), NO_REGISTERS);
+          } else {
+            VisitForEffect(value);
+          }
+          break;
+        }
+        // Fall through.
+      case ObjectLiteral::Property::PROTOTYPE:
+        // Duplicate receiver on stack.
+        __ ldr(r0, MemOperand(sp));
+        __ push(r0);
+        VisitForStackValue(key);
+        VisitForStackValue(value);
+        if (property->emit_store()) {
+          __ mov(r0, Immediate(Smi::FromInt(NONE)));  // PropertyAttributes
+          __ push(r0);
+          __ CallRuntime(Runtime::kSetProperty, 4);
+        } else {
+          __ Drop(3);
+        }
+        break;
+      case ObjectLiteral::Property::GETTER:
+      case ObjectLiteral::Property::SETTER:
+        // Duplicate receiver on stack.
+        __ ldr(r0, MemOperand(sp));
+        __ push(r0);
+        VisitForStackValue(key);
+        __ mov(r1, Immediate(property->kind() == ObjectLiteral::Property::SETTER ?
+                           Smi::FromInt(1) :
+                           Smi::FromInt(0)));
+        __ push(r1);
+        VisitForStackValue(value);
+        __ CallRuntime(Runtime::kDefineAccessor, 4);
+        break;
+    }
+  }
+
+  if (expr->has_function()) {
+    ASSERT(result_saved);
+    __ ldr(r0, MemOperand(sp));
+    __ push(r0);
+    __ CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  if (result_saved) {
+    context()->PlugTOS();
+  } else {
+    context()->Plug(r0);
+  }
 }
 
 
