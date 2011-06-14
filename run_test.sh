@@ -14,15 +14,20 @@ cleanup() {
 
 trap "cleanup" 0 1 2 15
 
-tmpfile=`mktemp /tmp/cctestXXXXXX`
+. ./source_sh4.sh
 
-RUN_PREFIX=${RUN_PREFIX:-"env QEMU_ASSUME_KERNEL=2.6.30 /sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout 20 /home/compwork/guillon/qemu-stm/build-x86_64/sh4-linux-user/qemu-sh4 -distro -L /home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target  -x $PWD -cwd $PWD"}
+tmpfile=`mktemp /tmp/cctestXXXXXX`
+QEMU=${QEMU-/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4}
+TIMEOUT=${TIMEOUT-"/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout 600"}
+TARGET_ROOT=${TARGET_ROOT-/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target}
+RUN_PREFIX=${RUN_PREFIX-"env QEMU_ASSUME_KERNEL=2.6.30 $TIMEOUT $QEMU -distro -L $TARGET_ROOT -x $PWD -cwd $PWD"}
 
 # Clean profiling files if present
 find . -name '*.gcda' -exec rm {} \;
 
 CCTEST="$RUN_PREFIX ./obj/test/debug/cctest"
 $CCTEST --list >$tmpfile || error "cannot list the tests: cctest --list failed"
+CCTEST_OPTS=${CCTEST_OPTS-"-debug_code"}
 
 echo "Listing the available tests..."
 if [ $# != 0 ]; then
@@ -44,7 +49,7 @@ for name in $tests
 do
   echo "=== $name ===" | tee -a run_test.log
   res=0
-  $CCTEST $name >>run_test.log 2>&1 || res=1
+  $CCTEST $CCTEST_OPTS $name >>run_test.log 2>&1 || res=1
   if [ $res != 0 ]
   then
     echo "...FAILED" | tee -a run_test.log
