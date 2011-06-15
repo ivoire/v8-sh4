@@ -557,6 +557,15 @@ TEST(15) {
   CHECK_EQ(1, res);
 }
 
+// This macro stores in r10 the line number before branching to the error label.
+// At the error label r10 can be moved to r0 such that return code of the
+// function if not 0 indicates an error at the line of the branch.
+#define B_LINE(cond, target) do {	   \
+  __ mov(r10, Immediate(__LINE__)); \
+  __ b(cond, target);  \
+  } while(0);
+
+// Test logical and, or, xor
 TEST(16) {
   BEGIN();
 
@@ -565,52 +574,97 @@ TEST(16) {
   __ mov(r1, Immediate(0x00ff00ff));
   __ land(r1, r1, Immediate(0xff00ff00), r2);
   __ cmpeq(r1, Immediate(0));                   // true
-  __ bf(&error, r2);
+  B_LINE(f, &error);
 
   __ mov(r1, Immediate(0x00ffff00));
-  __ land(r1, r1, Immediate(0xff00ff00), r2);
-  __ cmpeq(r1, Immediate(0x0000ff00), r2);      // true
-  __ bf(&error, r2);
+  __ land(r1, r1, Immediate(0xff00ff00));
+  __ cmpeq(r1, Immediate(0x0000ff00));      // true
+  B_LINE(f, &error);
 
   __ mov(r0, Immediate(0xff));
   __ land(r0, r0, Immediate(0x0f));
-  __ cmpeq(r0, Immediate(0x0f), r2);            // true
-  __ bf(&error, r2);
+  __ cmpeq(r0, Immediate(0x0f));            // true
+  B_LINE(f, &error);
 
   __ mov(r1, Immediate(0x0f0));
   __ mov(r2, Immediate(0xfff));
-  __ land(r1, r1, r2);
-  __ cmpeq(r1, Immediate(0x0f0), r2);           // true
-  __ bf(&error, r2);
+  __ land(r3, r1, r2);
+  __ cmpeq(r3, Immediate(0x0f0));           // true
+  B_LINE(f, &error);
+
+  __ land(r1, r1, r2); // left auto-modifying
+  __ cmpeq(r1, Immediate(0x0f0));           // true
+  B_LINE(f, &error);
+
+
+  __ mov(r1, Immediate(0x0f0));
+  __ land(r1, r2, r1); // right auto-modifying
+  __ cmpeq(r1, Immediate(0x0f0));           // true
+  B_LINE(f, &error);
 
 
   __ mov(r1, Immediate(0x00ff00ff));
-  __ lor(r1, r1, Immediate(0xff00ff00), r2);
+  __ lor(r1, r1, Immediate(0xff00ff00));
   __ cmpeq(r1, Immediate(0xffffffff));          // true
-  __ bf(&error, r2);
+  B_LINE(f, &error);
 
   __ mov(r1, Immediate(0x00ffff00));
-  __ lor(r1, r1, Immediate(0xff00ff00), r2);
-  __ cmpeq(r1, Immediate(0xffffff00), r2);      // true
-  __ bf(&error, r2);
+  __ lor(r1, r1, Immediate(0xff00ff00));
+  __ cmpeq(r1, Immediate(0xffffff00));      // true
+  B_LINE(f, &error);
 
   __ mov(r0, Immediate(0xf0));
-  __ lor(r0, r0, Immediate(0x0e), r2);
-  __ cmpeq(r0, Immediate(0xfe), r2);            // true
-  __ bf(&error, r2);
+  __ lor(r0, r0, Immediate(0x0e));
+  __ cmpeq(r0, Immediate(0xfe));            // true
+  B_LINE(f, &error);
 
   __ mov(r1, Immediate(0x0f0));
   __ mov(r2, Immediate(0xf12));
-  __ lor(r1, r1, r2);
-  __ cmpeq(r1, Immediate(0xff2), r2);           // true
-  __ bf(&error, r2);
+  __ lor(r3, r1, r2);
+  __ cmpeq(r3, Immediate(0xff2));           // true
+  B_LINE(f, &error);
+
+  __ lor(r1, r1, r2); // left auto-modifying
+  __ cmpeq(r1, Immediate(0xff2));           // true
+  B_LINE(f, &error);
+
+  __ mov(r1, Immediate(0x0f0));
+  __ lor(r1, r2, r1); // right auto-modifying
+  __ cmpeq(r1, Immediate(0xff2));           // true
+  B_LINE(f, &error);
 
 
-  __ mov(r0, Immediate(1));
+  __ mov(r1, Immediate(0xffffffff));
+  __ lxor(r1, r1, Immediate(0xff00ff00));
+  __ cmpeq(r1, Immediate(0x00ff00ff));          // true
+  B_LINE(f, &error);
+
+  __ mov(r0, Immediate(0xff));
+  __ lxor(r0, r0, Immediate(0x0e));
+  __ cmpeq(r0, Immediate(0xf1));            // true
+  B_LINE(f, &error);
+
+  __ mov(r1, Immediate(0xff));
+  __ mov(r2, Immediate(0x0f));
+  __ lxor(r3, r1, r2);
+  __ cmpeq(r3, Immediate(0xf0));           // true
+  B_LINE(f, &error);
+
+  __ lxor(r1, r1, r2); // left auto-modifying
+  __ cmpeq(r1, Immediate(0xf0));           // true
+  B_LINE(f, &error);
+
+  __ mov(r1, Immediate(0x0ff));
+  __ lxor(r1, r2, r1); // right auto-modifying
+  __ cmpeq(r1, Immediate(0xf0));           // true
+  B_LINE(f, &error);
+
+  // All ok.
+  __ mov(r0, Immediate(0));
   __ rts();
 
   __ bind(&error);
-  __ mov(r0, Immediate(0));
+  __ mov(r0, r10);
   __ rts();
 
   JIT();
@@ -622,7 +676,7 @@ TEST(16) {
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
-  CHECK_EQ(1, res);
+  CHECK_EQ(0, res);
 }
 
 
@@ -639,9 +693,9 @@ TEST(17) {
   __ mov(r1, Immediate(1), eq);
   __ mov(r2, Immediate(1), ne);
   __ cmpeq(r1, Immediate(1));
-  __ bf(&error);
+  B_LINE(f, &error);
   __ cmpeq(r2, Immediate(0));
-  __ bf(&error);
+  B_LINE(f, &error);
 
   __ mov(r0, Immediate(1));
   __ mov(r1, Immediate(0));
@@ -650,9 +704,9 @@ TEST(17) {
   __ mov(r1, Immediate(1), eq);
   __ mov(r2, Immediate(1), ne);
   __ cmpeq(r1, Immediate(0));
-  __ bf(&error);
+  B_LINE(f, &error);
   __ cmpeq(r2, Immediate(1));
-  __ bf(&error);
+  B_LINE(f, &error);
 
   __ mov(r0, Immediate(0));
   __ mov(r1, Immediate(0));
@@ -661,9 +715,9 @@ TEST(17) {
   __ mov(r1, Immediate(0xffff), eq);
   __ mov(r2, Immediate(0xffff), ne);
   __ cmpeq(r1, Immediate(0xffff));
-  __ bf(&error);
+  B_LINE(f, &error);
   __ cmpeq(r2, Immediate(0));
-  __ bf(&error);
+  B_LINE(f, &error);
 
   __ mov(r0, Immediate(1));
   __ mov(r1, Immediate(0));
@@ -672,9 +726,9 @@ TEST(17) {
   __ mov(r1, Immediate(0xffff), eq);
   __ mov(r2, Immediate(0xffff), ne);
   __ cmpeq(r1, Immediate(0));
-  __ bf(&error);
+  B_LINE(f, &error);
   __ cmpeq(r2, Immediate(0xffff));
-  __ bf(&error);
+  B_LINE(f, &error);
   
   __ mov(r0, Immediate(0));
   __ mov(r1, Immediate(0));
@@ -684,16 +738,16 @@ TEST(17) {
   __ mov(r1, r3, eq);
   __ mov(r2, r3, ne);
   __ cmpeq(r1, Immediate(1));
-  __ bf(&error);
+  B_LINE(f, &error);
   __ cmpeq(r2, Immediate(0));
-  __ bf(&error);
+  B_LINE(f, &error);
   
   // All ok.
-  __ mov(r0, Immediate(1));
+  __ mov(r0, Immediate(0));
   __ rts();
 
   __ bind(&error);
-  __ mov(r0, Immediate(0));
+  __ mov(r0, r10);
   __ rts();
 
   JIT();
@@ -705,17 +759,9 @@ TEST(17) {
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
-  CHECK_EQ(1, res);
+  CHECK_EQ(0, res);
 }
 
-
-// This macro stores in r10 the line number before branching to the error label.
-// At the error label r10 can be moved to r0 such that return code of the
-// function if not 0 indicates an error at the line of the branch.
-#define B_LINE(cond, target) do {	   \
-  __ mov(r10, Immediate(__LINE__)); \
-  __ b(cond, target);  \
-  } while(0);
 
 // Test addc/subc
 TEST(18) {
