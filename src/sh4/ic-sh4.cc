@@ -1191,8 +1191,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ldr(r4, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
-  __ ldrb(ip, FieldMemOperand(r4, Map::kBitFieldOffset));
-  __ tst(ip, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ ldrb(r5, FieldMemOperand(r4, Map::kBitFieldOffset));
+  __ tst(r5, Immediate(1 << Map::kIsAccessCheckNeeded));
   __ bf(&slow);
   // Check if the object is a JS array or not.
   __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));

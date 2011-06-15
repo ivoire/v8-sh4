@@ -267,6 +267,7 @@ void Assembler::add(Register Rd, Register Rs, Register Rt) {
   else if (Rt.code() == Rd.code()) {
     add_(Rs, Rd);
   } else {
+    ASSERT(!Rs.is(Rd) && !Rt.is(Rd));
     mov_(Rs, Rd);
     add_(Rt, Rd);
   }
@@ -282,9 +283,11 @@ void Assembler::sub(Register Rd, Register Rs, Register Rt) {
   if (Rs.code() == Rd.code()) {
     sub_(Rt, Rd);
   } else if (Rt.code() == Rd.code()) {
+    ASSERT(!Rs.is(Rd));
     neg_(Rt, Rd);
     add_(Rs, Rd);
   } else {
+    ASSERT(!Rs.is(Rd) && !Rt.is(Rd));
     mov_(Rs, Rd);
     sub_(Rt, Rd);
   }
@@ -297,6 +300,7 @@ void Assembler::addv(Register Rd, Register Rs, Register Rt) {
   else if (Rt.code() == Rd.code()) {
     addv_(Rs, Rd);
   } else {
+    ASSERT(!Rs.is(Rd) && !Rt.is(Rd));
     mov_(Rs, Rd);
     addv_(Rt, Rd);
   }
@@ -310,6 +314,7 @@ void Assembler::addc(Register Rd, Register Rs, Register Rt) {
   else if (Rt.code() == Rd.code()) {
     addc_(Rs, Rd);
   } else {
+    ASSERT(!Rs.is(Rd) && !Rt.is(Rd));
     mov_(Rs, Rd);
     addc_(Rt, Rd);
   }
@@ -320,10 +325,12 @@ void Assembler::subv(Register Rd, Register Rs, Register Rt, Register rtmp) {
   if (Rs.code() == Rd.code())
     subv_(Rt, Rd);
   else if (Rt.code() == Rd.code()) {
+    ASSERT(!Rs.is(rtmp) && !Rt.is(rtmp));
     mov_(Rs, rtmp);
     subv_(Rt, rtmp);
     mov_(rtmp, Rd);
   } else {
+    ASSERT(!Rs.is(Rd) && !Rt.is(Rd));
     mov_(Rs, Rd);
     subv_(Rt, Rd);
   }
@@ -335,10 +342,12 @@ void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
   if (Rs.code() == Rd.code())
     subc_(Rt, Rd);
   else if (Rt.code() == Rd.code()) {
+    ASSERT(!Rs.is(rtmp) && !Rt.is(rtmp));
     mov_(Rs, rtmp);
     subc_(Rt, rtmp);
     mov_(rtmp, Rd);
   } else {
+    ASSERT(!Rs.is(Rd) && !Rt.is(Rd));
     mov_(Rs, Rd);
     subc_(Rt, Rd);
   }
@@ -346,22 +355,25 @@ void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
 
 
 void Assembler::asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+  ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
-    mov(Rd, Rs);
+    mov_(Rs, Rd);
   if (imm.x_ == 1) {
     shal_(Rd);
   } else {
-    ASSERT(!Rd.is(rtmp));
-    mov(rtmp, imm);
+    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
+    mov_imm_(imm.x_, rtmp);
     shad_(rtmp, Rd);
   }
 }
 
 
 void Assembler::asr(Register Rd, Register Rs, Register Rt, Register rtmp) {
-  ASSERT(!Rs.is(rtmp));
-  if (Rs.code() != Rd.code())
+  if (Rs.code() != Rd.code()) {
+    ASSERT(!Rt.is(Rd));
     mov_(Rs, Rd);
+  }
+  ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
   neg_(Rt, rtmp);
   shad_(rtmp, Rd);
 }
@@ -370,36 +382,44 @@ void Assembler::asr(Register Rd, Register Rs, Register Rt, Register rtmp) {
 void Assembler::asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
-    mov(Rd, Rs);
-  mov(rtmp, Immediate(-imm.x_));
-  shad_(rtmp, Rd);
+    mov_(Rs, Rd);
+  if (imm.x_ == 1) {
+    shar_(Rd);
+  } else {
+    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
+    mov_imm_(-imm.x_, rtmp);
+    shad_(rtmp, Rd);
+  }
 }
 
 
 void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+  ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
-
   if (imm.x_ == 1) {
     shll_(Rd);
   } else if (imm.x_ == 2) {
     shll2_(Rd);
   } else {
-    ASSERT(!Rd.is(rtmp));
-    mov(rtmp, imm);
+    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
+    mov_imm_(imm.x_, rtmp);
     shld_(rtmp, Rd);
   }
 }
 
 
 void Assembler::lsl(Register Rd, Register Rs, Register Rt) {
-  if (Rs.code() != Rd.code())
+  if (Rs.code() != Rd.code()) {
+    ASSERT(!Rt.is(Rd));
     mov_(Rs, Rd);
+  }
   shld_(Rt, Rd);
 }
 
 
 void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+  ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
   if (imm.x_ == 1) {
@@ -407,17 +427,20 @@ void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm, Register rtm
   } else if (imm.x_ == 2) {
     shlr2_(Rd);
   } else {
-    ASSERT(!Rd.is(rtmp));
-    mov(rtmp, Immediate(-imm.x_));
+    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
+    mov_imm_(-imm.x_, rtmp);
     shld_(rtmp, Rd);
   }
 }
 
 
 void Assembler::lsr(Register Rd, Register Rs, Register Rt, Register rtmp) {
-  ASSERT(!Rs.is(rtmp));
-  if (Rs.code() != Rd.code())
+  ASSERT(!Rt.is(rtmp) && !Rs.is(rtmp));
+  if (Rs.code() != Rd.code()) {
+    ASSERT(!Rt.is(Rd));
     mov_(Rs, Rd);
+  }
+  ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
   neg_(Rt, rtmp);
   shld_(rtmp, Rd);
 }
@@ -434,9 +457,15 @@ void Assembler::land(Register Rd, Register Rs, const Immediate& imm, Register rt
 }
 
 void Assembler::land(Register Rd, Register Rs, Register Rt) {
-  if (!Rd.is(Rs))
+  if (Rs.code() == Rd.code())
+    and_(Rt, Rd);
+  else if (Rt.code() == Rd.code()) {
+    and_(Rs, Rd);
+  } else {
+    ASSERT(!Rt.is(Rd) && !Rs.is(Rd));
     mov_(Rs, Rd);
-  and_(Rt, Rd);
+    and_(Rt, Rd);
+  }
 }
 
 void Assembler::lor(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
@@ -450,9 +479,15 @@ void Assembler::lor(Register Rd, Register Rs, const Immediate& imm, Register rtm
 }
 
 void Assembler::lor(Register Rd, Register Rs, Register Rt) {
-  if (!Rd.is(Rs))
+  if (Rs.code() == Rd.code())
+    or_(Rt, Rd);
+  else if (Rt.code() == Rd.code()) {
+    or_(Rs, Rd);
+  } else {
+    ASSERT(!Rt.is(Rd) && !Rs.is(Rd));
     mov_(Rs, Rd);
-  or_(Rt, Rd);
+    or_(Rt, Rd);
+  }
 }
 
 void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
@@ -466,12 +501,19 @@ void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm, Register rt
 }
 
 void Assembler::lxor(Register Rd, Register Rs, Register Rt) {
-  if (!Rd.is(Rs))
+  if (Rs.code() == Rd.code())
+    xor_(Rt, Rd);
+  else if (Rt.code() == Rd.code()) {
+    xor_(Rs, Rd);
+  } else {
+    ASSERT(!Rt.is(Rd) && !Rs.is(Rd));
     mov_(Rs, Rd);
-  xor_(Rt, Rd);
+    xor_(Rt, Rd);
+  }
 }
 
 void Assembler::tst(Register Rd, const Immediate& imm, Register rtmp) {
+  ASSERT(!Rd.is(rtmp));
   mov(rtmp, imm);
   tst_(Rd, rtmp);
 }
@@ -830,6 +872,7 @@ void Assembler::addpc(Register Rd, int offset, Register rtmp) {
   // We compute a pc+offset value where the pc
   // is the pc after this code sequence.
   // In order to do this, we do a bsr and get the link register.
+  ASSERT(!Rd.is(rtmp));
   bsr_(0);
   nop_();
   sts_PR_(rtmp);
