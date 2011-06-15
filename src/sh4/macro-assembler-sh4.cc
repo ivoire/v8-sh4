@@ -902,7 +902,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     RECORD_LINE();
     mov(r0, Immediate(false));
     mov(r2, Operand(external_caught));
-    str(r2, MemOperand(r0));
+    str(r0, MemOperand(r2));
 
     // Set pending exception and r0 to out of memory exception.
     Failure* out_of_memory = Failure::OutOfMemoryException();
