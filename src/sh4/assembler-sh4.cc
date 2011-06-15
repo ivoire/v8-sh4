@@ -700,7 +700,11 @@ void Assembler::branch(int offset, Register rtmp, branch_type type, bool patched
 void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant) {
   // Patch the constant
   ASSERT(*(p_constant - 1) == 0x09);
-  *reinterpret_cast<uint32_t*>(p_constant) = target_pos - (unsigned)p_constant;
+  // Is it a jsr or any other branch ?
+  if(*(p_constant - 2) == 0xa002)
+    *reinterpret_cast<uint32_t*>(p_constant) = target_pos - (unsigned)p_constant + 4;
+  else
+    *reinterpret_cast<uint32_t*>(p_constant) = target_pos - (unsigned)p_constant;
 }
 
 
@@ -802,13 +806,15 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
   // positions_recorder()->WriteRecordedPositions();
   // check if this is necessary
 
-  // Is it going to be pacthed later on
+  // Is it going to be patched later on ?
   if (patched_later) {
     // There is no way to know the size of the offset: take the worst case
     align();
-    movl_dispPC_(4, rtmp);
+    movl_dispPC_(8, rtmp);
     nop();
     bsrf_(rtmp);
+    nop_();
+    bra_(4);
     nop_();
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
@@ -820,9 +826,11 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
       nop_();
     } else {
       int nop_count = align();
-      movl_dispPC_(4, rtmp);
+      movl_dispPC_(8, rtmp);
       nop();
       bsrf_(rtmp);
+      nop_();
+      bra_(4);
       nop_();
       *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 4 - 2*nop_count;
       pc_ += sizeof(uint32_t);
