@@ -167,6 +167,7 @@ TEST(5) {
   __ asr(r1, r4, r5, r3);
   __ asr(r1, r1, Immediate(1), r3);
   __ asr(r4, r4, r5, r3);
+  __ asr(r4, r4, Immediate(2), r3);
   __ add(r0, r4, r1);
   __ rts();
 
@@ -176,18 +177,21 @@ TEST(5) {
 #endif
 
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 78945613, 4, 0, 0, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fecba98, 4, 0, 0, 0));
   ::printf("f() = %d\n", res);
-  CHECK_EQ((78945613>>(4+1))+(78945613>>4), res);
+  CHECK_EQ((0x7fecba98>>(4+1))+(0x7fecba98>>(4+2)), res);
 }
 
 
 TEST(6) {
   BEGIN();
 
-  __ lsl(r0, r4, Immediate(17), r1);
+  __ lsl(r0, r4, Immediate(14), r1);
+  __ lsl(r0, r0, Immediate(1));
+  __ lsl(r4, r0, Immediate(2));
   __ mov(r1, Immediate(1));
-  __ lsl(r0, r0, r1);
+  __ lsl(r4, r4, r1);
+  __ lsl(r0, r4, r1);
   __ rts();
 
   JIT();
@@ -198,14 +202,18 @@ TEST(6) {
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 42, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
-  CHECK_EQ(42<<(17+1), res);
+  CHECK_EQ(42<<(14+1+2+1+1), res);
 }
 
 TEST(7) {
   BEGIN();
 
   __ lsr(r0, r4, r5);
-  __ lsr(r0, r0, Immediate(1), r4);
+  __ mov(r1, Immediate(1));
+  __ lsr(r0, r0, r1, r3);
+  __ lsr(r4, r0, Immediate(1));
+  __ lsr(r4, r4, Immediate(2));
+  __ lsr(r0, r4, Immediate(3));
   __ rts();
 
   JIT();
@@ -214,9 +222,9 @@ TEST(7) {
 #endif
 
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 78945613, 4, 0, 0, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fecba98, 4, 0, 0, 0));
   ::printf("f() = %d\n", res);
-  CHECK_EQ(78945613>>(4+1), res);
+  CHECK_EQ((uint32_t)0x7fecba98>>(4+1+1+2+3), res);
 }
 
 TEST(8) {
