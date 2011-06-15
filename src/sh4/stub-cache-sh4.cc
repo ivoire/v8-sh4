@@ -684,6 +684,80 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
 }
 
 
+void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
+  if (kind_ == Code::KEYED_CALL_IC) {
+    __ cmp(r2, Immediate(Handle<String>(name)));
+    __ b(ne, miss);
+  }
+}
+
+
+void CallStubCompiler::GenerateGlobalReceiverCheck(JSObject* object,
+                                                   JSObject* holder,
+                                                   String* name,
+                                                   Label* miss) {
+  ASSERT(holder->IsGlobalObject());
+
+  // Get the number of arguments.
+  const int argc = arguments().immediate();
+
+  // Get the receiver from the stack.
+  __ ldr(r0, MemOperand(sp, argc * kPointerSize));
+
+  // If the object is the holder then we know that it's a global
+  // object which can only happen for contextual calls. In this case,
+  // the receiver cannot be a smi.
+  if (object != holder) {
+    __ tst(r0, Immediate(kSmiTagMask));
+    __ b(eq, miss);
+  }
+
+  // Check that the maps haven't changed.
+  CheckPrototypes(object, r0, holder, r3, r1, r4, name, miss);
+}
+
+
+void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
+                                                    JSFunction* function,
+                                                    Label* miss) {
+  // Get the value from the cell.
+  __ mov(r3, Operand(Handle<JSGlobalPropertyCell>(cell)));
+  __ ldr(r1, FieldMemOperand(r3, JSGlobalPropertyCell::kValueOffset));
+
+  // Check that the cell contains the same function.
+  if (heap()->InNewSpace(function)) {
+    // We can't embed a pointer to a function in new space so we have
+    // to verify that the shared function info is unchanged. This has
+    // the nice side effect that multiple closures based on the same
+    // function can all use this call IC. Before we load through the
+    // function, we have to verify that it still is a function.
+    __ tst(r1, Immediate(kSmiTagMask));
+    __ b(eq, miss);
+    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
+    __ b(ne, miss);
+
+    // Check the shared function info. Make sure it hasn't changed.
+    __ mov(r3, Operand(Handle<SharedFunctionInfo>(function->shared())));
+    __ ldr(r4, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+    __ cmp(r4, r3);
+    __ b(ne, miss);
+  } else {
+    __ cmp(r1, Immediate(Handle<JSFunction>(function)));
+    __ b(ne, miss);
+  }
+}
+
+
+MaybeObject* CallStubCompiler::GenerateMissBranch() {
+  MaybeObject* maybe_obj = masm()->isolate()->stub_cache()->ComputeCallMiss(
+      arguments().immediate(), kind_);
+  Object* obj;
+  if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  __ Jump(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
+  return obj;
+}
+
+
 MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
                                                 JSObject* holder,
                                                 int index,
@@ -895,8 +969,66 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
                                                  JSGlobalPropertyCell* cell,
                                                  JSFunction* function,
                                                  String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  if (HasCustomCallGenerator(function)) {
+    MaybeObject* maybe_result = CompileCustomCall(
+        object, holder, cell, function, name);
+    Object* result;
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+    // undefined means bail out to regular compiler.
+    if (!result->IsUndefined()) return result;
+  }
+
+  Label miss;
+
+  GenerateNameCheck(name, &miss);
+
+  // Get the number of arguments.
+  const int argc = arguments().immediate();
+
+  GenerateGlobalReceiverCheck(object, holder, name, &miss);
+
+  GenerateLoadFunctionFromCell(cell, function, &miss);
+
+  // Patch the receiver on the stack with the global proxy if
+  // necessary.
+  if (object->IsGlobalObject()) {
+    __ ldr(r3, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
+    __ str(r3, MemOperand(sp, argc * kPointerSize));
+  }
+
+  // Setup the context (function already in r1).
+  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+
+  // Jump to the cached code (tail call).
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->call_global_inline(), 1, r3, r4);
+  ASSERT(function->is_compiled());
+  Handle<Code> code(function->code());
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  if (V8::UseCrankshaft()) {
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+    __ InvokeCode(r3, expected, arguments(), JUMP_FUNCTION);
+  } else {
+    __ InvokeCode(code, expected, arguments(),
+                  RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  }
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  __ IncrementCounter(counters->call_global_inline_miss(), 1, r1, r3);
+  MaybeObject* maybe_result = GenerateMissBranch();
+  if (maybe_result->IsFailure()) return maybe_result;
+
+  // Return the generated code.
+  return GetCode(NORMAL, name);
 }
 
 
