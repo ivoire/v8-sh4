@@ -872,11 +872,11 @@ void Assembler::addpc(Register Rd, int offset, Register rtmp) {
   // We compute a pc+offset value where the pc
   // is the pc after this code sequence.
   // In order to do this, we do a bsr and get the link register.
-  ASSERT(!Rd.is(rtmp));
+  // rtmp is not used
   bsr_(0);
   nop_();
-  sts_PR_(rtmp);
-  add_imm_(4+offset, rtmp);
+  sts_PR_(Rd);
+  add_imm_(4+offset, Rd);
 }
 
 
