@@ -38,6 +38,7 @@ namespace internal {
 
 // Copy from ARM
 #include "map-sh4.h" // Define register map
+
 void ToNumberStub::Generate(MacroAssembler* masm) {
   // Entry argument: r0
   // Exit in: r0
@@ -200,7 +201,6 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   // Handle number to string in the runtime system if not found in the cache.
   __ TailCallRuntime(Runtime::kNumberToStringSkipCache, 1, 1);
 }
-#include "map-sh4.h" // Undefine register map
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
@@ -535,10 +535,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // WARNING: this function use the SH4 ABI !!
 
   // r0: result parameter for PerformGC, if any
-  // r8: number of arguments including receiver  (C callee-saved)
-  // r9: pointer to builtin function  (C callee-saved)
-  // r10: pointer to the first argument (C callee-saved)
+  // sh4_r8: number of arguments including receiver  (C callee-saved)
+  // sh4_r9: pointer to builtin function  (C callee-saved)
+  // sh4_r10: pointer to the first argument (C callee-saved)
   Isolate* isolate = masm->isolate();
+  ASSERT(!r0.is(sh4_rtmp) && !sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) && !sh4_r10.is(sh4_rtmp));
 
   if (do_gc) {
     // Passing r0.
@@ -557,8 +558,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Call C built-in.
   // r4 = argc, r5 = argv, r6 = isolate
-  __ mov(r4, r8);
-  __ mov(r5, r10);
+  __ mov(r4, sh4_r8);
+  __ mov(r5, sh4_r10);
   __ mov(r6, Operand(ExternalReference::isolate_address()));
 
   // TODO(1242173): To let the GC traverse the return address of the exit
@@ -578,7 +579,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   int old_pc = masm->pc_offset();
 #endif
   __ str(r3, MemOperand(sp, 0));
-  __ jsr(r9);
+  __ jsr(sh4_r9);
 #ifdef DEBUG
   ASSERT(masm->pc_offset() - old_pc == 3 * Assembler::kInstrSize);
 #endif
@@ -605,8 +606,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  //  Callee-saved register r8 still holds argc.
-  __ LeaveExitFrame(save_doubles_, r8);
+  //  Callee-saved register sh4_r8 still holds argc.
+  __ LeaveExitFrame(save_doubles_, sh4_r8);
   __ rts();
 
   // check if we should retry or throw exception
@@ -656,20 +657,21 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // a garbage collection and retrying the builtin (twice).
 
   // Compute the argv pointer in a callee-saved register.
-  __ lsl(r10, r0, Immediate(kPointerSizeLog2));
-  __ add(r10, sp, r10);
-  __ sub(r10, r10, Immediate(kPointerSize));
+  __ lsl(sh4_r10, r0, Immediate(kPointerSizeLog2));
+  __ add(sh4_r10, sp, sh4_r10);
+  __ sub(sh4_r10, sh4_r10, Immediate(kPointerSize));
 
   // Enter the exit frame that transitions from JavaScript to C++.
   __ EnterExitFrame(save_doubles_);
 
   // Setup argc and the builtin function in callee-saved registers.
-  __ mov(r8, r0);
-  __ mov(r9, r1);
+  __ mov(sh4_r8, r0);
+  __ mov(sh4_r9, r1);
 
-  // r8: number of arguments (C callee-saved)
-  // r9: pointer to builtin function (C callee-saved)
-  // r10: pointer to first argument (C callee-saved)
+  // sh4_r8: number of arguments (C callee-saved)
+  // sh4_r9: pointer to builtin function (C callee-saved)
+  // sh4_r10: pointer to first argument (C callee-saved)
+  ASSERT(!sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) && !sh4_r10.is(sh4_rtmp));
 
   Label throw_normal_exception;
   Label throw_termination_exception;
@@ -750,8 +752,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r3: argc
   // r4: argv
   Isolate* isolate = masm->isolate();
-  __ mov(r8, Immediate(-1));       // Push a bad frame pointer to fail if it is used.
-  __ push(r8);
+  __ mov(ip, Immediate(-1));       // Push a bad frame pointer to fail if it is used.
+  __ push(ip);
 
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ mov(r7, Immediate(Smi::FromInt(marker)));
@@ -787,9 +789,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
-  __ mov(r11, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                         isolate)));
-  __ str(r0, MemOperand(r11));
+  __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ jmp(&exit);
 
@@ -803,11 +805,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ mov(r11, Operand(ExternalReference::the_hole_value_location(isolate)));
-  __ ldr(r5, MemOperand(r11));
-  __ mov(r11, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ mov(ip, Operand(ExternalReference::the_hole_value_location(isolate)));
+  __ ldr(r5, MemOperand(ip));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                        isolate)));
-  __ str(r5, MemOperand(r11));
+  __ str(r5, MemOperand(ip));
 
   // Invoke the function by calling through JS entry trampoline builtin.
   // Notice that we cannot store a reference to the trampoline code directly in
@@ -822,16 +824,16 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   if (is_construct) {
     ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
                                       isolate);
-    __ mov(r11, Operand(construct_entry));
+    __ mov(ip, Operand(construct_entry));
   } else {
     ExternalReference entry(Builtins::kJSEntryTrampoline, isolate);
-    __ mov(r11, Operand(entry));
+    __ mov(ip, Operand(entry));
   }
-  __ ldr(r11, MemOperand(r11));  // deref address
+  __ ldr(ip, MemOperand(ip));  // deref address
 
   // JSEntryTrampoline
-  __ add(r11, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jsr(r11);
+  __ add(ip, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ jsr(ip);
 
   // r0 may hold a result here, do not use it
 
@@ -840,8 +842,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // displacement since the current stack pointer (sp) points directly
   // to the stack handler.
   __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ mov(r11, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
-  __ str(r3, MemOperand(r11));
+  __ mov(ip, Operand(ExternalReference(Isolate::k_handler_address, isolate)));
+  __ str(r3, MemOperand(ip));
   // No need to restore registers
   __ add(sp, sp, Immediate(StackHandlerConstants::kSize));
 
@@ -861,9 +863,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ bind(&exit);  // r0 holds result
   // Restore the top frame descriptors from the stack.
   __ pop(r3);
-  __ mov(r11,
+  __ mov(ip,
          Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
-  __ str(r3, MemOperand(r11));
+  __ str(r3, MemOperand(ip));
 
   // Reset the stack to the callee saved registers.
   __ add(sp, sp, Immediate(-EntryFrameConstants::kCallerFPOffset));
@@ -883,8 +885,6 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Copy from ARM
-#include "map-sh4.h" // Define register map
 void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
   Label slow, done;
 
@@ -1076,7 +1076,6 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ bind(&gc);
   __ TailCallRuntime(Runtime::kNewContext, 1, 1);
 }
-#include "map-sh4.h" // Undefine register map
 
 
 void CompareStub::Generate(MacroAssembler* masm) {
@@ -1532,8 +1531,6 @@ int CompareStub::MinorKey() {
 }
 
 
-// Copy from ARM
-#include "map-sh4.h" // Define register map
 // See comment for class.
 void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   Label max_negative_int;
@@ -1583,7 +1580,6 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   __ str(ip, FieldMemOperand(the_heap_number_, HeapNumber::kMantissaOffset));
   __ Ret();
 }
-#include "map-sh4.h" // Undefine register map
 
 
 // -------------------------------------------------------------------------
@@ -1696,8 +1692,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ bind(&got_smi_index_);
 
   // Check for index out of range.
-  __ ldr(r11, FieldMemOperand(object_, String::kLengthOffset));
-  __ cmpgeu(scratch_, r11);
+  __ ldr(ip, FieldMemOperand(object_, String::kLengthOffset));
+  __ cmpgeu(scratch_, ip);
   __ bf(index_out_of_range_);
 
   // We need special handling for non-flat strings.
@@ -1715,8 +1711,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // the case we would rather go to the runtime system now to flatten
   // the string.
   __ ldr(result_, FieldMemOperand(object_, ConsString::kSecondOffset));
-  __ LoadRoot(r11, Heap::kEmptyStringRootIndex);
-  __ cmpeq(result_, r11);
+  __ LoadRoot(ip, Heap::kEmptyStringRootIndex);
+  __ cmpeq(result_, ip);
   __ bf(&call_runtime_);
   // Get the first of the two strings and load its instance type.
   __ ldr(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
@@ -1816,7 +1812,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiShiftSize == 0);
   ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
 
-  ASSERT(!code_.is(r11) && !result_.is(r11));
+  ASSERT(!code_.is(ip) && !result_.is(ip));
 
   __ tst(code_,
          Immediate(kSmiTagMask |
@@ -1826,11 +1822,11 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
   // At this point code register contains smi tagged ASCII char code.
   STATIC_ASSERT(kSmiTag == 0);
-  __ lsl(r11, code_, Immediate(kPointerSizeLog2 - kSmiTagSize));
-  __ add(result_, result_, r11);
+  __ lsl(ip, code_, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(result_, result_, ip);
   __ mov(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
-  __ LoadRoot(r11, Heap::kUndefinedValueRootIndex);
-  __ cmpeq(result_, r11);
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmpeq(result_, ip);
   __ bt(&slow_case_);
   __ bind(&exit_);
 }
@@ -1852,8 +1848,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
-// Copy from ARM
-#include "map-sh4.h" // Define register map
 void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
                                           Register dest,
                                           Register src,
@@ -2836,7 +2830,6 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   __ pop(r1);
   __ jmp(r2);
 }
-#include "map-sh4.h" // Undefine register map
 
 
 #undef __

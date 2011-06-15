@@ -41,39 +41,14 @@ namespace v8 {
 namespace internal {
 
 
-//
-// ************************************************
-// *** WARNING: ARM to SH4 mapping. READ CAREFULLY.
-// ************************************************
-// Starting from this point, we use a systematic mapping for converting
-// ARM code to SH4 code.
-// Some registers must be checked, see defines below.
-// if needing an additional register, use sh4_r8
-// all other registers unchanged
-//
-// For this we define a fixed mapping based on #define.
-// All functions should come from the ARM implementation
-// in ic-arm.cc
-// If this latter file is updated, please also update this one.
-//
-#define r8 "should be cp"
-#define ip sh4_r11
-#define lr pr
-#define pc "to be checked"
-#define r10 "should be roots"
-#define r11 "Unexpected"
-#define r12 "Unexpected"
-#define r13 "Unexpected"
-#define r14 "Unexpected"
-#define r15 "Unexpected"
-
-
 // ----------------------------------------------------------------------------
 // Static IC stub generators.
 //
 
 #define __ ACCESS_MASM(masm)
 
+  // ARM to SH4 mapping
+#include "map-sh4.h"
 
 static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
                                             Register type,
@@ -1501,44 +1476,44 @@ void PatchInlinedSmiCode(Address address) {
   ASSERT_EQ(Assembler::GetRn(instr_at_patch).code(),
             Assembler::GetRm(instr_at_patch).code());
   ASSERT(Assembler::IsMovImmediate(instr_before_patch));
-  ASSERT_EQ(Assembler::GetRn(instr_before_patch).code(), sh4_r11.code());
+  ASSERT_EQ(Assembler::GetRn(instr_before_patch).code(), sh4_ip.code());
   ASSERT(Assembler::IsBranch(branch_instr));
   if (Assembler::GetCondition(branch_instr) == f) {
     // This is patching a "jump if not smi" site to be active.
     // Changing
-    //   mov #kSmiTagMask, r11
+    //   mov #kSmiTagMask, sh4_ip
     //   cmp rx, rx
     //   bf <skip>        // actually a bt <target>
     //   ...
     //   bra <target>
     //   skip:
     // to
-    //   mov #kSmiTagMask, r11
-    //   tst rx, r11
+    //   mov #kSmiTagMask, sh4_ip
+    //   tst rx, sh4_ip
     //   bt <skip>       // actually implements a bf <target>
     //   ...
     CodePatcher patcher(patch_address, 2);
     Register reg = Assembler::GetRn(instr_at_patch);
-    patcher.masm()->tst(reg, sh4_r11);
+    patcher.masm()->tst(reg, sh4_ip);
     patcher.EmitCondition(t);
   } else {
     ASSERT(Assembler::GetCondition(branch_instr) == t);
     // This is patching a "jump if smi" site to be active.
     // Changing
-    //   mov #kSmiTagMask, r11
+    //   mov #kSmiTagMask, sh4_ip
     //   cmp rx, rx
     //   bt <skip>        // actually a bf <target>
     //   ...
     //   bra <target>
     //   skip:
     // to
-    //   mov #kSmiTagMask, r11
-    //   tst rx, r11
+    //   mov #kSmiTagMask, sh4_ip
+    //   tst rx, sh4_ip
     //   bf <target>
     //   ...
     CodePatcher patcher(patch_address, 2);
     Register reg = Assembler::GetRn(instr_at_patch);
-    patcher.masm()->tst(reg, sh4_r11);
+    patcher.masm()->tst(reg, sh4_ip);
     patcher.EmitCondition(f);
   }
 }

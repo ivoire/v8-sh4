@@ -42,6 +42,10 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
+// Define register map
+#include "map-sh4.h"
+
+
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 CFunctionId id,
                                 BuiltinExtraArguments extra_args) {
@@ -534,7 +538,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 }
 
 
-#include "map-sh4.h" // Define register map
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool count_constructions) {
@@ -874,7 +877,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ rts();
 
 }
-#include "map-sh4.h" // Undefine register map
 
 
 void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
@@ -940,12 +942,12 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Initialize all JavaScript callee-saved registers, since they will be seen
   // by the garbage collector as part of handlers.
-  __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
-  __ mov(r5, r4);
-  __ mov(r6, r4);
-  __ mov(r7, r4);
-  __ mov(r8, r4);
-  __ mov(r9, r4);
+  __ LoadRoot(sh4_r8, Heap::kUndefinedValueRootIndex);
+  __ mov(sh4_r9, sh4_r8);
+  __ mov(sh4_r10, sh4_r8);
+  __ mov(sh4_r11, sh4_r8);
+  __ mov(sh4_r12, sh4_r8);
+  __ mov(sh4_r13, sh4_r8);
 
   // Invoke the code and pass argc as r0.
   __ mov(r0, r3);
@@ -1090,8 +1092,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //    if it is a function.
   // r0: actual number of arguments
   Label non_function;
-  __ lsl(r11, r0, Immediate(kPointerSizeLog2));
-  __ mov(r1, MemOperand(sp, r11));
+  __ lsl(ip, r0, Immediate(kPointerSizeLog2));
+  __ mov(r1, MemOperand(sp, ip));
   __ tst(r1, Immediate(kSmiTagMask));
   __ bt(&non_function);
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
@@ -1113,8 +1115,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bf(&shift_arguments);
 
     // Compute the receiver in non-strict mode.
-    __ lsl(r11, r0, Immediate(kPointerSizeLog2));
-    __ add(r2, sp, r11);
+    __ lsl(ip, r0, Immediate(kPointerSizeLog2));
+    __ add(r2, sp, ip);
     __ ldr(r2, MemOperand(r2, -kPointerSize));
     // r0: actual number of arguments
     // r1: function
@@ -1194,8 +1196,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ add(r2, sp, r2);
 
     __ bind(&loop);
-    __ ldr(r11, MemOperand(r2, -kPointerSize));
-    __ str(r11, MemOperand(r2));
+    __ ldr(ip, MemOperand(r2, -kPointerSize));
+    __ str(ip, MemOperand(r2));
     __ sub(r2, r2, Immediate(kPointerSize));
     __ cmpeq(r2, sp);
     __ bf(&loop);
@@ -1264,8 +1266,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // here which will cause r2 to become negative.
   __ sub(r2, sp, r2);
   // Check if the arguments will overflow the stack.
-  __ lsl(r11, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
-  __ cmpgt(r2, r11);
+  __ lsl(ip, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ cmpgt(r2, ip);
   __ bt(&okay);  // Signed comparison.
 
   // Out of stack space.
@@ -1395,8 +1397,8 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(fp, -3 * kPointerSize));
   __ mov(sp, fp);
   __ Pop(pr, fp);
-  __ lsl(r11, r1, Immediate(kPointerSizeLog2 - kSmiTagSize));
-  __ add(sp, sp, r11);
+  __ lsl(ip, r1, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(sp, sp, ip);
   __ add(sp, sp, Immediate(kPointerSize));  // adjust for receiver
 }
 
@@ -1441,8 +1443,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     Label copy;
     __ bind(&copy);
-    __ ldr(r11, MemOperand(r0, 0));
-    __ push(r11);
+    __ ldr(ip, MemOperand(r0, 0));
+    __ push(ip);
     __ cmpeq(r0, r2);  // Compare before moving to next argument.
     __ sub(r0, r0, Immediate(kPointerSize));
     __ bf(&copy);
@@ -1470,8 +1472,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Label copy;
     __ bind(&copy);
     // Adjust load for return address and receiver.
-    __ ldr(r11, MemOperand(r0, 2 * kPointerSize));
-    __ push(r11);
+    __ ldr(ip, MemOperand(r0, 2 * kPointerSize));
+    __ push(ip);
     __ cmpeq(r0, fp);  // Compare before moving to next argument.
     __ sub(r0, r0, Immediate(kPointerSize));
     __ bf(&copy);

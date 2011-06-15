@@ -59,24 +59,24 @@ static void ProbeTable(Isolate* isolate,
   ASSERT((value_off_addr - key_off_addr) % 4 == 0);
   ASSERT((value_off_addr - key_off_addr) < (256 * 4));
 
-  // Check that sh4_r11 is not used
-  ASSERT(!name.is(sh4_r11) && !offset.is(sh4_r11) && !scratch.is(sh4_r11) && !scratch2.is(sh4_r11));
+  // Check that ip is not used
+  ASSERT(!name.is(ip) && !offset.is(ip) && !scratch.is(ip) && !scratch2.is(ip));
 
   Label miss;
   Register offsets_base_addr = scratch;
 
   // Check that the key in the entry matches the name.
   __ mov(offsets_base_addr, Immediate(key_offset));
-  __ lsl(sh4_r11, offset, Immediate(1));
-  __ ldr(sh4_r11, MemOperand(offsets_base_addr, sh4_r11));
-  __ cmpeq(name, sh4_r11);
+  __ lsl(ip, offset, Immediate(1));
+  __ ldr(ip, MemOperand(offsets_base_addr, ip));
+  __ cmpeq(name, ip);
   __ bf(&miss);
 
   // Get the code entry from the cache.
   __ add(offsets_base_addr, offsets_base_addr,
          Immediate(value_off_addr - key_off_addr));
-  __ lsl(sh4_r11, offset, Immediate(1));
-  __ ldr(scratch2, MemOperand(offsets_base_addr, sh4_r11));
+  __ lsl(ip, offset, Immediate(1));
+  __ ldr(scratch2, MemOperand(offsets_base_addr, ip));
 
   // Check that the flags match what we're looking for.
   __ ldr(scratch2, FieldMemOperand(scratch2, Code::kFlagsOffset));
@@ -85,8 +85,8 @@ static void ProbeTable(Isolate* isolate,
   __ bf(&miss);
 
   // Re-load code entry from cache.
-  __ lsl(sh4_r11, offset, Immediate(1));
-  __ mov(offset, MemOperand(offsets_base_addr, sh4_r11));
+  __ lsl(ip, offset, Immediate(1));
+  __ mov(offset, MemOperand(offsets_base_addr, ip));
 
   // Jump to the first instruction in the code stub.
   __ add(offset, offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -246,8 +246,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   ASSERT(!extra.is(no_reg));
   ASSERT(!extra2.is(no_reg));
 
-  // Check that r3 is not used
-  ASSERT(!receiver.is(sh4_r11) && !name.is(sh4_r11) && !scratch.is(sh4_r11) && !extra.is(sh4_r11) && !extra2.is(sh4_r11));
+  // Check that ip is not used
+  ASSERT(!receiver.is(ip) && !name.is(ip) && !scratch.is(ip) && !extra.is(ip) && !extra2.is(ip));
 
   // Check that the receiver isn't a smi.
   __ tst(receiver, Immediate(kSmiTagMask));
@@ -255,8 +255,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 
   // Get the map of the receiver and compute the hash.
   __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
-  __ ldr(sh4_r11, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ add(scratch, scratch, sh4_r11);
+  __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ add(scratch, scratch, ip);
   __ lxor(scratch, scratch, Immediate(flags));
   __ land(scratch, scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
 
@@ -322,7 +322,7 @@ static void GenerateStringCheck(MacroAssembler* masm,
                                 Register scratch2,
                                 Label* smi,
                                 Label* non_string_object) {
-  ASSERT(!receiver.is(sh4_r11) && !scratch1.is(sh4_r11) && !scratch2.is(sh4_r11));
+  ASSERT(!receiver.is(ip) && !scratch1.is(ip) && !scratch2.is(ip));
 
   // Check that the receiver isn't a smi.
   __ tst(receiver, Immediate(kSmiTagMask));
@@ -348,7 +348,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register scratch2,
                                             Label* miss,
                                             bool support_wrappers) {
-  ASSERT(!receiver.is(sh4_r11) && !scratch1.is(sh4_r11) && !scratch2.is(sh4_r11));
+  ASSERT(!receiver.is(ip) && !scratch1.is(ip) && !scratch2.is(ip));
   Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
