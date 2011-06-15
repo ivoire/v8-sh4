@@ -1058,13 +1058,13 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
   // doesn't do any garbage collection which allows us to save/restore
   // the registers without worrying about which of them contain
   // pointers. This seems a bit fragile.
-  __ pushm(kJSCallerSaved | kCalleeSaved);
   __ Push(pr, fp);
+  __ pushm(kJSCallerSaved | kCalleeSaved);
   __ EnterInternalFrame();
   __ CallRuntime(Runtime::kNotifyOSR, 0);
   __ LeaveInternalFrame();
-  __ Pop(pr, fp);
   __ popm(kJSCallerSaved | kCalleeSaved);
+  __ Pop(pr, fp);
   __ rts();
 }
 
