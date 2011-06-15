@@ -700,3 +700,208 @@ TEST(17) {
   CHECK_EQ(1, res);
 }
 
+
+// This macro stores in r10 the line number before branching to the error label.
+// At the error label r10 can be moved to r0 such that return code of the
+// function if not 0 indicates an error at the line of the branch.
+#define B_LINE(cond, target) do {	   \
+  __ mov(r10, Immediate(__LINE__)); \
+  __ b(cond, target);  \
+  } while(0);
+
+// Test addc/subc
+TEST(18) {
+  BEGIN();
+
+  Label error;
+  
+  __ mov(r0, Immediate(0xFFFFFFFE));
+  __ mov(r1, Immediate(1));
+  __ addc(r2, r0, r1);
+  B_LINE(cs, &error); // check that carry is clear
+  __ cmpeq(r2, Immediate(0xFFFFFFFF));
+  B_LINE(f, &error);
+
+  __ addc(r1, r1, r0); // left auto-modified
+  B_LINE(cs, &error);
+  __ cmpeq(r1, Immediate(0xFFFFFFFF));
+  B_LINE(f, &error);
+
+  __ mov(r1, Immediate(1));
+  __ addc(r1, r0, r1); // right auto-modified
+  B_LINE(cs, &error);
+  __ cmpeq(r1, Immediate(0xFFFFFFFF));
+  B_LINE(f, &error);
+
+  __ mov(r0, Immediate(0xFFFFFFFF));
+  __ mov(r1, Immediate(1));
+  __ addc(r2, r0, r1);
+  B_LINE(cc, &error); // check that carry is set
+  __ cmpeq(r2, Immediate(0));
+  B_LINE(f, &error);
+
+  __ addc(r1, r1, r0); // left auto-modified
+  B_LINE(cc, &error);
+  __ cmpeq(r1, Immediate(0));
+  B_LINE(f, &error);
+
+  __ mov(r1, Immediate(1));
+  __ addc(r1, r0, r1); // right auto-modified
+  B_LINE(cc, &error);
+  __ cmpeq(r1, Immediate(0));
+  B_LINE(f, &error);
+
+   __ mov(r0, Immediate(1));
+   __ mov(r1, Immediate(1));
+   __ subc(r2, r0, r1);
+   B_LINE(cs, &error); // check that carry is clear
+   __ cmpeq(r2, Immediate(0));
+   B_LINE(f, &error);
+
+   __ subc(r0, r0, r1); // left auto-modified
+   B_LINE(cs, &error);
+   __ cmpeq(r0, Immediate(0));
+   B_LINE(f, &error);
+
+   __ mov(r0, Immediate(1));
+   __ subc(r1, r0, r1); // right auto-modified
+   B_LINE(cs, &error);
+   __ cmpeq(r1, Immediate(0));
+   B_LINE(f, &error);
+
+   __ mov(r0, Immediate(0));
+   __ mov(r1, Immediate(1));
+   __ subc(r2, r0, r1);
+   B_LINE(cc, &error); // check that carry is set
+   __ cmpeq(r2, Immediate(-1));
+   B_LINE(f, &error);
+
+   __ subc(r0, r0, r1); // left auto-modified
+   B_LINE(cc, &error);
+   __ cmpeq(r0, Immediate(-1));
+   B_LINE(f, &error);
+
+   __ mov(r0, Immediate(0));
+   __ subc(r1, r0, r1); // right auto-modified
+   B_LINE(cc, &error);
+   __ cmpeq(r1, Immediate(-1));
+   B_LINE(f, &error);
+
+  // All ok.
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
+
+// Test addv/subv
+TEST(19) {
+  BEGIN();
+
+  Label error;
+  
+  __ mov(r0, Immediate(0x7FFFFFFE));
+  __ mov(r1, Immediate(1));
+  __ addv(r2, r0, r1);
+  B_LINE(vs, &error); // check that overflow is clear
+  __ cmpeq(r2, Immediate(0x7FFFFFFF));
+  B_LINE(f, &error);
+
+  __ addv(r1, r1, r0); // left auto-modified
+  B_LINE(vs, &error);
+  __ cmpeq(r1, Immediate(0x7FFFFFFF));
+  B_LINE(f, &error);
+
+  __ mov(r1, Immediate(1));
+  __ addv(r1, r0, r1); // right auto-modified
+  B_LINE(vs, &error);
+  __ cmpeq(r1, Immediate(0x7FFFFFFF));
+  B_LINE(f, &error);
+
+  __ mov(r0, Immediate(0x7FFFFFFF));
+  __ mov(r1, Immediate(1));
+  __ addv(r2, r0, r1);
+  B_LINE(vc, &error); // check that overflow is set
+  __ cmpeq(r2, Immediate(0x80000000));
+  B_LINE(f, &error);
+
+  __ addv(r1, r1, r0); // left auto-modified
+  B_LINE(vc, &error);
+  __ cmpeq(r1, Immediate(0x80000000));
+  B_LINE(f, &error);
+
+  __ mov(r1, Immediate(1));
+  __ addv(r1, r0, r1); // right auto-modified
+  B_LINE(vc, &error);
+  __ cmpeq(r1, Immediate(0x80000000));
+  B_LINE(f, &error);
+
+  __ mov(r0, Immediate(0x80000001));
+  __ mov(r1, Immediate(1));
+  __ subv(r2, r0, r1);
+  B_LINE(vs, &error); // check that overflow is clear
+  __ cmpeq(r2, Immediate(0x80000000));
+  B_LINE(f, &error);
+
+  __ subv(r0, r0, r1); // left auto-modified
+  B_LINE(vs, &error);
+  __ cmpeq(r0, Immediate(0x80000000));
+  B_LINE(f, &error);
+
+  __ mov(r0, Immediate(0x80000001));
+  __ subv(r1, r0, r1); // right auto-modified
+  B_LINE(vs, &error);
+  __ cmpeq(r1, Immediate(0x80000000));
+  B_LINE(f, &error);
+
+  __ mov(r0, Immediate(0x80000000));
+  __ mov(r1, Immediate(1));
+  __ subv(r2, r0, r1);
+  B_LINE(cc, &error); // check that carry is set
+  __ cmpeq(r2, Immediate(0x7FFFFFFF));
+  B_LINE(f, &error);
+
+  __ subv(r0, r0, r1); // left auto-modified
+  B_LINE(cc, &error);
+  __ cmpeq(r0, Immediate(0x7FFFFFFF));
+  B_LINE(f, &error);
+
+  __ mov(r0, Immediate(0x80000000));
+  __ subv(r1, r0, r1); // right auto-modified
+  B_LINE(cc, &error);
+  __ cmpeq(r1, Immediate(0x7FFFFFFF));
+  B_LINE(f, &error);
+
+  // All ok.
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
+
