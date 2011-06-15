@@ -74,7 +74,7 @@ class JumpPatchSite BASE_EMBEDDED {
     // to be simple to patch, we force the alignment now, such that the
     // first instruction of the sequence after the cmp is a branch.
     __ align();
-    __ mov(sh4_r11, Immediate(kSmiTagMask));
+    __ mov(sh4_ip, Immediate(kSmiTagMask));
     __ bind(&patch_site_);
     __ cmp(reg, reg);
     // Don't use b(al, ...) as that might emit the constant pool right after the
@@ -92,7 +92,7 @@ class JumpPatchSite BASE_EMBEDDED {
   void EmitJumpIfSmi(Register reg, Label* target) {
     ASSERT(!patch_site_.is_bound() && !info_emitted_);
     __ align();
-    __ mov(sh4_r11, Immediate(kSmiTagMask));
+    __ mov(sh4_ip, Immediate(kSmiTagMask));
     __ bind(&patch_site_);
     __ cmp(reg, reg);
     ASSERT(!target->is_bound());

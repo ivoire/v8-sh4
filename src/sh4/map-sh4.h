@@ -5,7 +5,7 @@
 // First include, we define the mapping
 #define MAP_SH4
 #define r8 "should be cp"
-#define ip sh4_r11
+#define ip sh4_r10
 #define lr pr
 #define pc "to be checked"
 #define r10 "should be roots"

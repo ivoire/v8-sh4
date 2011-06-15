@@ -145,7 +145,10 @@ const Register sh4_r8 = r8;
 const Register sh4_r9 = r9;
 const Register sh4_r10 = r10;
 const Register sh4_r11 = r11;
-const Register sh4_rtmp = r11;
+const Register sh4_r12 = roots;
+const Register sh4_r13 = cp;
+const Register sh4_rtmp = r11; // Used for low level (assembler-sh4.cc)
+const Register sh4_ip = r10; // Used as additional scratch in JS code
 
 
 // Single word VFP register.
