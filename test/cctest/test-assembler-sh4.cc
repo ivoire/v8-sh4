@@ -618,5 +618,85 @@ TEST(16) {
 }
 
 
+// Test conditional moves
+TEST(17) {
+  BEGIN();
 
-#undef __
+  Label error;
+  
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(0));
+  __ mov(r2, Immediate(0));
+  __ tst(r0, r0);
+  __ mov(r1, Immediate(1), eq);
+  __ mov(r2, Immediate(1), ne);
+  __ cmpeq(r1, Immediate(1));
+  __ bf(&error);
+  __ cmpeq(r2, Immediate(0));
+  __ bf(&error);
+
+  __ mov(r0, Immediate(1));
+  __ mov(r1, Immediate(0));
+  __ mov(r2, Immediate(0));
+  __ tst(r0, r0);
+  __ mov(r1, Immediate(1), eq);
+  __ mov(r2, Immediate(1), ne);
+  __ cmpeq(r1, Immediate(0));
+  __ bf(&error);
+  __ cmpeq(r2, Immediate(1));
+  __ bf(&error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(0));
+  __ mov(r2, Immediate(0));
+  __ tst(r0, r0);
+  __ mov(r1, Immediate(0xffff), eq);
+  __ mov(r2, Immediate(0xffff), ne);
+  __ cmpeq(r1, Immediate(0xffff));
+  __ bf(&error);
+  __ cmpeq(r2, Immediate(0));
+  __ bf(&error);
+
+  __ mov(r0, Immediate(1));
+  __ mov(r1, Immediate(0));
+  __ mov(r2, Immediate(0));
+  __ tst(r0, r0);
+  __ mov(r1, Immediate(0xffff), eq);
+  __ mov(r2, Immediate(0xffff), ne);
+  __ cmpeq(r1, Immediate(0));
+  __ bf(&error);
+  __ cmpeq(r2, Immediate(0xffff));
+  __ bf(&error);
+  
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(0));
+  __ mov(r2, Immediate(0));
+  __ mov(r3, Immediate(1));
+  __ tst(r0, r0);
+  __ mov(r1, r3, eq);
+  __ mov(r2, r3, ne);
+  __ cmpeq(r1, Immediate(1));
+  __ bf(&error);
+  __ cmpeq(r2, Immediate(0));
+  __ bf(&error);
+  
+  // All ok.
+  __ mov(r0, Immediate(1));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(1, res);
+}
+
