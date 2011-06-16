@@ -959,3 +959,65 @@ TEST(19) {
   CHECK_EQ(0, res);
 }
 
+TEST(20) {
+  BEGIN();
+
+  Label error;
+  Condition cond;
+
+  cond = eq;
+  __ cmp(cond, r4, Immediate(0), r0);
+  __ b(cond, &error);
+
+  cond = ge;
+  __ cmp(cond, r4, Immediate(0), r0);
+  __ b(cond, &error);
+
+  cond = lt;
+  __ cmp(cond, r4, Immediate(654), r0);
+  __ b(cond, &error);
+
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, Immediate(1));
+  __ rts();
+
+  JIT();
+
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 456, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
+
+TEST(21) {
+  BEGIN();
+
+  __ cmpeq(r0, r1);
+  __ cmpgt(r0, r1);
+  __ cmpeq_r0_raw_immediate(73);
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  CHECK_EQ(true, __ IsCmpRegister(((Instr*)desc.buffer)[0]));
+  CHECK_EQ(false, __ IsCmpRegister(((Instr*)desc.buffer)[1]));
+
+  CHECK_EQ(false, __ IsCmpImmediate(((Instr*)desc.buffer)[1]));
+  CHECK_EQ(true, __ IsCmpImmediate(((Instr*)desc.buffer)[2]));
+  CHECK_EQ(true, (__ GetCmpImmediateRegister(((Instr*)desc.buffer)[2])).is(r0));
+  CHECK_EQ(73, __ GetCmpImmediateRawImmediate(((Instr*)desc.buffer)[2]));
+
+  CHECK_EQ(true, (__ GetRn(((Instr*)desc.buffer)[0])).is(r0));
+  CHECK_EQ(true, (__ GetRm(((Instr*)desc.buffer)[0])).is(r1));
+}
+
