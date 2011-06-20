@@ -1000,9 +1000,14 @@ TEST(20) {
 TEST(21) {
   BEGIN();
 
+  Label top;
+  __ bind(&top);
   __ cmpeq(r0, r1);
   __ cmpgt(r0, r1);
   __ cmpeq_r0_raw_immediate(73);
+  __ bt(&top);
+  __ bf(&top);
+  __ mov(r0, Immediate(12));
 
   JIT();
 #ifdef DEBUG
@@ -1019,5 +1024,43 @@ TEST(21) {
 
   CHECK_EQ(true, (__ GetRn(((Instr*)desc.buffer)[0])).is(r0));
   CHECK_EQ(true, (__ GetRm(((Instr*)desc.buffer)[0])).is(r1));
+
+  CHECK_EQ(eq, __ GetCondition(((Instr*)desc.buffer)[3]));
+  CHECK_EQ(ne, __ GetCondition(((Instr*)desc.buffer)[5]));        // __ bt() generate bt/nop
+
+  CHECK_EQ(true, __ IsMovImmediate(((Instr*)desc.buffer)[7]));
+}
+
+TEST(22) {
+  BEGIN();
+
+  Label function;
+
+  __ mov(r0, r4);
+  __ add(r0, Immediate(1), r1);
+  __ push(pr);
+  __ jsr(&function);
+  __ jsr(&function);
+  __ pop(pr);
+  __ rts();
+
+  __ bind(&function);
+  __ add(r0, Immediate(1), r1);
+  __ add(r0, Immediate(2), r1);
+  __ add(r0, Immediate(3), r1);
+  __ add(r0, Immediate(4), r1);
+  __ rts();
+
+  JIT();
+
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 53, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(53+1+(1+2+3+4)*2, res);
 }
 
