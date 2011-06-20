@@ -942,12 +942,12 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Initialize all JavaScript callee-saved registers, since they will be seen
   // by the garbage collector as part of handlers.
-  __ LoadRoot(sh4_r8, Heap::kUndefinedValueRootIndex);
-  __ mov(sh4_r9, sh4_r8);
-  __ mov(sh4_r10, sh4_r8);
-  __ mov(sh4_r11, sh4_r8);
-  __ mov(sh4_r12, sh4_r8);
-  __ mov(sh4_r13, sh4_r8);
+  __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
+  __ mov(sh4_r5, r4);
+  __ mov(sh4_r6, r4);
+  __ mov(sh4_r7, r4);
+  __ mov(sh4_r8, r4);
+  __ mov(sh4_r9, r4);
 
   // Invoke the code and pass argc as r0.
   __ mov(r0, r3);
