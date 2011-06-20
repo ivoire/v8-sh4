@@ -769,9 +769,8 @@ void Assembler::bf(int offset, Register rtmp, bool patched_later) {
 
 
 void Assembler::jmp(int offset, Register rtmp, bool patched_later) {
-  // TODO: on other architectures we have:
-  // positions_recorder()->WriteRecordedPositions();
-  // check if this is necessary
+
+  positions_recorder()->WriteRecordedPositions();
 
   // Is it going to be pacthed later on
   if (patched_later) {
@@ -802,9 +801,8 @@ void Assembler::jmp(int offset, Register rtmp, bool patched_later) {
 }
 
 void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
-  // TODO: on other architectures we have:
-  // positions_recorder()->WriteRecordedPositions();
-  // check if this is necessary
+
+  positions_recorder()->WriteRecordedPositions();
 
   // Is it going to be patched later on ?
   if (patched_later) {

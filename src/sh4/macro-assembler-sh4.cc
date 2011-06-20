@@ -282,7 +282,7 @@ void MacroAssembler::Call(
   // address is loaded. The mov method will automatically record
   // positions when pc is the target, since this is not the case here
   // we have to do it explicitly.
-  //positions_recorder()->WriteRecordedPositions();
+  positions_recorder()->WriteRecordedPositions();
 
   mov(sh4_ip, Operand(target, rmode));
   jsr(sh4_ip);
