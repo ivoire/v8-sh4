@@ -311,21 +311,22 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
 
 void Assembler::cmp(Condition &cond, Register Rd, Register Rs) {
-  cond = eq;
+  Condition cond_to_test = eq;
   switch(cond) {
   case ne:
-    cond = ne;
+    cond_to_test = ne;
   case eq:
     cmpeq(Rd, Rs);
     break;
   case lt:
-    cond = ne;
+    cond_to_test = ne;
   case ge:
     cmpge(Rd, Rs);
     break;
   default:
     UNIMPLEMENTED();
   }
+  cond = cond_to_test;
 }
 
 
