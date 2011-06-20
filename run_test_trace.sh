@@ -13,7 +13,7 @@ error() {
 QEMU=${QEMU:-/home/compwork/guillon/qemu-stm/build-x86_64/sh4-linux-user/qemu-sh4}
 TARGET_ROOT=${TARGET_ROOT:-/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target}
 QEMU_PLUGIN_LIB=${QEMU_PLUGIN_LIB:-/home/compwork/guillon/pycache/contrib/qemu-plugin-profile.so}
-START_FUNC=
+START_FUNC=${START_FUNC-_ZN2v88internalL6InvokeEbNS0_6HandleINS0_10JSFunctionEEENS1_INS0_6ObjectEEEiPPPS4_Pb}
 RUN_PREFIX=${RUN_PREFIX:-"env QEMU_ASSUME_KERNEL=2.6.30 $QEMU -distro -L $TARGET_ROOT -x $PWD -cwd $PWD"}
 RUN_PROFILE_PREFIX=${RUN_PROFILE_PREFIX:-"env QEMU_ASSUME_KERNEL=2.6.30 PLUGIN_SYMTAB_FILE=codegen.sym PLUGIN_TRACE=1 ${START_FUNC:+PLUGIN_TRACE_START=$START_FUNC} $QEMU -distro -tb-plugin-lib $QEMU_PLUGIN_LIB -L $TARGET_ROOT -x $PWD -cwd $PWD"}
 
