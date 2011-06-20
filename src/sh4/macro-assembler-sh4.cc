@@ -1272,20 +1272,11 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
-      // ARM code {
-      // mov(result, Immediate(0x7091));
-      // mov(scratch1, Immediate(0x7191));
-      // mov(scratch2, Immediate(0x7291));
-      // }
-      // SH4 code {
       RECORD_LINE();
       mov(result, Immediate(0x7091));
       mov(scratch1, Immediate(0x7191));
       mov(scratch2, Immediate(0x7291));
-      // }
     }
-    // ARM code: jmp(gc_required);
-    // SH4 code:
     RECORD_LINE();
     jmp(gc_required);
     return;
@@ -1299,6 +1290,12 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   ASSERT(!result.is(sh4_ip));
   ASSERT(!scratch1.is(sh4_ip));
   ASSERT(!scratch2.is(sh4_ip));
+
+  // Make object size into bytes.
+  if ((flags & SIZE_IN_WORDS) != 0) {
+    object_size *= kPointerSize;
+  }
+  ASSERT_EQ(0, object_size & kObjectAlignmentMask);
 
   // Check relative positions of allocation top and limit addresses.
   // The values must be adjacent in memory to allow the use of LDM.
@@ -1314,16 +1311,10 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
       reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
   ASSERT((limit - top) == kPointerSize);
 
-  // Set up allocation top address.
+  // Set up allocation top address and object size registers.
   Register topaddr = scratch1;
   Register obj_size_reg = scratch2;
-
   RECORD_LINE();
-  // ARM code: {
-  //  mov(topaddr, Operand(new_space_allocation_top));
-  //  mov(obj_size_reg, Operand(object_size));
-  // }
-  // SH4 code:
   mov(topaddr, Immediate(new_space_allocation_top));
   mov(obj_size_reg, Immediate(object_size));
 
@@ -1332,67 +1323,35 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     RECORD_LINE();
     // Load allocation top into result and allocation limit into sh4_ip (ARM:ip).
-    // ARM code: ldm(ia, topaddr, result.bit() | ip.bit());
-    // SH4 code {
-    mov(result, MemOperand(topaddr));
-    mov(sh4_ip, MemOperand(topaddr, 4));
-    // }
+    ldr(result, MemOperand(topaddr));
+    ldr(sh4_ip, MemOperand(topaddr, 4));
   } else {
     if (emit_debug_code()) {
       RECORD_LINE();
       // Assert that result actually contains top on entry. sh4_ip (ARM:ip) is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
-      // ARM code {
-      // ldr(ip, MemOperand(topaddr));
-      // cmp(result, ip);
-      // Check(eq, "Unexpected allocation top");
-      // }
-      // SH4 code {
-      mov(sh4_ip, MemOperand(topaddr));
+      ldr(sh4_ip, MemOperand(topaddr));
       cmp(result, sh4_ip);
       Check(eq, "Unexpected allocation top");
-      // }
     }
     RECORD_LINE();
     // Load allocation limit into sh4_ip (ARM: ip). Result already contains allocation top.
-    // ARM code: ldr(ip, MemOperand(topaddr, limit - top));
-    // SH4 code:
-    mov(sh4_ip, MemOperand(topaddr, limit - top));
+    ldr(sh4_ip, MemOperand(topaddr, limit - top));
   }
 
   RECORD_LINE();
   // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top. 
-  // ARM code {
-  // add(scratch2, result, Operand(object_size), SetCC);
-  // b(cs, gc_required);
-  // cmp(scratch2, Operand(ip));
-  // b(hi, gc_required);
-  // }
-  // SH4 code {
+  // to calculate the new top.
   addc(scratch2, result, obj_size_reg);
-  b(cs,gc_required);
+  b(cs, gc_required);
+
   RECORD_LINE();
   cmpgtu(scratch2, sh4_ip);
   bt(gc_required);
-  RECORD_LINE();
-  // }
 
-  // Update allocation top. result temporarily holds the new top.
-  if (emit_debug_code()) {
-    // ARM code {
-    // tst(scratch2, Operand(kObjectAlignmentMask));
-    // Check(eq, "Unaligned allocation in new space");
-    // }
-    RECORD_LINE();
-    tst(scratch2, Immediate(kObjectAlignmentMask));
-    Check(eq, "Unaligned allocation in new space");
-  }
-  // ARM code: str(scratch2, MemOperand(topaddr));
-  // SH4 code:
   RECORD_LINE();
-  mov(MemOperand(topaddr), scratch2);
+  str(scratch2, MemOperand(topaddr));
 
   // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
@@ -1412,20 +1371,11 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
-      // ARM code {
-      // mov(result, Immediate(0x7091));
-      // mov(scratch1, Immediate(0x7191));
-      // mov(scratch2, Immediate(0x7291));
-      // }
-      // SH4 code {
       RECORD_LINE();
       mov(result, Immediate(0x7091));
       mov(scratch1, Immediate(0x7191));
       mov(scratch2, Immediate(0x7291));
-      // }
     }
-    // ARM code: jmp(gc_required);
-    // SH4 code:
     RECORD_LINE();
     jmp(gc_required);
     return;
@@ -1453,13 +1403,12 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   intptr_t limit =
       reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
   ASSERT((limit - top) == kPointerSize);
+  ASSERT(result.code() < sh4_ip.code());
 
   // Set up allocation top address.
   Register topaddr = scratch1;
 
   RECORD_LINE();
-  // ARM code: mov(topaddr, Operand(new_space_allocation_top));
-  // SH4 code:
   mov(topaddr, Operand(new_space_allocation_top));
 
   // This code stores a temporary value in sh4_ip (ARM:ip). This is OK, as the code below
@@ -1467,33 +1416,21 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     RECORD_LINE();
     // Load allocation top into result and allocation limit into sh4_ip (ARM:ip).
-    // ARM code: ldm(ia, topaddr, result.bit() | ip.bit());
-    // SH4 code {
-    mov(result, MemOperand(topaddr));
-    mov(sh4_ip, MemOperand(topaddr, 4));
-    // }
+    ldr(result, MemOperand(topaddr));
+    ldr(sh4_ip, MemOperand(topaddr, 4));
   } else {
     if (emit_debug_code()) {
       RECORD_LINE();
       // Assert that result actually contains top on entry. sh4_ip (ARM:ip) is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
-      // ARM code {
-      // ldr(ip, MemOperand(topaddr));
-      // cmp(result, ip);
-      // Check(eq, "Unexpected allocation top");
-      // }
-      // SH4 code {
-      mov(sh4_ip, MemOperand(topaddr));
-      cmpeq(result, sh4_ip);
+      ldr(sh4_ip, MemOperand(topaddr));
+      cmp(result, sh4_ip);
       Check(eq, "Unexpected allocation top");
-      // }
     }
     RECORD_LINE();
     // Load allocation limit into sh4_ip (ARM: ip). Result already contains allocation top.
-    // ARM code: ldr(ip, MemOperand(topaddr, limit - top));
-    // SH4 code:
-    mov(sh4_ip, MemOperand(topaddr, limit - top));
+    ldr(sh4_ip, MemOperand(topaddr, limit - top));
   }
 
   RECORD_LINE();
@@ -1502,45 +1439,27 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // required to get the number of bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
     RECORD_LINE();
-    // ARM code: add(scratch2, result, Operand(object_size, LSL, kPointerSizeLog2), SetCC);
-    // SH4 code {
-    lsl(object_size, object_size, Immediate(kPointerSizeLog2));
-    addc(scratch2, result, object_size);
-    // }
+    lsl(scratch2, object_size, Immediate(kPointerSizeLog2));
+    addc(scratch2, result, scratch2);
   } else {
     RECORD_LINE();
-    // ARM code: add(scratch2, result, Operand(object_size), SetCC);
-    // SH4 code:
     addc(scratch2, result, object_size);
   }
   RECORD_LINE();
-  // ARM code {
-  // b(cs, gc_required);
-  // cmp(scratch2, Operand(ip));
-  // b(hi, gc_required);
-  // }
-  // SH4 code {
   b(cs,gc_required);
   RECORD_LINE();
   cmpgtu(scratch2, sh4_ip);
   bt(gc_required);
   RECORD_LINE();
-  // }
 
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
-    // ARM code {
-    // tst(scratch2, Operand(kObjectAlignmentMask));
-    // Check(eq, "Unaligned allocation in new space");
-    // }
     RECORD_LINE();
     tst(scratch2, Immediate(kObjectAlignmentMask));
     Check(eq, "Unaligned allocation in new space");
   }
-  // ARM code: str(scratch2, MemOperand(topaddr));
-  // SH4 code:
   RECORD_LINE();
-  mov(MemOperand(topaddr), scratch2);
+  str(scratch2, MemOperand(topaddr));
 
   // Tag object if requested.
   if ((flags & TAG_OBJECT) != 0) {
