@@ -598,8 +598,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   STATIC_ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
   // Lower 2 bits of r2 are 0 if r0 has failure tag.
   __ add(r2, r0, Immediate(1));
-  __ mov(r3, Immediate(kFailureTagMask));
-  __ tst(r2, r3);
+  __ tst(r2, Immediate(kFailureTagMask));
   __ bt(&failure_returned);
 
   // Exit C frame and return.
@@ -619,8 +618,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Special handling of out of memory exceptions.
   Failure* out_of_memory = Failure::OutOfMemoryException();
-  __ mov(r3, Immediate(reinterpret_cast<int32_t>(out_of_memory)));
-  __ cmpeq(r0, r3);
+  __ cmpeq(r0, Immediate(reinterpret_cast<int32_t>(out_of_memory)));
   __ bt(throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
@@ -628,8 +626,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ mov(r2, MemOperand(r3));
   __ mov(r3, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                        isolate)));
-  __ mov(r0, MemOperand(r3));
-  __ mov(MemOperand(r3), r2);
+  __ ldr(r0, MemOperand(r3));
+  __ str(r2, MemOperand(r3));
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.

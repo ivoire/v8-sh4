@@ -944,7 +944,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
         // Check that extension is NULL.
         __ ldr(temp, ContextOperand(current, Context::EXTENSION_INDEX));
         __ tst(temp, temp);
-        __ bf(slow);
+        __ b(ne, slow);
       }
       // Load next context in chain.
       __ ldr(next, ContextOperand(current, Context::CLOSURE_INDEX));
@@ -968,11 +968,11 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
     __ ldr(temp, FieldMemOperand(next, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
     __ cmp(temp, ip);
-    __ bt(&fast);
+    __ b(eq, &fast);
     // Check that extension is NULL.
     __ ldr(temp, ContextOperand(next, Context::EXTENSION_INDEX));
     __ tst(temp, temp);
-    __ bf(slow);
+    __ b(ne, slow);
     // Load next context in chain.
     __ ldr(next, ContextOperand(next, Context::CLOSURE_INDEX));
     __ ldr(next, FieldMemOperand(next, JSFunction::kContextOffset));
@@ -1037,8 +1037,8 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
 
       MemOperand slot_operand = EmitSlotSearch(slot, r0);
       __ ldr(r0, slot_operand);
-      __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
-      __ cmp(r0, r3);
+      __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+      __ cmp(r0, ip);
       __ bf(&no_hole);
       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
       __ bind(&no_hole);
@@ -1395,7 +1395,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ ldr(r1, MemOperand(fp, SlotOffset(slot)));
         __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
         __ cmp(r1, ip);
-        __ bf(&skip);
+        __ b(ne, &skip);
         __ str(result_register(), MemOperand(fp, SlotOffset(slot)));
         break;
       case Slot::CONTEXT: {
@@ -1403,11 +1403,11 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ ldr(r2, ContextOperand(r1, slot->index()));
         __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
         __ cmp(r2, ip);
-        __ bf(&skip);
+        __ b(ne, &skip);
         __ str(r0, ContextOperand(r1, slot->index()));
         int offset = Context::SlotOffset(slot->index());
         __ mov(r3, r0);  // Preserve the stored value in r0.
-	__ RecordWrite(r1, offset, r3, r2);
+        __ RecordWrite(r1, offset, r3, r2);
         break;
       }
       case Slot::LOOKUP:
