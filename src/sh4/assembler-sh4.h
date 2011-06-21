@@ -822,6 +822,8 @@ class Assembler : public AssemblerBase {
 
   void lor(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
   void lor(Register Rd, Register Rs, Register Rt);
+  void lor(Register Rd, Register Rs, const Immediate& imm, Condition cond, Register rtmp = sh4_rtmp);
+  void lor(Register Rd, Register Rs, Register Rt, Condition cond);
 
   void lxor(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
   void lxor(Register Rd, Register Rs, Register Rt);
@@ -836,6 +838,12 @@ class Assembler : public AssemblerBase {
 	   Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, rtmp); }
   void orr(Register Rd, Register Rs, Register Rt)  { // Alias for lor
     lor(Rd, Rs, Rt);
+  }
+  void orr(Register Rd, Register Rs, const Immediate& imm,// Alias for lor
+	   Condition cond, Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, cond, rtmp); }
+
+  void orr(Register Rd, Register Rs, Register Rt, Condition cond) { // Alias for lor
+    lor(Rd, Rs, Rt, cond);
   }
     
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };
