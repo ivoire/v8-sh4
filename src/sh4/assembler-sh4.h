@@ -796,6 +796,15 @@ class Assembler : public AssemblerBase {
     sub(Rd, Rt, Rs);
   }
 
+  void rsb(Register Rd, Register Rs, const Immediate& imm, Condition cond, Register rtmp = sh4_rtmp) { // Reverse sub: imm - Rs
+    ASSERT(cond == ne || cond == eq);
+    Label end;
+    if (cond == eq) bf(&end); // Jump after sequence if T bit is false
+    else bt(&end); // Jump after sequence if T bit is true
+    rsb(Rd, Rs, imm, rtmp);
+    bind(&end);
+  }
+
   void addv(Register Rd, Register Rs, Register Rt);
   void subv(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 

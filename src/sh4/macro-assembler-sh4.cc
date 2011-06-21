@@ -736,6 +736,21 @@ void MacroAssembler::Move(Register dst, Register src) {
 }
 
 
+void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width) {
+  ASSERT(lsb < 32);
+  int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+  land(dst, src1, Immediate(mask));
+  int shift_up = 32 - lsb - width;
+  int shift_down = lsb + shift_up;
+  if (shift_up != 0) {
+    lsl(dst, dst, Immediate(shift_up));
+  }
+  if (shift_down != 0) {
+    asr(dst, dst, Immediate(shift_down));
+  }
+}
+
+
 void MacroAssembler::PopTryHandler() {
   RECORD_LINE();
   UNIMPLEMENTED_BREAK();

@@ -37,6 +37,34 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+static void EmitIdenticalObjectComparison(MacroAssembler* masm,
+                                          Label* slow,
+                                          Condition cond,
+                                          bool never_nan_nan);
+static void EmitSmiNonsmiComparison(MacroAssembler* masm,
+                                    Register lhs,
+                                    Register rhs,
+                                    Label* lhs_not_nan,
+                                    Label* slow,
+                                    bool strict);
+static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cond);
+static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
+                                           Register lhs,
+                                           Register rhs);
+static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
+                                       Register lhs,
+                                       Register rhs,
+                                       Label* both_loaded_as_doubles,
+                                       Label* not_heap_numbers,
+                                       Label* slow);
+static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
+                                         Register lhs,
+                                         Register rhs,
+                                         Label* possible_strings,
+                                         Label* not_both_strings);
+void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond);
+
+
 // Copy from ARM
 #include "map-sh4.h" // Define register map
 
@@ -254,6 +282,107 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
+// Takes a Smi and converts to an IEEE 64 bit floating point value in two
+// registers.  The format is 1 sign bit, 11 exponent bits (biased 1023) and
+// 52 fraction bits (20 in the first word, 32 in the second).  Zeros is a
+// scratch register.  Destroys the source register.  No GC occurs during this
+// stub so you don't have to set up the frame.
+class ConvertToDoubleStub : public CodeStub {
+ public:
+  ConvertToDoubleStub(Register result_reg_1,
+                      Register result_reg_2,
+                      Register source_reg,
+                      Register scratch_reg)
+      : result1_(result_reg_1),
+        result2_(result_reg_2),
+        source_(source_reg),
+        zeros_(scratch_reg) { }
+
+ private:
+  Register result1_;
+  Register result2_;
+  Register source_;
+  Register zeros_;
+
+  // Minor key encoding in 16 bits.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 14> {};
+
+  Major MajorKey() { return ConvertToDouble; }
+  int MinorKey() {
+    // Encode the parameters in a unique 16 bit value.
+    return  result1_.code() +
+           (result2_.code() << 4) +
+           (source_.code() << 8) +
+           (zeros_.code() << 12);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "ConvertToDoubleStub"; }
+
+#ifdef DEBUG
+  void Print() { PrintF("ConvertToDoubleStub\n"); }
+#endif
+};
+
+
+void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
+  Register exponent = result1_;
+  Register mantissa = result2_;
+
+  Label not_special;
+  // Convert from Smi to integer.
+  __ asr(source_, source_, Immediate(kSmiTagSize));
+  // Move sign bit from source to destination.  This works because the sign bit
+  // in the exponent word of the double has the same position and polarity as
+  // the 2's complement sign bit in a Smi.
+  STATIC_ASSERT(HeapNumber::kSignMask == 0x80000000u);
+  __ land(exponent, source_, Immediate(HeapNumber::kSignMask));
+  __ tst(exponent, exponent);
+  // Subtract from 0 if source was negative.
+  __ rsb(source_, source_, Immediate(0), ne);
+
+  // We have -1, 0 or 1, which we treat specially. Register source_ contains
+  // absolute value: it is either equal to 1 (special case of -1 and 1),
+  // greater than 1 (not a special case) or less than 1 (special case of 0).
+  __ cmpgt(source_, Immediate(1));
+  __ b(&not_special);
+
+  // For 1 or -1 we need to or in the 0 exponent (biased to 1023).
+  static const uint32_t exponent_word_for_1 =
+      HeapNumber::kExponentBias << HeapNumber::kExponentShift;
+  __ orr(exponent, exponent, Immediate(exponent_word_for_1), eq);
+  // 1, 0 and -1 all have 0 for the second word.
+  __ mov(mantissa, Immediate(0));
+  __ Ret();
+
+  __ bind(&not_special);
+  // Count leading zeros.  Uses mantissa for a scratch register on pre-ARM5.
+  // Gets the wrong answer for 0, but we already checked for that case above.
+  __ CountLeadingZeros(zeros_, source_, mantissa);
+  // Compute exponent and or it into the exponent register.
+  // We use mantissa as a scratch register here.  Use a fudge factor to
+  // divide the constant 31 + HeapNumber::kExponentBias, 0x41d, into two parts
+  // that fit in the ARM's constant field.
+  int fudge = 0x400;
+  __ rsb(mantissa, zeros_, Immediate(31 + HeapNumber::kExponentBias - fudge));
+  __ add(mantissa, mantissa, Immediate(fudge));
+  __ lsl(ip, mantissa, Immediate(HeapNumber::kExponentShift));
+  __ orr(exponent, exponent, ip);
+  // Shift up the source chopping the top bit off.
+  __ add(zeros_, zeros_, Immediate(1));
+  // This wouldn't work for 1.0 or -1.0 as the shift would be 32 which means 0.
+  __ lsl(source_, source_, zeros_);
+  // Compute lower part of fraction (last 12 bits).
+  __ lsl(mantissa, source_, Immediate(HeapNumber::kMantissaBitsInTopWord));
+  // And the top (top 20 bits).
+  __ lsl(ip, source_, Immediate(32 - HeapNumber::kMantissaBitsInTopWord));
+  __ orr(exponent, exponent, ip);
+  __ Ret();
+}
+
+
 void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register object,
                                                          Register result,
@@ -333,13 +462,141 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 }
 
 
+// On entry lhs_ and rhs_ are the values to be compared.
+// On exit r0 is 0, positive or negative to indicate the result of
+// the comparison.
 void CompareStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  ASSERT((lhs_.is(r0) && rhs_.is(r1)) ||
+         (lhs_.is(r1) && rhs_.is(r0)));
+
+  Label slow;  // Call builtin.
+  Label not_smis, both_loaded_as_doubles, lhs_not_nan;
+
+  if (include_smi_compare_) {
+    Label not_two_smis, smi_done;
+    __ orr(r2, r1, r0);
+    __ tst(r2, Immediate(kSmiTagMask));
+    __ b(ne, &not_two_smis);
+    __ asr(r1, r1, Immediate(1));
+    __ asr(r0, r0, Immediate(1));
+    __ sub(r0, r1, r0);
+    __ Ret();
+    __ bind(&not_two_smis);
+  } else if (FLAG_debug_code) {
+    __ orr(r2, r1, r0);
+    __ tst(r2, Immediate(kSmiTagMask));
+    __ Assert(ne, "CompareStub: unexpected smi operands.");
+  }
+
+  // NOTICE! This code is only reached after a smi-fast-case check, so
+  // it is certain that at least one operand isn't a smi.
+
+  // Handle the case where the objects are identical.  Either returns the answer
+  // or goes to slow.  Only falls through if the objects were not identical.
+  EmitIdenticalObjectComparison(masm, &slow, cc_, never_nan_nan_);
+
+  // If either is a Smi (we know that not both are), then they can only
+  // be strictly equal if the other is a HeapNumber.
+  STATIC_ASSERT(kSmiTag == 0);
+  ASSERT_EQ(0, Smi::FromInt(0));
+  __ land(r2, lhs_, rhs_);
+  __ tst(r2, Immediate(kSmiTagMask));
+  __ b(ne, &not_smis);
+  // One operand is a smi.  EmitSmiNonsmiComparison generates code that can:
+  // 1) Return the answer.
+  // 2) Go to slow.
+  // 3) Fall through to both_loaded_as_doubles.
+  // 4) Jump to lhs_not_nan.
+  // In cases 3 and 4 we have found out we were dealing with a number-number
+  // comparison.  If VFP3 is supported the double values of the numbers have
+  // been loaded into d7 and d6.  Otherwise, the double values have been loaded
+  // into r0, r1, r2, and r3.
+  EmitSmiNonsmiComparison(masm, lhs_, rhs_, &lhs_not_nan, &slow, strict_);
+
+  __ bind(&both_loaded_as_doubles);
+  // The arguments have been converted to doubles and stored in d6 and d7, if
+  // VFP3 is supported, or in r0, r1, r2, and r3.
+  //TODO: Floating point
+  Isolate* isolate = masm->isolate();
+  // Checks for NaN in the doubles we have loaded.  Can return the answer or
+  // fall through if neither is a NaN.  Also binds lhs_not_nan.
+  EmitNanCheck(masm, &lhs_not_nan, cc_);
+  // Compares two doubles in r0, r1, r2, r3 that are not NaNs.  Returns the
+  // answer.  Never falls through.
+  EmitTwoNonNanDoubleComparison(masm, cc_);
+
+  __ bind(&not_smis);
+  // At this point we know we are dealing with two different objects,
+  // and neither of them is a Smi.  The objects are in rhs_ and lhs_.
+  if (strict_) {
+    // This returns non-equal for some object types, or falls through if it
+    // was not lucky.
+    EmitStrictTwoHeapObjectCompare(masm, lhs_, rhs_);
+  }
+
+  Label check_for_symbols;
+  Label flat_string_check;
+  // Check for heap-number-heap-number comparison.  Can jump to slow case,
+  // or load both doubles into r0, r1, r2, r3 and jump to the code that handles
+  // that case.  If the inputs are not doubles then jumps to check_for_symbols.
+  // In this case r2 will contain the type of rhs_.  Never falls through.
+  EmitCheckForTwoHeapNumbers(masm,
+                             lhs_,
+                             rhs_,
+                             &both_loaded_as_doubles,
+                             &check_for_symbols,
+                             &flat_string_check);
+
+  __ bind(&check_for_symbols);
+  // In the strict case the EmitStrictTwoHeapObjectCompare already took care of
+  // symbols.
+  if (cc_ == eq && !strict_) {
+    // Returns an answer for two symbols or two detectable objects.
+    // Otherwise jumps to string case or not both strings case.
+    // Assumes that r2 is the type of rhs_ on entry.
+    EmitCheckForSymbolsOrObjects(masm, lhs_, rhs_, &flat_string_check, &slow);
+  }
+
+  // Check for both being sequential ASCII strings, and inline if that is the
+  // case.
+  __ bind(&flat_string_check);
+
+  __ JumpIfNonSmisNotBothSequentialAsciiStrings(lhs_, rhs_, r2, r3, &slow);
+
+  __ IncrementCounter(isolate->counters()->string_compare_native(), 1, r2, r3);
+  StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+                                                     lhs_,
+                                                     rhs_,
+                                                     r2,
+                                                     r3,
+                                                     r4,
+                                                     r5);
+  // Never falls through to here.
+
+  __ bind(&slow);
+
+  __ Push(lhs_, rhs_);
+  // Figure out which native to call and setup the arguments.
+  Builtins::JavaScript native;
+  if (cc_ == eq) {
+    native = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
+  } else {
+    native = Builtins::COMPARE;
+    int ncr;  // NaN compare result
+    if (cc_ == lt || cc_ == le) {
+      ncr = GREATER;
+    } else {
+      ASSERT(cc_ == gt || cc_ == ge);  // remaining cases
+      ncr = LESS;
+    }
+    __ mov(r0, Immediate(Smi::FromInt(ncr)));
+    __ push(r0);
+  }
+
+  // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
+  // tagged as a small integer.
+  __ InvokeBuiltin(native, JUMP_JS);
 }
-
-
-
-
 
 
 Handle<Code> GetTypeRecordingBinaryOpStub(int key,
@@ -1621,7 +1878,18 @@ const char* CompareStub::GetName() {
 
 
 int CompareStub::MinorKey() {
-  UNIMPLEMENTED();
+  // Encode the three parameters in a unique 16 bit value. To avoid duplicate
+  // stubs the never NaN NaN condition is only taken into account if the
+  // condition is equals.
+  ASSERT((static_cast<unsigned>(cc_) >> 28) < (1 << 12));
+  ASSERT((lhs_.is(r0) && rhs_.is(r1)) ||
+         (lhs_.is(r1) && rhs_.is(r0)));
+  return ConditionField::encode(static_cast<unsigned>(cc_) >> 28)
+         | RegisterField::encode(lhs_.is(r0))
+         | StrictField::encode(strict_)
+         | NeverNanNanField::encode(cc_ == eq ? never_nan_nan_ : false)
+         | IncludeNumberCompareField::encode(include_number_compare_)
+         | IncludeSmiCompareField::encode(include_smi_compare_);
 }
 
 
@@ -1674,6 +1942,404 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   __ str(ip, FieldMemOperand(the_heap_number_, HeapNumber::kMantissaOffset));
   __ Ret();
 }
+
+
+// Handle the case where the lhs and rhs are the same object.
+// Equality is almost reflexive (everything but NaN), so this is a test
+// for "identity and not NaN".
+static void EmitIdenticalObjectComparison(MacroAssembler* masm,
+                                          Label* slow,
+                                          Condition cond,
+                                          bool never_nan_nan) {
+  Label not_identical;
+  Label heap_number, return_equal;
+  __ cmp(r0, r1);
+  __ b(ne, &not_identical);
+
+  // The two objects are identical.  If we know that one of them isn't NaN then
+  // we now know they test equal.
+  if (cond != eq || !never_nan_nan) {
+    // Test for NaN. Sadly, we can't just compare to FACTORY->nan_value(),
+    // so we do the second best thing - test it ourselves.
+    // They are both equal and they are not both Smis so both of them are not
+    // Smis.  If it's not a heap number, then return equal.
+    if (cond == lt || cond == gt) {
+      __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE);
+      __ b(ge, slow);
+    } else {
+      __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
+      __ b(eq, &heap_number);
+      // Comparing JS objects with <=, >= is complicated.
+      if (cond != eq) {
+        __ cmp(r4, Immediate(FIRST_JS_OBJECT_TYPE));
+        __ b(ge, slow);
+        // Normally here we fall through to return_equal, but undefined is
+        // special: (undefined == undefined) == true, but
+        // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
+        if (cond == le || cond == ge) {
+          __ cmp(r4, Immediate(ODDBALL_TYPE));
+          __ b(ne, &return_equal);
+          __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+          __ cmp(r0, r2);
+          __ b(ne, &return_equal);
+          if (cond == le) {
+            // undefined <= undefined should fail.
+            __ mov(r0, Immediate(GREATER));
+          } else  {
+            // undefined >= undefined should fail.
+            __ mov(r0, Immediate(LESS));
+          }
+          __ Ret();
+        }
+      }
+    }
+  }
+
+  __ bind(&return_equal);
+  if (cond == lt) {
+    __ mov(r0, Operand(GREATER));  // Things aren't less than themselves.
+  } else if (cond == gt) {
+    __ mov(r0, Operand(LESS));     // Things aren't greater than themselves.
+  } else {
+    __ mov(r0, Operand(EQUAL));    // Things are <=, >=, ==, === themselves.
+  }
+  __ Ret();
+
+  if (cond != eq || !never_nan_nan) {
+    // For less and greater we don't have to check for NaN since the result of
+    // x < x is false regardless.  For the others here is some code to check
+    // for NaN.
+    if (cond != lt && cond != gt) {
+      __ bind(&heap_number);
+      // It is a heap number, so return non-equal if it's NaN and equal if it's
+      // not NaN.
+
+      // The representation of NaN values has all exponent bits (52..62) set,
+      // and not all mantissa bits (0..51) clear.
+      // Read top bits of double representation (second word of value).
+      __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      // Test that exponent bits are all set.
+      __ Sbfx(r3, r2, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+      // NaNs have all-one exponents so they sign extend to -1.
+      __ cmp(r3, Immediate(-1));
+      __ b(ne, &return_equal);
+
+      // Shift out flag and all exponent bits, retaining only mantissa.
+      __ lsl(r2, r2, Immediate(HeapNumber::kNonMantissaBitsInTopWord));
+      // Or with all low-bits of mantissa.
+      __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+      __ orr(r0, r3, r2);
+      __ tst(r0, r0);   // FIXME:check how the caller of this function uses it !
+      // For equal we already have the right value in r0:  Return zero (equal)
+      // if all bits in mantissa are zero (it's an Infinity) and non-zero if
+      // not (it's a NaN).  For <= and >= we need to load r0 with the failing
+      // value if it's a NaN.
+      if (cond != eq) {
+        // All-zero means Infinity means equal.
+        __ Ret(eq);
+        if (cond == le) {
+          __ mov(r0, Operand(GREATER));  // NaN <= NaN should fail.
+        } else {
+          __ mov(r0, Operand(LESS));     // NaN >= NaN should fail.
+        }
+      }
+      __ Ret();
+    }
+    // No fall through here.
+  }
+
+  __ bind(&not_identical);
+}
+
+
+// See comment at call site.
+static void EmitSmiNonsmiComparison(MacroAssembler* masm,
+                                    Register lhs,
+                                    Register rhs,
+                                    Label* lhs_not_nan,
+                                    Label* slow,
+                                    bool strict) {
+  ASSERT((lhs.is(r0) && rhs.is(r1)) ||
+         (lhs.is(r1) && rhs.is(r0)));
+
+  Label rhs_is_smi;
+  __ tst(rhs, Immediate(kSmiTagMask));
+  __ b(eq, &rhs_is_smi);
+
+  // Lhs is a Smi.  Check whether the rhs is a heap number.
+  __ CompareObjectType(rhs, r4, r4, HEAP_NUMBER_TYPE);
+  if (strict) {
+    // If rhs is not a number and lhs is a Smi then strict equality cannot
+    // succeed.  Return non-equal
+    // If rhs is r0 then there is already a non zero value in it.
+    if (!rhs.is(r0)) {
+      __ mov(r0, Immediate(NOT_EQUAL), ne);
+    }
+    __ Ret(ne);
+  } else {
+    // Smi compared non-strictly with a non-Smi non-heap-number.  Call
+    // the runtime.
+    __ b(ne, slow);
+  }
+
+  // Lhs is a smi, rhs is a number.
+  //TODO: floating point
+  __ push(lr);
+  // Convert lhs to a double in r2, r3.
+  __ mov(r7, lhs);
+  ConvertToDoubleStub stub1(r3, r2, r7, r6);
+  __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+  // Load rhs to a double in r0, r1.
+  __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
+  __ pop(lr);
+
+  // We now have both loaded as doubles but we can skip the lhs nan check
+  // since it's a smi.
+  __ jmp(lhs_not_nan);
+
+  __ bind(&rhs_is_smi);
+  // Rhs is a smi.  Check whether the non-smi lhs is a heap number.
+  __ CompareObjectType(lhs, r4, r4, HEAP_NUMBER_TYPE);
+  if (strict) {
+    // If lhs is not a number and rhs is a smi then strict equality cannot
+    // succeed.  Return non-equal.
+    // If lhs is r0 then there is already a non zero value in it.
+    if (!lhs.is(r0)) {
+      __ mov(r0, Immediate(NOT_EQUAL), ne);
+    }
+    __ Ret(ne);
+  } else {
+    // Smi compared non-strictly with a non-smi non-heap-number.  Call
+    // the runtime.
+    __ b(ne, slow);
+  }
+
+  // Rhs is a smi, lhs is a heap number.
+  //TODO: floating point
+  __ push(lr);
+  // Load lhs to a double in r2, r3.
+  __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
+  // Convert rhs to a double in r0, r1.
+  __ mov(r7, rhs);
+  ConvertToDoubleStub stub2(r1, r0, r7, r6);
+  __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+  __ pop(lr);
+  // Fall through to both_loaded_as_doubles.
+}
+
+
+void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond) {
+  bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
+  Register rhs_exponent = exp_first ? r0 : r1;
+  Register lhs_exponent = exp_first ? r2 : r3;
+  Register rhs_mantissa = exp_first ? r1 : r0;
+  Register lhs_mantissa = exp_first ? r3 : r2;
+  Label one_is_nan, neither_is_nan;
+
+  __ Sbfx(r4,
+          lhs_exponent,
+          HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
+  // NaNs have all-one exponents so they sign extend to -1.
+  __ cmp(r4, Immediate(-1));
+  __ b(ne, lhs_not_nan);
+  __ lsl(r4, lhs_exponent, Immediate(HeapNumber::kNonMantissaBitsInTopWord));
+  __ cmpeq(r4, Immediate(0));
+  __ b(ne, &one_is_nan);
+  __ cmp(lhs_mantissa, Immediate(0));
+  __ b(ne, &one_is_nan);
+
+  __ bind(lhs_not_nan);
+  __ Sbfx(r4,
+          rhs_exponent,
+          HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
+  // NaNs have all-one exponents so they sign extend to -1.
+  __ cmp(r4, Immediate(-1));
+  __ b(ne, &neither_is_nan);
+  __ lsl(r4, rhs_exponent, Immediate(HeapNumber::kNonMantissaBitsInTopWord));
+  __ cmpeq(r4, Immediate(0));
+  __ b(ne, &one_is_nan);
+  __ cmp(rhs_mantissa, Immediate(0));
+  __ b(eq, &neither_is_nan);
+
+  __ bind(&one_is_nan);
+  // NaN comparisons always fail.
+  // Load whatever we need in r0 to make the comparison fail.
+  if (cond == lt || cond == le) {
+    __ mov(r0, Operand(GREATER));
+  } else {
+    __ mov(r0, Operand(LESS));
+  }
+  __ Ret();
+
+  __ bind(&neither_is_nan);
+}
+
+
+// See comment at call site.
+static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
+                                          Condition cond) {
+  bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
+  Register rhs_exponent = exp_first ? r0 : r1;
+  Register lhs_exponent = exp_first ? r2 : r3;
+  Register rhs_mantissa = exp_first ? r1 : r0;
+  Register lhs_mantissa = exp_first ? r3 : r2;
+
+  // r0, r1, r2, r3 have the two doubles.  Neither is a NaN.
+  if (cond == eq) {
+    // Doubles are not equal unless they have the same bit pattern.
+    // Exception: 0 and -0.
+    __ cmp(rhs_mantissa, lhs_mantissa);
+    __ lor(r0, rhs_mantissa, lhs_mantissa, ne);
+    // Return non-zero if the numbers are unequal.
+    __ Ret(ne);
+
+    __ sub(r0, rhs_exponent, lhs_exponent);
+    __ cmp(r0, Immediate(0));
+    // If exponents are equal then return 0.
+    __ Ret(eq);
+
+    // Exponents are unequal.  The only way we can return that the numbers
+    // are equal is if one is -0 and the other is 0.  We already dealt
+    // with the case where both are -0 or both are 0.
+    // We start by seeing if the mantissas (that are equal) or the bottom
+    // 31 bits of the rhs exponent are non-zero.  If so we return not
+    // equal.
+    __ lsl(r4, lhs_mantissa, Immediate(kSmiTagSize));
+    __ orr(r4, lhs_mantissa, r4);
+    __ cmp(r4, Immediate(0));
+    __ mov(r0, r4, ne);
+    __ Ret(ne);
+    // Now they are equal if and only if the lhs exponent is zero in its
+    // low 31 bits.
+    __ lsl(r0, rhs_exponent, Immediate(kSmiTagSize));
+    __ Ret();
+  } else {
+    // Call a native function to do a comparison between two non-NaNs.
+    // Call C routine that may not cause GC or other trouble.
+    __ push(lr);
+    __ PrepareCallCFunction(4, r5);  // Two doubles count as 4 arguments.
+    __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()), 4);
+    __ pop(lr);
+    __ Ret();
+  }
+}
+
+
+// See comment at call site.
+static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
+                                           Register lhs,
+                                           Register rhs) {
+    ASSERT((lhs.is(r0) && rhs.is(r1)) ||
+           (lhs.is(r1) && rhs.is(r0)));
+
+    // If either operand is a JSObject or an oddball value, then they are
+    // not equal since their pointers are different.
+    // There is no test for undetectability in strict equality.
+    STATIC_ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    Label first_non_object;
+    // Get the type of the first operand into r2 and compare it with
+    // FIRST_JS_OBJECT_TYPE.
+    __ CompareObjectType(rhs, r2, r2, FIRST_JS_OBJECT_TYPE);
+    __ b(lt, &first_non_object);
+
+    // Return non-zero (r0 is not zero)
+    Label return_not_equal;
+    __ bind(&return_not_equal);
+    __ Ret();
+
+    __ bind(&first_non_object);
+    // Check for oddballs: true, false, null, undefined.
+    __ cmp(r2, Immediate(ODDBALL_TYPE));
+    __ b(eq, &return_not_equal);
+
+    __ CompareObjectType(lhs, r3, r3, FIRST_JS_OBJECT_TYPE);
+    __ b(ge, &return_not_equal);
+
+    // Check for oddballs: true, false, null, undefined.
+    __ cmp(r3, Immediate(ODDBALL_TYPE));
+    __ b(eq, &return_not_equal);
+
+    // Now that we have the types we might as well check for symbol-symbol.
+    // Ensure that no non-strings have the symbol bit set.
+    STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsSymbolMask);
+    STATIC_ASSERT(kSymbolTag != 0);
+    __ land(r2, r2, r3);
+    __ tst(r2, Immediate(kIsSymbolMask));
+    __ b(ne, &return_not_equal);
+}
+
+
+// See comment at call site.
+static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
+                                       Register lhs,
+                                       Register rhs,
+                                       Label* both_loaded_as_doubles,
+                                       Label* not_heap_numbers,
+                                       Label* slow) {
+  ASSERT((lhs.is(r0) && rhs.is(r1)) ||
+         (lhs.is(r1) && rhs.is(r0)));
+
+  __ CompareObjectType(rhs, r3, r2, HEAP_NUMBER_TYPE);
+  __ b(ne, not_heap_numbers);
+  __ ldr(r2, FieldMemOperand(lhs, HeapObject::kMapOffset));
+  __ cmp(r2, r3);
+  __ b(ne, slow);  // First was a heap number, second wasn't.  Go slow case.
+
+  // Both are heap numbers.  Load them up then jump to the code we have
+  // for that.
+  //TODO: floating point
+  __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
+  __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
+  __ jmp(both_loaded_as_doubles);
+}
+
+
+// Fast negative check for symbol-to-symbol equality.
+static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
+                                         Register lhs,
+                                         Register rhs,
+                                         Label* possible_strings,
+                                         Label* not_both_strings) {
+  ASSERT((lhs.is(r0) && rhs.is(r1)) ||
+         (lhs.is(r1) && rhs.is(r0)));
+
+  // r2 is object type of rhs.
+  // Ensure that no non-strings have the symbol bit set.
+  Label object_test;
+  STATIC_ASSERT(kSymbolTag != 0);
+  __ tst(r2, Immediate(kIsNotStringMask));
+  __ b(ne, &object_test);
+  __ tst(r2, Immediate(kIsSymbolMask));
+  __ b(eq, possible_strings);
+  __ CompareObjectType(lhs, r3, r3, FIRST_NONSTRING_TYPE);
+  __ b(ge, not_both_strings);
+  __ tst(r3, Immediate(kIsSymbolMask));
+  __ b(eq, possible_strings);
+
+  // Both are symbols.  We already checked they weren't the same pointer
+  // so they are not equal.
+  __ mov(r0, Immediate(NOT_EQUAL));
+  __ Ret();
+
+  __ bind(&object_test);
+  __ cmp(r2, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ b(lt, not_both_strings);
+  __ CompareObjectType(lhs, r2, r3, FIRST_JS_OBJECT_TYPE);
+  __ b(lt, not_both_strings);
+  // If both objects are undetectable, they are equal. Otherwise, they
+  // are not equal, since they are different objects and an object is not
+  // equal to undefined.
+  __ ldr(r3, FieldMemOperand(rhs, HeapObject::kMapOffset));
+  __ ldrb(r2, FieldMemOperand(r2, Map::kBitFieldOffset));
+  __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
+  __ land(r0, r2, r3);
+  __ land(r0, r0, Immediate(1 << Map::kIsUndetectable));
+  __ eor(r0, r0, Immediate(1 << Map::kIsUndetectable));
+  __ Ret();
+}
+
 
 
 // -------------------------------------------------------------------------
