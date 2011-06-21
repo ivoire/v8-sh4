@@ -301,7 +301,24 @@ void FullCodeGenerator::ClearAccumulator() {
 
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ Stack check");
+  Label ok;
+  __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+  __ cmphs(sp, ip);
+  __ b(t, &ok);
+  StackCheckStub stub;
+  __ CallStub(&stub);
+  // Record a mapping of this PC offset to the OSR id.  This is used to find
+  // the AST id from the unoptimized code in order to use it as a key into
+  // the deoptimization input data found in the optimized code.
+  RecordStackCheck(stmt->OsrEntryId());
+
+  __ bind(&ok);
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
+  // Record a mapping of the OSR id to this PC.  This is used if the OSR
+  // entry becomes the target of a bailout.  We don't expect it to be, but
+  // we want it to work if it is.
+  PrepareForBailoutForId(stmt->OsrEntryId(), NO_REGISTERS);
 }
 
 
@@ -1339,9 +1356,102 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
                                               Token::Value op,
                                               OverwriteMode mode,
-                                              Expression* left,
-                                              Expression* right) {
-  __ UNIMPLEMENTED_BREAK();
+                                              Expression* left_expr,
+                                              Expression* right_expr) {
+  Label done, smi_case, stub_call;
+
+  Register scratch1 = r2;
+  Register scratch2 = r3;
+
+  // Get the arguments.
+  Register left = r1;
+  Register right = r0;
+  __ pop(left);
+
+  // Perform combined smi check on both operands.
+  __ orr(scratch1, left, right);
+  STATIC_ASSERT(kSmiTag == 0);
+  JumpPatchSite patch_site(masm_);
+  patch_site.EmitJumpIfSmi(scratch1, &smi_case);
+
+  __ bind(&stub_call);
+  TypeRecordingBinaryOpStub stub(op, mode);
+  EmitCallIC(stub.GetCode(), &patch_site);
+  __ jmp(&done);
+
+  __ bind(&smi_case);
+  // Smi case. This code works the same way as the smi-smi case in the type
+  // recording binary operation stub, see
+  // TypeRecordingBinaryOpStub::GenerateSmiSmiOperation for comments.
+  switch (op) {
+    case Token::SAR:
+      __ b(&stub_call);
+      __ GetLeastBitsFromSmi(scratch1, right, 5);
+      __ asr(right, left, scratch1);
+      __ bic(right, right, Immediate(kSmiTagMask));
+      break;
+    case Token::SHL: {
+      __ b(&stub_call);
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ lsl(scratch1, scratch1, scratch2);
+      __ add(scratch2, scratch1, Immediate(0x40000000));
+      __ cmpge(scratch2, Immediate(0));
+      __ b(f, &stub_call);
+      __ SmiTag(right, scratch1);
+      break;
+    }
+    case Token::SHR: {
+      __ b(&stub_call);
+      __ SmiUntag(scratch1, left);
+      __ GetLeastBitsFromSmi(scratch2, right, 5);
+      __ lsr(scratch1, scratch1, scratch2);
+      __ tst(scratch1, Immediate(0xc0000000));
+      __ b(ne, &stub_call);
+      __ SmiTag(right, scratch1);
+      break;
+    }
+    case Token::ADD:
+      __ addv(scratch1, left, right);
+      __ b(vs, &stub_call);
+      __ mov(right, scratch1);
+      break;
+    case Token::SUB:
+      __ subv(scratch1, left, right);
+      __ b(vs, &stub_call);
+      __ mov(right, scratch1);
+      break;
+    case Token::MUL: {
+      // TODO: implement optimized multiply with overflow check for SH4
+      __ b(&stub_call);
+      // __ SmiUntag(ip, right);
+      // __ smull(scratch1, scratch2, left, ip);
+      // __ mov(ip, Operand(scratch1, ASR, 31));
+      // __ cmp(ip, Operand(scratch2));
+      // __ b(ne, &stub_call);
+      // __ tst(scratch1, Operand(scratch1));
+      // __ mov(right, Operand(scratch1), LeaveCC, ne);
+      // __ b(ne, &done);
+      // __ add(scratch2, right, Operand(left), SetCC);
+      // __ mov(right, Operand(Smi::FromInt(0)), LeaveCC, pl);
+      // __ b(mi, &stub_call);
+      break;
+    }
+    case Token::BIT_OR:
+      __ orr(right, left, right);
+      break;
+    case Token::BIT_AND:
+      __ land(right, left, right);
+      break;
+    case Token::BIT_XOR:
+      __ eor(right, left, right);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  __ bind(&done);
+  context()->Plug(r0);
 }
 
 
@@ -2577,7 +2687,35 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
 
 void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ CompareToNull");
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  VisitForAccumulatorValue(expr->expression());
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  __ LoadRoot(r1, Heap::kNullValueRootIndex);
+  __ cmp(r0, r1);
+  if (expr->is_strict()) {
+    Split(eq, if_true, if_false, fall_through);
+  } else {
+    __ b(eq, if_true);
+    __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+    __ cmp(r0, r1);
+    __ b(eq, if_true);
+    __ tst(r0, Immediate(kSmiTagMask));
+    __ b(eq, if_false);
+    // It can be an undetectable object.
+    __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ ldrb(r1, FieldMemOperand(r1, Map::kBitFieldOffset));
+    __ land(r1, r1, Immediate(1 << Map::kIsUndetectable));
+    __ cmp(r1, Immediate(1 << Map::kIsUndetectable));
+    Split(eq, if_true, if_false, fall_through);
+  }
+  context()->Plug(if_true, if_false);
 }
 
 

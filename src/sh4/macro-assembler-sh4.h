@@ -752,6 +752,7 @@ class MacroAssembler: public Assembler {
     UNIMPLEMENTED();
   }
 
+  void Move(Register dst, Handle<Object> value);
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
