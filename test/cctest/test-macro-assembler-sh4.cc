@@ -577,3 +577,63 @@ TEST(sh4_ma_5) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
+
+
+// Test JumpIfNotPowerOfTwoOrZero()
+TEST(sh4_ma_6) {
+  BEGIN();
+
+  Label error;
+
+  PROLOGUE();
+
+  Label not_power1, not_power2, not_power3, not_power4,
+    skip_power1, skip_power2, skip_power3;
+  __ mov(r0, Immediate(0));
+  __ JumpIfNotPowerOfTwoOrZero(r0, r1, &not_power1);
+  B_LINE(al, &error);
+  __ bind(&not_power1);
+
+  __ mov(r0, Immediate(0x80000000));
+  // r1 will contain (r0 - 1) (the power of two mask)
+  __ JumpIfNotPowerOfTwoOrZero(r0, r1, &not_power2);
+  __ jmp(&skip_power2);
+  __ bind(&not_power2);
+  B_LINE(al, &error);
+  __ bind(&skip_power2);
+  __ cmp(r1, Immediate(0x7fffffff));
+    B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(1));
+  __ JumpIfNotPowerOfTwoOrZero(r0, r1, &not_power2);
+  __ jmp(&skip_power3);
+  __ bind(&not_power3);
+  B_LINE(al, &error);
+  __ bind(&skip_power3);
+  __ cmp(r1, Immediate(0));
+    B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0x30));
+  __ JumpIfNotPowerOfTwoOrZero(r0, r1, &not_power4);
+  B_LINE(al, &error);
+  __ bind(&not_power4);
+
+ // All ok.
+  __ mov(r0, Immediate(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
