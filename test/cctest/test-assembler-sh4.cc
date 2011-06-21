@@ -967,15 +967,18 @@ TEST(20) {
 
   cond = eq;
   __ cmp(cond, r4, Immediate(0), r0);
-  __ b(cond, &error);
+  CHECK_EQ(eq, cond);
+  B_LINE(cond, &error);
 
   cond = ge;
   __ cmp(cond, r4, Immediate(0), r0);
-  __ b(cond, &error);
+  CHECK_EQ(eq, cond);
+  B_LINE(f, &error);
 
   cond = lt;
   __ cmp(cond, r4, Immediate(654), r0);
-  __ b(cond, &error);
+  CHECK_EQ(ne, cond);
+  B_LINE(t, &error);
 
   __ mov(r0, Immediate(0));
   __ rts();
