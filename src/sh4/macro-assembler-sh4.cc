@@ -1075,7 +1075,7 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 
 void MacroAssembler::Ldrd(Register dst1, Register dst2,
                           const MemOperand& src) {
-  ASSERT(src.rm().is(no_reg));
+  ASSERT(src.rn().is(no_reg));
   ASSERT_EQ(0, dst1.code() % 2);
   ASSERT_EQ(dst1.code() + 1, dst2.code());
   ASSERT(!dst1.is(sh4_ip) && !dst2.is(sh4_ip));
@@ -1088,7 +1088,7 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
   {
     MemOperand src2(src);
     src2.set_offset(src2.offset() + 4);
-    if (dst1.is(src.rn())) {
+    if (dst1.is(src.rm())) {
       ldr(dst2, src2);
       ldr(dst1, src);
     } else {

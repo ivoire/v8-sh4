@@ -433,12 +433,12 @@ class MemOperand BASE_EMBEDDED {
   INLINE(explicit MemOperand(Register Rd, Register offset));
 
   void set_offset(int32_t offset) {
-      ASSERT(rm_.is(no_reg));
+      ASSERT(rn_.is(no_reg));
       offset_ = offset;
   }
 
   uint32_t offset() const {
-      ASSERT(rm_.is(no_reg));
+      ASSERT(rn_.is(no_reg));
       return offset_;
   }
 
