@@ -490,6 +490,23 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt) {
   }
 }
 
+void Assembler::lor(Register Rd, Register Rs, Register Rt, Condition cond) {
+  ASSERT(cond == ne || cond == eq);
+  Label end;
+  if (cond == eq) bf(&end); // Jump after sequence if T bit is false
+  else bt(&end); // Jump after sequence if T bit is true
+  lor(Rd, Rs, Rt);
+  bind(&end);
+}
+
+void Assembler::lor(Register Rd, Register Rs, const Immediate& imm, Condition cond, Register rtmp) {
+  ASSERT(cond == ne || cond == eq);
+  Label end;
+  if (cond == eq) bf(&end); // Jump after sequence if T bit is false
+  else bt(&end); // Jump after sequence if T bit is true
+  lor(Rd, Rs, imm, rtmp);
+  bind(&end);
+}
 void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(imm.x_)) {
     xor_imm_R0_(imm.x_);
