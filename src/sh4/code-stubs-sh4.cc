@@ -173,6 +173,87 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kNewContext, 1, 1);
 }
 
+
+void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
+  // Stack layout on entry:
+  //
+  // [sp]: constant elements.
+  // [sp + kPointerSize]: literal index.
+  // [sp + (2 * kPointerSize)]: literals array.
+
+  // All sizes here are multiples of kPointerSize.
+  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
+  int size = JSArray::kSize + elements_size;
+
+  // Load boilerplate object into r3 and check if we need to create a
+  // boilerplate.
+  Label slow_case;
+  __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
+  __ ldr(r0, MemOperand(sp, 1 * kPointerSize));
+  __ add(r3, r3, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ lsl(ip, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r3, MemOperand(r3, ip));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r3, ip);
+  __ b(eq, &slow_case);
+
+  if (FLAG_debug_code) {
+    const char* message;
+    Heap::RootListIndex expected_map_index;
+    if (mode_ == CLONE_ELEMENTS) {
+      message = "Expected (writable) fixed array";
+      expected_map_index = Heap::kFixedArrayMapRootIndex;
+    } else {
+      ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
+      message = "Expected copy-on-write fixed array";
+      expected_map_index = Heap::kFixedCOWArrayMapRootIndex;
+    }
+    __ push(r3);
+    __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
+    __ ldr(r3, FieldMemOperand(r3, HeapObject::kMapOffset));
+    __ LoadRoot(ip, expected_map_index);
+    __ cmp(r3, ip);
+    __ Assert(eq, message);
+    __ pop(r3);
+  }
+
+  // Allocate both the JS array and the elements array in one big
+  // allocation. This avoids multiple limit checks.
+  __ AllocateInNewSpace(size,
+                        r0,
+                        r1,
+                        r2,
+                        &slow_case,
+                        TAG_OBJECT);
+
+  // Copy the JS array part.
+  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
+    if ((i != JSArray::kElementsOffset) || (length_ == 0)) {
+      __ ldr(r1, FieldMemOperand(r3, i));
+      __ str(r1, FieldMemOperand(r0, i));
+    }
+  }
+
+  if (length_ > 0) {
+    // Get hold of the elements array of the boilerplate and setup the
+    // elements pointer in the resulting object.
+    __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
+    __ add(r2, r0, Immediate(JSArray::kSize));
+    __ str(r2, FieldMemOperand(r0, JSArray::kElementsOffset));
+
+    // Copy the elements array.
+    __ CopyFields(r2, r3, r1.bit(), elements_size / kPointerSize);
+  }
+
+  // Return and remove the on-stack parameters.
+  __ add(sp, sp, Immediate(3 * kPointerSize));
+  __ Ret();
+
+  __ bind(&slow_case);
+  __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
+}
+
+
 void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register object,
                                                          Register result,

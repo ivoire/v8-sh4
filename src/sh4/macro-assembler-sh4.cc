@@ -1943,7 +1943,6 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-
 // Will clobber 4 registers: object, address, scratch, sh4_ip (ARM:ip).  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
@@ -2016,6 +2015,33 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     cmpeq(dst, sh4_ip);
     Check(eq, "Yo dawg, I heard you liked function contexts "
 	  "so I put function contexts in all your contexts");
+  }
+}
+
+
+void MacroAssembler::LoadGlobalFunction(int index, Register function) {
+  // Load the global or builtins object from the current context.
+  ldr(function, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Load the global context from the global or builtins object.
+  ldr(function, FieldMemOperand(function,
+                                GlobalObject::kGlobalContextOffset));
+  // Load the function from the global context.
+  ldr(function, MemOperand(function, Context::SlotOffset(index)));
+}
+
+
+void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
+                                                  Register map,
+                                                  Register scratch) {
+  // Load the initial map. The global functions all have initial maps.
+  ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+  if (emit_debug_code()) {
+    Label ok, fail;
+    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
+    b(&ok);
+    bind(&fail);
+    Abort("Global functions must have initial map");
+    bind(&ok);
   }
 }
 
