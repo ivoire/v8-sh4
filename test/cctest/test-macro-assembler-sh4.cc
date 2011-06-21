@@ -158,6 +158,10 @@ TEST(sh4_ma_1) {
   // Verify Bfc
   __ mov(r0, Immediate(~0x01233210)); // encodes 0xfdeccdef
   __ mov(r1, r0);
+  __ Bfc(r1, 0, 32); // a full clear
+  __ cmp(r1, Immediate(0));
+  B_LINE(ne, &error); 
+  __ mov(r1, r0);
   __ Bfc(r1, 0, 31);
   __ cmp(r1, Immediate(~0x7fffffff)); // encodes 0x80000000
   B_LINE(ne, &error); 
@@ -172,7 +176,7 @@ TEST(sh4_ma_1) {
 
   // Verify Ubfx
   __ mov(r0, Immediate(~0x01233210)); // encodes 0xfdeccdef
-  __ Ubfx(r1, r0, 0, 32);
+  __ Ubfx(r1, r0, 0, 32); // a mov actually
   __ cmp(r1, Immediate(~0x01233210)); // encodes 0xfdeccdef
   B_LINE(ne, &error); 
   __ Ubfx(r1, r0, 0, 31);
@@ -188,7 +192,7 @@ TEST(sh4_ma_1) {
 
   // Verify Sbfx
   __ mov(r0, Immediate(~0x01233210)); // encodes 0xfdeccdef
-  __ Sbfx(r1, r0, 0, 31); // a mov actually
+  __ Sbfx(r1, r0, 0, 32); // a mov actually
   __ cmp(r1, Immediate(~0x01233210)); // encodes 0xfdeccdef
   B_LINE(ne, &error); 
   __ Sbfx(r1, r0, 0, 31);
@@ -355,6 +359,15 @@ TEST(sh4_ma_4) {
   B_LINE(ne, &error);
 
   __ Ldrd(r2, r3, MemOperand(sp, 0));
+  __ cmp(r2, Immediate(11));
+  B_LINE(ne, &error);
+  __ cmp(r3, Immediate(7));
+  B_LINE(ne, &error);
+
+  __ mov(r2, Immediate(0xdeadbeef));
+  __ mov(r3, Immediate(0xdeadbeef));
+  __ mov(r2, sp); // Test case where base is also destination
+  __ Ldrd(r2, r3, MemOperand(r2, 0));
   __ cmp(r2, Immediate(11));
   B_LINE(ne, &error);
   __ cmp(r3, Immediate(7));
