@@ -707,6 +707,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&throw_termination_exception);
   __ ThrowUncatchable(TERMINATION, r0);
   __ bind(&throw_normal_exception);
+  __ UNIMPLEMENTED_BREAK();
   __ Throw(r0);
 }
 

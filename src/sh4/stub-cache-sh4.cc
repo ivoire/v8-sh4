@@ -295,6 +295,24 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
+    MacroAssembler* masm, int index, Register prototype, Label* miss) {
+  Isolate* isolate = masm->isolate();
+  // Check we're still in the same context.
+  __ ldr(prototype, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(ip, Immediate(isolate->global()));
+  __ cmp(prototype, ip);
+  __ b(ne, miss);
+  // Get the global function with the given index.
+  JSFunction* function =
+      JSFunction::cast(isolate->global_context()->get(index));
+  // Load its initial map. The global functions all have initial maps.
+  __ mov(prototype, Immediate(Handle<Map>(function->initial_map())));
+  // Load the prototype from the initial map.
+  __ ldr(prototype, FieldMemOperand(prototype, Map::kPrototypeOffset));
+}
+
+
 void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Register receiver,
                                            Register scratch,
@@ -684,6 +702,30 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
 }
 
 
+void StubCompiler::GenerateLoadConstant(JSObject* object,
+                                        JSObject* holder,
+                                        Register receiver,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Register scratch3,
+                                        Object* value,
+                                        String* name,
+                                        Label* miss) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Immediate(kSmiTagMask));
+  __ b(eq, miss);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      CheckPrototypes(object, receiver, holder,
+                      scratch1, scratch2, scratch3, name, miss);
+
+  // Return the constant value.
+  __ mov(r0, Immediate(Handle<Object>(value)));
+  __ Ret();
+}
+
+
 void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
     __ cmp(r2, Immediate(Handle<String>(name)));
@@ -788,8 +830,19 @@ MaybeObject* LoadStubCompiler::CompileLoadConstant(JSObject* object,
                                                    JSObject* holder,
                                                    Object* value,
                                                    String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  GenerateLoadConstant(object, holder, r0, r3, r1, r4, value, name, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(CONSTANT_FUNCTION, name);
 }
 
 
@@ -949,8 +1002,131 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
                                                    JSFunction* function,
                                                    String* name,
                                                    CheckType check) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  if (HasCustomCallGenerator(function)) {
+    MaybeObject* maybe_result = CompileCustomCall(
+        object, holder, NULL, function, name);
+    Object* result;
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+    // undefined means bail out to regular compiler.
+    if (!result->IsUndefined()) return result;
+  }
+
+  Label miss;
+
+  GenerateNameCheck(name, &miss);
+
+  // Get the receiver from the stack
+  const int argc = arguments().immediate();
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  if (check != NUMBER_CHECK) {
+    __ tst(r1, Immediate(kSmiTagMask));
+    __ b(eq, &miss);
+  }
+
+  // Make sure that it's okay not to patch the on stack receiver
+  // unless we're doing a receiver map check.
+  ASSERT(!object->IsGlobalObject() || check == RECEIVER_MAP_CHECK);
+
+  SharedFunctionInfo* function_info = function->shared();
+  switch (check) {
+    case RECEIVER_MAP_CHECK:
+      __ IncrementCounter(masm()->isolate()->counters()->call_const(),
+                          1, r0, r3);
+
+      // Check that the maps haven't changed.
+      CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
+                      &miss);
+
+      // Patch the receiver on the stack with the global proxy if
+      // necessary.
+      if (object->IsGlobalObject()) {
+        __ ldr(r3, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+        __ str(r3, MemOperand(sp, argc * kPointerSize));
+      }
+      break;
+
+    case STRING_CHECK:
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
+        __ jmp(&miss);
+      } else {
+        // Check that the object is a two-byte string or a symbol.
+        __ CompareObjectType(r1, r3, r3, FIRST_NONSTRING_TYPE, hs);
+        __ b(t, &miss);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::STRING_FUNCTION_INDEX, r0, &miss);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
+                        r1, r4, name, &miss);
+      }
+      break;
+
+    case NUMBER_CHECK: {
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
+        __ jmp(&miss);
+      } else {
+        Label fast;
+        // Check that the object is a smi or a heap number.
+        __ tst(r1, Immediate(kSmiTagMask));
+        __ b(eq, &fast);
+        __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE);
+        __ b(ne, &miss);
+        __ bind(&fast);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::NUMBER_FUNCTION_INDEX, r0, &miss);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
+                        r1, r4, name, &miss);
+      }
+      break;
+    }
+
+    case BOOLEAN_CHECK: {
+      if (!function->IsBuiltin() && !function_info->strict_mode()) {
+        // Calling non-strict non-builtins with a value as the receiver
+        // requires boxing.
+        __ jmp(&miss);
+      } else {
+        Label fast;
+        // Check that the object is a boolean.
+        __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+        __ cmp(r1, ip);
+        __ b(eq, &fast);
+        __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+        __ cmp(r1, ip);
+        __ b(ne, &miss);
+        __ bind(&fast);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateDirectLoadGlobalFunctionPrototype(
+            masm(), Context::BOOLEAN_FUNCTION_INDEX, r0, &miss);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
+                        r1, r4, name, &miss);
+      }
+      break;
+    }
+
+    default:
+      UNREACHABLE();
+  }
+
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  MaybeObject* maybe_result = GenerateMissBranch();
+  if (maybe_result->IsFailure()) return maybe_result;
+
+  // Return the generated code.
+  return GetCode(function);
 }
 
 
@@ -1135,8 +1311,23 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
                                                         JSObject* receiver,
                                                         JSObject* holder,
                                                         Object* value) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Check the key is the cached one.
+  __ cmp(r0, Immediate(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadConstant(receiver, holder, r1, r2, r3, r4, value, name, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(CONSTANT_FUNCTION, name);
 }
 
 

@@ -687,6 +687,30 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
+void MacroAssembler::InvokeFunction(JSFunction* function,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag) {
+  ASSERT(function->is_compiled());
+
+  // Get the function and setup the context.
+  mov(r1, Operand(Handle<JSFunction>(function)));
+  ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+
+  // Invoke the cached code.
+  Handle<Code> code(function->code());
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  if (V8::UseCrankshaft()) {
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+    InvokeCode(r3, expected, actual, flag);
+  } else {
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+  }
+}
+
+
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
@@ -695,6 +719,12 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
   }
+}
+
+
+void MacroAssembler::Move(Register dst, Handle<Object> value) {
+  RECORD_LINE();
+  mov(dst, Immediate(value));
 }
 
 
