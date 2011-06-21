@@ -197,7 +197,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         __ ldr(r0, MemOperand(fp, parameter_offset));
         // Store it in the context.
         __ mov(r1, Operand(Context::SlotOffset(slot->index())));
-        __ str(r0, MemOperand(cp, r1));
+        __ str(r0, MemOperand(cp, Context::SlotOffset(slot->index())));
         // Update the write barrier. This clobbers all involved
         // registers, so we have to use two more registers to avoid
         // clobbering cp.
@@ -1204,7 +1204,71 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
 
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ ArrayLiteral");
+
+  ZoneList<Expression*>* subexprs = expr->values();
+  int length = subexprs->length();
+
+  __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
+  __ mov(r2, Immediate(Smi::FromInt(expr->literal_index())));
+  __ mov(r1, Operand(expr->constant_elements()));
+  __ Push(r3, r2, r1);
+  if (expr->constant_elements()->map() ==
+      isolate()->heap()->fixed_cow_array_map()) {
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
+    __ CallStub(&stub);
+    __ IncrementCounter(
+        isolate()->counters()->cow_arrays_created_stub(), 1, r1, r2);
+  } else if (expr->depth() > 1) {
+    __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
+  } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+    __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
+  } else {
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::CLONE_ELEMENTS, length);
+    __ CallStub(&stub);
+  }
+
+  bool result_saved = false;  // Is the result saved to the stack?
+
+  // Emit code to evaluate all the non-constant subexpressions and to store
+  // them into the newly cloned array.
+  for (int i = 0; i < length; i++) {
+    Expression* subexpr = subexprs->at(i);
+    // If the subexpression is a literal or a simple materialized literal it
+    // is already set in the cloned array.
+    if (subexpr->AsLiteral() != NULL ||
+        CompileTimeValue::IsCompileTimeValue(subexpr)) {
+      continue;
+    }
+
+    if (!result_saved) {
+      __ push(r0);
+      result_saved = true;
+    }
+    VisitForAccumulatorValue(subexpr);
+
+    // Store the subexpression value in the array's elements.
+    __ ldr(r1, MemOperand(sp));  // Copy of array literal.
+    __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
+    int offset = FixedArray::kHeaderSize + (i * kPointerSize);
+    __ str(result_register(), FieldMemOperand(r1, offset));
+
+    // Update the write barrier for the array store with r0 as the scratch
+    // register.
+    __ RecordWrite(r1, offset, r2, result_register());
+
+    PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
+  }
+
+  if (result_saved) {
+    context()->PlugTOS();
+  } else {
+    context()->Plug(r0);
+  }
+
 }
 
 

@@ -240,8 +240,10 @@ class MacroAssembler: public Assembler {
   void LoadGlobalFunction(int index, Register function);
 
   // Load the initial map from the global function. The registers
-  // function and map can be the same.
-  void LoadGlobalFunctionInitialMap(Register function, Register map);
+  // function and map can be the same, function is then overwritten.
+  void LoadGlobalFunctionInitialMap(Register function,
+                                    Register map,
+                                    Register scratch);
 
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { UNIMPLEMENTED(); }
