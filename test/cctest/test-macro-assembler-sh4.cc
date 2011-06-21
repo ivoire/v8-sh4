@@ -579,13 +579,59 @@ TEST(sh4_ma_5) {
 }
 
 
-// Test JumpIfNotPowerOfTwoOrZero()
+// Test SmiTag(), SmiUntag(), TrySmiTag(),
+// JumpIfNotPowerOfTwoOrZero(), JumpIfNotPowerOfTwoOrZeroAndNeg()
 TEST(sh4_ma_6) {
   BEGIN();
 
   Label error;
 
   PROLOGUE();
+
+  __ mov(r0, Immediate(1));
+  __ SmiTag(r0);
+  __ cmp(r0, Immediate(2));
+  B_LINE(ne, &error);
+  __ SmiUntag(r0);
+  __ cmp(r0, Immediate(1));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0x3fffffff));
+  __ SmiTag(r1, r0);
+  __ cmp(r1, Immediate(0x7ffffffe));
+  B_LINE(ne, &error);
+  __ SmiUntag(r0, r1);
+  __ cmp(r0, Immediate(0x3fffffff));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0xc0000000));
+  __ SmiTag(r0);
+  __ cmp(r0, Immediate(0x80000000));
+  B_LINE(ne, &error);
+  __ SmiUntag(r1, r0);
+  __ cmp(r1, Immediate(0xc0000000));
+  B_LINE(ne, &error);
+
+  Label not_smi1, not_smi2, not_smi3, skip_smi1;
+  __ mov(r0, Immediate(0xc0000000));
+  __ TrySmiTag(r0, &not_smi1, r1/*scratch*/);
+  __ cmp(r0, Immediate(0x80000000));
+  B_LINE(ne, &error);
+  __ jmp(&skip_smi1);
+  __ bind(&not_smi1);
+  B_LINE(ne, &error);
+  __ bind(&skip_smi1);
+
+  __ mov(r0, Immediate(0x80000000));  // not a smi
+  __ TrySmiTag(r0, &not_smi2, r1/*scratch*/);
+  B_LINE(ne, &error);
+  __ bind(&not_smi2);
+
+  __ mov(r0, Immediate(0x40000000));  // not a smi
+  __ TrySmiTag(r0, &not_smi3, r1/*scratch*/);
+  B_LINE(ne, &error);
+  __ bind(&not_smi3);
+  
 
   Label not_power1, not_power2, not_power3, not_power4,
     skip_power1, skip_power2, skip_power3;
@@ -617,6 +663,63 @@ TEST(sh4_ma_6) {
   __ JumpIfNotPowerOfTwoOrZero(r0, r1, &not_power4);
   B_LINE(al, &error);
   __ bind(&not_power4);
+
+  Label not_pow1, zero_neg1, not_pow2, zero_neg2, not_pow3, zero_neg3,
+    not_pow4, zero_neg4, not_pow5, zero_neg5, not_pow6, zero_neg6,
+    skip_pow5, skip_pow6, skip_pow2;
+  __ mov(r0, Immediate(0));
+  __ JumpIfNotPowerOfTwoOrZeroAndNeg(r0, r1, &zero_neg1, &not_pow1);
+  B_LINE(al, &error);
+  __ bind(&not_pow1);
+  B_LINE(al, &error);
+  __ bind(&zero_neg1);
+
+  __ mov(r0, Immediate(0x80000000));
+  __ JumpIfNotPowerOfTwoOrZeroAndNeg(r0, r1, &zero_neg2, &not_pow2);
+  __ jmp(&skip_pow2);
+  __ bind(&not_pow2);
+  B_LINE(al, &error);
+  __ bind(&zero_neg2);
+  B_LINE(al, &error);
+  __ bind (&skip_pow2);
+  __ cmp(r1, Immediate(0x7fffffff));
+    B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(-1));
+  __ JumpIfNotPowerOfTwoOrZeroAndNeg(r0, r1, &zero_neg3, &not_pow3);
+  B_LINE(al, &error);
+  __ bind(&not_pow3);
+  B_LINE(al, &error);
+  __ bind(&zero_neg3);
+
+  __ mov(r0, Immediate(0x30));
+  __ JumpIfNotPowerOfTwoOrZeroAndNeg(r0, r1, &zero_neg4, &not_pow4);
+  B_LINE(al, &error);
+  __ bind(&zero_neg4);
+  B_LINE(al, &error);
+  __ bind(&not_pow4);
+
+  __ mov(r0, Immediate(1));
+  __ JumpIfNotPowerOfTwoOrZeroAndNeg(r0, r1,  &zero_neg5, &not_pow5);
+  __ jmp(&skip_pow5);
+  __ bind(&not_pow5);
+  B_LINE(al, &error);
+  __ bind(&zero_neg5);
+  B_LINE(al, &error);
+  __ bind(&skip_pow5);
+  __ cmp(r1, Immediate(0));
+    B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0x40000000));
+  __ JumpIfNotPowerOfTwoOrZeroAndNeg(r0, r1,  &zero_neg6, &not_pow6);
+  __ jmp(&skip_pow6);
+  __ bind(&not_pow6);
+  B_LINE(al, &error);
+  __ bind(&zero_neg6);
+  B_LINE(al, &error);
+  __ bind(&skip_pow6);
+  __ cmp(r1, Immediate(0x3fffffff));
+    B_LINE(ne, &error);
 
  // All ok.
   __ mov(r0, Immediate(0));
