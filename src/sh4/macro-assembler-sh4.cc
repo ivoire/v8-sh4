@@ -737,8 +737,11 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 
 void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width) {
-  ASSERT(lsb < 32);
-  int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+  ASSERT(lsb >= 0 && lsb < 32);
+  ASSERT(width > 0 && width <= 32);
+  ASSERT(width + lsb <= 32);
+  int32_t mask1 = width < 32 ? (1<<width)-1 : -1;
+  int32_t mask = mask1 << lsb;
   land(dst, src1, Immediate(mask));
   int shift_up = 32 - lsb - width;
   int shift_down = lsb + shift_up;
@@ -1798,10 +1801,12 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 
 void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
   ASSERT(!dst.is(sh4_ip) && !src.is(sh4_ip));
-  ASSERT(lsb < 32);
-  ASSERT(lsb + width < 32);
+  ASSERT(lsb >= 0 && lsb < 32);
+  ASSERT(width > 0 && width <= 32);
+  ASSERT(width + lsb <= 32);
   // Extract unsigned value from bits src1[lsb..lsb+width-1] into dst
-  uint32_t mask = ((uint32_t)1 << (width + lsb)) - 1 - (((uint32_t)1 << lsb) - 1);
+  int32_t mask1 = width < 32 ? (1<<width)-1 : -1;
+  int32_t mask = mask1 << lsb;
   RECORD_LINE();
   land(dst, src, Immediate(mask));
   if (lsb != 0) {
@@ -1813,12 +1818,14 @@ void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
 
 void MacroAssembler::Bfc(Register dst, int lsb, int width) {
   ASSERT(!dst.is(sh4_ip));
-  ASSERT(lsb < 32);
-  ASSERT(lsb + width < 32);
+  ASSERT(lsb >= 0 && lsb < 32);
+  ASSERT(width > 0 && width <= 32);
+  ASSERT(width + lsb <= 32);
   // Clear bits [lsb..lsb+width-1] of dst
-  uint32_t mask = ~(((uint32_t)1 << (width + lsb)) - 1 - (((uint32_t)1 << lsb) - 1));
+  int32_t mask1 = width < 32 ? (1<<width)-1 : -1;
+  int32_t mask = mask1 << lsb;
   RECORD_LINE();
-  land(dst, dst, Immediate(mask));
+  land(dst, dst, Immediate(~mask));
 }
 
 
