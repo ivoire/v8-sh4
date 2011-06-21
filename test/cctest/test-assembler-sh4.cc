@@ -483,7 +483,7 @@ TEST(14) {
   __ bf(&end);
 
   for(int i = 0; i < 10000; i++)
-    __ add(r0, r0, Immediate(1));
+    __ add(r0, r0, Immediate(1), r1);
 
   __ jmp(&begin);
 
@@ -1037,12 +1037,12 @@ TEST(21) {
 TEST(22) {
   BEGIN();
 
-  Label function;
+  Label function, end_function;
 
+  __ mov(r5, Immediate(1));
   __ mov(r0, r4);
   __ add(r0, Immediate(1), r1);
   __ push(pr);
-  __ jsr(&function);
   __ jsr(&function);
   __ pop(pr);
   __ rts();
@@ -1052,6 +1052,14 @@ TEST(22) {
   __ add(r0, Immediate(2), r1);
   __ add(r0, Immediate(3), r1);
   __ add(r0, Immediate(4), r1);
+  __ cmpeq(r5, Immediate(0), r1);
+  __ bt(&end_function);
+  __ mov(r5, Immediate(0));
+  __ push(pr);
+  __ jsr(&function);
+  __ pop(pr);
+
+  __ bind(&end_function);
   __ rts();
 
   JIT();
@@ -1067,3 +1075,34 @@ TEST(22) {
   CHECK_EQ(53+1+(1+2+3+4)*2, res);
 }
 
+TEST(22_bis) {
+  BEGIN();
+
+  Label function, label;
+
+  __ mov(r0, Immediate(0));
+  __ bind(&function);
+  __ tst(r0, r0);
+  __ bt(&label);
+  __ rts();
+  __ bind(&label);
+  for(int i = 0; i < 10000; i++)
+    __ add(r0, r0, Immediate(1), r1);
+
+  __ push(pr);
+  __ jsr(&function);
+  __ pop(pr);
+  __ rts();
+
+  JIT();
+
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(10000, res);
+}
