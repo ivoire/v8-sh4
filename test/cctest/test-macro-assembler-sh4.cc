@@ -195,3 +195,70 @@ TEST(sh4_ma_1) {
   CHECK_EQ(0, res);
 }
 
+// Test Pop/Push
+TEST(sh4_ma_2) {
+  BEGIN();
+
+  Label error;
+
+  // Verify Pop and Push
+  __ mov(r0, Immediate(3));
+  __ mov(r1, Immediate(5));
+  __ mov(r2, Immediate(7));
+  __ mov(r3, Immediate(11));
+  __ Push(r0,r1);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ mov(r1, Immediate(0xdeadbeef));
+  __ Pop(r0,r1);
+  __ cmp(r0, Immediate(3));
+  B_LINE(ne, &error);
+  __ cmp(r1, Immediate(5));
+  B_LINE(ne, &error);
+
+  __ Push(r0,r1,r2);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ mov(r1, Immediate(0xdeadbeef));
+  __ mov(r2, Immediate(0xdeadbeef));
+  __ pop(r2);
+  __ Pop(r0,r1);
+  __ cmp(r0, Immediate(3));
+  B_LINE(ne, &error);
+  __ cmp(r1, Immediate(5));
+  B_LINE(ne, &error);
+  __ cmp(r2, Immediate(7));
+  B_LINE(ne, &error);
+
+  __ Push(r0,r1,r2,r3);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ mov(r1, Immediate(0xdeadbeef));
+  __ mov(r2, Immediate(0xdeadbeef));
+  __ mov(r3, Immediate(0xdeadbeef));
+  __ Pop(r2, r3);
+  __ Pop(r0, r1);
+  __ cmp(r0, Immediate(3));
+  B_LINE(ne, &error);
+  __ cmp(r1, Immediate(5));
+  B_LINE(ne, &error);
+  __ cmp(r2, Immediate(7));
+  B_LINE(ne, &error);
+  __ cmp(r3, Immediate(11));
+  B_LINE(ne, &error);
+
+
+  // All ok.
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
