@@ -1104,7 +1104,7 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
 
 void MacroAssembler::Strd(Register src1, Register src2,
                           const MemOperand& dst) {
-  ASSERT(dst.rm().is(no_reg));
+  ASSERT(dst.rn().is(no_reg));
   ASSERT_EQ(0, src1.code() % 2);
   ASSERT_EQ(src1.code() + 1, src2.code());
   ASSERT(!src1.is(sh4_ip) && !src2.is(sh4_ip));
