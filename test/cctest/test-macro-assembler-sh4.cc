@@ -55,16 +55,26 @@ static void InitializeVM() {
   __ push(r9); \
   __ push(r10); \
   __ push(r11); \
+  __ push(roots); \
+  ExternalReference roots_address = \
+    ExternalReference::roots_address(assm.isolate()); \
+  __ mov(roots, Operand(roots_address)); \
   } while (0)
 
 #define EPILOGUE() \
   do { \
+  __ pop(roots); \
   __ pop(r11); \
   __ pop(r10);	\
   __ pop(r9); \
   __ pop(r8); \
   } while (0)
 
+#define THE_HOLE_VALUE() (assm.isolate()->factory()->the_hole_value())
+
+#define GLOBAL_CONTEXT_MAP() (assm.isolate()->factory()->global_context_map())
+
+#define HEAP_NUMBER_MAP() (assm.isolate()->factory()->heap_number_map())
 
 #define BEGIN()                                         \
   /* Disable compilation of natives. */                 \
@@ -89,9 +99,13 @@ static void InitializeVM() {
 // This macro stores in r10 the line number before branching to the error label.
 // At the error label r10 can be moved to r0 such that return code of the
 // function if not 0 indicates an error at the line of the branch.
-#define B_LINE(cond, target) do {	   \
-  __ mov(r10, Immediate(__LINE__)); \
-  __ b(cond, target);  \
+#define B_LINE(cond, target) do { \
+    __ mov(r10, Immediate(__LINE__)); \
+    if (cond == al) { \
+      __ b(target);  \
+    } else { \
+      __ b(cond, target);  \
+    } \
   } while(0);
 
 
@@ -146,6 +160,7 @@ TEST(sh4_ma_0) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
+
 
 // Test Bfc/Ubfx/Sbfx
 TEST(sh4_ma_1) {
@@ -394,6 +409,122 @@ TEST(sh4_ma_4) {
 
   __ bind(&error);
   __ mov(sp, r8);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
+
+
+// Test JumpIfSmi/JumpIfNotSmi/LoadRoot/CompareRoot/CheckMap
+TEST(sh4_ma_5) {
+  BEGIN();
+
+  Label error;
+
+  PROLOGUE();
+
+  __ LoadRoot(r1, Heap::kRealStackLimitRootIndex);
+  __ tst(r1, Immediate(1)); // Check that it is a Smi
+  B_LINE(ne, &error);
+  __ cmphs(sp, r1); // Check that stack limit is lower than sp
+  B_LINE(ne, &error);
+
+  __ LoadRoot(r1, Heap::kStackLimitRootIndex);
+  __ tst(r1, Immediate(1)); // Check that it is a Smi
+  B_LINE(ne, &error);
+  __ cmphs(sp, r1); // Check that stack limit is lower than sp
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(THE_HOLE_VALUE()));
+  __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+  __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
+  B_LINE(ne, &error);
+
+  Label is_smi1, fail_is_smi1, fail_is_smi2, skip_is_smi1, skip_is_smi2;
+  __ mov(r0, Immediate(2)); // Smi integer 1
+  __ JumpIfSmi(r0, &is_smi1);
+  B_LINE(al, &error); // should not be there
+  __ bind(&is_smi1);
+
+  __ mov(r0, Immediate(1)); // Heap object 0
+  __ JumpIfSmi(r0, &fail_is_smi1);
+  __ jmp(&skip_is_smi1);
+  __ bind(&fail_is_smi1);
+  B_LINE(al, &error);
+  __ bind(&skip_is_smi1);
+
+  __ mov(r0, Immediate(3)); // Failure object 0
+  __ JumpIfSmi(r0, &fail_is_smi2);
+  __ jmp(&skip_is_smi2);
+  __ bind(&fail_is_smi2);
+  B_LINE(al, &error);
+  __ bind(&skip_is_smi2);
+
+
+  Label is_not_smi1, is_not_smi2, fail_is_not_smi1, skip_is_not_smi1;
+  __ mov(r0, Immediate(1)); // Heap object 0
+  __ JumpIfNotSmi(r0, &is_not_smi1);
+  B_LINE(al, &error); // should not be there
+  __ bind(&is_not_smi1);
+
+  __ mov(r0, Immediate(3)); // Failure object 0
+  __ JumpIfNotSmi(r0, &is_not_smi2);
+  B_LINE(al, &error); // should not be there
+  __ bind(&is_not_smi2);
+
+  __ mov(r0, Immediate(2)); // Smi integer 1
+  __ JumpIfNotSmi(r0, &fail_is_not_smi1);
+  __ jmp(&skip_is_not_smi1);
+  __ bind(&fail_is_not_smi1);
+  B_LINE(al, &error);
+  __ bind(&skip_is_not_smi1);
+
+  Label no_map1, no_map2, no_map3, no_map4, skip_no_map1;
+  __ mov(r0, Immediate(2)); // this is Smi integer 1
+  __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
+	      &no_map1, false); // Check that Smi fails
+  B_LINE(al, &error); // should not be there
+  __ bind(&no_map1);
+
+  __ mov(r0, Immediate(HEAP_NUMBER_MAP()));
+  __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
+	      &no_map2, false); // Not the right map
+  B_LINE(al, &error); // should not be there
+  __ bind(&no_map2);
+
+  __ mov(r0, Immediate(HEAP_NUMBER_MAP()));
+  __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
+	      &no_map3, true); // Heap object but not the right map
+  B_LINE(al, &error); // should not be there
+  __ bind(&no_map3);
+
+  // TODO: must put Global context in r0
+//   __ mov(r0, Immediate(GLOBAL_CONTEXT_MAP()));
+//   __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
+// 	      &no_map4, false); // This is the right map
+//   __ jmp(&skip_no_map1);
+//   __ bind(&no_map4);
+//   B_LINE(al, &error); // should not be there
+//   __ bind(&skip_no_map1);
+ 
+
+ // All ok.
+  __ mov(r0, Immediate(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
   __ mov(r0, r10);
   EPILOGUE();
   __ rts();
