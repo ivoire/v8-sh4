@@ -29,6 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_SH4)
 
+#include "bootstrapper.h"
 #include "code-stubs.h"
 
 namespace v8 {
@@ -49,14 +50,14 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 #endif
   Label check_heap_number, call_builtin;
   __ tst(r0, Immediate(kSmiTagMask));
-  __ bf(&check_heap_number);
+  __ b(ne, &check_heap_number);
   __ Ret();
 
   __ bind(&check_heap_number);
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-  __ cmpeq(r1, ip);
-  __ bf(&call_builtin);
+  __ cmp(r1, ip);
+  __ b(ne, &call_builtin);
   __ Ret();
 
   __ bind(&call_builtin);
@@ -123,6 +124,54 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FastNewContextStub::Generate(MacroAssembler* masm) {
+  // Try to allocate the context in new space.
+  Label gc;
+  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
+
+  // Attempt to allocate the context in new space.
+  __ AllocateInNewSpace(FixedArray::SizeFor(length),
+                        r0,
+                        r1,
+                        r2,
+                        &gc,
+                        TAG_OBJECT);
+
+  // Load the function from the stack.
+  __ ldr(r3, MemOperand(sp, 0));
+
+  // Setup the object header.
+  __ LoadRoot(r2, Heap::kContextMapRootIndex);
+  __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ mov(r2, Immediate(Smi::FromInt(length)));
+  __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
+
+  // Setup the fixed slots.
+  __ mov(r1, Immediate(Smi::FromInt(0)));
+  __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ str(r0, MemOperand(r0, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::EXTENSION_INDEX)));
+
+  // Copy the global object from the surrounding context.
+  __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
+
+  // Initialize the rest of the slots to undefined.
+  __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
+    __ str(r1, MemOperand(r0, Context::SlotOffset(i)));
+  }
+
+  // Remove the on-stack argument and return.
+  __ mov(cp, r0);
+  __ pop();
+  __ Ret();
+
+  // Need to collect. Call into runtime system.
+  __ bind(&gc);
+  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
+}
 
 void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
                                                          Register object,
@@ -203,304 +252,13 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  // The displacement is the offset of the last parameter (if any)
-  // relative to the frame pointer.
-  static const int kDisplacement =
-      StandardFrameConstants::kCallerSPOffset - kPointerSize;
-
-  // r0 (when parameter) or r0 (when return value)
-  // r1 (when parameter)
-
-  // Check that the key is a smi.
-  Label slow;
-  // SH4 live-in: r0, r1
-  // SH4 live-out: r0, r1
-  __ JumpIfNotSmi(r1, &slow);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor;
-  // SH4 live-in: r0, r1
-  // SH4 live-out: r0, r1, r2
-  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmpeq(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ bt(&adaptor);
-
-  // Check index against formal parameters count limit passed in
-  // through register r0. Use unsigned comparison to get negative
-  // check for free.
-  // SH4 live-in: r0, r1
-  // SH4 live-out: r0, r1
-  __ cmpgeu(r1, r0);
-  __ bt(&slow);
-
-  // Read the argument from the stack and return it.
-  // SH4 live-in: r0, r1
-  // SH4 live-out: r0
-  __ sub(r3, r0, r1);
-  __ lsl(r4, r3, Immediate(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r3, fp, r4);
-  __ ldr(r0, MemOperand(r3, kDisplacement));
-  __ rts();
-
-  // Arguments adaptor case: Check index against actual arguments
-  // limit found in the arguments adaptor frame. Use unsigned
-  // comparison to get negative check for free.
-  __ bind(&adaptor);
-  // SH4 live-in: r1, r2
-  // SH4 live-out: r0, r1, r2
-  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmpgeu(r1, r0);
-  __ bt(&slow);
-
-  // Read the argument from the adaptor frame and return it.
-  // SH4 live-in: r0, r1, r2
-  // SH4 live-out: r0
-  __ sub(r3, r0, r1);
-  __ lsl(r0, r3, Immediate(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r3, r2, r0);
-  __ ldr(r0, MemOperand(r3, kDisplacement));
-  __ rts();
-
-  __ bind(&slow);
-  __ push(r1);
-  __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
+void CompareStub::Generate(MacroAssembler* masm) {
+  UNIMPLEMENTED();
 }
 
 
-void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
-  // sp[0] : number of parameters
-  // sp[4] : receiver displacement
-  // sp[8] : function
 
-  // live-in registers: none
-  // defined registers (live through the whole function): sp, fp, cp
 
-  // Some preconditions, make the code selection simpler
-  // If these fail, verify and adapt the code below.
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kPointerSizeLog2 == 2);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor_frame, try_allocate, runtime;
-  // Pseudo code {
-  //   live-in: none
-  //   live-out: r2
-  //   r2 = load32(add32(fp, kCallerFPOffset))
-  //   r3 = load32(add32(r2, kContextOffset))
-  //   t0 = r3 == ARGUMENTS_ADAPTOR
-  //   if (t0) goto adaptor_frame
-  // }
-  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmpeq(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ bt(&adaptor_frame);
-
-  // Get the length from the frame.
-  // Pseudo code {
-  //   live-in: r2
-  //   live-out: r2, r1
-  //   r1 = load32(add32(sp, 0))
-  //   goto  try_allocate
-  // }
-  __ ldr(r1, MemOperand(sp, 0));
-  __ jmp(&try_allocate);
-
-  // Patch the arguments.length and the parameters pointer.
-  __ bind(&adaptor_frame);
-  // Pseudo code {
-  //   live-in: r2
-  //   live-out: r2, r1
-  //   r1 = load32(add32(r2, kLengthOffset))
-  //   store32(add32(sp, 0), r1)
-  //   r3 = add32(r2, shl32(r1, kPointerSizeLog2 - kSmiTagSize))
-  //   r3 = add32(r3, kCallerSPOffset)
-  //   store32(add32(sp, 1 * kPointerSize), r3)
-  // }
-  __ ldr(r1, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ str(r1, MemOperand(sp, 0));
-  __ lsl(r0, r1, Immediate(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r0, r2, r0);
-  __ add(r0, r0, Immediate(StandardFrameConstants::kCallerSPOffset));
-  __ mov(MemOperand(sp, 1 * kPointerSize), r0);
-
-  // Try the new space allocation. Start out with computing the size
-  // of the arguments object and the elements array in words.
-  Label add_arguments_object;
-  __ bind(&try_allocate);
-  // Pseudo code {
-  //   live-in: r2, r1
-  //   live-out: r2, r1
-  //   t0 = r1 == 0
-  //   if (t0) goto add_arguments_object
-  //   r1 = r1 >> kSmiTagSize
-  //   r1 = r1 + FixedArray::kHeaderSize / kPointerSize
-  //   add_arguments_object:
-  //   r1 = r1 + GetArgumentsObjectSize() / kPointerSize
-  // }
-  __ cmpeq(r1, Immediate(0));
-  __ bt(&add_arguments_object);
-  __ lsr(r1, r1, Immediate(kSmiTagSize));
-  __ add(r1, r1, Immediate(FixedArray::kHeaderSize / kPointerSize));
-  __ bind(&add_arguments_object);
-  __ add(r1, r1, Immediate(GetArgumentsObjectSize() / kPointerSize));
-  
-  // Do the allocation of both objects in one go.
-  // Pseudo code {
-  //   live-in: r1
-  //   live-out: r0
-  //   AllocateInNewSpace(r1, r0, r2, r3)
-  // }
-  __ AllocateInNewSpace(
-      r1, // object size
-      r0, // result
-      r2, // scratch1
-      r4, // scratch2
-      &runtime,
-      static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
-
-  // Get the arguments boilerplate from the current (global) context.
-  // Pseudo code {
-  //   live-in: r0
-  //   live-out: r0, r4
-  //   r4 = load32(add32(cp, Context::SlotOffset(Context::GLOBAL_INDEX)))
-  //   r4 = load32(add32(r4, GlobalObject::kGlobalContextOffset))
-  //   r4 = load32(add32(r4, Context::SlotOffset(GetArgumentsBoilerplateIndex())))
-  // }
-  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
-  __ ldr(r4, MemOperand(r4,
-			Context::SlotOffset(GetArgumentsBoilerplateIndex())));
-  // }
-
-  // Copy the JS object part.
-  // Pseudo code {
-  //   live-in: r0, r4
-  //   live-out: r0
-  //   CopyFields(r0 // dst , r4 //src , r3.bit() // scratch list,
-  //              JSObject::kHeaderSize / kPointerSize)
-  // }
-  __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
-
-  if (type_ == NEW_NON_STRICT) {
-    // Setup the callee in-object property.
-    STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
-    const int kCalleeOffset = JSObject::kHeaderSize +
-                              Heap::kArgumentsCalleeIndex * kPointerSize;
-    // Pseudo code {
-    //   live-in: r0
-    //   live-out: r0
-    //   r3 = load32(add32(sp, 2 * kPointerSize))
-    //   store32(add32(r0, kCalleeOffset), r3)
-    // }
-    __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
-    __ str(r1, FieldMemOperand(r0, kCalleeOffset));
-  }
-
-  // Get the length (smi tagged) and set that as an in-object property too.
-  STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  // Pseudo code {
-  //   live-in: r0
-  //   live-out: r0, r1
-  //   r1 = load32(add32(sp, 0 * kPointerSize))
-  //   store32(add32(r0, JSObject::kHeaderSize + Heap::kArgumentsLengthIndex * kPointerSize), r1)
-  // }
-  __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
-  __ str(r1, FieldMemOperand(r0, JSObject::kHeaderSize +
-			         Heap::kArgumentsLengthIndex * kPointerSize));
-
-  // If there are no actual arguments, we're done.
-  Label done;
-  // Pseudo code {
-  //   live-in: r1, r0
-  //   live-out: r1, r0
-  //   t0 = r1 == 0
-  //   if (t0) goto done
-  // }
-  __ cmpeq(r1, Immediate(0));
-  __ bt(&done);
-  // }
-
-  // Get the parameters pointer from the stack.
-  // Pseudo code {
-  //   live-in: r1, r0
-  //   live-out: r1, r0, r2
-  //   r2 = load32(add32(sp, 1 * kPointerSize))
-  // }
-  __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
-
-  // Setup the elements pointer in the allocated arguments object and
-  // initialize the header in the elements fixed array.
-  // Pseudo code {
-  //   live-in: r1, r0, r2
-  //   live-out: r1, r0, r2
-  //   r4 = add32(r0, GetArgumentsObjectSize())
-  //   store32(add32(r0, JSObject::kElementsOffset), r4)
-  //   LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
-  //   store32(add32(r4, FixedArray::kMapOffset), r3)
-  //   store32(add32(r4, FixedArray::kLengthOffset), r1)
-  //   r1 = shr(r1, kSmiTagSize)
-  // }
-  __ add(r4, r0, Immediate(GetArgumentsObjectSize()));
-  __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
-  __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
-  __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
-  __ str(r1, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  __ lsr(r1, r1, Immediate(kSmiTagSize));
-
-  // Copy the fixed array slots.
-  Label loop;
-  // Setup r4 to point to the first array slot.
-  // Pseudo code {
-  //   live-in: r1, r0, r2, r4
-  //   live-out: r1, r0, r2, r4
-  //   r4 = add32(r4, FixedArray::kHeaderSize - kHeapObjectTag)
-  // }
-  __ add(r4, r4, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ bind(&loop);
-  // Pre-decrement r2 with kPointerSize on each iteration.
-  // Pre-decrement in order to skip receiver.
-  // Post-increment r4 with kPointerSize on each iteration.
-  // Pseudo code {
-  //   live-in: r1, r0, r2, r4
-  //   live-out: r1, r0, r2, r4
-  //   r2 = sub32(r2, kPointerSize)
-  //   r3 = load32(r2)
-  //   store32(r4, r3)
-  //   r4 = add32(r4, kPointerSize)
-  //   r1 = sub32(r1, 1)
-  //   t0 = r1 == 0
-  //   if (!t0) goto loop
-  // }
-  __ sub(r2, r2, Immediate(kPointerSize));
-  __ ldr(r3, MemOperand(r2, 0));
-  __ str(r3, MemOperand(r4, 0));
-  __ add(r4, r4, Immediate(kPointerSize));
-  __ sub(r1, r1, Immediate(1));
-  __ cmpeq(r1, Immediate(0));
-  __ bf(&loop);
-
-  // Return and remove the on-stack parameters.
-  __ bind(&done);
-  // Pseudo code {
-  //   live-in: none
-  //   live-out: none
-  //   sp = sp + 3 * kPointerSize
-  //   return
-  // }
-  __ add(sp, sp, Immediate(3 * kPointerSize));
-  __ Ret();
-
-  // Do the runtime call to allocate the arguments object.
-  __ bind(&runtime);
-  // Pseudo code {
-  //   live-in: none
-  //   live-out: none
-  //   TailCallRuntime
-  // }
-  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
-}
 
 
 Handle<Code> GetTypeRecordingBinaryOpStub(int key,
@@ -508,6 +266,85 @@ Handle<Code> GetTypeRecordingBinaryOpStub(int key,
                         TRBinaryOpIC::TypeInfo result_type_info) {
   TypeRecordingBinaryOpStub stub(key, type_info, result_type_info);
   return stub.GetCode();
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
+  Label get_result;
+
+  __ Push(r1, r0);
+
+  __ mov(r2, Immediate(Smi::FromInt(MinorKey())));
+  __ mov(r1, Immediate(Smi::FromInt(op_)));
+  __ mov(r0, Immediate(Smi::FromInt(operands_type_)));
+  __ Push(r2, r1, r0);
+
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
+                        masm->isolate()),
+      5,
+      1);
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateTypeTransitionWithSavedArgs(
+    MacroAssembler* masm) {
+  UNIMPLEMENTED();
+}
+
+
+void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
+  switch (operands_type_) {
+    case TRBinaryOpIC::UNINITIALIZED:
+      GenerateTypeTransition(masm);
+      break;
+    case TRBinaryOpIC::SMI:
+      GenerateSmiStub(masm);
+      break;
+    case TRBinaryOpIC::INT32:
+      GenerateInt32Stub(masm);
+      break;
+    case TRBinaryOpIC::HEAP_NUMBER:
+      GenerateHeapNumberStub(masm);
+      break;
+    case TRBinaryOpIC::ODDBALL:
+      GenerateOddballStub(masm);
+      break;
+    case TRBinaryOpIC::BOTH_STRING:
+      GenerateBothStringStub(masm);
+      break;
+    case TRBinaryOpIC::STRING:
+      GenerateStringStub(masm);
+      break;
+    case TRBinaryOpIC::GENERIC:
+      GenerateGeneric(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+const char* TypeRecordingBinaryOpStub::GetName() {
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "TypeRecordingBinaryOpStub_%s_%s_%s",
+               op_name,
+               overwrite_name,
+               TRBinaryOpIC::GetName(operands_type_));
+  return name_;
 }
 
 
@@ -707,7 +544,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&throw_termination_exception);
   __ ThrowUncatchable(TERMINATION, r0);
   __ bind(&throw_normal_exception);
-  __ UNIMPLEMENTED_BREAK();
   __ Throw(r0);
 }
 
@@ -1027,132 +863,9 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
-void FastNewContextStub::Generate(MacroAssembler* masm) {
-  // Try to allocate the context in new space.
-  Label gc;
-  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
-
-  // Attempt to allocate the context in new space.
-  __ AllocateInNewSpace(FixedArray::SizeFor(length),
-                        r0,
-                        r1,
-                        r2,
-                        &gc,
-                        TAG_OBJECT);
-
-  // Load the function from the stack.
-  __ ldr(r3, MemOperand(sp, 0));
-
-  // Setup the object header.
-  __ LoadRoot(r2, Heap::kContextMapRootIndex);
-  __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ mov(r2, Immediate(Smi::FromInt(length)));
-  __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
-
-  // Setup the fixed slots.
-  __ mov(r1, Immediate(Smi::FromInt(0)));
-  __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
-  __ str(r0, MemOperand(r0, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
-  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::EXTENSION_INDEX)));
-
-  // Copy the global object from the surrounding context.
-  __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ str(r1, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
-
-  // Initialize the rest of the slots to undefined.
-  __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
-    __ str(r1, MemOperand(r0, Context::SlotOffset(i)));
-  }
-
-  // Remove the on-stack argument and return.
-  __ mov(cp, r0);
-  __ pop();
-  __ Ret();
-
-  // Need to collect. Call into runtime system.
-  __ bind(&gc);
-  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
-}
 
 
-void CompareStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
 
-
-void TypeRecordingBinaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
-  Label get_result;
-
-  __ Push(r1, r0);
-
-  __ mov(r2, Immediate(Smi::FromInt(MinorKey())));
-  __ mov(r1, Immediate(Smi::FromInt(op_)));
-  __ mov(r0, Immediate(Smi::FromInt(operands_type_)));
-  __ Push(r2, r1, r0);
-
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kTypeRecordingBinaryOp_Patch),
-                        masm->isolate()),
-      5,
-      1);
-}
-
-
-void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
-  switch (operands_type_) {
-    case TRBinaryOpIC::UNINITIALIZED:
-      GenerateTypeTransition(masm);
-      break;
-    case TRBinaryOpIC::SMI:
-      GenerateSmiStub(masm);
-      break;
-    case TRBinaryOpIC::INT32:
-      GenerateInt32Stub(masm);
-      break;
-    case TRBinaryOpIC::HEAP_NUMBER:
-      GenerateHeapNumberStub(masm);
-      break;
-    case TRBinaryOpIC::ODDBALL:
-      GenerateOddballStub(masm);
-      break;
-    case TRBinaryOpIC::BOTH_STRING:
-      GenerateBothStringStub(masm);
-      break;
-    case TRBinaryOpIC::STRING:
-      GenerateStringStub(masm);
-      break;
-    case TRBinaryOpIC::GENERIC:
-      GenerateGeneric(masm);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-const char* TypeRecordingBinaryOpStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = NULL; //TODO: Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(kMaxNameLength);
-  if (name_ == NULL) return "OOM";
-  const char* op_name = Token::Name(op_);
-  const char* overwrite_name;
-  switch (mode_) {
-    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
-    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
-    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
-    default: overwrite_name = "UnknownOverwrite"; break;
-  }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "TypeRecordingBinaryOpStub_%s_%s_%s",
-               op_name,
-               overwrite_name,
-               TRBinaryOpIC::GetName(operands_type_));
-  return name_;
-}
 
 
 void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
@@ -1323,6 +1036,307 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
   }
   __ bind(&not_smis);
 }
+
+
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The displacement is the offset of the last parameter (if any)
+  // relative to the frame pointer.
+  static const int kDisplacement =
+      StandardFrameConstants::kCallerSPOffset - kPointerSize;
+
+  // r0 (when parameter) or r0 (when return value)
+  // r1 (when parameter)
+
+  // Check that the key is a smi.
+  Label slow;
+  // SH4 live-in: r0, r1
+  // SH4 live-out: r0, r1
+  __ JumpIfNotSmi(r1, &slow);
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  // SH4 live-in: r0, r1
+  // SH4 live-out: r0, r1, r2
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmpeq(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ bt(&adaptor);
+
+  // Check index against formal parameters count limit passed in
+  // through register r0. Use unsigned comparison to get negative
+  // check for free.
+  // SH4 live-in: r0, r1
+  // SH4 live-out: r0, r1
+  __ cmpgeu(r1, r0);
+  __ bt(&slow);
+
+  // Read the argument from the stack and return it.
+  // SH4 live-in: r0, r1
+  // SH4 live-out: r0
+  __ sub(r3, r0, r1);
+  __ lsl(r4, r3, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, fp, r4);
+  __ ldr(r0, MemOperand(r3, kDisplacement));
+  __ rts();
+
+  // Arguments adaptor case: Check index against actual arguments
+  // limit found in the arguments adaptor frame. Use unsigned
+  // comparison to get negative check for free.
+  __ bind(&adaptor);
+  // SH4 live-in: r1, r2
+  // SH4 live-out: r0, r1, r2
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmpgeu(r1, r0);
+  __ bt(&slow);
+
+  // Read the argument from the adaptor frame and return it.
+  // SH4 live-in: r0, r1, r2
+  // SH4 live-out: r0
+  __ sub(r3, r0, r1);
+  __ lsl(r0, r3, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, r2, r0);
+  __ ldr(r0, MemOperand(r3, kDisplacement));
+  __ rts();
+
+  __ bind(&slow);
+  __ push(r1);
+  __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
+}
+
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // sp[0] : number of parameters
+  // sp[4] : receiver displacement
+  // sp[8] : function
+
+  // live-in registers: none
+  // defined registers (live through the whole function): sp, fp, cp
+
+  // Some preconditions, make the code selection simpler
+  // If these fail, verify and adapt the code below.
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kPointerSizeLog2 == 2);
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor_frame, try_allocate, runtime;
+  // Pseudo code {
+  //   live-in: none
+  //   live-out: r2
+  //   r2 = load32(add32(fp, kCallerFPOffset))
+  //   r3 = load32(add32(r2, kContextOffset))
+  //   t0 = r3 == ARGUMENTS_ADAPTOR
+  //   if (t0) goto adaptor_frame
+  // }
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmpeq(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ bt(&adaptor_frame);
+
+  // Get the length from the frame.
+  // Pseudo code {
+  //   live-in: r2
+  //   live-out: r2, r1
+  //   r1 = load32(add32(sp, 0))
+  //   goto  try_allocate
+  // }
+  __ ldr(r1, MemOperand(sp, 0));
+  __ jmp(&try_allocate);
+
+  // Patch the arguments.length and the parameters pointer.
+  __ bind(&adaptor_frame);
+  // Pseudo code {
+  //   live-in: r2
+  //   live-out: r2, r1
+  //   r1 = load32(add32(r2, kLengthOffset))
+  //   store32(add32(sp, 0), r1)
+  //   r3 = add32(r2, shl32(r1, kPointerSizeLog2 - kSmiTagSize))
+  //   r3 = add32(r3, kCallerSPOffset)
+  //   store32(add32(sp, 1 * kPointerSize), r3)
+  // }
+  __ ldr(r1, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ str(r1, MemOperand(sp, 0));
+  __ lsl(r0, r1, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r0, r2, r0);
+  __ add(r0, r0, Immediate(StandardFrameConstants::kCallerSPOffset));
+  __ mov(MemOperand(sp, 1 * kPointerSize), r0);
+
+  // Try the new space allocation. Start out with computing the size
+  // of the arguments object and the elements array in words.
+  Label add_arguments_object;
+  __ bind(&try_allocate);
+  // Pseudo code {
+  //   live-in: r2, r1
+  //   live-out: r2, r1
+  //   t0 = r1 == 0
+  //   if (t0) goto add_arguments_object
+  //   r1 = r1 >> kSmiTagSize
+  //   r1 = r1 + FixedArray::kHeaderSize / kPointerSize
+  //   add_arguments_object:
+  //   r1 = r1 + GetArgumentsObjectSize() / kPointerSize
+  // }
+  __ cmpeq(r1, Immediate(0));
+  __ bt(&add_arguments_object);
+  __ lsr(r1, r1, Immediate(kSmiTagSize));
+  __ add(r1, r1, Immediate(FixedArray::kHeaderSize / kPointerSize));
+  __ bind(&add_arguments_object);
+  __ add(r1, r1, Immediate(GetArgumentsObjectSize() / kPointerSize));
+  
+  // Do the allocation of both objects in one go.
+  // Pseudo code {
+  //   live-in: r1
+  //   live-out: r0
+  //   AllocateInNewSpace(r1, r0, r2, r3)
+  // }
+  __ AllocateInNewSpace(
+      r1, // object size
+      r0, // result
+      r2, // scratch1
+      r4, // scratch2
+      &runtime,
+      static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
+
+  // Get the arguments boilerplate from the current (global) context.
+  // Pseudo code {
+  //   live-in: r0
+  //   live-out: r0, r4
+  //   r4 = load32(add32(cp, Context::SlotOffset(Context::GLOBAL_INDEX)))
+  //   r4 = load32(add32(r4, GlobalObject::kGlobalContextOffset))
+  //   r4 = load32(add32(r4, Context::SlotOffset(GetArgumentsBoilerplateIndex())))
+  // }
+  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
+  __ ldr(r4, MemOperand(r4,
+			Context::SlotOffset(GetArgumentsBoilerplateIndex())));
+  // }
+
+  // Copy the JS object part.
+  // Pseudo code {
+  //   live-in: r0, r4
+  //   live-out: r0
+  //   CopyFields(r0 // dst , r4 //src , r3.bit() // scratch list,
+  //              JSObject::kHeaderSize / kPointerSize)
+  // }
+  __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
+
+  if (type_ == NEW_NON_STRICT) {
+    // Setup the callee in-object property.
+    STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
+    const int kCalleeOffset = JSObject::kHeaderSize +
+                              Heap::kArgumentsCalleeIndex * kPointerSize;
+    // Pseudo code {
+    //   live-in: r0
+    //   live-out: r0
+    //   r3 = load32(add32(sp, 2 * kPointerSize))
+    //   store32(add32(r0, kCalleeOffset), r3)
+    // }
+    __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
+    __ str(r1, FieldMemOperand(r0, kCalleeOffset));
+  }
+
+  // Get the length (smi tagged) and set that as an in-object property too.
+  STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
+  // Pseudo code {
+  //   live-in: r0
+  //   live-out: r0, r1
+  //   r1 = load32(add32(sp, 0 * kPointerSize))
+  //   store32(add32(r0, JSObject::kHeaderSize + Heap::kArgumentsLengthIndex * kPointerSize), r1)
+  // }
+  __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
+  __ str(r1, FieldMemOperand(r0, JSObject::kHeaderSize +
+			         Heap::kArgumentsLengthIndex * kPointerSize));
+
+  // If there are no actual arguments, we're done.
+  Label done;
+  // Pseudo code {
+  //   live-in: r1, r0
+  //   live-out: r1, r0
+  //   t0 = r1 == 0
+  //   if (t0) goto done
+  // }
+  __ cmpeq(r1, Immediate(0));
+  __ bt(&done);
+  // }
+
+  // Get the parameters pointer from the stack.
+  // Pseudo code {
+  //   live-in: r1, r0
+  //   live-out: r1, r0, r2
+  //   r2 = load32(add32(sp, 1 * kPointerSize))
+  // }
+  __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
+
+  // Setup the elements pointer in the allocated arguments object and
+  // initialize the header in the elements fixed array.
+  // Pseudo code {
+  //   live-in: r1, r0, r2
+  //   live-out: r1, r0, r2
+  //   r4 = add32(r0, GetArgumentsObjectSize())
+  //   store32(add32(r0, JSObject::kElementsOffset), r4)
+  //   LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
+  //   store32(add32(r4, FixedArray::kMapOffset), r3)
+  //   store32(add32(r4, FixedArray::kLengthOffset), r1)
+  //   r1 = shr(r1, kSmiTagSize)
+  // }
+  __ add(r4, r0, Immediate(GetArgumentsObjectSize()));
+  __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
+  __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
+  __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
+  __ str(r1, FieldMemOperand(r4, FixedArray::kLengthOffset));
+  __ lsr(r1, r1, Immediate(kSmiTagSize));
+
+  // Copy the fixed array slots.
+  Label loop;
+  // Setup r4 to point to the first array slot.
+  // Pseudo code {
+  //   live-in: r1, r0, r2, r4
+  //   live-out: r1, r0, r2, r4
+  //   r4 = add32(r4, FixedArray::kHeaderSize - kHeapObjectTag)
+  // }
+  __ add(r4, r4, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ bind(&loop);
+  // Pre-decrement r2 with kPointerSize on each iteration.
+  // Pre-decrement in order to skip receiver.
+  // Post-increment r4 with kPointerSize on each iteration.
+  // Pseudo code {
+  //   live-in: r1, r0, r2, r4
+  //   live-out: r1, r0, r2, r4
+  //   r2 = sub32(r2, kPointerSize)
+  //   r3 = load32(r2)
+  //   store32(r4, r3)
+  //   r4 = add32(r4, kPointerSize)
+  //   r1 = sub32(r1, 1)
+  //   t0 = r1 == 0
+  //   if (!t0) goto loop
+  // }
+  __ sub(r2, r2, Immediate(kPointerSize));
+  __ ldr(r3, MemOperand(r2, 0));
+  __ str(r3, MemOperand(r4, 0));
+  __ add(r4, r4, Immediate(kPointerSize));
+  __ sub(r1, r1, Immediate(1));
+  __ cmpeq(r1, Immediate(0));
+  __ bf(&loop);
+
+  // Return and remove the on-stack parameters.
+  __ bind(&done);
+  // Pseudo code {
+  //   live-in: none
+  //   live-out: none
+  //   sp = sp + 3 * kPointerSize
+  //   return
+  // }
+  __ add(sp, sp, Immediate(3 * kPointerSize));
+  __ Ret();
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  // Pseudo code {
+  //   live-in: none
+  //   live-out: none
+  //   TailCallRuntime
+  // }
+  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
+}
+
 
 void TypeRecordingBinaryOpStub::GenerateSmiStub(MacroAssembler* masm) {
   Label not_smis, call_runtime;
