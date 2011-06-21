@@ -434,7 +434,8 @@ TEST(sh4_ma_4) {
 }
 
 
-// Test JumpIfSmi/JumpIfNotSmi/LoadRoot/StoreRoot/CompareRoot/CheckMap
+// Test JumpIfSmi(), JumpIfNotSmi(), LoadRoot(), StoreRoot(), CompareRoot(),
+// CheckMap(), IsObjectStringType()
 TEST(sh4_ma_5) {
   BEGIN();
 
@@ -547,6 +548,15 @@ TEST(sh4_ma_5) {
   B_LINE(al, &error); // should not be there
   __ bind(&skip_no_map1);
  
+  Label skip_is_string;
+  __ mov(r0, Immediate(EMPTY_STRING())); // String object
+  Condition cond = assm.IsObjectStringType(r0, r1);
+  __ b(cond, &skip_is_string);
+  B_LINE(al, &error);
+  __ bind(&skip_is_string);
+  __ mov(r0, Immediate(NAN_VALUE())); // HeapNumber object
+  cond = assm.IsObjectStringType(r0, r1);
+  B_LINE(cond, &error);
 
  // All ok.
   __ mov(r0, Immediate(0));
