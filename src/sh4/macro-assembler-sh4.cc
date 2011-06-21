@@ -2073,7 +2073,7 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
     Register scratch,
     Label* not_power_of_two_or_zero) {
   ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
-
+  // Note: actually the case 0x80000000 is considered a power of two (not a neg value)
   sub(scratch, reg, Immediate(1));
   cmpge(scratch, Immediate(0));
   bf(not_power_of_two_or_zero);
@@ -2088,7 +2088,7 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
     Label* zero_and_neg,
     Label* not_power_of_two) {
   ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
-  // TODO: check why this is the same as JumpIfNotPowerOfTwoOrZero()
+  // Note: actually the case 0x80000000 is considered a pozer of two (not a neg value)
   sub(scratch, reg, Immediate(1));
   cmpge(scratch, Immediate(0));
   bf(zero_and_neg);
