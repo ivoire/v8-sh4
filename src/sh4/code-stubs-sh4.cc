@@ -2313,8 +2313,8 @@ static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
   __ b(ne, &object_test);
   __ tst(r2, Immediate(kIsSymbolMask));
   __ b(eq, possible_strings);
-  __ CompareObjectType(lhs, r3, r3, FIRST_NONSTRING_TYPE);
-  __ b(ge, not_both_strings);
+  __ CompareObjectType(lhs, r3, r3, FIRST_NONSTRING_TYPE, ge);
+  __ b(not_both_strings);
   __ tst(r3, Immediate(kIsSymbolMask));
   __ b(eq, possible_strings);
 
@@ -2324,10 +2324,10 @@ static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
   __ Ret();
 
   __ bind(&object_test);
-  __ cmp(r2, Immediate(FIRST_JS_OBJECT_TYPE));
-  __ b(lt, not_both_strings);
-  __ CompareObjectType(lhs, r2, r3, FIRST_JS_OBJECT_TYPE);
-  __ b(lt, not_both_strings);
+  __ cmpge(r2, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ bf(not_both_strings);
+  __ CompareObjectType(lhs, r2, r3, FIRST_JS_OBJECT_TYPE, ge);
+  __ bf(not_both_strings);
   // If both objects are undetectable, they are equal. Otherwise, they
   // are not equal, since they are different objects and an object is not
   // equal to undefined.
