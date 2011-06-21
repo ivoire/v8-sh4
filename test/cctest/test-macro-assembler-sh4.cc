@@ -72,9 +72,19 @@ static void InitializeVM() {
 
 #define THE_HOLE_VALUE() (assm.isolate()->factory()->the_hole_value())
 
+#define NAN_VALUE() (assm.isolate()->factory()->nan_value())
+
+#define FALSE_VALUE() (assm.isolate()->factory()->false_value())
+
+#define EMPTY_STRING() (assm.isolate()->factory()->empty_string())
+
+#define GLOBAL_CONTEXT() (assm.isolate()->global_context())
+
 #define GLOBAL_CONTEXT_MAP() (assm.isolate()->factory()->global_context_map())
 
 #define HEAP_NUMBER_MAP() (assm.isolate()->factory()->heap_number_map())
+
+#define STRING_MAP() (assm.isolate()->factory()->string_map())
 
 #define BEGIN()                                         \
   /* Disable compilation of natives. */                 \
@@ -424,7 +434,7 @@ TEST(sh4_ma_4) {
 }
 
 
-// Test JumpIfSmi/JumpIfNotSmi/LoadRoot/CompareRoot/CheckMap
+// Test JumpIfSmi/JumpIfNotSmi/LoadRoot/StoreRoot/CompareRoot/CheckMap
 TEST(sh4_ma_5) {
   BEGIN();
 
@@ -444,6 +454,14 @@ TEST(sh4_ma_5) {
   __ cmphs(sp, r1); // Check that stack limit is lower than sp
   B_LINE(ne, &error);
 
+  __ LoadRoot(r0, Heap::kRealStackLimitRootIndex);
+  __ mov(r1, Immediate(0xdead));
+  __ StoreRoot(r1, Heap::kRealStackLimitRootIndex);
+  __ LoadRoot(r1, Heap::kRealStackLimitRootIndex);
+  __ cmp(r1, Immediate(0xdead));
+  B_LINE(ne, &error);
+  __ StoreRoot(r0, Heap::kRealStackLimitRootIndex);
+  
   __ mov(r0, Immediate(THE_HOLE_VALUE()));
   __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
   __ cmp(r0, r1);
@@ -490,33 +508,44 @@ TEST(sh4_ma_5) {
   B_LINE(al, &error);
   __ bind(&skip_is_not_smi1);
 
-  Label no_map1, no_map2, no_map3, no_map4, skip_no_map1;
-  __ mov(r0, Immediate(2)); // this is Smi integer 1
+  Label no_map1, no_map2, no_map3, no_map4, no_map5, skip_no_map1;
+  __ mov(r0, Immediate(2)); // Smi integer 1
   __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
 	      &no_map1, false); // Check that Smi fails
   B_LINE(al, &error); // should not be there
   __ bind(&no_map1);
 
-  __ mov(r0, Immediate(HEAP_NUMBER_MAP()));
-  __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
+  __ mov(r0, Immediate(EMPTY_STRING())); // String object
+  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(), 
 	      &no_map2, false); // Not the right map
   B_LINE(al, &error); // should not be there
   __ bind(&no_map2);
 
-  __ mov(r0, Immediate(HEAP_NUMBER_MAP()));
-  __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
+  __ mov(r0, Immediate(EMPTY_STRING())); // String object
+  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(), 
 	      &no_map3, true); // Heap object but not the right map
   B_LINE(al, &error); // should not be there
   __ bind(&no_map3);
 
-  // TODO: must put Global context in r0
-//   __ mov(r0, Immediate(GLOBAL_CONTEXT_MAP()));
-//   __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
-// 	      &no_map4, false); // This is the right map
-//   __ jmp(&skip_no_map1);
-//   __ bind(&no_map4);
-//   B_LINE(al, &error); // should not be there
-//   __ bind(&skip_no_map1);
+  __ mov(r0, Immediate(EMPTY_STRING())); // String object
+  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex, 
+	      &no_map4, true); // Heap object but not the right map
+  B_LINE(al, &error); // should not be there
+  __ bind(&no_map4);
+
+  __ mov(r0, Immediate(NAN_VALUE())); // HeapNumber object
+  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(), 
+ 	      &no_map5, false); // This is the right map 
+  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(), 
+ 	      &no_map5, true);
+  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex, 
+ 	      &no_map5, false);
+  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex, 
+ 	      &no_map5, true);
+  __ jmp(&skip_no_map1);
+  __ bind(&no_map5);
+  B_LINE(al, &error); // should not be there
+  __ bind(&skip_no_map1);
  
 
  // All ok.
