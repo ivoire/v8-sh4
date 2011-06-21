@@ -1873,7 +1873,59 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 
 const char* CompareStub::GetName() {
-  UNIMPLEMENTED();
+  ASSERT((lhs_.is(r0) && rhs_.is(r1)) ||
+         (lhs_.is(r1) && rhs_.is(r0)));
+
+  if (name_ != NULL) return name_;
+  const int kMaxNameLength = 100;
+  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
+      kMaxNameLength);
+  if (name_ == NULL) return "OOM";
+
+  const char* cc_name;
+  switch (cc_) {
+    case lt: cc_name = "LT"; break;
+    case gt: cc_name = "GT"; break;
+    case le: cc_name = "LE"; break;
+    case ge: cc_name = "GE"; break;
+    case eq: cc_name = "EQ"; break;
+    case ne: cc_name = "NE"; break;
+    default: cc_name = "UnknownCondition"; break;
+  }
+
+  const char* lhs_name = lhs_.is(r0) ? "_r0" : "_r1";
+  const char* rhs_name = rhs_.is(r0) ? "_r0" : "_r1";
+
+  const char* strict_name = "";
+  if (strict_ && (cc_ == eq || cc_ == ne)) {
+    strict_name = "_STRICT";
+  }
+
+  const char* never_nan_nan_name = "";
+  if (never_nan_nan_ && (cc_ == eq || cc_ == ne)) {
+    never_nan_nan_name = "_NO_NAN";
+  }
+
+  const char* include_number_compare_name = "";
+  if (!include_number_compare_) {
+    include_number_compare_name = "_NO_NUMBER";
+  }
+
+  const char* include_smi_compare_name = "";
+  if (!include_smi_compare_) {
+    include_smi_compare_name = "_NO_SMI";
+  }
+
+  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
+               "CompareStub_%s%s%s%s%s%s",
+               cc_name,
+               lhs_name,
+               rhs_name,
+               strict_name,
+               never_nan_nan_name,
+               include_number_compare_name,
+               include_smi_compare_name);
+  return name_;
 }
 
 
