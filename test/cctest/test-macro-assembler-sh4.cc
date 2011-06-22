@@ -449,12 +449,6 @@ TEST(sh4_ma_5) {
   __ cmphs(sp, r1); // Check that stack limit is lower than sp
   B_LINE(ne, &error);
 
-  __ LoadRoot(r1, Heap::kStackLimitRootIndex);
-  __ tst(r1, Immediate(1)); // Check that it is a Smi
-  B_LINE(ne, &error);
-  __ cmphs(sp, r1); // Check that stack limit is lower than sp
-  B_LINE(ne, &error);
-
   __ LoadRoot(r0, Heap::kRealStackLimitRootIndex);
   __ mov(r1, Immediate(0xdead));
   __ StoreRoot(r1, Heap::kRealStackLimitRootIndex);
