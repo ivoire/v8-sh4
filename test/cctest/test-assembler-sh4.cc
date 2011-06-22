@@ -1097,7 +1097,7 @@ TEST(22_bis) {
   JIT();
 
 #ifdef DEBUG
-  Code::cast(code)->Print();
+//  Code::cast(code)->Print();
 #endif
 
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
