@@ -696,7 +696,7 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
     // We start by seeing if the mantissas (that are equal) or the bottom
     // 31 bits of the rhs exponent are non-zero.  If so we return not
     // equal.
-    __ lsl(r4, lhs_mantissa, Immediate(kSmiTagSize));
+    __ lsl(r4, lhs_exponent, Immediate(kSmiTagSize));
     __ orr(r4, lhs_mantissa, r4);
     __ cmp(r4, Immediate(0));
     __ mov(r0, r4, ne);
