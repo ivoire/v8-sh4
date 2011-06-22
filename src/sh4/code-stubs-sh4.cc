@@ -377,7 +377,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   // Compute lower part of fraction (last 12 bits).
   __ lsl(mantissa, source_, Immediate(HeapNumber::kMantissaBitsInTopWord));
   // And the top (top 20 bits).
-  __ lsl(ip, source_, Immediate(32 - HeapNumber::kMantissaBitsInTopWord));
+  __ lsr(ip, source_, Immediate(32 - HeapNumber::kMantissaBitsInTopWord));
   __ orr(exponent, exponent, ip);
   __ Ret();
 }
