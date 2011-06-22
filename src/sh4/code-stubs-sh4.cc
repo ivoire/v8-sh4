@@ -2768,14 +2768,14 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ cmphi(scratch, Immediate(static_cast<int>('9' - '0')));
   __ bt(&not_array_index);
   __ sub(scratch, c2, Immediate(static_cast<int>('0')));
-  __ cmp(scratch, Immediate(static_cast<int>('9' - '0')));
+  __ cmpgtu(scratch, Immediate(static_cast<int>('9' - '0')));
 
   // If check failed combine both characters into single halfword.
   // This is required by the contract of the method: code at the
   // not_found branch expects this combination in c1 register
-  __ lsl(scratch, c2, Immediate(kBitsPerByte)); // FIXME: conditional ?
-  __ lor(c1, c1, scratch);
-  __ b(not_found);
+  __ lsl(scratch1, c2, Immediate(kBitsPerByte));
+  __ lor(c1, c1, scratch1, ne);
+  __ b(ne, not_found);
 
   __ bind(&not_array_index);
   // Calculate the two character string hash.
@@ -2967,8 +2967,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
   __ JumpIfNotBothSmi(to, from, &runtime);      // not in arm code
   // I.e., arithmetic shift right by one un-smi-tags.
-  __ asr(r2, to, Immediate(1)); // FIXME: setcc
-  __ asr(r3, from, Immediate(1));       // FIXME: conditional
+  __ asr(r2, to, Immediate(1));
+  __ asr(r3, from, Immediate(1));
   __ cmpge(r3, Immediate(0));
   __ bf(&runtime);  // From is negative.
 
