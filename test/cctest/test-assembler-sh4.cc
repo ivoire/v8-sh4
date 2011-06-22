@@ -1106,3 +1106,57 @@ TEST(22_bis) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(10000, res);
 }
+
+TEST(23) {
+  BEGIN();
+  Label error;
+
+  __ mov(r0, Immediate(0));
+  __ cmpeq(r0, Immediate(0), r4);
+  __ mov(r1, Immediate(0x00ff00ff));
+  __ mov(r2, Immediate(0xff00ff00));
+  __ lor(r1, r1, r2, eq);
+  __ cmpeq(r1, Immediate(0xffffffff));
+  __ bf(&error);
+
+  __ cmpeq(r0, Immediate(0), r4);
+  __ mov(r1, Immediate(0x0000ff00));
+  __ mov(r2, Immediate(0x000000ff));
+  __ lor(r1, r1, r2, ne);
+  __ cmpeq(r1, Immediate(0x0000ff00), r4);
+  __ bf(&error);
+
+  __ mov(r0, Immediate(0));
+  __ cmpeq(r0, Immediate(0), r4);
+  __ mov(r1, Immediate(0xffff00ff));
+  __ lor(r1, r1, Immediate(0xffffeeff), eq, r2);
+  __ cmpeq(r1, Immediate(0xffffeeff), r2);
+  __ bf(&error);
+
+  __ cmpeq(r0, Immediate(0), r4);
+  __ mov(r1, Immediate(0x0000ff00));
+  __ lor(r1, r1, Immediate(0x000000ff), ne, r2);
+  __ cmpeq(r1, Immediate(0x0000ff00), r2);
+  __ bf(&error);
+
+
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, Immediate(1));
+  __ rts();
+
+  JIT();
+
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
+
