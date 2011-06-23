@@ -86,7 +86,7 @@ static void ProbeTable(Isolate* isolate,
 
   // Re-load code entry from cache.
   __ lsl(ip, offset, Immediate(1));
-  __ mov(offset, MemOperand(offsets_base_addr, ip));
+  __ ldr(offset, MemOperand(offsets_base_addr, ip));
 
   // Jump to the first instruction in the code stub.
   __ add(offset, offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -251,7 +251,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 
   // Check that the receiver isn't a smi.
   __ tst(receiver, Immediate(kSmiTagMask));
-  __ bt(&miss);
+  __ b(eq, &miss);
 
   // Get the map of the receiver and compute the hash.
   __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
@@ -319,11 +319,11 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Label* miss_label) {
   // Check that the receiver isn't a smi.
   __ tst(receiver, Immediate(kSmiTagMask));
-  __ bt(miss_label);
+  __ b(eq, miss_label);
 
   // Check that the object is a JS array.
   __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
-  __ bf(miss_label);
+  __ b(ne, miss_label);
 
   // Load length directly from the JS array.
   __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -344,15 +344,15 @@ static void GenerateStringCheck(MacroAssembler* masm,
 
   // Check that the receiver isn't a smi.
   __ tst(receiver, Immediate(kSmiTagMask));
-  __ bt(smi);
+  __ b(eq, smi);
 
   // Check that the object is a string.
   __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   __ land(scratch2, scratch1, Immediate(kIsNotStringMask));
   // The cast is to resolve the overload for the argument of 0x0.
-  __ cmpeq(scratch2, Immediate(static_cast<int32_t>(kStringTag)));
-  __ bf(non_string_object);
+  __ cmp(scratch2, Immediate(static_cast<int32_t>(kStringTag)));
+  __ b(ne, non_string_object);
 }
 
 
@@ -381,8 +381,8 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   if (support_wrappers) {
     // Check if the object is a JSValue wrapper.
     __ bind(&check_wrapper);
-    __ cmpeq(scratch1, Immediate(JS_VALUE_TYPE));
-    __ bf(miss);
+    __ cmp(scratch1, Immediate(JS_VALUE_TYPE));
+    __ b(ne, miss);
 
     // Unwrap the value and check if the wrapped value is a string.
     __ ldr(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
@@ -627,7 +627,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
     } else if (heap()->InNewSpace(prototype)) {
       // Get the map of the current object.
       __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
-      __ cmpeq(scratch1, Immediate(Handle<Map>(current->map())));
+      __ cmp(scratch1, Immediate(Handle<Map>(current->map())));
 
       // Branch on the result of the map check.
       __ b(ne, miss);
@@ -797,6 +797,25 @@ MaybeObject* CallStubCompiler::GenerateMissBranch() {
   if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   __ Jump(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
   return obj;
+}
+
+
+MaybeObject* CallStubCompiler::CompileCallField(JSObject* object,
+                                                JSObject* holder,
+                                                int index,
+                                                String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
+                                                    JSObject* holder,
+                                                    JSGlobalPropertyCell* cell,
+                                                    JSFunction* function,
+                                                    String* name) {
+  UNIMPLEMENTED();
+  return NULL;
 }
 
 
@@ -978,15 +997,6 @@ MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
 }
 
 
-MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
-                                                    JSObject* holder,
-                                                    JSGlobalPropertyCell* cell,
-                                                    JSFunction* function,
-                                                    String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
 MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
                                                    JSObject* holder,
                                                    JSGlobalPropertyCell* cell,
@@ -1127,16 +1137,6 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
 
   // Return the generated code.
   return GetCode(function);
-}
-
-
-MUST_USE_RESULT MaybeObject* CallStubCompiler::CompileCallField(
-    JSObject* object,
-    JSObject* holder,
-    int index,
-    String* name) {
-  UNIMPLEMENTED();
-  return NULL;
 }
 
 
@@ -1335,7 +1335,6 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   UNIMPLEMENTED();
   return NULL;
 }
-
 
 
 MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
