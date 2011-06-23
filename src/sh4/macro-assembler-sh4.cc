@@ -133,6 +133,7 @@ void MacroAssembler::ConvertToInt32(Register source,
 
   ASSERT(!source.is(sh4_ip) && !dest.is(sh4_ip) && !scratch.is(sh4_ip) &&
          !scratch2.is(sh4_ip) && !double_scratch.is(sh4_ip));
+  ASSERT(!source.is(dest));
 
   // TODO: SH4, check VFP code
   // if (CpuFeatures::IsSupported(VFP3)) {
@@ -178,10 +179,10 @@ void MacroAssembler::ConvertToInt32(Register source,
     // range 0-2047 so there is no overflow.
     int fudge_factor = 0x400;
     sub(scratch2, scratch2, Immediate(fudge_factor));
-    cmpeq(scratch2, Immediate(non_smi_exponent - fudge_factor));
+    cmp(scratch2, Immediate(non_smi_exponent - fudge_factor));
     // If we have a match of the int32-but-not-Smi exponent then skip some
     // logic.
-    bt(&right_exponent);
+    b(eq, &right_exponent);
     // If the exponent is higher than that then go to slow case.  This catches
     // numbers that don't fit in a signed int32, infinities and NaNs.
     cmpgt(scratch2, Immediate(non_smi_exponent - fudge_factor));
@@ -221,11 +222,9 @@ void MacroAssembler::ConvertToInt32(Register source,
     lsr(scratch, scratch, Immediate(32 - shift_distance));
     lor(scratch, scratch2, scratch);
     // Move down according to the exponent.
-    ldr(scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
     lsr(dest, scratch, dest);
     // Fix sign if sign bit was set.
-    Label skip;
-    b(eq, &skip);
+    b(eq, &done);
     rsb(dest, dest, Immediate(0));
     bind(&done);
   }
