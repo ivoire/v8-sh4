@@ -123,7 +123,6 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
-
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
 // argument count matches the formal parameter count expected by the
@@ -630,23 +629,11 @@ void FullCodeGenerator::Split(Condition cond,
   // We use ne for inverting conditions.
   ASSERT(cond == ne || cond == eq);
   if (if_false == fall_through) {
-    if (cond == ne) {
-      __ bf(if_true);
-    } else {
-      __ bt(if_true);
-    }
+    __ b(cond, if_true);
   } else if (if_true == fall_through) {
-    if (cond == ne) {
-      __ bt(if_false);
-    } else {
-      __ bf(if_false);
-    }
+    __ b(NegateCondition(cond), if_false);
   } else {
-    if (cond == ne) {
-      __ bf(if_true);
-    } else {
-      __ bt(if_true);
-    }
+    __ b(cond, if_true);
     __ b(if_false);
   }
 }
@@ -1268,7 +1255,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   } else {
     context()->Plug(r0);
   }
-
 }
 
 
@@ -2460,7 +2446,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       VisitForAccumulatorValue(expr->expression());
       Label no_conversion;
       __ tst(result_register(), Immediate(kSmiTagMask));
-      __ bt(&no_conversion);
+      __ b(eq, &no_conversion);
       ToNumberStub convert_stub;
       __ CallStub(&convert_stub);
       __ bind(&no_conversion);
