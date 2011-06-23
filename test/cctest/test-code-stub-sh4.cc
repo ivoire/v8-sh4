@@ -37,8 +37,6 @@ using namespace v8::internal;
 
 Handle<JSFunction> 
 CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
-  fprintf(stderr, "%s\n", __FUNCTION__);
-
   Factory* factory = isolate->factory();
   
   // Allocate the function
@@ -56,8 +54,6 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
   new_function->shared()->set_start_position(0);
   new_function->shared()->set_end_position(source->length());
   new_function->shared()->DontAdaptArguments();
-
-  fprintf(stderr, "%s: %p\n", __FUNCTION__, (void *)*new_function);
 
   return new_function;
 }
@@ -96,8 +92,25 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 #define PRINT() (void)0
 #endif
 
-    
+#define GLOBAL_FUNCTION_PTR() (isolate->global_context()->closure())
+#define GLOBAL_PTR() (*(isolate->global()))
+#define GLOBAL_CONTEXT_PTR() (*(isolate->global_context()))
+#define GLOBAL_CLOSURE_PTR() (isolate->global_context()->closure())
+#define GLOBAL_OBJECT_FUNCTION_PTR() (isolate->global_context()->object_function())
+
 #define __ assm.
+
+// This macro stores in r10 the line number before branching to the error label.
+// At the error label r10 can be moved to r0 such that return code of the
+// function if not 0 indicates an error at the line of the branch.
+#define B_LINE(cond, target) do { \
+    __ mov(r10, Immediate(__LINE__)); \
+    if (cond == al) { \
+      __ b(target);  \
+    } else { \
+      __ b(cond, target);  \
+    } \
+  } while(0);
 
 
 // Test Empty function call
@@ -160,3 +173,99 @@ TEST(sh4_cs_1) {
   CHECK_EQ(0, Smi::cast(*result)->value());
 }						     
 
+
+// Test LoadGlobalFunction(), LoadContext(), LoadGlobalFunctionInitialMap()
+TEST(sh4_cs_2) {
+  BEGIN();
+
+  Label error;
+
+  // Check that cp is actuall the current context
+  __ mov(r0, Operand((intptr_t)GLOBAL_CONTEXT_PTR(), 
+		     RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r0, cp);
+  B_LINE(ne, &error);
+  
+  // Check MemOperand retrieving global object
+  __ ldr(r0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(r1, Operand((intptr_t)GLOBAL_PTR(), RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+  // check FieldMemOperand retrieving global context from global object
+  __ ldr(r0, FieldMemOperand(r0,
+			     GlobalObject::kGlobalContextOffset));
+  __ mov(r1, Operand((intptr_t)GLOBAL_CONTEXT_PTR(), 
+		     RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+  // Check that we can find the closure from the global context
+  __ ldr(r0, MemOperand(r0,
+			Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(), 
+		     RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+  
+  // Check LoadContext()
+  __ LoadContext(r0, 0);
+  __ mov(r1, Operand(ExternalReference(Isolate::k_context_address, isolate)));
+  __ ldr(r1, MemOperand(r1));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+  // Get cp from isolate directly
+  __ mov(r1, Operand((intptr_t)isolate->context(), 
+		     RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+
+  // Check LoadContext with context level 1 and 2.
+  // As we are in global context, it alwasy returns the global context
+  // TODO: force a deeper context when initalizing the VM
+  __ LoadContext(r1, 1);
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+  __ LoadContext(r1, 2);
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+
+
+  // Check LoadGlobalFunction()
+  __ LoadGlobalFunction(Context::CLOSURE_INDEX, r0/* Resulting closure*/);
+  __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(), 
+		     RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+
+  // Check LoadGlobalFunctionInitialMap() on global object function
+  __ LoadGlobalFunction(Context::OBJECT_FUNCTION_INDEX, r0/* Resulting closure*/);
+  __ mov(r1, Operand((intptr_t)GLOBAL_OBJECT_FUNCTION_PTR(), 
+		     RelocInfo::EXTERNAL_REFERENCE));
+  
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+  __ LoadGlobalFunctionInitialMap(r0, r1/*result map*/, r2/*scratch*/);
+  __ mov(r0, Operand((intptr_t)GLOBAL_OBJECT_FUNCTION_PTR()->
+		     prototype_or_initial_map(), 
+		     RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+  
+
+  // All ok.
+  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ rts();
+
+  __ bind(&error);
+  __ SmiTag(r0, r10);
+  __ rts();
+
+  JIT();
+  
+  PRINT();
+
+  CALL();
+
+  // The function must return a result as Smi.
+  CHECK(result->IsSmi());
+  CHECK_EQ(0, Smi::cast(*result)->value());
+}						     
