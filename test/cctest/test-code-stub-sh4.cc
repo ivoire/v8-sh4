@@ -98,6 +98,8 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 #define GLOBAL_CLOSURE_PTR() (isolate->global_context()->closure())
 #define GLOBAL_OBJECT_FUNCTION_PTR() (isolate->global_context()->object_function())
 
+#define CMT(msg) { Comment cmnt(&assm, msg); } while(0)
+
 #define __ assm.
 
 // This macro stores in r10 the line number before branching to the error label.
@@ -159,6 +161,7 @@ TEST(sh4_cs_1) {
   __ Dead(r0, r1, r2, r3);
   __ Dead(r4, r5, r6, r7);
   __ Dead(r8, r9, r10, r11);
+
   __ mov(r0, Immediate(Smi::FromInt(0)));
   __ rts();
 
@@ -174,38 +177,102 @@ TEST(sh4_cs_1) {
 }						     
 
 
-// Test LoadGlobalFunction(), LoadContext(), LoadGlobalFunctionInitialMap()
+// Test CompareInstanceType(), CompareObjectType()
 TEST(sh4_cs_2) {
   BEGIN();
 
   Label error;
 
-  // Check that cp is actuall the current context
+  // Check that roots is actually te root object
+  CMT("Check roots");
+  __ mov(r0, Operand(ExternalReference::roots_address(assm.isolate())));
+  __ cmp(r0, roots);
+  B_LINE(ne, &error);
+  
+  // Check that cp is actually the current context
+  CMT("Check cp");
   __ mov(r0, Operand((intptr_t)GLOBAL_CONTEXT_PTR(), 
 		     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, cp);
   B_LINE(ne, &error);
-  
-  // Check MemOperand retrieving global object
+
+  CMT("Check MemOperand(cp, GLOBAL_INDEX) == GLOBAL_PTR())");
   __ ldr(r0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ mov(r1, Operand((intptr_t)GLOBAL_PTR(), RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
-  // check FieldMemOperand retrieving global context from global object
+
+  CMT("Check FieldMemOperand(GLOBAL_PTR(), GlobalContextOffset) == GLOBAL_CONTEXT_PTR())");
   __ ldr(r0, FieldMemOperand(r0,
 			     GlobalObject::kGlobalContextOffset));
   __ mov(r1, Operand((intptr_t)GLOBAL_CONTEXT_PTR(), 
 		     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
-  // Check that we can find the closure from the global context
+
+  CMT("Check MemOperand(GLOBAL_CONTEXT_PTR(), CLOSURE_INDEX) == GLOBAL_CLOSURE_PTR())");
   __ ldr(r0, MemOperand(r0,
 			Context::SlotOffset(Context::CLOSURE_INDEX)));
   __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(), 
 		     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
+
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) == JS_GLOBAL_OBJECT_TYPE");
+  __ mov(r0, Operand((intptr_t)GLOBAL_PTR(), 
+		     RelocInfo::EXTERNAL_REFERENCE));
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ CompareInstanceType(r1, r2/*type*/ , JS_GLOBAL_OBJECT_TYPE, eq);
+  B_LINE(f, &error);
+  __ cmp(r2, Immediate(JS_GLOBAL_OBJECT_TYPE));
+  B_LINE(f, &error);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) != JS_VALUE_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , JS_VALUE_TYPE, eq);
+  B_LINE(t, &error);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) >= (ge) FIRST_JS_OBJECT_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , FIRST_JS_OBJECT_TYPE, hs);
+  B_LINE(f, &error);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) >= (hs) FIRST_JS_OBJECT_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , FIRST_JS_OBJECT_TYPE, ge);
+  B_LINE(f, &error);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) ! >= FIRST_FUNCTION_CLASS_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , FIRST_FUNCTION_CLASS_TYPE, ge);
+  B_LINE(t, &error);
+
+  CMT("Check CompareObjectType(GLOBAL_PTR()) == JS_GLOBAL_OBJECT_TYPE");
+  __ CompareObjectType(r0, r3/*map*/, r4/*type*/ , JS_GLOBAL_OBJECT_TYPE, eq);
+  B_LINE(f, &error);
+  __ cmp(r1, r3); // check that map matches
+  B_LINE(f, &error);
+  __ cmp(r2, r4); // check that type matches
+
+  // All ok.
+  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ rts();
+
+  __ bind(&error);
+  __ SmiTag(r0, r10);
+  __ rts();
+
+  JIT();
   
+  PRINT();
+
+  CALL();
+
+  // The function must return a result as Smi.
+  CHECK(result->IsSmi());
+  CHECK_EQ(0, Smi::cast(*result)->value());
+}
+
+
+// Test LoadGlobalFunction(), LoadContext(), LoadGlobalFunctionInitialMap()
+// TryGetFunctionPrototype()
+TEST(sh4_cs_3) {
+  BEGIN();
+
+  Label error;
+
   // Check LoadContext()
   __ LoadContext(r0, 0);
   __ mov(r1, Operand(ExternalReference(Isolate::k_context_address, isolate)));
@@ -250,6 +317,40 @@ TEST(sh4_cs_2) {
   __ cmp(r1, r0);
   B_LINE(ne, &error);
   
+  Label miss1, miss2, miss3, miss4, skip_proto4;
+  CMT("Check TryGetFunctionPrototype: Smi");
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ TryGetFunctionPrototype(r0, r1 /*proto*/, r2 /*scratch*/, &miss1);
+  B_LINE(al, &error);
+  __ bind(&miss1);
+  CMT("Check TryGetFunctionPrototype: Not a function");
+  __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
+  __ TryGetFunctionPrototype(r0, r1 /*proto*/, r2 /*scratch*/, &miss2);
+  B_LINE(al, &error);
+  __ bind(&miss2);
+  CMT("Check TryGetFunctionPrototype(empty_function) == the_hole_value");
+  __ LoadGlobalFunction(Context::CLOSURE_INDEX, r0/* Resulting closure*/);
+  __ TryGetFunctionPrototype(r0, r1 /*proto*/, r2 /*scratch*/, &miss3);
+  B_LINE(al, &error);
+  __ bind(&miss3);
+  __ LoadGlobalFunctionInitialMap(r0, r3/*result map*/, r2/*scratch*/);
+  __ cmp(r1, r3);
+  B_LINE(ne, &error);
+  __ LoadRoot(r2, Heap::kTheHoleValueRootIndex);
+  __ cmp(r1, r2);
+  B_LINE(ne, &error);
+
+  CMT("Check TryGetFunctionPrototype(global_object_function) == initial_map->prototype()");
+  __ LoadGlobalFunction(Context::OBJECT_FUNCTION_INDEX, r0/* Resulting closure*/);
+  __ TryGetFunctionPrototype(r0, r1 /*proto*/, r2 /*scratch*/, &miss4);
+  __ jmp(&skip_proto4);
+  __ bind(&miss4);
+  B_LINE(al, &error);
+  __ bind(&skip_proto4);
+  __ LoadGlobalFunctionInitialMap(r0, r3/*result map*/, r2/*scratch*/);
+  __ ldr(r3, FieldMemOperand(r3, Map::kPrototypeOffset));
+  __ cmp(r1, r3);
+  B_LINE(ne, &error);
 
   // All ok.
   __ mov(r0, Immediate(Smi::FromInt(0)));
@@ -269,3 +370,4 @@ TEST(sh4_cs_2) {
   CHECK(result->IsSmi());
   CHECK_EQ(0, Smi::cast(*result)->value());
 }						     
+
