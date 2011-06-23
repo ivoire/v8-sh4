@@ -1176,7 +1176,7 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
   RECORD_LINE();
-  ASSERT(!scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
+  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
     mov(scratch1, Immediate(value));
@@ -1189,12 +1189,12 @@ void MacroAssembler::SetCounter(StatsCounter* counter, int value,
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value > 0);
-  ASSERT(!scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
+  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
     mov(scratch2, Operand(ExternalReference(counter)));
-    mov(scratch1, MemOperand(scratch2));
+    ldr(scratch1, MemOperand(scratch2));
     add(scratch1, scratch1, Immediate(value));
     str(scratch1, MemOperand(scratch2));
   }
@@ -1204,12 +1204,12 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
 void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value > 0);
-  ASSERT(!scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
+  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) { 
     RECORD_LINE();
     mov(scratch2, Operand(ExternalReference(counter)));
-    mov(scratch1, MemOperand(scratch2));
+    ldr(scratch1, MemOperand(scratch2));
     sub(scratch1, scratch1, Immediate(value));
     str(scratch1, MemOperand(scratch2));
   }
