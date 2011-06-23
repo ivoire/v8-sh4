@@ -90,6 +90,7 @@ static void InitializeVM() {
   /* Disable compilation of natives. */                 \
   i::FLAG_disable_native_files = true;                  \
   i::FLAG_full_compiler = false;                        \
+  i::FLAG_code_comments = true;                         \
                                                         \
   InitializeVM();                                       \
   v8::HandleScope scope;                                \
@@ -103,6 +104,8 @@ static void InitializeVM() {
       Code::ComputeFlags(Code::STUB),                                   \
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();      \
   CHECK(code->IsCode());
+
+#define CMT(msg) { Comment cmnt(&assm, msg); } while(0)
 
 #define __ assm.
 
@@ -575,6 +578,7 @@ TEST(sh4_ma_5) {
 
 // Test SmiTag(), SmiUntag(), TrySmiTag(),
 // JumpIfNotPowerOfTwoOrZero(), JumpIfNotPowerOfTwoOrZeroAndNeg()
+// JumpIfNotBothSmi()/JumpIfEitherSmi()
 TEST(sh4_ma_6) {
   BEGIN();
 
@@ -713,9 +717,69 @@ TEST(sh4_ma_6) {
   B_LINE(al, &error);
   __ bind(&skip_pow6);
   __ cmp(r1, Immediate(0x3fffffff));
-    B_LINE(ne, &error);
+  B_LINE(ne, &error);
 
- // All ok.
+  Label not_both_smi1, skip_not_both_smi1, not_both_smi2, not_both_smi3,
+    not_both_smi4;
+  CMT("Check JumpIfNotBothSmi(): both Smi");
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ mov(r1, Immediate(Smi::FromInt(2)));
+  __ JumpIfNotBothSmi(r0, r1, &not_both_smi1);
+  __ jmp(&skip_not_both_smi1);
+  __ bind(&not_both_smi1);
+  B_LINE(al, &error);
+  __ bind(&skip_not_both_smi1);
+  
+  CMT("Check JumpIfNotBothSmi(): left Smi");
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ mov(r1, Immediate(0x41)); // not a smi
+  __ JumpIfNotBothSmi(r0, r1, &not_both_smi2);
+  B_LINE(al, &error);
+  __ bind(&not_both_smi2);
+
+  CMT("Check JumpIfNotBothSmi(): right Smi");
+  __ JumpIfNotBothSmi(r1, r0, &not_both_smi3);
+  B_LINE(al, &error);
+  __ bind(&not_both_smi3);
+
+  CMT("Check JumpIfNotBothSmi(): none Smi");
+  __ mov(r0, Immediate(0x33)); // not a smi
+  __ JumpIfNotBothSmi(r1, r0, &not_both_smi4);
+  B_LINE(al, &error);
+  __ bind(&not_both_smi4);
+  
+  
+  Label either_smi1, either_smi2, either_smi3, either_smi4, 
+    skip_either_smi4;
+  CMT("Check JumpIfEitherSmi(): both Smi");
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ mov(r1, Immediate(Smi::FromInt(2)));
+  __ JumpIfEitherSmi(r0, r1, &either_smi1);
+  B_LINE(al, &error);
+  __ bind(&either_smi1);
+  
+  CMT("Check JumpIfEitherSmi(): left Smi");
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ mov(r1, Immediate(0x41)); // not a smi
+  __ JumpIfEitherSmi(r0, r1, &either_smi2);
+  B_LINE(al, &error);
+  __ bind(&either_smi2);
+
+  CMT("Check JumpIfEitherSmi(): right Smi");
+  __ JumpIfEitherSmi(r1, r0, &either_smi3);
+  B_LINE(al, &error);
+  __ bind(&either_smi3);
+
+  CMT("Check JumpIfEitherSmi(): none Smi");
+  __ mov(r0, Immediate(0x33)); // not a smi also
+  __ JumpIfEitherSmi(r1, r0, &either_smi4);
+  __ jmp(&skip_either_smi4);
+  __ bind(&either_smi4);
+  B_LINE(al, &error);
+  __ bind(&skip_either_smi4);
+  
+  
+  // All ok.
   __ mov(r0, Immediate(0));
   EPILOGUE();
   __ rts();
