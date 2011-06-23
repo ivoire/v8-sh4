@@ -369,12 +369,11 @@ void Assembler::asl(Register Rd, Register Rs, const Immediate& imm, Register rtm
 
 
 void Assembler::asr(Register Rd, Register Rs, Register Rt, Register rtmp) {
-  if (Rs.code() != Rd.code()) {
-    ASSERT(!Rt.is(Rd));
-    mov_(Rs, Rd);
-  }
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
   neg_(Rt, rtmp);
+  if (Rs.code() != Rd.code()) {
+    mov_(Rs, Rd);
+  }
   shad_(rtmp, Rd);
 }
 
@@ -435,13 +434,11 @@ void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm, Register rtm
 
 
 void Assembler::lsr(Register Rd, Register Rs, Register Rt, Register rtmp) {
-  ASSERT(!Rt.is(rtmp) && !Rs.is(rtmp));
-  if (Rs.code() != Rd.code()) {
-    ASSERT(!Rt.is(Rd));
-    mov_(Rs, Rd);
-  }
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
   neg_(Rt, rtmp);
+  if (Rs.code() != Rd.code()) {
+    mov_(Rs, Rd);
+  }
   shld_(rtmp, Rd);
 }
 
