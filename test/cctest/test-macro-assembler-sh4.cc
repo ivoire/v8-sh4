@@ -798,3 +798,58 @@ TEST(sh4_ma_6) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
+
+
+// Test ConvertToInt32()
+TEST(sh4_ma_7) {
+  BEGIN();
+
+  Label error;
+  PROLOGUE();
+
+  Label not_int32_1, skip_int32_1, not_int32_2, not_int32_3;
+  Handle<Object> num;
+  CMT("Check ConvertToInt32(4.1) == 4");
+  num = assm.isolate()->factory()->NewNumber(4.1, TENURED);
+  __ mov(r0, Immediate(4));
+  __ mov(r1, Operand(num));
+  __ ConvertToInt32(r1, r2, r3, r4, no_reg, &not_int32_1);
+  __ cmp(r2, r0);
+  B_LINE(ne, &error);
+  __ jmp(&skip_int32_1);
+  __ bind(&not_int32_1);
+  B_LINE(al, &error);
+  __ bind(&skip_int32_1);
+
+  CMT("Check ConvertToInt32(nan) == not int32");
+  __ mov(r1, Operand(NAN_VALUE()));
+  __ ConvertToInt32(r1, r2, r3, r4, no_reg, &not_int32_2);
+  B_LINE(al, &error);
+  __ bind(&not_int32_2);
+
+  CMT("Check ConvertToInt32(0X80000000) == not int32");
+  num = assm.isolate()->factory()->NewNumber((double)0x80000000U, TENURED);
+  __ mov(r1, Operand(num));
+  __ ConvertToInt32(r1, r2, r3, r4, no_reg, &not_int32_3);
+  B_LINE(al, &error);
+  __ bind(&not_int32_3);
+  
+  // All ok.
+  __ mov(r0, Immediate(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
