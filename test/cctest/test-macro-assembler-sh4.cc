@@ -577,6 +577,7 @@ TEST(sh4_ma_5) {
 
 
 // Test SmiTag(), SmiUntag(), TrySmiTag(),
+// GetLeastBitsFromSmi(), GetLeastBitsFromInt32()
 // JumpIfNotPowerOfTwoOrZero(), JumpIfNotPowerOfTwoOrZeroAndNeg()
 // JumpIfNotBothSmi()/JumpIfEitherSmi()
 TEST(sh4_ma_6) {
@@ -608,6 +609,20 @@ TEST(sh4_ma_6) {
   B_LINE(ne, &error);
   __ SmiUntag(r1, r0);
   __ cmp(r1, Immediate(0xc0000000));
+  B_LINE(ne, &error);
+
+  CMT("Check GetLeastBitsFromSmi(Smi(33), 5) == 1");
+  __ mov(r0, Immediate(33<<1)); 
+  __ mov(r2, Immediate(1)); 
+  __ GetLeastBitsFromSmi(r1, r0, 5);
+  __ cmp(r1, r2);
+  B_LINE(ne, &error);
+
+  CMT("Check GetLeastBitsFromInt32(34, 5) == 2");
+  __ mov(r0, Immediate(34)); 
+  __ mov(r2, Immediate(2)); 
+  __ GetLeastBitsFromInt32(r1, r0, 5);
+  __ cmp(r1, r2);
   B_LINE(ne, &error);
 
   Label not_smi1, not_smi2, not_smi3, skip_smi1;
