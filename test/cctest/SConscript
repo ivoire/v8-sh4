@@ -106,7 +106,8 @@ SOURCES = {
   'arch:sh4':  [
     'test-sh4.cc',
     'test-assembler-sh4.cc',
-    'test-macro-assembler-sh4.cc'
+    'test-macro-assembler-sh4.cc',
+    'test-code-stub-sh4.cc'
   ],
   'arch:ia32': [
     'test-assembler-ia32.cc',
