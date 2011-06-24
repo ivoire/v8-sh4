@@ -333,9 +333,6 @@ TEST(sh4_cs_3) {
   __ TryGetFunctionPrototype(r0, r1 /*proto*/, r2 /*scratch*/, &miss3);
   B_LINE(al, &error);
   __ bind(&miss3);
-  __ LoadGlobalFunctionInitialMap(r0, r3/*result map*/, r2/*scratch*/);
-  __ cmp(r1, r3);
-  B_LINE(ne, &error);
   __ LoadRoot(r2, Heap::kTheHoleValueRootIndex);
   __ cmp(r1, r2);
   B_LINE(ne, &error);
