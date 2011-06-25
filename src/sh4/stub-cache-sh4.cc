@@ -313,6 +313,27 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
 }
 
 
+// Load a fast property out of a holder object (src). In-object properties
+// are loaded directly otherwise the property is loaded from the properties
+// fixed array.
+void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
+                                            Register dst, Register src,
+                                            JSObject* holder, int index) {
+  // Adjust for the number of properties stored in the holder.
+  index -= holder->map()->inobject_properties();
+  if (index < 0) {
+    // Get the property straight out of the holder.
+    int offset = holder->map()->instance_size() + (index * kPointerSize);
+    __ ldr(dst, FieldMemOperand(src, offset));
+  } else {
+    // Calculate the offset into the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
+    __ ldr(dst, FieldMemOperand(src, JSObject::kPropertiesOffset));
+    __ ldr(dst, FieldMemOperand(dst, offset));
+  }
+}
+
+
 void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Register receiver,
                                            Register scratch,
@@ -702,6 +723,28 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
 }
 
 
+void StubCompiler::GenerateLoadField(JSObject* object,
+                                     JSObject* holder,
+                                     Register receiver,
+                                     Register scratch1,
+                                     Register scratch2,
+                                     Register scratch3,
+                                     int index,
+                                     String* name,
+                                     Label* miss) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Immediate(kSmiTagMask));
+  __ b(eq, miss);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      CheckPrototypes(object, receiver, holder, scratch1, scratch2, scratch3,
+                      name, miss);
+  GenerateFastPropertyLoad(masm(), r0, reg, holder, index);
+  __ Ret();
+}
+
+
 void StubCompiler::GenerateLoadConstant(JSObject* object,
                                         JSObject* holder,
                                         Register receiver,
@@ -823,8 +866,19 @@ MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
                                                 JSObject* holder,
                                                 int index,
                                                 String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  GenerateLoadField(object, holder, r0, r3, r1, r4, index, name, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(FIELD, name);
 }
 
 
