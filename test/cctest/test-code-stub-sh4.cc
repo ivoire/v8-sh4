@@ -61,6 +61,7 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 #define BEGIN() \
   FLAG_disable_native_files = true; \
   FLAG_full_compiler = false; \
+  FLAG_code_comments = true; \
   v8::HandleScope scope; \
   Isolate* isolate = Isolate::Current(); \
   LocalContext env; \
@@ -97,6 +98,7 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 #define GLOBAL_CONTEXT_PTR() (*(isolate->global_context()))
 #define GLOBAL_CLOSURE_PTR() (isolate->global_context()->closure())
 #define GLOBAL_OBJECT_FUNCTION_PTR() (isolate->global_context()->object_function())
+#define GLOBAL_BUILTINS_PTR() (*isolate->builtins())
 
 #define CMT(msg) { Comment cmnt(&assm, msg); } while(0)
 
@@ -368,3 +370,55 @@ TEST(sh4_cs_3) {
   CHECK_EQ(0, Smi::cast(*result)->value());
 }						     
 
+
+// Test GetBuiltinFunction()/GetBuiltinEntry()
+TEST(sh4_cs_4) {
+  BEGIN();
+
+  Label error;
+
+  // First check that the builtin function is actually undefined
+  // as we do not activate natives.
+  // Then install the empty function for the purpose of the tests.
+  CHECK(isolate->global()->builtins()->
+	javascript_builtin(Builtins::MUL)->IsUndefined());
+  isolate->global()->builtins()->
+    set_javascript_builtin(Builtins::MUL,
+			   isolate->global_context()->closure());
+  isolate->global()->builtins()->
+    set_javascript_builtin_code(Builtins::MUL,
+				isolate->global_context()->closure()->code());
+  CMT("Check GetBuiltinFunction(Builtins::MUL)");
+  __ GetBuiltinFunction(r0, Builtins::MUL);
+  __ mov(r1, Immediate((intptr_t)isolate->global()->builtins()->
+		       javascript_builtin(Builtins::MUL),
+		       RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+
+  CMT("Check GetBuiltinEntry(Builtins::MUL)");
+  __ GetBuiltinEntry(r0, Builtins::MUL);
+  __ mov(r1, Immediate((intptr_t)isolate->global()->builtins()->
+		       javascript_builtin_code(Builtins::MUL)->entry(),
+		       RelocInfo::EXTERNAL_REFERENCE));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+
+  // All ok.
+  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ rts();
+
+  __ bind(&error);
+  __ SmiTag(r0, r10);
+  __ rts();
+
+  JIT();
+  
+  PRINT();
+
+  CALL();
+
+  // The function must return a result as Smi.
+  CHECK(result->IsSmi());
+  CHECK_EQ(0, Smi::cast(*result)->value());
+}						     
