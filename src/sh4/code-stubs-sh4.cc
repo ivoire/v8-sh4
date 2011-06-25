@@ -454,15 +454,15 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
     // They are both equal and they are not both Smis so both of them are not
     // Smis.  If it's not a heap number, then return equal.
     if (cond == lt || cond == gt) {
-      __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE);
-      __ b(ge, slow);
+      __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE, ge);
+      __ b(t, slow);
     } else {
       __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
       __ b(eq, &heap_number);
       // Comparing JS objects with <=, >= is complicated.
       if (cond != eq) {
-        __ cmp(r4, Immediate(FIRST_JS_OBJECT_TYPE));
-        __ b(ge, slow);
+        __ cmpge(r4, Immediate(FIRST_JS_OBJECT_TYPE));
+        __ b(t, slow);
         // Normally here we fall through to return_equal, but undefined is
         // special: (undefined == undefined) == true, but
         // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
@@ -731,8 +731,8 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     Label first_non_object;
     // Get the type of the first operand into r2 and compare it with
     // FIRST_JS_OBJECT_TYPE.
-    __ CompareObjectType(rhs, r2, r2, FIRST_JS_OBJECT_TYPE);
-    __ b(lt, &first_non_object);
+    __ CompareObjectType(rhs, r2, r2, FIRST_JS_OBJECT_TYPE, ge);
+    __ b(f, &first_non_object);
 
     // Return non-zero (r0 is not zero)
     Label return_not_equal;
@@ -744,8 +744,8 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     __ cmp(r2, Immediate(ODDBALL_TYPE));
     __ b(eq, &return_not_equal);
 
-    __ CompareObjectType(lhs, r3, r3, FIRST_JS_OBJECT_TYPE);
-    __ b(ge, &return_not_equal);
+    __ CompareObjectType(lhs, r3, r3, FIRST_JS_OBJECT_TYPE, ge);
+    __ b(t, &return_not_equal);
 
     // Check for oddballs: true, false, null, undefined.
     __ cmp(r3, Immediate(ODDBALL_TYPE));
