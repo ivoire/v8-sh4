@@ -2073,7 +2073,23 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 
 
 void FullCodeGenerator::EmitIsFunction(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ JumpIfSmi(r0, if_false);
+  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Split(eq, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
