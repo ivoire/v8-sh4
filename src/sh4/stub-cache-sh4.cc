@@ -933,8 +933,43 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
                                                       JSObject* object,
                                                       JSObject* last) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : receiver
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that receiver is not a smi.
+  __ tst(r0, Immediate(kSmiTagMask));
+  __ b(eq, &miss);
+
+  // Check the maps of the full prototype chain.
+  CheckPrototypes(object, r0, last, r3, r1, r4, name, &miss);
+
+  // If the last object in the prototype chain is a global object,
+  // check that the global property cell is empty.
+  if (last->IsGlobalObject()) {
+    MaybeObject* cell = GenerateCheckPropertyCell(masm(),
+                                                  GlobalObject::cast(last),
+                                                  name,
+                                                  r1,
+                                                  &miss);
+    if (cell->IsFailure()) {
+      miss.Unuse();
+      return cell;
+    }
+  }
+
+  // Return undefined if maps of the full prototype chain are still the
+  // same and no global property with this name contains a value.
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ Ret();
+
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NONEXISTENT, heap()->empty_string());
 }
 
 
