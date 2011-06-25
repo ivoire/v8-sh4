@@ -1169,7 +1169,7 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   GetBuiltinFunction(r1, id);
   RECORD_LINE();
   // Load the code entry point from the builtins object.
-  ldr(target, MemOperand(r1, JSFunction::kCodeEntryOffset));
+  ldr(target, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
 }
 
 
