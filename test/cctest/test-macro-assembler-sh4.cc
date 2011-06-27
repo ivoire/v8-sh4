@@ -868,3 +868,134 @@ TEST(sh4_ma_7) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
+
+// Test CountLeadingZeros
+TEST(sh4_ma_8) {
+  BEGIN();
+
+  Label error;
+
+  PROLOGUE();
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(0));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(32));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(1));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(31));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(3));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(30));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(5));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(29));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(13));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(28));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(24));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(27));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(41));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(26));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(83));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(25));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(211));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(24));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(467));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(23));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(726));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(22));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(1782));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(21));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(3824));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(20));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(4336));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(19));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(8388607));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(9));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(1082130431));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(1));
+  B_LINE(ne, &error);
+
+  __ mov(r0, Immediate(0));
+  __ mov(r1, Immediate(3229614079));
+  __ CountLeadingZeros(r0, r1, r3);
+  __ cmpeq(r0, Immediate(0));
+  B_LINE(ne, &error);
+
+
+
+  EPILOGUE();
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}

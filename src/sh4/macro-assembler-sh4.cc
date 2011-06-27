@@ -1692,12 +1692,45 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
                                        Register scratch) {
   ASSERT(!zeros.is(source) || !source.is(scratch));
   ASSERT(!zeros.is(scratch));
-  //ASSERT(!scratch.is(ip));
-  //ASSERT(!source.is(ip));
-  //ASSERT(!zeros.is(ip));
+  ASSERT(!scratch.is(sh4_rtmp));
+  ASSERT(!source.is(sh4_rtmp));
+  ASSERT(!zeros.is(sh4_rtmp));
   RECORD_LINE();
-  UNIMPLEMENTED_BREAK();
+
+  Label l1, l2, l3, l4, l5;
+  mov(zeros, Immediate(0));
+  Move(scratch, source);
+  // Top 16.
+  tst(scratch, Immediate(0xffff0000));
+  bf(&l1);
+  add(zeros, zeros, Immediate(16));
+  lsl(scratch, scratch, Immediate(16));
+  // Top 8.
+  bind(&l1);
+  tst(scratch, Immediate(0xff000000));
+  bf(&l2);
+  add(zeros, zeros, Immediate(8));
+  lsl(scratch, scratch, Immediate(8));
+  // Top 4.
+  bind(&l2);
+  tst(scratch, Immediate(0xf0000000));
+  bf(&l3);
+  add(zeros, zeros, Immediate(4));
+  lsl(scratch, scratch, Immediate(4));
+  // Top 2.
+  bind(&l3);
+  tst(scratch, Immediate(0xc0000000));
+  bf(&l4);
+  add(zeros, zeros, Immediate(2));
+  lsl(scratch, scratch, Immediate(2));
+  // Top bit.
+  bind(&l4);
+  tst(scratch, Immediate(0x80000000u));
+  bf(&l5);
+  add(zeros, zeros, Immediate(1));
+  bind(&l5);
 }
+
 
 // Copies a fixed number of fields of heap objects from src to dst.
 void MacroAssembler::CopyFields(Register dst,
