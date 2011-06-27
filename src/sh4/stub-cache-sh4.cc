@@ -1370,11 +1370,6 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
 }
 
 
-void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
-
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }

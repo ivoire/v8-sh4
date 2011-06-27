@@ -383,6 +383,156 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
+                                   FloatingPointHelper::Destination destination,
+                                   Register scratch1,
+                                   Register scratch2) {
+//TODO: VFP
+//  if (CpuFeatures::IsSupported(VFP3)) {
+//    CpuFeatures::Scope scope(VFP3);
+//    __ mov(scratch1, Operand(r0, ASR, kSmiTagSize));
+//    __ vmov(d7.high(), scratch1);
+//    __ vcvt_f64_s32(d7, d7.high());
+//    __ mov(scratch1, Operand(r1, ASR, kSmiTagSize));
+//    __ vmov(d6.high(), scratch1);
+//    __ vcvt_f64_s32(d6, d6.high());
+//    if (destination == kCoreRegisters) {
+//      __ vmov(r2, r3, d7);
+//      __ vmov(r0, r1, d6);
+//    }
+//  } else
+  {
+    ASSERT(destination == kCoreRegisters);
+    // Write Smi from r0 to r3 and r2 in double format.
+    __ mov(scratch1, r0);
+    ConvertToDoubleStub stub1(r3, r2, scratch1, scratch2);
+    __ push(lr);
+    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    // Write Smi from r1 to r1 and r0 in double format.
+    __ mov(scratch1, r1);
+    ConvertToDoubleStub stub2(r1, r0, scratch1, scratch2);
+    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ pop(lr);
+  }
+}
+
+
+void FloatingPointHelper::LoadOperands(
+    MacroAssembler* masm,
+    FloatingPointHelper::Destination destination,
+    Register heap_number_map,
+    Register scratch1,
+    Register scratch2,
+    Label* slow) {
+
+  // Load right operand (r0) to d6 or r2/r3.
+  LoadNumber(masm, destination,
+             r0, dr8, r2, r3, heap_number_map, scratch1, scratch2, slow);
+
+  // Load left operand (r1) to d7 or r0/r1.
+  LoadNumber(masm, destination,
+             r1, dr6, r0, r1, heap_number_map, scratch1, scratch2, slow);
+}
+
+
+void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
+                                     Destination destination,
+                                     Register object,
+                                     DwVfpRegister dst,
+                                     Register dst1,
+                                     Register dst2,
+                                     Register heap_number_map,
+                                     Register scratch1,
+                                     Register scratch2,
+                                     Label* not_number) {
+  if (FLAG_debug_code) {
+    __ AbortIfNotRootValue(heap_number_map,
+                           Heap::kHeapNumberMapRootIndex,
+                           "HeapNumberMap register clobbered.");
+  }
+
+  Label is_smi, done;
+
+  __ JumpIfSmi(object, &is_smi);
+  __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
+
+  // Handle loading a double from a heap number.
+//TODO: VFP
+//  if (CpuFeatures::IsSupported(VFP3) &&
+//      destination == kVFPRegisters) {
+//    CpuFeatures::Scope scope(VFP3);
+//    // Load the double from tagged HeapNumber to double register.
+//    __ sub(scratch1, object, Operand(kHeapObjectTag));
+//    __ vldr(dst, scratch1, HeapNumber::kValueOffset);
+//  } else
+  {
+    ASSERT(destination == kCoreRegisters);
+    // Load the double from heap number to dst1 and dst2 in double format.
+    __ Ldrd(dst1, dst2, FieldMemOperand(object, HeapNumber::kValueOffset));
+  }
+  __ jmp(&done);
+
+  // Handle loading a double from a smi.
+  __ bind(&is_smi);
+//TODO: VFP
+//  if (CpuFeatures::IsSupported(VFP3)) {
+//    CpuFeatures::Scope scope(VFP3);
+//    // Convert smi to double using VFP instructions.
+//    __ SmiUntag(scratch1, object);
+//    __ vmov(dst.high(), scratch1);
+//    __ vcvt_f64_s32(dst, dst.high());
+//    if (destination == kCoreRegisters) {
+//      // Load the converted smi to dst1 and dst2 in double format.
+//      __ vmov(dst1, dst2, dst);
+//    }
+//  } else
+  {
+    ASSERT(destination == kCoreRegisters);
+    // Write smi to dst1 and dst2 double format.
+    __ mov(scratch1, object);
+    ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
+    __ push(lr);
+    __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+    __ pop(lr);
+  }
+
+  __ bind(&done);
+}
+
+
+void FloatingPointHelper::CallCCodeForDoubleOperation(
+    MacroAssembler* masm,
+    Token::Value op,
+    Register heap_number_result,
+    Register scratch) {
+  // Using core registers:
+  // r0: Left value (least significant part of mantissa).
+  // r1: Left value (sign, exponent, top of mantissa).
+  // r2: Right value (least significant part of mantissa).
+  // r3: Right value (sign, exponent, top of mantissa).
+
+  // Assert that heap_number_result is callee-saved.
+  // We currently always use r5 to pass it.
+  ASSERT(heap_number_result.is(r5));
+
+  // Push the current return address before the C call. Return will be
+  // through pop(pc) below.
+  __ push(lr);
+  __ PrepareCallCFunction(4, scratch);  // Two doubles are 4 arguments.
+  // Call C routine that may not cause GC or other trouble.
+  __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
+                   4);
+  // Store answer in the overwritable heap number. Double returned in
+  // registers r0 and r1.
+  __ Strd(r0, r1, FieldMemOperand(heap_number_result,
+                                  HeapNumber::kValueOffset));
+  // Place heap_number_result in r0 and return to the pushed return address.
+  __ mov(r0, heap_number_result);
+  __ pop(lr);
+  __ rts();
+}
+
+
 // See comment for class.
 void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   Label max_negative_int;
@@ -1269,7 +1419,224 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                                     bool smi_operands,
                                                     Label* not_numbers,
                                                     Label* gc_required) {
-  UNIMPLEMENTED();
+  Register left = r1;
+  Register right = r0;
+  Register scratch1 = r7;
+  Register scratch2 = r9;
+  Register scratch3 = r4;
+
+  ASSERT(smi_operands || (not_numbers != NULL));
+  if (smi_operands && FLAG_debug_code) {
+    __ AbortIfNotSmi(left);
+    __ AbortIfNotSmi(right);
+  }
+
+  Register heap_number_map = r6;
+  __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD: {
+      // Load left and right operands into d6 and d7 or r0/r1 and r2/r3
+      // depending on whether VFP3 is available or not.
+      FloatingPointHelper::Destination destination =
+//TODO: VFP
+//          CpuFeatures::IsSupported(VFP3) &&
+//          op_ != Token::MOD ?
+//          FloatingPointHelper::kVFPRegisters :
+          FloatingPointHelper::kCoreRegisters;
+
+      // Allocate new heap number for result.
+      Register result = r5;
+      GenerateHeapResultAllocation(
+          masm, result, heap_number_map, scratch1, scratch2, gc_required);
+
+      // Load the operands.
+      if (smi_operands) {
+        FloatingPointHelper::LoadSmis(masm, destination, scratch1, scratch2);
+      } else {
+        FloatingPointHelper::LoadOperands(masm,
+                                          destination,
+                                          heap_number_map,
+                                          scratch1,
+                                          scratch2,
+                                          not_numbers);
+      }
+
+      // Calculate the result.
+//TODO: VFP
+//      if (destination == FloatingPointHelper::kVFPRegisters) {
+//        // Using VFP registers:
+//        // d6: Left value
+//        // d7: Right value
+//        CpuFeatures::Scope scope(VFP3);
+//        switch (op_) {
+//          case Token::ADD:
+//            __ vadd(d5, d6, d7);
+//            break;
+//          case Token::SUB:
+//            __ vsub(d5, d6, d7);
+//            break;
+//          case Token::MUL:
+//            __ vmul(d5, d6, d7);
+//            break;
+//          case Token::DIV:
+//            __ vdiv(d5, d6, d7);
+//            break;
+//          default:
+//            UNREACHABLE();
+//        }
+//
+//        __ sub(r0, result, Immediate(kHeapObjectTag));
+//        __ vstr(d5, r0, HeapNumber::kValueOffset);
+//        __ add(r0, r0, Immediate(kHeapObjectTag));
+//        __ Ret();
+//
+//      } else
+      {
+        // Call the C function to handle the double operation.
+        FloatingPointHelper::CallCCodeForDoubleOperation(masm,
+                                                         op_,
+                                                         result,
+                                                         scratch1);
+        if (FLAG_debug_code) {
+          __ stop("Unreachable code.");
+        }
+      }
+      break;
+    }
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::SHL: {
+      if (smi_operands) {
+        __ SmiUntag(r3, left);
+        __ SmiUntag(r2, right);
+      } else {
+        UNIMPLEMENTED();
+/*
+        // Convert operands to 32-bit integers. Right in r2 and left in r3.
+        FloatingPointHelper::ConvertNumberToInt32(masm,
+                                                  left,
+                                                  r3,
+                                                  heap_number_map,
+                                                  scratch1,
+                                                  scratch2,
+                                                  scratch3,
+                                                  d0,
+                                                  not_numbers);
+        FloatingPointHelper::ConvertNumberToInt32(masm,
+                                                  right,
+                                                  r2,
+                                                  heap_number_map,
+                                                  scratch1,
+                                                  scratch2,
+                                                  scratch3,
+                                                  d0,
+                                                  not_numbers);
+*/
+      }
+
+      Label result_not_a_smi;
+      switch (op_) {
+        case Token::BIT_OR:
+          __ orr(r2, r3, r2);
+          break;
+        case Token::BIT_XOR:
+          __ lxor(r2, r3, r2);
+          break;
+        case Token::BIT_AND:
+          __ land(r2, r3, r2);
+          break;
+        case Token::SAR:
+          // Use only the 5 least significant bits of the shift count.
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ asr(r2, r3, r2);
+          break;
+        case Token::SHR:
+          // Use only the 5 least significant bits of the shift count.
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ lsr(r2, r3, r2);
+          __ cmpge(r2, Immediate(0));
+          // SHR is special because it is required to produce a positive answer.
+          // The code below for writing into heap numbers isn't capable of
+          // writing the register as an unsigned int so we go to slow case if we
+          // hit this case.
+//TODO: VFP
+//          if (CpuFeatures::IsSupported(VFP3)) {
+//            __ b(mi, &result_not_a_smi);
+//          } else
+          {
+            __ bf(not_numbers);
+          }
+          break;
+        case Token::SHL:
+          // Use only the 5 least significant bits of the shift count.
+          __ GetLeastBitsFromInt32(r2, r2, 5);
+          __ lsl(r2, r3, r2);
+          break;
+        default:
+          UNREACHABLE();
+      }
+
+      // Check that the *signed* result fits in a smi.
+      __ add(r3, r2, Immediate(0x40000000));
+      __ cmpge(r3, Immediate(0));
+      __ bf(&result_not_a_smi);
+      __ SmiTag(r0, r2);
+      __ Ret();
+
+      // Allocate new heap number for result.
+      __ bind(&result_not_a_smi);
+      Register result = r5;
+      if (smi_operands) {
+        __ AllocateHeapNumber(
+            result, scratch1, scratch2, heap_number_map, gc_required);
+      } else {
+        UNIMPLEMENTED();
+//TODO: VFP
+//        GenerateHeapResultAllocation(
+//            masm, result, heap_number_map, scratch1, scratch2, gc_required);
+      }
+
+      // r2: Answer as signed int32.
+      // r5: Heap number to write answer into.
+
+      // Nothing can go wrong now, so move the heap number to r0, which is the
+      // result.
+      __ mov(r0, r5);
+
+//TODO: VFP
+//      if (CpuFeatures::IsSupported(VFP3)) {
+//        // Convert the int32 in r2 to the heap number in r0. r3 is corrupted. As
+//        // mentioned above SHR needs to always produce a positive result.
+//        CpuFeatures::Scope scope(VFP3);
+//        __ vmov(s0, r2);
+//        if (op_ == Token::SHR) {
+//          __ vcvt_f64_u32(d0, s0);
+//        } else {
+//          __ vcvt_f64_s32(d0, s0);
+//        }
+//        __ sub(r3, r0, Immediate(kHeapObjectTag));
+//        __ vstr(d0, r3, HeapNumber::kValueOffset);
+//        __ Ret();
+//      } else
+      {
+        // Tail call that writes the int32 in r2 to the heap number in r0, using
+        // r3 as scratch. r0 is preserved and returned.
+        WriteInt32ToHeapNumberStub stub(r2, r0, r3);
+        __ TailCallStub(&stub);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -1382,7 +1749,11 @@ void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Label call_runtime;
+  GenerateFPOperation(masm, false, &call_runtime, &call_runtime);
+
+  __ bind(&call_runtime);
+  GenerateCallRuntime(masm);
 }
 
 
@@ -1434,6 +1805,40 @@ void TypeRecordingBinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
       break;
     default:
       UNREACHABLE();
+  }
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateHeapResultAllocation(
+    MacroAssembler* masm,
+    Register result,
+    Register heap_number_map,
+    Register scratch1,
+    Register scratch2,
+    Label* gc_required) {
+
+  // Code below will scratch result if allocation fails. To keep both arguments
+  // intact for the runtime call result cannot be one of these.
+  ASSERT(!result.is(r0) && !result.is(r1));
+
+  if (mode_ == OVERWRITE_LEFT || mode_ == OVERWRITE_RIGHT) {
+    Label skip_allocation, allocated;
+    Register overwritable_operand = mode_ == OVERWRITE_LEFT ? r1 : r0;
+    // If the overwritable operand is already an object, we skip the
+    // allocation of a heap number.
+    __ JumpIfNotSmi(overwritable_operand, &skip_allocation);
+    // Allocate a heap number for the result.
+    __ AllocateHeapNumber(
+        result, scratch1, scratch2, heap_number_map, gc_required);
+    __ b(&allocated);
+    __ bind(&skip_allocation);
+    // Use object holding the overwritable operand for result.
+    __ mov(result, overwritable_operand);
+    __ bind(&allocated);
+  } else {
+    ASSERT(mode_ == NO_OVERWRITE);
+    __ AllocateHeapNumber(
+        result, scratch1, scratch2, heap_number_map, gc_required);
   }
 }
 
@@ -3610,6 +4015,57 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
     __ sub(r0, r1, ip);
   }
   __ Ret();
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
+void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::HEAP_NUMBERS);
+
+  Label generic_stub;
+  Label unordered;
+  Label miss;
+  __ land(r2, r1, r0);
+  __ tst(r2, Immediate(kSmiTagMask));
+  __ b(eq, &generic_stub);
+
+  __ CompareObjectType(r0, r2, r2, HEAP_NUMBER_TYPE, eq);
+  __ b(ne, &miss);
+  __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE, eq);
+  __ b(ne, &miss);
+
+  // Inlining the double comparison and falling back to the general compare
+  // stub if NaN is involved or VFP3 is unsupported.
+//TODO: VFP
+//  if (CpuFeatures::IsSupported(VFP3)) {
+//    CpuFeatures::Scope scope(VFP3);
+//
+//    // Load left and right operand
+//    __ sub(r2, r1, Operand(kHeapObjectTag));
+//    __ vldr(d0, r2, HeapNumber::kValueOffset);
+//    __ sub(r2, r0, Operand(kHeapObjectTag));
+//    __ vldr(d1, r2, HeapNumber::kValueOffset);
+//
+//    // Compare operands
+//    __ VFPCompareAndSetFlags(d0, d1);
+//
+//    // Don't base result on status bits when a NaN is involved.
+//    __ b(vs, &unordered);
+//
+//    // Return a result of -1, 0, or 1, based on status bits.
+//    __ mov(r0, Operand(EQUAL), LeaveCC, eq);
+//    __ mov(r0, Operand(LESS), LeaveCC, lt);
+//    __ mov(r0, Operand(GREATER), LeaveCC, gt);
+//    __ Ret();
+//
+//    __ bind(&unordered);
+//  }
+
+  CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, r1, r0);
+  __ bind(&generic_stub);
+  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 
   __ bind(&miss);
   GenerateMiss(masm);
