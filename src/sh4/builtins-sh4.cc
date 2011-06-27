@@ -1614,7 +1614,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&fill);
     __ push(r4);        // kept from the previous load
     __ cmpeq(sp, r2);
-    __ add(r2, r2, Immediate(kPointerSize));
     __ bf(&fill);
   }
 
