@@ -974,7 +974,7 @@ TEST(sh4_ma_8) {
   B_LINE(ne, &error);
 
   __ mov(r0, Immediate(0));
-  __ mov(r1, Immediate(3229614079));
+  __ mov(r1, Immediate(3229614079u));
   __ CountLeadingZeros(r0, r1, r3);
   __ cmpeq(r0, Immediate(0));
   B_LINE(ne, &error);
