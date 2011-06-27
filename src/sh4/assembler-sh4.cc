@@ -306,6 +306,12 @@ void Assembler::addv(Register Rd, Register Rs, Register Rt) {
   }
 }
 
+
+void Assembler::addv(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+  mov(rtmp, imm);
+  addv(Rd, Rs, rtmp);
+}
+
  
 void Assembler::addc(Register Rd, Register Rs, Register Rt) {
   clrt_(); // Clear T bit before using addc

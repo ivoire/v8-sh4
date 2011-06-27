@@ -806,6 +806,7 @@ class Assembler : public AssemblerBase {
   }
 
   void addv(Register Rd, Register Rs, Register Rt);
+  void addv(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
   void subv(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
   void addc(Register Rd, Register Rs, Register Rt);

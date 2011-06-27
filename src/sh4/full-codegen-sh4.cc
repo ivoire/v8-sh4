@@ -2072,7 +2072,23 @@ void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ JumpIfSmi(r0, if_false);
+  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE, ge);
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Split(t, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
@@ -2243,7 +2259,14 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitNumberToString(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT_EQ(args->length(), 1);
+
+  // Load the argument on the stack and call the stub.
+  VisitForStackValue(args->at(0));
+
+  NumberToStringStub stub;
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
@@ -2535,7 +2558,178 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ CountOperation");
+  SetSourcePosition(expr->position());
+
+  // Invalid left-hand sides are rewritten to have a 'throw ReferenceError'
+  // as the left-hand side.
+  if (!expr->expression()->IsValidLeftHandSide()) {
+    VisitForEffect(expr->expression());
+    return;
+  }
+
+  // Expression can only be a property, a global or a (parameter or local)
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
+  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  LhsKind assign_type = VARIABLE;
+  Property* prop = expr->expression()->AsProperty();
+  // In case of a property we use the uninitialized expression context
+  // of the key to detect a named property.
+  if (prop != NULL) {
+    assign_type =
+        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
+  }
+
+  // Evaluate expression and get value.
+  if (assign_type == VARIABLE) {
+    ASSERT(expr->expression()->AsVariableProxy()->var() != NULL);
+    AccumulatorValueContext context(this);
+    EmitVariableLoad(expr->expression()->AsVariableProxy()->var());
+  } else {
+    // Reserve space for result of postfix operation.
+    if (expr->is_postfix() && !context()->IsEffect()) {
+      __ mov(ip, Immediate(Smi::FromInt(0)));
+      __ push(ip);
+    }
+    if (assign_type == NAMED_PROPERTY) {
+      // Put the object both on the stack and in the accumulator.
+      VisitForAccumulatorValue(prop->obj());
+      __ push(r0);
+      EmitNamedPropertyLoad(prop);
+    } else {
+      if (prop->is_arguments_access()) {
+        VariableProxy* obj_proxy = prop->obj()->AsVariableProxy();
+        __ ldr(r0, EmitSlotSearch(obj_proxy->var()->AsSlot(), r0));
+        __ push(r0);
+        __ mov(r0, Operand(prop->key()->AsLiteral()->handle()));
+      } else {
+        VisitForStackValue(prop->obj());
+        VisitForAccumulatorValue(prop->key());
+      }
+      __ ldr(r1, MemOperand(sp, 0));
+      __ push(r0);
+      EmitKeyedPropertyLoad(prop);
+    }
+  }
+
+  // We need a second deoptimization point after loading the value
+  // in case evaluating the property load my have a side effect.
+  if (assign_type == VARIABLE) {
+    PrepareForBailout(expr->expression(), TOS_REG);
+  } else {
+    PrepareForBailoutForId(expr->CountId(), TOS_REG);
+  }
+
+  // Call ToNumber only if operand is not a smi.
+  Label no_conversion;
+  __ JumpIfSmi(r0, &no_conversion);
+  ToNumberStub convert_stub;
+  __ CallStub(&convert_stub);
+  __ bind(&no_conversion);
+
+  // Save result for postfix expressions.
+  if (expr->is_postfix()) {
+    if (!context()->IsEffect()) {
+      // Save the result on the stack. If we have a named or keyed property
+      // we store the result under the receiver that is currently on top
+      // of the stack.
+      switch (assign_type) {
+        case VARIABLE:
+          __ push(r0);
+          break;
+        case NAMED_PROPERTY:
+          __ str(r0, MemOperand(sp, kPointerSize));
+          break;
+        case KEYED_PROPERTY:
+          __ str(r0, MemOperand(sp, 2 * kPointerSize));
+          break;
+      }
+    }
+  }
+
+
+  // Inline smi case if we are in a loop.
+  Label stub_call, done;
+  JumpPatchSite patch_site(masm_);
+
+  int count_value = expr->op() == Token::INC ? 1 : -1;
+  if (ShouldInlineSmiCase(expr->op())) {
+    __ addv(r0, r0, Immediate(Smi::FromInt(count_value)));
+    __ b(vs, &stub_call);
+    // We could eliminate this smi check if we split the code at
+    // the first smi check before calling ToNumber.
+    patch_site.EmitJumpIfSmi(r0, &done);
+
+    __ bind(&stub_call);
+    // Call stub. Undo operation first.
+    __ sub(r0, r0, Immediate(Smi::FromInt(count_value)));
+  }
+  __ mov(r1, Immediate(Smi::FromInt(count_value)));
+
+  // Record position before stub call.
+  SetSourcePosition(expr->position());
+
+  TypeRecordingBinaryOpStub stub(Token::ADD, NO_OVERWRITE);
+  EmitCallIC(stub.GetCode(), &patch_site);
+  __ bind(&done);
+
+  // Store the value returned in r0.
+  switch (assign_type) {
+    case VARIABLE:
+      if (expr->is_postfix()) {
+        { EffectContext context(this);
+          EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                                 Token::ASSIGN);
+          PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+          context.Plug(r0);
+        }
+        // For all contexts except EffectConstant We have the result on
+        // top of the stack.
+        if (!context()->IsEffect()) {
+          context()->PlugTOS();
+        }
+      } else {
+        EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               Token::ASSIGN);
+        PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+        context()->Plug(r0);
+      }
+      break;
+    case NAMED_PROPERTY: {
+      __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
+      __ pop(r1);
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->StoreIC_Initialize_Strict()
+          : isolate()->builtins()->StoreIC_Initialize();
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+      if (expr->is_postfix()) {
+        if (!context()->IsEffect()) {
+          context()->PlugTOS();
+        }
+      } else {
+        context()->Plug(r0);
+      }
+      break;
+    }
+    case KEYED_PROPERTY: {
+      __ pop(r1);  // Key.
+      __ pop(r2);  // Receiver.
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
+          : isolate()->builtins()->KeyedStoreIC_Initialize();
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+      if (expr->is_postfix()) {
+        if (!context()->IsEffect()) {
+          context()->PlugTOS();
+        }
+      } else {
+        context()->Plug(r0);
+      }
+      break;
+    }
+  }
 }
 
 
