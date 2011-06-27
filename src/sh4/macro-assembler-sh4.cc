@@ -1697,9 +1697,15 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   ASSERT(!zeros.is(sh4_rtmp));
   RECORD_LINE();
 
-  Label l1, l2, l3, l4, l5;
+  Label l0, l1, l2, l3, l4, l5;
+  cmpeq(source, Immediate(0));
+  bf(&l0);
+  mov(zeros, Immediate(32));
+  jmp(&l5);
+
+  bind(&l0);
   mov(zeros, Immediate(0));
-  Move(scratch, source);
+  mov(scratch, source);
   // Top 16.
   tst(scratch, Immediate(0xffff0000));
   bf(&l1);
