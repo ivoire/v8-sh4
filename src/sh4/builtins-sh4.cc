@@ -483,7 +483,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     __ tst(r2, Immediate(kSmiTagMask));
     __ Assert(ne, "Unexpected initial map for Array function");
-    __ CompareObjectType(r2, r3, r4, MAP_TYPE);
+    __ CompareObjectType(r2, r3, r4, MAP_TYPE, eq);
     __ Assert(eq, "Unexpected initial map for Array function");
   }
 
@@ -640,7 +640,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ tst(r1, Immediate(kSmiTagMask));
   __ bt(&non_function_call);
   // Check that the function is a JSFunction.
-  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
   __ bf(&non_function_call);
 
   // Jump to the function-specific construct stub.
@@ -696,7 +696,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     __ tst(r2, Immediate(kSmiTagMask));
     __ b(eq, &rt_call);
-    __ CompareObjectType(r2, r3, r4, MAP_TYPE);
+    __ CompareObjectType(r2, r3, r4, MAP_TYPE, eq);
     __ b(ne, &rt_call);
 
     // Check that the constructor is not constructing a JSFunction (see comments
@@ -1219,7 +1219,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ mov(r1, MemOperand(sp, ip));
   __ tst(r1, Immediate(kSmiTagMask));
   __ bt(&non_function);
-  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
   __ bf(&non_function);
 
   // 3a. Patch the first argument if necessary when calling a function.
