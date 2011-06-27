@@ -1763,7 +1763,33 @@ void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateAddStrings(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  ASSERT(op_ == Token::ADD);
+  Label left_not_string, call_runtime;
+
+  Register left = r1;
+  Register right = r0;
+
+  // Check if left argument is a string.
+  __ JumpIfSmi(left, &left_not_string);
+  __ CompareObjectType(left, r2, r2, FIRST_NONSTRING_TYPE, ge);
+  __ bt(&left_not_string);
+
+  StringAddStub string_add_left_stub(NO_STRING_CHECK_LEFT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_left_stub);
+
+  // Left operand is not a string, test right.
+  __ bind(&left_not_string);
+  __ JumpIfSmi(right, &call_runtime);
+  __ CompareObjectType(right, r2, r2, FIRST_NONSTRING_TYPE, ge);
+  __ bt(&call_runtime);
+
+  StringAddStub string_add_right_stub(NO_STRING_CHECK_RIGHT_IN_STUB);
+  GenerateRegisterArgsPush(masm);
+  __ TailCallStub(&string_add_right_stub);
+
+  // At least one argument is not a string.
+  __ bind(&call_runtime);
 }
 
 
