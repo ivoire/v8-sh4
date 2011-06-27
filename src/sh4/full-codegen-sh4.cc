@@ -836,7 +836,83 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 
 void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ SwitchStatement");
+  Breakable nested_statement(this, stmt);
+  SetStatementPosition(stmt);
+
+  // Keep the switch value on the stack until a case matches.
+  VisitForStackValue(stmt->tag());
+  PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
+
+  ZoneList<CaseClause*>* clauses = stmt->cases();
+  CaseClause* default_clause = NULL;  // Can occur anywhere in the list.
+
+  Label next_test;  // Recycled for each test.
+  // Compile all the tests with branches to their bodies.
+  for (int i = 0; i < clauses->length(); i++) {
+    CaseClause* clause = clauses->at(i);
+    clause->body_target()->Unuse();
+
+    // The default is not a test, but remember it as final fall through.
+    if (clause->is_default()) {
+      default_clause = clause;
+      continue;
+    }
+
+    Comment cmnt(masm_, "[ Case comparison");
+    __ bind(&next_test);
+    next_test.Unuse();
+
+    // Compile the label expression.
+    VisitForAccumulatorValue(clause->label());
+
+    // Perform the comparison as if via '==='.
+    __ ldr(r1, MemOperand(sp, 0));  // Switch value.
+    bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
+    JumpPatchSite patch_site(masm_);
+    if (inline_smi_code) {
+      Label slow_case;
+      __ orr(r2, r1, r0);
+      patch_site.EmitJumpIfNotSmi(r2, &slow_case);
+
+      __ cmp(r1, r0);
+      __ b(ne, &next_test);
+      __ Drop(1);  // Switch value is no longer needed.
+      __ b(clause->body_target());
+      __ bind(&slow_case);
+    }
+
+    // Record position before stub call for type feedback.
+    SetSourcePosition(clause->position());
+    Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
+    EmitCallIC(ic, &patch_site);
+    __ cmp(r0, Immediate(0));
+    __ b(ne, &next_test);
+    __ Drop(1);  // Switch value is no longer needed.
+    __ b(clause->body_target());
+  }
+
+  // Discard the test value and jump to the default if present, otherwise to
+  // the end of the statement.
+  __ bind(&next_test);
+  __ Drop(1);  // Switch value is no longer needed.
+  if (default_clause == NULL) {
+    __ b(nested_statement.break_target());
+  } else {
+    __ b(default_clause->body_target());
+  }
+
+  // Compile all the case bodies.
+  for (int i = 0; i < clauses->length(); i++) {
+    Comment cmnt(masm_, "[ Case body");
+    CaseClause* clause = clauses->at(i);
+    __ bind(clause->body_target());
+    PrepareForBailoutForId(clause->EntryId(), NO_REGISTERS);
+    VisitStatements(clause->statements());
+  }
+
+  __ bind(nested_statement.break_target());
+  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
 
@@ -2198,7 +2274,56 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+  Label done, null, function, non_function_constructor;
+
+  VisitForAccumulatorValue(args->at(0));
+
+  // If the object is a smi, we return null.
+  __ JumpIfSmi(r0, &null);
+
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+  __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE, ge);  // Map is now in r0.
+  __ b(f, &null);
+
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ cmp(r1, Immediate(JS_FUNCTION_TYPE));
+  __ b(eq, &function);
+
+  // Check if the constructor in the map is a function.
+  __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
+  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE, eq);
+  __ b(ne, &non_function_constructor);
+
+  // r0 now contains the constructor function. Grab the
+  // instance class name from there.
+  __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kInstanceClassNameOffset));
+  __ b(&done);
+
+  // Functions have class 'Function'.
+  __ bind(&function);
+  __ LoadRoot(r0, Heap::kfunction_class_symbolRootIndex);
+  __ jmp(&done);
+
+  // Objects with a non-function constructor have class 'Object'.
+  __ bind(&non_function_constructor);
+  __ LoadRoot(r0, Heap::kfunction_class_symbolRootIndex);
+  __ jmp(&done);
+
+  // Non-JS objects have class null.
+  __ bind(&null);
+  __ LoadRoot(r0, Heap::kNullValueRootIndex);
+
+  // All done.
+  __ bind(&done);
+
+  context()->Plug(r0);
 }
 
 
