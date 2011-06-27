@@ -2155,6 +2155,25 @@ void MacroAssembler::AbortIfNotString(Register object) {
 }
 
 
+void MacroAssembler::AbortIfNotRootValue(Register src,
+                                         Heap::RootListIndex root_value_index,
+                                         const char* message) {
+  CompareRoot(src, root_value_index);
+  Assert(eq, message);
+}
+
+
+void MacroAssembler::JumpIfNotHeapNumber(Register object,
+                                         Register heap_number_map,
+                                         Register scratch,
+                                         Label* on_not_heap_number) {
+  ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  cmp(scratch, heap_number_map);
+  b(ne, on_not_heap_number);
+}
+
+
 void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
     Register first,
     Register second,

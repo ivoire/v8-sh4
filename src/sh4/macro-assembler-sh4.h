@@ -425,6 +425,20 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is a string. Used in debug code.
   void AbortIfNotString(Register object);
 
+  // Abort execution if argument is not the root value with the given index.
+  void AbortIfNotRootValue(Register src,
+                           Heap::RootListIndex root_value_index,
+                           const char* message);
+
+  // ---------------------------------------------------------------------------
+  // HeapNumber utilities
+
+  void JumpIfNotHeapNumber(Register object,
+                           Register heap_number_map,
+                           Register scratch,
+                           Label* on_not_heap_number);
+
+
   // ---------------------------------------------------------------------------
   // Exception handling
 
