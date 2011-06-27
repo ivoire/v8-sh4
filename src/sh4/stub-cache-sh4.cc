@@ -343,7 +343,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
   __ b(eq, miss_label);
 
   // Check that the object is a JS array.
-  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
+  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE, eq);
   __ b(ne, miss_label);
 
   // Load length directly from the JS array.
@@ -818,7 +818,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
     // function, we have to verify that it still is a function.
     __ tst(r1, Immediate(kSmiTagMask));
     __ b(eq, miss);
-    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
+    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq);
     __ b(ne, miss);
 
     // Check the shared function info. Make sure it hasn't changed.
@@ -1177,7 +1177,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
         // Check that the object is a smi or a heap number.
         __ tst(r1, Immediate(kSmiTagMask));
         __ b(eq, &fast);
-        __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE);
+        __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE, eq);
         __ b(ne, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.

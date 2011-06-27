@@ -607,7 +607,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
       __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE, ge);
       __ b(t, slow);
     } else {
-      __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
+      __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE, eq);
       __ b(eq, &heap_number);
       // Comparing JS objects with <=, >= is complicated.
       if (cond != eq) {
@@ -707,7 +707,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   __ b(eq, &rhs_is_smi);
 
   // Lhs is a Smi.  Check whether the rhs is a heap number.
-  __ CompareObjectType(rhs, r4, r4, HEAP_NUMBER_TYPE);
+  __ CompareObjectType(rhs, r4, r4, HEAP_NUMBER_TYPE, eq);
   if (strict) {
     // If rhs is not a number and lhs is a Smi then strict equality cannot
     // succeed.  Return non-equal
@@ -739,7 +739,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   __ bind(&rhs_is_smi);
   // Rhs is a smi.  Check whether the non-smi lhs is a heap number.
-  __ CompareObjectType(lhs, r4, r4, HEAP_NUMBER_TYPE);
+  __ CompareObjectType(lhs, r4, r4, HEAP_NUMBER_TYPE, eq);
   if (strict) {
     // If lhs is not a number and rhs is a smi then strict equality cannot
     // succeed.  Return non-equal.
@@ -921,7 +921,7 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
   ASSERT((lhs.is(r0) && rhs.is(r1)) ||
          (lhs.is(r1) && rhs.is(r0)));
 
-  __ CompareObjectType(rhs, r3, r2, HEAP_NUMBER_TYPE);
+  __ CompareObjectType(rhs, r3, r2, HEAP_NUMBER_TYPE, eq);
   __ b(ne, not_heap_numbers);
   __ ldr(r2, FieldMemOperand(lhs, HeapObject::kMapOffset));
   __ cmp(r2, r3);

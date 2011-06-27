@@ -577,7 +577,7 @@ class MacroAssembler: public Assembler {
                          Register map,
                          Register type_reg,
                          InstanceType type,
-                         Condition cond = eq);
+                         Condition cond);
 
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both

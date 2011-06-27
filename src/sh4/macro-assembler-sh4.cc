@@ -55,7 +55,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   JumpIfSmi(function, miss);
 
   // Check that the function really is a function.  Load map into result reg.
-  CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
+  CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE, eq);
   bf(miss);
   
   RECORD_LINE();
@@ -80,7 +80,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   RECORD_LINE();
   // If the function does not have an initial map, we're done.
   Label done;
-  CompareObjectType(result, scratch, scratch, MAP_TYPE);
+  CompareObjectType(result, scratch, scratch, MAP_TYPE, eq);
   bf(&done);
 
   RECORD_LINE();
