@@ -2353,7 +2353,14 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitSubString(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  // Load the arguments on the stack and call the stub.
+  SubStringStub stub;
+  ASSERT(args->length() == 3);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  VisitForStackValue(args->at(2));
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
