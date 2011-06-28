@@ -1498,8 +1498,71 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
 
 MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
     JSObject* receiver) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : key
+  //  -- r2    : receiver
+  //  -- lr    : return address
+  //  -- r3    : scratch
+  //  -- r4    : scratch (elements)
+  // -----------------------------------
+  Label miss;
+
+  Register value_reg = r0;
+  Register key_reg = r1;
+  Register receiver_reg = r2;
+  Register scratch = r3;
+  Register elements_reg = r4;
+
+  // Check that the receiver isn't a smi.
+  __ tst(receiver_reg, Immediate(kSmiTagMask));
+  __ b(eq, &miss);
+
+  // Check that the map matches.
+  __ ldr(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Immediate(Handle<Map>(receiver->map())));
+  __ b(ne, &miss);
+
+  // Check that the key is a smi.
+  __ tst(key_reg, Immediate(kSmiTagMask));
+  __ b(ne, &miss);
+
+  // Get the elements array and make sure it is a fast element array, not 'cow'.
+  __ ldr(elements_reg,
+         FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
+  __ ldr(scratch, FieldMemOperand(elements_reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Immediate(Handle<Map>(factory()->fixed_array_map())));
+  __ b(ne, &miss);
+
+  // Check that the key is within bounds.
+  if (receiver->IsJSArray()) {
+    __ ldr(scratch, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+  } else {
+    __ ldr(scratch, FieldMemOperand(elements_reg, FixedArray::kLengthOffset));
+  }
+  // Compare smis.
+  __ cmphs(key_reg, scratch);
+  __ b(t, &miss);
+
+  __ add(scratch,
+         elements_reg, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  __ lsl(ip, key_reg, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(ip, scratch, ip);      //TODO: implement MemOperand(rg, reg)
+  __ str(value_reg, MemOperand(ip));
+  __ sub(ip, ip, scratch);
+  __ RecordWrite(scratch, ip, receiver_reg , elements_reg);
+
+  // value_reg (r0) is preserved.
+  // Done.
+  __ Ret();
+
+  __ bind(&miss);
+  Handle<Code> ic = masm()->isolate()->builtins()->KeyedStoreIC_Miss();
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, NULL);
 }
 
 
