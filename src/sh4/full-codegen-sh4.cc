@@ -2463,7 +2463,20 @@ void FullCodeGenerator::EmitMathSqrt(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() >= 2);
+
+  int arg_count = args->length() - 2;  // 2 ~ receiver and function.
+  for (int i = 0; i < arg_count + 1; i++) {
+    VisitForStackValue(args->at(i));
+  }
+  VisitForAccumulatorValue(args->last());  // Function.
+
+  // InvokeFunction requires the function in r1. Move it in there.
+  __ mov(r1, result_register());
+  ParameterCount count(arg_count);
+  __ InvokeFunction(r1, count, CALL_FUNCTION);
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  context()->Plug(r0);
 }
 
 
@@ -2488,7 +2501,21 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ ldr(r0, FieldMemOperand(r0, String::kHashFieldOffset));
+  __ tst(r0, Immediate(String::kContainsCachedArrayIndexMask));
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Split(eq, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
@@ -3209,12 +3236,30 @@ void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
 
 
 void FullCodeGenerator::EnterFinallyBlock() {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(!result_register().is(r1));
+  // Store result register while executing finally block.
+  __ push(result_register());
+  // Cook return address in link register to stack (smi encoded Code* delta)
+  __ strpr(r1);
+  __ sub(r1, r1, Immediate(masm_->CodeObject()));
+  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
+  ASSERT_EQ(0, kSmiTag);
+  __ add(r1, r1, r1);  // Convert to smi.
+  __ push(r1);
 }
 
 
 void FullCodeGenerator::ExitFinallyBlock() {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(!result_register().is(r1));
+  // Restore result register from stack.
+  __ pop(r1);
+  // Uncook return address and return.
+  __ pop(result_register());
+  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
+  __ asr(r1, r1, Immediate(1));  // Un-smi-tag value.
+  __ add(r1, r1, Immediate(masm_->CodeObject()));
+  __ ldrpr(r1);
+  __ rts();
 }
 
 
