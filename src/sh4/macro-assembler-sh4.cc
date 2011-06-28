@@ -755,7 +755,11 @@ void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width) {
 
 void MacroAssembler::PopTryHandler() {
   RECORD_LINE();
-  UNIMPLEMENTED_BREAK();
+  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  pop(r1);
+  mov(sh4_ip, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  add(sp, sp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+  str(r1, MemOperand(sh4_ip));
 }
 
 
