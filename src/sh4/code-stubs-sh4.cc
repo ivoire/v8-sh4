@@ -117,6 +117,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Compute the function map in the current global context and set that
   // as the map of the allocated object.
   __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+//__ bkpt(); __ nop();
   __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
   __ ldr(r2, MemOperand(r2, Context::SlotOffset(map_index)));
   __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -4092,6 +4093,27 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, r1, r0);
   __ bind(&generic_stub);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
+void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::OBJECTS);
+  Label miss;
+  __ land(r2, r1, r0);
+  __ tst(r2, Immediate(kSmiTagMask));
+  __ b(eq, &miss);
+
+  __ CompareObjectType(r0, r2, r2, JS_OBJECT_TYPE, eq);
+  __ b(ne, &miss);
+  __ CompareObjectType(r1, r2, r2, JS_OBJECT_TYPE, eq);
+  __ b(ne, &miss);
+
+  ASSERT(GetCondition() == eq);
+  __ sub(r0, r0, r1);
+  __ Ret();
 
   __ bind(&miss);
   GenerateMiss(masm);

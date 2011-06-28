@@ -1406,11 +1406,6 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
 }
 
 
-void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  UNIMPLEMENTED();
-}
-
-
 MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   UNIMPLEMENTED();
   return NULL;
