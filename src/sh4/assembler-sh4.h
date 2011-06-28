@@ -878,6 +878,9 @@ class Assembler : public AssemblerBase {
   void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movw(dst, Rs, rtmp); }
   void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { mov(dst, Rs, rtmp); }
 
+  void ldrpr(Register Rd) { lds_PR_(Rd); };
+  void strpr(Register Rs) { sts_PR_(Rs); };
+
   void mul(Register Rd, Register Rs, Register Rt);
 
   void nop() { nop_(); }
