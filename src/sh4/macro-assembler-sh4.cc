@@ -830,7 +830,22 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
   if (try_location == IN_JAVASCRIPT) {
     RECORD_LINE();
-    UNIMPLEMENTED_BREAK();
+    if (type == TRY_CATCH_HANDLER) {
+      mov(r3, Immediate(StackHandler::TRY_CATCH));
+    } else {
+      mov(r3, Immediate(StackHandler::TRY_FINALLY));
+    }
+    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
+           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
+           && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+    Push(pr, fp, r3);
+    // Save the current handler as the next handler.
+    mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+    ldr(r1, MemOperand(r3));
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    push(r1);
+    // Link this handler as the new current one.
+    str(sp, MemOperand(r3));
   } else {
     // Must preserve r0-r4, r5-r7 are available.
     ASSERT(try_location == IN_JS_ENTRY);
