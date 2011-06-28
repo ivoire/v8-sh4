@@ -539,7 +539,7 @@ void Assembler::tst(Register Rd, const Immediate& imm, Register rtmp) {
 }
 
 void Assembler::call(Label* L) {
-  UNIMPLEMENTED();
+  jsr(L);
 }
 
 

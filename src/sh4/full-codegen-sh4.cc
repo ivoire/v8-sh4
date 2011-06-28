@@ -2138,7 +2138,22 @@ void FullCodeGenerator::EmitIsSmi(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitIsNonNegativeSmi(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  __ tst(r0, Immediate(kSmiTagMask | 0x80000000));
+  Split(eq, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
