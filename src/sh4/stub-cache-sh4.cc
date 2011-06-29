@@ -1090,8 +1090,50 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
 
 MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
                                                         String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the object isn't a smi.
+  __ tst(r1, Immediate(kSmiTagMask));
+  __ b(eq, &miss);
+
+  // Check that the map of the object hasn't changed.
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r3, Immediate(Handle<Map>(receiver->map())));
+  __ b(ne, &miss);
+
+  // Perform global security token check if needed.
+  if (receiver->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(r1, r3, &miss);
+  }
+
+  // Stub is never generated for non-global objects that require access
+  // checks.
+  ASSERT(receiver->IsJSGlobalProxy() || !receiver->IsAccessCheckNeeded());
+
+  __ Push(r1, r2, r0);  // Receiver, name, value.
+
+  __ mov(r0, Immediate(Smi::FromInt(strict_mode_)));
+  __ push(r0);  // strict mode
+
+  // Do tail-call to the runtime system.
+  ExternalReference store_ic_property =
+      ExternalReference(IC_Utility(IC::kStoreInterceptorProperty),
+                        masm()->isolate());
+  __ TailCallExternalReference(store_ic_property, 4, 1);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  Handle<Code> ic = masm()->isolate()->builtins()->StoreIC_Miss();
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(INTERCEPTOR, name);
 }
 
 
