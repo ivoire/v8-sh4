@@ -2436,7 +2436,13 @@ void FullCodeGenerator::EmitValueOf(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitMathPow(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  // Load the arguments on the stack and call the runtime function.
+  ASSERT(args->length() == 2);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  MathPowStub stub;
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 

@@ -2023,6 +2023,14 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
+void MathPowStub::Generate(MacroAssembler* masm) {
+  Label call_runtime;
+
+  //TODO: VFP
+  __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+}
+
+
 bool CEntryStub::NeedsImmovableCode() {
   return true;
 }
