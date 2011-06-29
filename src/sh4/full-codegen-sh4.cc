@@ -2158,7 +2158,34 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitIsObject(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ JumpIfSmi(r0, if_false);
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(r0, ip);
+  __ b(eq, if_true);
+  __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+  // Undetectable objects behave like undefined when tested with typeof.
+  __ ldrb(r1, FieldMemOperand(r2, Map::kBitFieldOffset));
+  __ tst(r1, Immediate(1 << Map::kIsUndetectable));
+  __ b(ne, if_false);
+  __ ldrb(r1, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  __ cmpge(r1, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ bf(if_false);
+  __ cmpgt(r1, Immediate(LAST_JS_OBJECT_TYPE));
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Split(ne, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
@@ -2257,7 +2284,25 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 2);
+
+  // Load the two objects into registers and perform the comparison.
+  VisitForStackValue(args->at(0));
+  VisitForAccumulatorValue(args->at(1));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ pop(r1);
+  __ cmp(r0, r1);
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Split(eq, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
