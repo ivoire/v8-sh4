@@ -883,6 +883,7 @@ class Assembler : public AssemblerBase {
   void strpr(Register Rs) { sts_PR_(Rs); };
 
   void mul(Register Rd, Register Rs, Register Rt);
+  void dmuls(Register dstL, Register dstH, Register src1, Register src2);
 
   void nop() { nop_(); }
 

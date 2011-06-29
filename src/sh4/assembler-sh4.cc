@@ -1035,6 +1035,13 @@ void Assembler::mul(Register Rd, Register Rs, Register Rt) {
 }
 
 
+void Assembler::dmuls(Register dstL, Register dstH, Register src1, Register src2) {
+  dmulsl_(src2, src2);
+  sts_MACL_(dstL);
+  sts_MACH_(dstH);
+}
+
+
 void Assembler::pop(Register dst) {
   if (dst.is(pr))
     ldsl_incRd_PR_(sp);

@@ -399,6 +399,13 @@ void MacroAssembler::Drop(int stack_elements) {
   }
 }
 
+
+void MacroAssembler::Ret(int drop) {
+  Drop(drop);
+  Ret();
+}
+
+
 void MacroAssembler::UnimplementedBreak(const char *file, int line) {
   uint32_t file_id = 0;
   const char *base = strrchr(file, '/');
@@ -707,6 +714,26 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   } else {
     InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
   }
+}
+
+
+void MacroAssembler::IsObjectJSObjectType(Register heap_object,
+                                          Register map,
+                                          Register scratch,
+                                          Label* fail) {
+  ldr(map, FieldMemOperand(heap_object, HeapObject::kMapOffset));
+  IsInstanceJSObjectType(map, scratch, fail);
+}
+
+
+void MacroAssembler::IsInstanceJSObjectType(Register map,
+                                            Register scratch,
+                                            Label* fail) {
+  ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  cmpge(scratch, Immediate(FIRST_JS_OBJECT_TYPE));
+  bf(fail);
+  cmpgt(scratch, Immediate(LAST_JS_OBJECT_TYPE));
+  bt(fail);
 }
 
 
@@ -1088,9 +1115,19 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 #include "map-sh4.h" // Undefine register map
 
 
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+  ldr(dst, SafepointRegisterSlot(src));
+}
+
+
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   UNIMPLEMENTED();
   return 0;
+}
+
+
+MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
+  return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
 }
 
 
@@ -1705,6 +1742,63 @@ void MacroAssembler::AllocateHeapNumber(Register result,
   RECORD_LINE();
   str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
 }
+
+
+void MacroAssembler::CopyBytes(Register src,
+                               Register dst,
+                               Register length,
+                               Register scratch) {
+  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
+
+  // Align src before copying in word size chunks.
+  bind(&align_loop);
+  cmp(length, Immediate(0));
+  b(eq, &done);
+  bind(&align_loop_1);
+  tst(src, Immediate(kPointerSize - 1));
+  b(eq, &word_loop);
+  ldrb(scratch, MemOperand(src)); add(src, src, Immediate(1));
+  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  sub(length, length, Immediate(1));
+  tst(length, length);
+  b(ne, &byte_loop_1);
+
+  // Copy bytes in word size chunks.
+  bind(&word_loop);
+  if (emit_debug_code()) {
+    tst(src, Immediate(kPointerSize - 1));
+    Assert(eq, "Expecting alignment for CopyBytes");
+  }
+  cmpge(length, Immediate(kPointerSize));
+  bf(&byte_loop);
+  ldr(scratch, MemOperand(src)); add(src, src, Immediate(kPointerSize));
+#if CAN_USE_UNALIGNED_ACCESSES
+  str(scratch, MemOperand(dst)); add(dst, dst, Immediate(kPointerSize));
+#else
+  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  lsr(scratch, scratch, Immediate(8));
+  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  lsr(scratch, scratch, Immediate(8));
+  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  lsr(scratch, scratch, Immediate(8));
+  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+#endif
+  sub(length, length, Immediate(kPointerSize));
+  b(&word_loop);
+
+  // Copy the last bytes if any left.
+  bind(&byte_loop);
+  cmp(length, Immediate(0));
+  b(eq, &done);
+  bind(&byte_loop_1);
+  ldrb(scratch, MemOperand(src)); add(src, src, Immediate(1));
+  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  sub(length, length, Immediate(1));
+  tst(length, length);
+  b(ne, &byte_loop_1);
+  bind(&done);
+}
+
 
 void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
                                        Register source,  // Input.
@@ -2397,6 +2491,12 @@ void MacroAssembler::CheckMap(Register obj,
   LoadRoot(sh4_ip, index);
   cmp(scratch, sh4_ip);
   b(ne, fail);
+}
+
+
+void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
+                               Register result) {
+  UNIMPLEMENTED();
 }
 
 
