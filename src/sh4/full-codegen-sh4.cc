@@ -1157,7 +1157,53 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
 
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ RegExpLiteral");
+  Label materialized;
+  // Registers will be used as follows:
+  // r5 = materialized value (RegExp literal)
+  // r4 = JS function, literals array
+  // r3 = literal index
+  // r2 = RegExp pattern
+  // r1 = RegExp flags
+  // r0 = RegExp literal clone
+  __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r4, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
+  int literal_offset =
+      FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+  __ ldr(r5, FieldMemOperand(r4, literal_offset));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r5, ip);
+  __ b(ne, &materialized);
+
+  // Create regexp literal using runtime function.
+  // Result will be in r0.
+  __ mov(r3, Immediate(Smi::FromInt(expr->literal_index())));
+  __ mov(r2, Immediate(expr->pattern()));
+  __ mov(r1, Immediate(expr->flags()));
+  __ Push(r4, r3, r2, r1);
+  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  __ mov(r5, r0);
+
+  __ bind(&materialized);
+  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+  Label allocated, runtime_allocate;
+  __ AllocateInNewSpace(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
+  __ jmp(&allocated);
+
+  __ bind(&runtime_allocate);
+  __ push(r5);
+  __ mov(r0, Immediate(Smi::FromInt(size)));
+  __ push(r0);
+  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  __ pop(r5);
+
+  __ bind(&allocated);
+  // After this, registers are used as follows:
+  // r0: Newly allocated regexp.
+  // r5: Materialized regexp.
+  // r2: temp.
+  __ CopyFields(r0, r5, r2.bit(), size / kPointerSize);
+  context()->Plug(r0);
 }
 
 
@@ -2264,7 +2310,23 @@ void FullCodeGenerator::EmitIsArray(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitIsRegExp(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ JumpIfSmi(r0, if_false);
+  __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE, eq);
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Split(eq, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
@@ -2404,7 +2466,24 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitLog(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  // Conditionally generate a log call.
+  // Args:
+  //   0 (literal string): The type of logging (corresponds to the flags).
+  //     This is used to determine whether or not to generate the log call.
+  //   1 (string): Format string.  Access the string at argument index 2
+  //     with '%2s' (see Logger::LogRuntime for all the formats).
+  //   2 (array): Arguments to the format string.
+  ASSERT_EQ(args->length(), 3);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (CodeGenerator::ShouldGenerateLog(args->at(0))) {
+    VisitForStackValue(args->at(1));
+    VisitForStackValue(args->at(2));
+    __ CallRuntime(Runtime::kLog, 2);
+  }
+#endif
+  // Finally, we're expected to leave a value on the top of the stack.
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  context()->Plug(r0);
 }
 
 
