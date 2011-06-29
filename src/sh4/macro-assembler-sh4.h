@@ -431,6 +431,15 @@ class MacroAssembler: public Assembler {
                            const char* message);
 
   // ---------------------------------------------------------------------------
+  // Patching helpers.
+
+  // Get the location of a relocated constant (its address in the constant pool)
+  // from its load site.
+  void GetRelocatedValueLocation(Register ldr_location,
+                                 Register result);
+
+
+  // ---------------------------------------------------------------------------
   // HeapNumber utilities
 
   void JumpIfNotHeapNumber(Register object,
@@ -756,6 +765,7 @@ class MacroAssembler: public Assembler {
   void Ret(Condition cond = al);
 
   void Drop(int stack_elements);
+  void Ret(int drop);
 
   void Jump(intptr_t target, RelocInfo::Mode rmode);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode);
@@ -913,7 +923,7 @@ class MacroAssembler: public Assembler {
 
 
   // Compute memory operands for safepoint stack slots.
-  Operand SafepointRegisterSlot(Register reg);
+  MemOperand SafepointRegisterSlot(Register reg);
   static int SafepointRegisterStackIndex(int reg_code);
 
   // Needs access to SafepointRegisterStackIndex for optimized frame
