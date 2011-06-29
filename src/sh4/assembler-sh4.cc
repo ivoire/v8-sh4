@@ -1005,6 +1005,18 @@ void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
 }
 
 
+void Assembler::movb(const MemOperand& dst, Register Rd, Register rtmp) {
+  ASSERT(!dst.rn_.is_valid()); // @(Rm + Rn) mode not supported for store
+  if (dst.offset_ == 0) {
+    movb_indRd_(Rd, dst.rm_);
+  } else {
+    ASSERT(!Rd.is(rtmp));
+    add(rtmp, dst.rm_, Immediate(dst.offset_));
+    movb_indRd_(Rd, rtmp);
+  }
+}
+
+
 void Assembler::movw(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(!dst.rn_.is_valid()); // @(Rm + Rn) mode not supported for store
   if (dst.offset_ == 0) {
