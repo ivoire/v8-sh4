@@ -869,6 +869,7 @@ class Assembler : public AssemblerBase {
   void movb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp); // unsigned 8 bit load op.
   void movw(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp); // unsigned 16 bit load op.
   void mov(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store op.
+  void movb(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store 8 bits op.
   void movw(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store 16 bits op.
 
   void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { mov(Rd, src, rtmp); }
@@ -876,7 +877,7 @@ class Assembler : public AssemblerBase {
   void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { movw(Rd, src, rtmp); }
   void str(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { mov(dst, Rs, rtmp); }
   void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movw(dst, Rs, rtmp); }
-  void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { mov(dst, Rs, rtmp); }
+  void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movb(dst, Rs, rtmp); }
 
   void ldrpr(Register Rd) { lds_PR_(Rd); };
   void strpr(Register Rs) { sts_PR_(Rs); };
