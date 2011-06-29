@@ -2375,19 +2375,194 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 }
 
 
+// Uses registers r0 to r4.
+// Expected input (depending on whether args are in registers or on the stack):
+// * object: r0 or at sp + 1 * kPointerSize.
+// * function: r1 or at sp.
+//
+// An inlined call site may have been generated before calling this stub.
+// In this case the offset to the inline site to patch is passed on the stack,
+// in the safepoint slot for register r4.
+// (See LCodeGen::DoInstanceOfKnownGlobal)
+
 void InstanceofStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  // Call site inlining and patching implies arguments in registers.
+  ASSERT(HasArgsInRegisters() || !HasCallSiteInlineCheck());
+  // ReturnTrueFalse is only implemented for inlined call sites.
+  ASSERT(!ReturnTrueFalseObject() || HasCallSiteInlineCheck());
+
+  // Fixed register usage throughout the stub:
+  const Register object = r0;  // Object (lhs).
+  Register map = r3;  // Map of the object.
+  const Register function = r1;  // Function (rhs).
+  const Register prototype = r4;  // Prototype of the function.
+  const Register inline_site = r9;
+  const Register scratch = r2;
+
+  const int32_t kDeltaToLoadBoolResult = 3 * kPointerSize;
+
+  Label slow, loop, is_instance, is_not_instance, not_js_object;
+
+  if (!HasArgsInRegisters()) {
+    __ ldr(object, MemOperand(sp, 1 * kPointerSize));
+    __ ldr(function, MemOperand(sp, 0));
+  }
+
+  // Check that the left hand is a JS object and load map.
+  __ JumpIfSmi(object, &not_js_object);
+  __ IsObjectJSObjectType(object, map, scratch, &not_js_object);
+
+  // If there is a call site cache don't look in the global cache, but do the
+  // real lookup and update the call site cache.
+  if (!HasCallSiteInlineCheck()) {
+    Label miss;
+    __ LoadRoot(ip, Heap::kInstanceofCacheFunctionRootIndex);
+    __ cmp(function, ip);
+    __ b(ne, &miss);
+    __ LoadRoot(ip, Heap::kInstanceofCacheMapRootIndex);
+    __ cmp(map, ip);
+    __ b(ne, &miss);
+    __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+    __ Ret(HasArgsInRegisters() ? 0 : 2);
+
+    __ bind(&miss);
+  }
+
+  // Get the prototype of the function.
+  __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
+
+  // Check that the function prototype is a JS object.
+  __ JumpIfSmi(prototype, &slow);
+  __ IsObjectJSObjectType(prototype, scratch, scratch, &slow);
+
+  // Update the global instanceof or call site inlined cache with the current
+  // map and function. The cached answer will be set when it is known below.
+  if (!HasCallSiteInlineCheck()) {
+    __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
+    __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
+  } else {
+    ASSERT(HasArgsInRegisters());
+    // Patch the (relocated) inlined map check.
+
+    // The offset was stored in r4 safepoint slot.
+    // (See LCodeGen::DoDeferredLInstanceOfKnownGlobal)
+    __ LoadFromSafepointRegisterSlot(scratch, r4);
+    __ sub(inline_site, lr, scratch);
+    // Get the map location in scratch and patch it.
+    __ GetRelocatedValueLocation(inline_site, scratch);
+    __ str(map, MemOperand(scratch));
+  }
+
+  // Register mapping: r3 is object map and r4 is function prototype.
+  // Get prototype of object into r2.
+  __ ldr(scratch, FieldMemOperand(map, Map::kPrototypeOffset));
+
+  // We don't need map any more. Use it as a scratch register.
+  Register scratch2 = map;
+  map = no_reg;
+
+  // Loop through the prototype chain looking for the function prototype.
+  __ LoadRoot(scratch2, Heap::kNullValueRootIndex);
+  __ bind(&loop);
+  __ cmp(scratch, prototype);
+  __ b(eq, &is_instance);
+  __ cmp(scratch, scratch2);
+  __ b(eq, &is_not_instance);
+  __ ldr(scratch, FieldMemOperand(scratch, HeapObject::kMapOffset));
+  __ ldr(scratch, FieldMemOperand(scratch, Map::kPrototypeOffset));
+  __ jmp(&loop);
+
+  __ bind(&is_instance);
+  if (!HasCallSiteInlineCheck()) {
+    __ mov(r0, Immediate(Smi::FromInt(0)));
+    __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+  } else {
+    // Patch the call site to return true.
+    __ LoadRoot(r0, Heap::kTrueValueRootIndex);
+    __ add(inline_site, inline_site, Immediate(kDeltaToLoadBoolResult));
+    // Get the boolean result location in scratch and patch it.
+    __ GetRelocatedValueLocation(inline_site, scratch);
+    __ str(r0, MemOperand(scratch));
+
+    if (!ReturnTrueFalseObject()) {
+      __ mov(r0, Immediate(Smi::FromInt(0)));
+    }
+  }
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
+
+  __ bind(&is_not_instance);
+  if (!HasCallSiteInlineCheck()) {
+    __ mov(r0, Immediate(Smi::FromInt(1)));
+    __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+  } else {
+    // Patch the call site to return false.
+    __ LoadRoot(r0, Heap::kFalseValueRootIndex);
+    __ add(inline_site, inline_site, Immediate(kDeltaToLoadBoolResult));
+    // Get the boolean result location in scratch and patch it.
+    __ GetRelocatedValueLocation(inline_site, scratch);
+    __ str(r0, MemOperand(scratch));
+
+    if (!ReturnTrueFalseObject()) {
+      __ mov(r0, Immediate(Smi::FromInt(1)));
+    }
+  }
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
+
+  Label object_not_null, object_not_null_or_smi;
+  __ bind(&not_js_object);
+  // Before null, smi and string value checks, check that the rhs is a function
+  // as for a non-function rhs an exception needs to be thrown.
+  __ JumpIfSmi(function, &slow);
+  __ CompareObjectType(function, scratch2, scratch, JS_FUNCTION_TYPE, eq);
+  __ b(ne, &slow);
+
+  // Null is not instance of anything.
+  __ cmp(scratch, Immediate(masm->isolate()->factory()->null_value()));
+  __ b(ne, &object_not_null);
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
+
+  __ bind(&object_not_null);
+  // Smi values are not instances of anything.
+  __ JumpIfNotSmi(object, &object_not_null_or_smi);
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
+
+  __ bind(&object_not_null_or_smi);
+  // String values are not instances of anything.
+  __ IsObjectJSStringType(object, scratch, &slow);
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ Ret(HasArgsInRegisters() ? 0 : 2);
+
+  // Slow-case.  Tail call builtin.
+  __ bind(&slow);
+  if (!ReturnTrueFalseObject()) {
+    if (HasArgsInRegisters()) {
+      __ Push(r0, r1);
+    }
+  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_JS);
+  } else {
+    Label ltrue, lfalse;
+    __ EnterInternalFrame();
+    __ Push(r0, r1);
+    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_JS);
+    __ LeaveInternalFrame();
+    __ cmp(r0, Immediate(0));
+    __ bf(&lfalse);
+    __ LoadRoot(r0, Heap::kTrueValueRootIndex);
+    __ jmp(&ltrue);
+    __ bind(&lfalse);
+    __ LoadRoot(r0, Heap::kFalseValueRootIndex);
+    __ bind(&ltrue);
+    __ Ret(HasArgsInRegisters() ? 0 : 2);
+  }
 }
 
 
-Register InstanceofStub::left() {
-  UNIMPLEMENTED();
-}
+Register InstanceofStub::left() { return r0; }
 
 
-Register InstanceofStub::right() {
-  UNIMPLEMENTED();
-}
+Register InstanceofStub::right() { return r1; }
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
