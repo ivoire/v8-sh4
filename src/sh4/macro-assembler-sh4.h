@@ -430,6 +430,9 @@ class MacroAssembler: public Assembler {
                            Heap::RootListIndex root_value_index,
                            const char* message);
 
+  // Prints the value of the register to stdout. Use for debug only. 
+  void PrintRegisterValue(Register reg);
+
   // ---------------------------------------------------------------------------
   // Patching helpers.
 
