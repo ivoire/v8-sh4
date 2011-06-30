@@ -2315,6 +2315,39 @@ void MacroAssembler::AbortIfNotRootValue(Register src,
 }
 
 
+void MacroAssembler::PrintRegisterValue(Register reg) {
+  ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
+  Label gc_required, skip, not_smi;
+  RECORD_LINE();
+  EnterInternalFrame();
+  push(reg); // Save reg as it is scratched by WriteInt32ToHeapNumberStub()
+  pushm(kJSCallerSaved);
+  TrySmiTag(reg, &not_smi, r5/*scratch*/);
+  mov(r4, reg);
+  jmp(&skip);
+  bind(&not_smi);
+  RECORD_LINE();
+  LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
+  AllocateHeapNumber(r4/*result heap number*/, r5/*scratch*/, r6/*scratch*/,
+		     r7/*heap_number_map*/, &gc_required);
+  WriteInt32ToHeapNumberStub stub(reg, r4, r5/*scratch*/);
+  CallStub(&stub);
+  jmp(&skip);
+  bind(&gc_required);
+  RECORD_LINE();
+  Abort("GC required while dumping number");
+  bind(&skip);
+  RECORD_LINE();
+  push(r4);
+  CallRuntime(Runtime::kNumberToString, 1);
+  push(r0);
+  CallRuntime(Runtime::kGlobalPrint, 1);
+  popm(kJSCallerSaved);
+  pop(reg);
+  LeaveInternalFrame();
+}
+
+
 void MacroAssembler::JumpIfNotHeapNumber(Register object,
                                          Register heap_number_map,
                                          Register scratch,
