@@ -999,3 +999,96 @@ TEST(sh4_ma_8) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
+
+// Test CopyBytes
+TEST(sh4_ma_9) {
+  BEGIN();
+
+  Label error;
+
+  PROLOGUE();
+
+  // Push garbage values on the stack
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ push(Immediate(0xdeadbeef));
+  __ mov(r0, sp);
+
+  // Push nice values that will be copied
+  __ push(Immediate(0xf0000000));
+  __ push(Immediate(0x0f000000));
+  __ push(Immediate(0x00f00000));
+  __ push(Immediate(0x000f0000));
+  __ push(Immediate(0x00000f00));
+  __ push(Immediate(0x000000f0));
+  __ push(Immediate(0x0000000f));
+  __ push(Immediate(0x13453abb));
+  __ push(Immediate(0xabcdef01));
+  __ push(Immediate(0x789abcde));
+  __ mov(r1, sp);
+
+  __ mov(r2, Immediate(40));
+  __ CopyBytes(r1, r0, r2, r3);
+
+  // Check that the src is untouched
+  __ pop(r0); __ cmpeq(r0, Immediate(0x789abcde)); __ mov(r1, Immediate(19 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0xabcdef01)); __ mov(r1, Immediate(18 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x13453abb)); __ mov(r1, Immediate(17 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x0000000f)); __ mov(r1, Immediate(16 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x000000f0)); __ mov(r1, Immediate(15 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x00000f00)); __ mov(r1, Immediate(14 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x000f0000)); __ mov(r1, Immediate(13 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x00f00000)); __ mov(r1, Immediate(12 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x0f000000)); __ mov(r1, Immediate(11 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0xf0000000)); __ mov(r1, Immediate(10 * 4)); B_LINE(ne, &error);
+
+  // check that the dst is modified
+  __ pop(r0); __ cmpeq(r0, Immediate(0x789abcde)); __ mov(r1, Immediate(9 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0xabcdef01)); __ mov(r1, Immediate(8 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x13453abb)); __ mov(r1, Immediate(7 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x0000000f)); __ mov(r1, Immediate(6 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x000000f0)); __ mov(r1, Immediate(5 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x00000f00)); __ mov(r1, Immediate(4 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x000f0000)); __ mov(r1, Immediate(3 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x00f00000)); __ mov(r1, Immediate(2 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x0f000000)); __ mov(r1, Immediate(1 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0xf0000000)); __ mov(r1, Immediate(0 * 4)); B_LINE(ne, &error);
+
+
+  // Test that copying 0 bytes dos not do anything
+  __ push(Immediate(0xdeadbeef));
+  __ mov(r0, sp);
+  __ push(Immediate(0x00000ff0));
+  __ mov(r1, sp);
+
+  __ mov(r2, Immediate(0));
+  __ CopyBytes(r1, r0, r2, r3);
+  __ pop(r0); __ cmpeq(r0, Immediate(0x00000ff0)); __ mov(r1, Immediate(1 * 4)); B_LINE(ne, &error);
+  __ pop(r0); __ cmpeq(r0, Immediate(0xdeadbeef)); __ mov(r1, Immediate(0 * 4)); B_LINE(ne, &error);
+
+  EPILOGUE();
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  __ bind(&error);
+  __ add(sp, sp, r1);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
