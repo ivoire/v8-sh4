@@ -832,7 +832,18 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 #if defined(V8_HOST_ARCH_SH4)
   if (emit_debug_code()) {
     RECORD_LINE();
-    UNIMPLEMENTED_BREAK();
+    int frame_alignment = OS::ActivationFrameAlignment();
+    int frame_alignment_mask = frame_alignment - 1;
+    if (frame_alignment > kPointerSize) {
+      ASSERT(IsPowerOf2(frame_alignment));
+      Label alignment_as_expected;
+      tst(sp, Immediate(frame_alignment_mask));
+      b(eq, &alignment_as_expected);
+      // Don't use Check here, as it will call Runtime_Abort possibly
+      // re-entering here.
+      stop("Unexpected alignment");
+      bind(&alignment_as_expected);
+    }
   }
 #endif
 

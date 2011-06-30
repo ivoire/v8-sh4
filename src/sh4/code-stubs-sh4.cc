@@ -2873,6 +2873,18 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 }
 
 
+void RegExpExecStub::Generate(MacroAssembler* masm) {
+  // Just jump directly to runtime if native RegExp is not selected at compile
+  // time or if regexp entry in generated code is turned off runtime switch or
+  // at compilation.
+#ifdef V8_INTERPRETED_REGEXP
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
+#else
+  //TODO
+#endif
+}
+
+
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
 
