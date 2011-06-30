@@ -3643,8 +3643,7 @@ void FullCodeGenerator::ExitFinallyBlock() {
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
   __ asr(r1, r1, Immediate(1));  // Un-smi-tag value.
   __ add(r1, r1, Immediate(masm_->CodeObject()));
-  __ ldrpr(r1);
-  __ rts();
+  __ jmp(r1);
 }
 
 
