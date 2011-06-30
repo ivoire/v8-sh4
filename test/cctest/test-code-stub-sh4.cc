@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "macro-assembler.h"
+#include "code-stubs.h"
 #include "factory.h"
 #include "platform.h"
 #include "serialize.h"
@@ -87,7 +88,8 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
   if (exc) { result = isolate->factory()->nan_value(); } \
   (void)0
 
-#ifdef DEBUG
+//#define NOPRINT
+#if defined(DEBUG) && !defined(NOPRINT)
 #define PRINT()  Code::cast(func->code())->Print()
 #else
 #define PRINT() (void)0
@@ -422,3 +424,206 @@ TEST(sh4_cs_4) {
   CHECK(result->IsSmi());
   CHECK_EQ(0, Smi::cast(*result)->value());
 }						     
+
+
+static double
+ObjectToNumber(Object *object) {
+  double cast_value;
+  if (object->IsSmi()) {
+    int int_value = Smi::cast(object)->value();
+    cast_value = static_cast<double>(int_value);
+  } else if (object->IsHeapNumber()) {
+    cast_value = HeapNumber::cast(object)->value();
+  } else {
+    // Return 0 when not a number
+    cast_value = 0;
+  }
+  return cast_value;
+}
+
+// Test TailCallRuntime()
+TEST(sh4_cs_5) {
+  {
+    BEGIN();
+    CMT("Check TailCallRuntime: NumberToJSint32(13)");
+    __ mov(r0, Immediate(Smi::FromInt(13)));
+    __ push(r0);
+    __ TailCallRuntime(Runtime::kNumberToJSInt32, 1, 1);
+
+    JIT();
+    PRINT();
+    CALL();
+    CHECK(result->IsNumber());
+    CHECK(ObjectToNumber(*result) == 13);
+  }
+  {
+    BEGIN();
+    CMT("Check CallRuntime: NumberAdd(7, 27)");
+    __ EnterInternalFrame();
+    __ mov(r0, Immediate(Smi::FromInt(7)));
+    __ mov(r1, Immediate(Smi::FromInt(27)));
+    __ Push(r0, r1);
+    __ CallRuntime(Runtime::kNumberAdd, 2);
+    __ LeaveInternalFrame();
+    __ Ret();
+    JIT();
+    PRINT();
+    CALL();
+    CHECK(result->IsNumber());
+    CHECK(ObjectToNumber(*result) == 34);
+  }
+  {
+    BEGIN();
+    CMT("Check CallRuntime: NumberToString(1234)");
+    __ EnterInternalFrame();
+    __ mov(r0, Immediate(Smi::FromInt(1234)));
+    __ push(r0);
+    __ CallRuntime(Runtime::kNumberToString, 1);
+    CMT("Check CallRuntime: GlobalPrint(\"1234\")");
+    __ push(r0);
+    __ CallRuntime(Runtime::kGlobalPrint, 1);
+    __ LeaveInternalFrame();
+    __ Ret();
+    JIT();
+    PRINT();
+    CALL();
+    CHECK(result->IsString());
+    CHECK(String::cast(*result)->IsEqualTo(CStrVector("1234")));
+  }
+}						     
+
+static void
+GenerateNumberFromReg(MacroAssembler &assm, Register heap, Register reg)
+{
+  ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
+  Label gc_required, skip, not_smi;
+  __ EnterInternalFrame();
+  __ Push(r4, r5, r6, r7);
+  __ TrySmiTag(reg, &not_smi, r5/*scratch*/);
+  __ mov(heap, reg);
+  __ jmp(&skip);
+  __ bind(&not_smi);
+  __ LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
+  __ AllocateHeapNumber(r4/*result heap number*/, r5/*scratch*/, r6/*scratch*/,
+			r7/*heap_number_map*/, &gc_required);
+  WriteInt32ToHeapNumberStub stub(reg, r4, r5/*scratch*/);
+  __ CallStub(&stub);
+  __ mov(heap, r4);
+  __ Pop(r6, r7);
+  __ Pop(r4, r5);
+  __ LeaveInternalFrame();
+  __ jmp(&skip);
+  __ bind(&gc_required);
+  __ Abort("GC required while dumping number");
+  __ bind(&skip);
+}
+
+
+// Test WriteInt32ToHeapNumberStub()
+TEST(sh4_cs_6) {
+  {
+    BEGIN();
+    
+    __ mov(r0, Immediate(0));
+    GenerateNumberFromReg(assm, r0, r0);
+    __ Ret();
+    
+    JIT();
+    PRINT();
+    CALL();
+    CHECK(result->IsNumber());
+    CHECK_EQ(0, static_cast<int>(ObjectToNumber(*result)));
+  }
+  {
+      BEGIN();
+    
+    __ mov(r0, Immediate(1234));
+    GenerateNumberFromReg(assm, r0, r0);
+    __ Ret();
+    
+    JIT();
+    PRINT();
+    CALL();
+    CHECK(result->IsNumber());
+    CHECK_EQ(1234, static_cast<int>(ObjectToNumber(*result)));
+  }
+  {
+      BEGIN();
+    
+    __ mov(r0, Immediate(0x7fffffff));
+    GenerateNumberFromReg(assm, r0, r0);
+    __ Ret();
+    
+    JIT();
+    PRINT();
+    CALL();
+    CHECK(result->IsNumber());
+    CHECK_EQ(0x7fffffff, static_cast<int>(ObjectToNumber(*result)));
+  }
+  {
+      BEGIN();
+    
+    __ mov(r0, Immediate(0x80000000u));
+    GenerateNumberFromReg(assm, r0, r0);
+    __ Ret();
+    
+    JIT();
+    PRINT();
+    CALL();
+    CHECK(result->IsNumber());
+    CHECK_EQ(0x80000000u, static_cast<int>(ObjectToNumber(*result)));
+  }
+}
+
+
+static void
+GeneratePrintReg(MacroAssembler &assm, Register reg)
+{
+  ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
+  Label gc_required, skip, not_smi;
+  __ EnterInternalFrame();
+  __ push(reg); // Save reg as it is scratched by WriteInt32ToHeapNumberStub()
+  __ pushm(kJSCallerSaved);
+  __ TrySmiTag(reg, &not_smi, r5/*scratch*/);
+  __ mov(r4, reg);
+  __ jmp(&skip);
+  __ bind(&not_smi);
+  __ LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
+  __ AllocateHeapNumber(r4/*result heap number*/, r5/*scratch*/, r6/*scratch*/,
+			r7/*heap_number_map*/, &gc_required);
+  WriteInt32ToHeapNumberStub stub(reg, r4, r5/*scratch*/);
+  __ CallStub(&stub);
+  __ jmp(&skip);
+  __ bind(&gc_required);
+  __ Abort("GC required while dumping number");
+  __ bind(&skip);
+  __ push(r4);
+  __ CallRuntime(Runtime::kNumberToString, 1);
+  __ push(r0);
+  __ CallRuntime(Runtime::kGlobalPrint, 1);
+  __ popm(kJSCallerSaved);
+  __ pop(reg);
+  __ LeaveInternalFrame();
+}
+
+
+// Test GeneratePrintReg()
+TEST(sh4_cs_7) {
+  BEGIN();
+  
+  __ mov(r0, Immediate(1234));
+  GeneratePrintReg(assm, r0);
+  __ mov(r0, Immediate(0x7fffffff));
+  GeneratePrintReg(assm, r0);
+  __ mov(r0, Immediate(0x80000000));
+  GeneratePrintReg(assm, r0);
+  __ PrintRegisterValue(r0);
+  __ mov(r0, Immediate(0));
+  __ Ret();
+  
+  JIT();
+  PRINT();
+  CALL();
+  CHECK(result->IsNumber());
+  CHECK(ObjectToNumber(*result) == 0);
+}
