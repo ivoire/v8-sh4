@@ -1160,3 +1160,34 @@ TEST(23) {
   CHECK_EQ(0, res);
 }
 
+TEST(24) {
+  BEGIN();
+
+  Label error;
+
+  __ dmuls(r1, r0, r4, r5);
+  __ cmpeq(r0, r6);
+  __ bf(&error);
+  __ cmpeq(r1, r7);
+  __ bf(&error);
+
+  __ mov(r0, Immediate(0));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, Immediate(1));
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 2, 0, 0, 0, 0)));
+  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 3, 4, 0, 12, 0)));
+  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 45, 0, 10*45, 0)));
+  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 1000000000, 10000, 2328, 1316134912, 0)));
+  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123465879, 123465780, 3549226, 1458007724, 0)));
+  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 13246579, 0, 0, 0, 0)));
+}
+
