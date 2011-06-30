@@ -1074,8 +1074,22 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
                                                      JSObject* receiver,
                                                      JSObject* holder,
                                                      int index) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Check the key is the cached one.
+  __ cmp(r0, Immediate(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadField(receiver, holder, r1, r2, r3, r4, index, name, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(FIELD, name);
 }
 
 
