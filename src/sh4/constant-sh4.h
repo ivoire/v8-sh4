@@ -44,7 +44,7 @@ static const int kNoRegister = -1;
 // representing instructions from usual 32 bit values.
 // Instruction objects are pointers to 32bit values, and provide methods to
 // access the various ISA fields.
-typedef int16_t Instr;
+typedef uint16_t Instr;
 
 
 // -----------------------------------------------------------------------------
