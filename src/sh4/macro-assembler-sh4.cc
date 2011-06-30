@@ -112,6 +112,115 @@ void MacroAssembler::TailCallStub(CodeStub* stub) {
 }
 
 
+MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  Object* result;
+  { MaybeObject* maybe_result = stub->TryGetCode();
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
+  return result;
+}
+
+
+static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
+  return ref0.address() - ref1.address();
+}
+
+
+MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
+    ExternalReference function, int stack_space) {
+  ExternalReference next_address =
+      ExternalReference::handle_scope_next_address();
+  const int kNextOffset = 0;
+  const int kLimitOffset = AddressOffset(
+      ExternalReference::handle_scope_limit_address(),
+      next_address);
+  const int kLevelOffset = AddressOffset(
+      ExternalReference::handle_scope_level_address(),
+      next_address);
+
+  // Allocate HandleScope in callee-save registers.
+  mov(r7, Immediate(next_address));
+  ldr(r4, MemOperand(r7, kNextOffset));
+  ldr(r5, MemOperand(r7, kLimitOffset));
+  ldr(r6, MemOperand(r7, kLevelOffset));
+  add(r6, r6, Immediate(1));
+  str(r6, MemOperand(r7, kLevelOffset));
+
+  // Native call returns to the DirectCEntry stub which redirects to the
+  // return address pushed on stack (could have moved after GC).
+  // DirectCEntry stub itself is generated early and never moves.
+  DirectCEntryStub stub;
+  stub.GenerateCall(this, function);
+
+  Label promote_scheduled_exception;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
+
+  // If result is non-zero, dereference to get the result value
+  // otherwise set it to undefined.
+  Label ltrue, lfalse;
+  cmp(r0, Immediate(0));
+  bf(&lfalse);
+  LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  jmp(&ltrue);
+  bind(&lfalse);
+  ldr(r0, MemOperand(r0));
+  bind(&ltrue);
+
+  // No more valid handles (the result handle was the last one). Restore
+  // previous handle scope.
+  str(r4, MemOperand(r7, kNextOffset));
+  if (emit_debug_code()) {
+    ldr(r1, MemOperand(r7, kLevelOffset));
+    cmp(r1, r6);
+    Check(eq, "Unexpected level after return from api call");
+  }
+  sub(r6, r6, Immediate(1));
+  str(r6, MemOperand(r7, kLevelOffset));
+  ldr(sh4_ip, MemOperand(r7, kLimitOffset));
+  cmp(r5, sh4_ip);
+  b(ne, &delete_allocated_handles);
+
+  // Check if the function scheduled an exception.
+  bind(&leave_exit_frame);
+  LoadRoot(r4, Heap::kTheHoleValueRootIndex);
+  mov(sh4_ip, Immediate(ExternalReference::scheduled_exception_address(isolate())));
+  ldr(r5, MemOperand(sh4_ip));
+  cmp(r4, r5);
+  b(ne, &promote_scheduled_exception);
+
+  // LeaveExitFrame expects unwind space to be in a register.
+  mov(r4, Immediate(stack_space));
+  LeaveExitFrame(false, r4);
+  rts();
+
+  bind(&promote_scheduled_exception);
+  MaybeObject* result
+      = TryTailCallExternalReference(
+          ExternalReference(Runtime::kPromoteScheduledException, isolate()),
+          0,
+          1);
+  if (result->IsFailure()) {
+    return result;
+  }
+
+  // HandleScope limit has changed. Delete allocated extensions.
+  bind(&delete_allocated_handles);
+  str(r5, MemOperand(r7, kLimitOffset));
+  mov(r4, r0);
+  PrepareCallCFunction(1, r5);
+  mov(r0, Operand(ExternalReference::isolate_address()));
+  CallCFunction(
+      ExternalReference::delete_handle_scope_extensions(isolate()), 1);
+  mov(r0, r4);
+  jmp(&leave_exit_frame);
+
+  return result;
+}
+
+
 void MacroAssembler::IllegalOperation(int num_arguments) {
   RECORD_LINE();
   if (num_arguments > 0) {
@@ -1928,6 +2037,14 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
 }
 
 
+MaybeObject* MacroAssembler::TryJumpToExternalReference(
+    const ExternalReference& builtin) {
+  mov(r1, Immediate(builtin));
+  CEntryStub stub(1);
+  return TryTailCallStub(&stub);
+}
+
+
 void MacroAssembler::CallExternalReference(const ExternalReference& ext,
                                            int num_arguments) {
   mov(r0, Operand(num_arguments));
@@ -1948,6 +2065,17 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   RECORD_LINE();
   mov(r0, Immediate(num_arguments));
   JumpToExternalReference(ext);
+}
+
+
+MaybeObject* MacroAssembler::TryTailCallExternalReference(
+    const ExternalReference& ext, int num_arguments, int result_size) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  mov(r0, Immediate(num_arguments));
+  return TryJumpToExternalReference(ext);
 }
 
 
