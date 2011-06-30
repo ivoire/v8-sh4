@@ -2505,7 +2505,15 @@ void FullCodeGenerator::EmitSubString(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitRegExpExec(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  // Load the arguments on the stack and call the stub.
+  RegExpExecStub stub;
+  ASSERT(args->length() == 4);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  VisitForStackValue(args->at(2));
+  VisitForStackValue(args->at(3));
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
@@ -2574,7 +2582,51 @@ void FullCodeGenerator::EmitStringCharCodeAt(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitStringCharAt(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 2);
+
+  VisitForStackValue(args->at(0));
+  VisitForAccumulatorValue(args->at(1));
+
+  Register object = r1;
+  Register index = r0;
+  Register scratch1 = r2;
+  Register scratch2 = r3;
+  Register result = r0;
+
+  __ pop(object);
+
+  Label need_conversion;
+  Label index_out_of_range;
+  Label done;
+  StringCharAtGenerator generator(object,
+                                  index,
+                                  scratch1,
+                                  scratch2,
+                                  result,
+                                  &need_conversion,
+                                  &need_conversion,
+                                  &index_out_of_range,
+                                  STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm_);
+  __ jmp(&done);
+
+  __ bind(&index_out_of_range);
+  // When the index is out of range, the spec requires us to return
+  // the empty string.
+  __ LoadRoot(result, Heap::kEmptyStringRootIndex);
+  __ jmp(&done);
+
+  __ bind(&need_conversion);
+  // Move smi zero into the result register, which will trigger
+  // conversion.
+  __ mov(result, Immediate(Smi::FromInt(0)));
+  __ jmp(&done);
+
+  NopRuntimeCallHelper call_helper;
+  generator.GenerateSlow(masm_, call_helper);
+
+  __ bind(&done);
+  context()->Plug(result);
 }
 
 
@@ -2644,7 +2696,55 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT_EQ(2, args->length());
+
+  ASSERT_NE(NULL, args->at(0)->AsLiteral());
+  int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
+
+  Handle<FixedArray> jsfunction_result_caches(
+      isolate()->global_context()->jsfunction_result_caches());
+  if (jsfunction_result_caches->length() <= cache_id) {
+    __ Abort("Attempt to use undefined cache.");
+    __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+    context()->Plug(r0);
+    return;
+  }
+
+  VisitForAccumulatorValue(args->at(1));
+
+  Register key = r0;
+  Register cache = r1;
+  __ ldr(cache, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ ldr(cache, FieldMemOperand(cache, GlobalObject::kGlobalContextOffset));
+  __ ldr(cache, ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
+  __ ldr(cache,
+         FieldMemOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
+
+
+  Label done, not_found;
+  // tmp now holds finger offset as a smi.
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  __ ldr(r2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
+  // r2 now holds finger offset as a smi.
+  __ add(r3, cache, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  // r3 now points to the start of fixed array elements.
+  __ lsl(ip, r2, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r2, r2, ip);
+  __ ldr(r2, MemOperand(r3, r2)); //TODO: right thing ? for 'LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex'
+  // Note side effect of PreIndex: r3 now points to the key of the pair.
+  __ cmp(key, r2);
+  __ b(ne, &not_found);
+
+  __ ldr(r0, MemOperand(r3, kPointerSize));
+  __ b(&done);
+
+  __ bind(&not_found);
+  // Call runtime to perform the lookup.
+  __ Push(cache, key);
+  __ CallRuntime(Runtime::kGetFromCache, 2);
+
+  __ bind(&done);
+  context()->Plug(r0);
 }
 
 
