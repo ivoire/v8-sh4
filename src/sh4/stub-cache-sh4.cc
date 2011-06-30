@@ -533,6 +533,94 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
+static const int kFastApiCallArguments = 3;
+
+// Reserves space for the extra arguments to FastHandleApiCall in the
+// caller's frame.
+//
+// These arguments are set by CheckPrototypes and GenerateFastApiDirectCall.
+static void ReserveSpaceForFastApiCall(MacroAssembler* masm,
+                                       Register scratch) {
+  __ mov(scratch, Immediate(Smi::FromInt(0)));
+  for (int i = 0; i < kFastApiCallArguments; i++) {
+    __ push(scratch);
+  }
+}
+
+
+// Undoes the effects of ReserveSpaceForFastApiCall.
+static void FreeSpaceForFastApiCall(MacroAssembler* masm) {
+  __ Drop(kFastApiCallArguments);
+}
+
+
+static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
+                                      const CallOptimization& optimization,
+                                      int argc) {
+  // ----------- S t a t e -------------
+  //  -- sp[0]              : holder (set by CheckPrototypes)
+  //  -- sp[4]              : callee js function
+  //  -- sp[8]              : call data
+  //  -- sp[12]             : last js argument
+  //  -- ...
+  //  -- sp[(argc + 3) * 4] : first js argument
+  //  -- sp[(argc + 4) * 4] : receiver
+  // -----------------------------------
+  // Get the function and setup the context.
+  JSFunction* function = optimization.constant_function();
+  __ mov(r5, Immediate(Handle<JSFunction>(function)));
+  __ ldr(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
+
+  // Pass the additional arguments FastHandleApiCall expects.
+  Object* call_data = optimization.api_call_info()->data();
+  Handle<CallHandlerInfo> api_call_info_handle(optimization.api_call_info());
+  if (masm->isolate()->heap()->InNewSpace(call_data)) {
+    __ Move(r0, api_call_info_handle);
+    __ ldr(r6, FieldMemOperand(r0, CallHandlerInfo::kDataOffset));
+  } else {
+    __ Move(r6, Handle<Object>(call_data));
+  }
+  // Store js function and call data.
+  __ Strd(r5, r6, MemOperand(sp)); // TODO: rigth direction ? 5 then 6 or the other way around ?
+
+  // r2 points to call data as expected by Arguments
+  // (refer to layout above).
+  __ add(r2, sp, Immediate(2 * kPointerSize));
+
+  Object* callback = optimization.api_call_info()->callback();
+  Address api_function_address = v8::ToCData<Address>(callback);
+  ApiFunction fun(api_function_address);
+
+  const int kApiStackSpace = 4;
+  __ EnterExitFrame(false, kApiStackSpace);
+
+  // r0 = v8::Arguments&
+  // Arguments is after the return address.
+  __ add(r0, sp, Immediate(1 * kPointerSize));
+  // v8::Arguments::implicit_args = data
+  __ str(r2, MemOperand(r0, 0 * kPointerSize));
+  // v8::Arguments::values = last argument
+  __ add(ip, r2, Immediate(argc * kPointerSize));
+  __ str(ip, MemOperand(r0, 1 * kPointerSize));
+  // v8::Arguments::length_ = argc
+  __ mov(ip, Immediate(argc));
+  __ str(ip, MemOperand(r0, 2 * kPointerSize));
+  // v8::Arguments::is_construct_call = 0
+  __ mov(ip, Immediate(0));
+  __ str(ip, MemOperand(r0, 3 * kPointerSize));
+
+  // Emitting a stub call may try to allocate (if the code is not
+  // already generated). Do not allow the assembler to perform a
+  // garbage collection but instead return the allocation failure
+  // object.
+  const int kStackUnwindSpace = argc + kFastApiCallArguments + 1;
+  ExternalReference ref = ExternalReference(&fun,
+                                            ExternalReference::DIRECT_API_CALL,
+                                            masm->isolate());
+  return masm->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
+}
+
+
 // Generate code to check that a global property cell is empty. Create
 // the property cell at compilation time if no cell exists for the
 // property.
@@ -1555,8 +1643,50 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
                         JSGlobalPropertyCell* cell,
                         JSFunction* function,
                         String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  Counters* counters = isolate()->counters();
+
+  ASSERT(optimization.is_simple_api_call());
+  // Bail out if object is a global object as we don't want to
+  // repatch it to global receiver.
+  if (object->IsGlobalObject()) return heap()->undefined_value();
+  if (cell != NULL) return heap()->undefined_value();
+  int depth = optimization.GetPrototypeDepthOfExpectedType(
+            JSObject::cast(object), holder);
+  if (depth == kInvalidProtoDepth) return heap()->undefined_value();
+
+  Label miss, miss_before_stack_reserved;
+
+  GenerateNameCheck(name, &miss_before_stack_reserved);
+
+  // Get the receiver from the stack.
+  const int argc = arguments().immediate();
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ tst(r1, Immediate(kSmiTagMask));
+  __ b(eq, &miss_before_stack_reserved);
+
+  __ IncrementCounter(counters->call_const(), 1, r0, r3);
+  __ IncrementCounter(counters->call_const_fast_api(), 1, r0, r3);
+
+  ReserveSpaceForFastApiCall(masm(), r0);
+
+  // Check that the maps haven't changed and find a Holder as a side effect.
+  CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
+                  depth, &miss);
+
+  MaybeObject* result = GenerateFastApiDirectCall(masm(), optimization, argc);
+  if (result->IsFailure()) return result;
+
+  __ bind(&miss);
+  FreeSpaceForFastApiCall(masm());
+
+  __ bind(&miss_before_stack_reserved);
+  MaybeObject* maybe_result = GenerateMissBranch();
+  if (maybe_result->IsFailure()) return maybe_result;
+
+  // Return the generated code.
+  return GetCode(function);
 }
 
 

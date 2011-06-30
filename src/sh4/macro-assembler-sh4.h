@@ -753,7 +753,7 @@ class MacroAssembler: public Assembler {
   // returned value from handle and propagates exceptions.
   // Clobbers ebx, edi and caller-save registers. Restores context.
   // On return removes stack_space * kPointerSize (GCed).
-  MaybeObject* TryCallApiFunctionAndReturn(ApiFunction* function,
+  MaybeObject* TryCallApiFunctionAndReturn(ExternalReference function,
                                            int stack_space);
 
   // Jump to a runtime routine.

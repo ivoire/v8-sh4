@@ -4338,6 +4338,25 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
+void DirectCEntryStub::Generate(MacroAssembler* masm) {
+  __ ldr(ip, MemOperand(sp, 0));
+  __ jmp(ip);
+}
+
+
+void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
+                                    ExternalReference function) {
+  __ mov(ip, Immediate(reinterpret_cast<intptr_t>(GetCode().location()),
+                       RelocInfo::CODE_TARGET));
+  __ ldrpr(ip);
+  __ mov(r2, Immediate(function));
+  // Push return address (accessible to GC through exit frame pc).
+  __ addpc(ip, 0);
+  __ str(ip, MemOperand(sp, 0));
+  __ jmp(r2);  // Call the api function.
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

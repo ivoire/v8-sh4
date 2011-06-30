@@ -330,6 +330,28 @@ class NumberToStringStub: public CodeStub {
 };
 
 
+// Trampoline stub to call into native code. To call safely into native code
+// in the presence of compacting GC (which can move code objects) we need to
+// keep the code which called into native pinned in the memory. Currently the
+// simplest approach is to generate such stub early enough so it can never be
+// moved by GC
+class DirectCEntryStub: public CodeStub {
+ public:
+  DirectCEntryStub() {}
+  void Generate(MacroAssembler* masm);
+  void GenerateCall(MacroAssembler* masm, ExternalReference function);
+  void GenerateCall(MacroAssembler* masm, Register target);
+
+ private:
+  Major MajorKey() { UNIMPLEMENTED(); /*return DirectCEntry;*/ }
+  int MinorKey() { return 0; }
+
+  bool NeedsImmovableCode() { return true; }
+
+  const char* GetName() { return "DirectCEntryStub"; }
+};
+
+
 class FloatingPointHelper : public AllStatic {
  public:
 
