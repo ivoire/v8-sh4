@@ -239,14 +239,8 @@ void Assembler::add(Register Rd, const Immediate& imm, Register rtmp) {
     add_imm_(imm.x_, Rd);
   } else {
     ASSERT(!Rd.is(rtmp));
-    // Use a super scratch register (rtmp) and a tiny constant pool
-    align();
-    movl_dispPC_(4, rtmp);
-    nop_();
-    bra_(4);
+    mov(rtmp, imm);
     add_(rtmp, Rd);
-    *reinterpret_cast<uint32_t*>(pc_) = imm.x_;
-    pc_ += sizeof(uint32_t);
   }
 }
 
@@ -275,7 +269,13 @@ void Assembler::add(Register Rd, Register Rs, Register Rt) {
 
 
 void Assembler::sub(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
-  add(Rd, Rs, Immediate(-imm.x_), rtmp);
+  mov(rtmp, imm);
+  if (Rs.code() == Rd.code()) {
+    sub_(rtmp, Rd);
+  } else {
+    mov_(Rs, Rd);
+    sub_(rtmp, Rd);
+  }
 }
 
 
