@@ -29,6 +29,7 @@
 
 #include "disassembler.h"
 #include "factory.h"
+#include "sh4/constant-sh4.h"
 #include "sh4/simulator-sh4.h"
 #include "sh4/assembler-sh4-inl.h"
 #include "cctest.h"
@@ -1191,3 +1192,48 @@ TEST(24) {
   CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 13246579, 0, 0, 0, 0)));
 }
 
+TEST(25) {
+  BEGIN();
+
+  Label function;
+
+  __ mov(r0, Immediate(0));
+  __ push(pr);
+
+  __ call(&function);
+  __ add(r0, r0, Immediate(1), r2);
+  __ add(r0, r0, Immediate(1), r2);
+  __ add(r0, r0, Immediate(1), r2);
+  __ add(r0, r0, Immediate(1), r2);
+
+  __ pop(pr);
+  __ rts();
+
+  __ bind(&function);
+  __ strpr(r1); __ add(r1, r1, Immediate(10), r2); __ ldrpr(r1);  // return to the second add (skiping the one just after the call)
+  __ add(r0, r0, Immediate(1), r2);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  CHECK_EQ(4, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0)));
+}
+
+TEST(26) {
+  CHECK_EQ(0, strcmp(Registers::Name(1), "r1"));
+  CHECK_EQ(0, strcmp(Registers::Name(10), "r10"));
+  CHECK_EQ(0, strcmp(Registers::Name(15), "r15"));
+  CHECK_EQ(0, strcmp(Registers::Name(16), "noreg"));
+
+  CHECK_EQ(0, Registers::Number("r0"));
+  CHECK_EQ(5, Registers::Number("r5"));
+  CHECK_EQ(14, Registers::Number("r14"));
+  CHECK_EQ(15, Registers::Number("r15"));
+  CHECK_EQ(14, Registers::Number("fp"));
+  CHECK_EQ(15, Registers::Number("sp"));
+  CHECK_EQ(kNoRegister, Registers::Number("r16"));
+}
