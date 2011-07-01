@@ -917,7 +917,191 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
-  __ UNIMPLEMENTED_BREAK();
+  Comment cmnt(masm_, "[ ForInStatement");
+  SetStatementPosition(stmt);
+
+  Label loop, exit;
+  ForIn loop_statement(this, stmt);
+  increment_loop_depth();
+
+  // Get the object to enumerate over. Both SpiderMonkey and JSC
+  // ignore null and undefined in contrast to the specification; see
+  // ECMA-262 section 12.6.4.
+  VisitForAccumulatorValue(stmt->enumerable());
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r0, ip);
+  __ b(eq, &exit);
+  Register null_value = r5;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
+  __ cmp(r0, null_value);
+  __ b(eq, &exit);
+
+  // Convert the object to a JS object.
+  Label convert, done_convert;
+  __ JumpIfSmi(r0, &convert);
+  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE, hs);
+  __ bt(&done_convert);
+  __ bind(&convert);
+  __ push(r0);
+  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
+  __ bind(&done_convert);
+  __ push(r0);
+
+  // Check cache validity in generated code. This is a fast case for
+  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
+  // guarantee cache validity, call the runtime system to check cache
+  // validity or get the property names in a fixed array.
+  Label next, call_runtime;
+  // Preload a couple of values used in the loop.
+  Register  empty_fixed_array_value = r6;
+  __ LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
+  Register empty_descriptor_array_value = r7;
+  __ LoadRoot(empty_descriptor_array_value,
+              Heap::kEmptyDescriptorArrayRootIndex);
+  __ mov(r1, r0);
+  __ bind(&next);
+
+  // Check that there are no elements.  Register r1 contains the
+  // current JS object we've reached through the prototype chain.
+  __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ cmp(r2, empty_fixed_array_value);
+  __ b(ne, &call_runtime);
+
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in r2 for the subsequent
+  // prototype load.
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOffset));
+  __ cmp(r3, empty_descriptor_array_value);
+  __ b(eq, &call_runtime);
+
+  // Check that there is an enum cache in the non-empty instance
+  // descriptors (r3).  This is the case if the next enumeration
+  // index field does not contain a smi.
+  __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumerationIndexOffset));
+  __ JumpIfSmi(r3, &call_runtime);
+
+  // For all objects but the receiver, check that the cache is empty.
+  Label check_prototype;
+  __ cmp(r1, r0);
+  __ b(eq, &check_prototype);
+  __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ cmp(r3, empty_fixed_array_value);
+  __ b(ne, &call_runtime);
+
+  // Load the prototype from the map and loop if non-null.
+  __ bind(&check_prototype);
+  __ ldr(r1, FieldMemOperand(r2, Map::kPrototypeOffset));
+  __ cmp(r1, null_value);
+  __ b(ne, &next);
+
+  // The enum cache is valid.  Load the map of the object being
+  // iterated over and use the cache for the iteration.
+  Label use_cache;
+  __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ b(&use_cache);
+
+  // Get the set of properties to enumerate.
+  __ bind(&call_runtime);
+  __ push(r0);  // Duplicate the enumerable object on the stack.
+  __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
+
+  // If we got a map from the runtime call, we can do a fast
+  // modification check. Otherwise, we got a fixed array, and we have
+  // to do a slow check.
+  Label fixed_array;
+  __ mov(r2, r0);
+  __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kMetaMapRootIndex);
+  __ cmp(r1, ip);
+  __ b(ne, &fixed_array);
+
+  // We got a map in register r0. Get the enumeration cache from it.
+  __ bind(&use_cache);
+  __ ldr(r1, FieldMemOperand(r0, Map::kInstanceDescriptorsOffset));
+  __ ldr(r1, FieldMemOperand(r1, DescriptorArray::kEnumerationIndexOffset));
+  __ ldr(r2, FieldMemOperand(r1, DescriptorArray::kEnumCacheBridgeCacheOffset));
+
+  // Setup the four remaining stack slots.
+  __ push(r0);  // Map.
+  __ ldr(r1, FieldMemOperand(r2, FixedArray::kLengthOffset));
+  __ mov(r0, Immediate(Smi::FromInt(0)));
+  // Push enumeration cache, enumeration cache length (as smi) and zero.
+  __ Push(r2, r1, r0);
+  __ jmp(&loop);
+
+  // We got a fixed array in register r0. Iterate through that.
+  __ bind(&fixed_array);
+  __ mov(r1, Immediate(Smi::FromInt(0)));  // Map (0) - force slow check.
+  __ Push(r1, r0);
+  __ ldr(r1, FieldMemOperand(r0, FixedArray::kLengthOffset));
+  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ Push(r1, r0);  // Fixed array length (as smi) and initial index.
+
+  // Generate code for doing the condition check.
+  __ bind(&loop);
+  // Load the current count to r0, load the length to r1.
+  __ Ldrd(r0, r1, MemOperand(sp, 0 * kPointerSize));
+  __ cmphs(r0, r1);  // Compare to the array length.
+  __ bt(loop_statement.break_target());
+
+  // Get the current entry of the array into register r3.
+  __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
+  __ add(r2, r2, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ lsl(ip, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r3, MemOperand(r2, ip));
+
+  // Get the expected map from the stack or a zero map in the
+  // permanent slow case into register r2.
+  __ ldr(r2, MemOperand(sp, 3 * kPointerSize));
+
+  // Check if the expected map still matches that of the enumerable.
+  // If not, we have to filter the key.
+  Label update_each;
+  __ ldr(r1, MemOperand(sp, 4 * kPointerSize));
+  __ ldr(r4, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r4, r2);
+  __ b(eq, &update_each);
+
+  // Convert the entry to a string or (smi) 0 if it isn't a property
+  // any more. If the property has been removed while iterating, we
+  // just skip it.
+  __ push(r1);  // Enumerable.
+  __ push(r3);  // Current entry.
+  __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS);
+  __ mov(r3, r0);
+  __ tst(r3, r3);
+  __ b(eq, loop_statement.continue_target());
+
+  // Update the 'each' property or variable from the possibly filtered
+  // entry in register r3.
+  __ bind(&update_each);
+  __ mov(result_register(), r3);
+  // Perform the assignment as if via '='.
+  { EffectContext context(this);
+    EmitAssignment(stmt->each(), stmt->AssignmentId());
+  }
+
+  // Generate code for the body of the loop.
+  Visit(stmt->body());
+
+  // Generate code for the going to the next element by incrementing
+  // the index (smi) stored on top of the stack.
+  __ bind(loop_statement.continue_target());
+  __ pop(r0);
+  __ add(r0, r0, Immediate(Smi::FromInt(1)));
+  __ push(r0);
+
+  EmitStackCheck(stmt);
+  __ b(&loop);
+
+  // Remove the pointers stored on the stack.
+  __ bind(loop_statement.break_target());
+  __ Drop(5);
+
+  // Exit and decrement the loop depth.
+  __ bind(&exit);
+  decrement_loop_depth();
 }
 
 
@@ -955,57 +1139,94 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(
+    Slot* slot,
+    Label* slow) {
+  ASSERT(slot->type() == Slot::CONTEXT);
+  Register context = cp;
+  Register next = r3;
+  Register temp = r4;
+
+  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ ldr(temp, ContextOperand(context, Context::EXTENSION_INDEX));
+        __ tst(temp, temp);
+        __ b(ne, slow);
+      }
+      __ ldr(next, ContextOperand(context, Context::CLOSURE_INDEX));
+      __ ldr(next, FieldMemOperand(next, JSFunction::kContextOffset));
+      // Walk the rest of the chain without clobbering cp.
+      context = next;
+    }
+  }
+  // Check that last extension is NULL.
+  __ ldr(temp, ContextOperand(context, Context::EXTENSION_INDEX));
+  __ tst(temp, temp);
+  __ b(ne, slow);
+
+  // This function is used only for loads, not stores, so it's safe to
+  // return an cp-based operand (the write barrier cannot be allowed to
+  // destroy the cp register).
+  return ContextOperand(context, slot->index());
+}
+
+
 void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
     Slot* slot,
     TypeofState typeof_state,
     Label* slow,
     Label* done) {
-  __ UNIMPLEMENTED_BREAK();
-  // // Generate fast-case code for variables that might be shadowed by
-  // // eval-introduced variables.  Eval is used a lot without
-  // // introducing variables.  In those cases, we do not want to
-  // // perform a runtime call for all variables in the scope
-  // // containing the eval.
-  // if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
-  //   EmitLoadGlobalSlotCheckExtensions(slot, typeof_state, slow);
-  //   __ jmp(done);
-  // } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
-  //   Slot* potential_slot = slot->var()->local_if_not_shadowed()->AsSlot();
-  //   Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
-  //   if (potential_slot != NULL) {
-  //     // Generate fast case for locals that rewrite to slots.
-  //     __ ldr(r0, ContextSlotOperandCheckExtensions(potential_slot, slow));
-  //     if (potential_slot->var()->mode() == Variable::CONST) {
-  //       __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-  //       __ cmp(r0, ip);
-  //       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
-  //     }
-  //     __ jmp(done);
-  //   } else if (rewrite != NULL) {
-  //     // Generate fast case for calls of an argument function.
-  //     Property* property = rewrite->AsProperty();
-  //     if (property != NULL) {
-  //       VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
-  //       Literal* key_literal = property->key()->AsLiteral();
-  //       if (obj_proxy != NULL &&
-  //           key_literal != NULL &&
-  //           obj_proxy->IsArguments() &&
-  //           key_literal->handle()->IsSmi()) {
-  //         // Load arguments object if there are no eval-introduced
-  //         // variables. Then load the argument from the arguments
-  //         // object using keyed load.
-  //         __ ldr(r1,
-  //                ContextSlotOperandCheckExtensions(obj_proxy->var()->AsSlot(),
-  //                                                  slow));
-  //         __ mov(r0, Operand(key_literal->handle()));
-  //         Handle<Code> ic =
-  //             isolate()->builtins()->KeyedLoadIC_Initialize();
-  //         EmitCallIC(ic, RelocInfo::CODE_TARGET);
-  //         __ jmp(done);
-  //       }
-  //     }
-  //   }
-  // }
+ 
+  // Generate fast-case code for variables that might be shadowed by
+  // eval-introduced variables.  Eval is used a lot without
+  // introducing variables.  In those cases, we do not want to
+  // perform a runtime call for all variables in the scope
+  // containing the eval.
+  if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+    EmitLoadGlobalSlotCheckExtensions(slot, typeof_state, slow);
+    __ jmp(done);
+  } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+    Slot* potential_slot = slot->var()->local_if_not_shadowed()->AsSlot();
+    Expression* rewrite = slot->var()->local_if_not_shadowed()->rewrite();
+    if (potential_slot != NULL) {
+      // Generate fast case for locals that rewrite to slots.
+      __ ldr(r0, ContextSlotOperandCheckExtensions(potential_slot, slow));
+      if (potential_slot->var()->mode() == Variable::CONST) {
+        Label skip;
+        __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+        __ cmp(r0, ip);
+        __ bf(&skip);
+        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+        __ bind(&skip);
+      }
+      __ jmp(done);
+    } else if (rewrite != NULL) {
+      // Generate fast case for calls of an argument function.
+      Property* property = rewrite->AsProperty();
+      if (property != NULL) {
+        VariableProxy* obj_proxy = property->obj()->AsVariableProxy();
+        Literal* key_literal = property->key()->AsLiteral();
+        if (obj_proxy != NULL &&
+            key_literal != NULL &&
+            obj_proxy->IsArguments() &&
+            key_literal->handle()->IsSmi()) {
+          // Load arguments object if there are no eval-introduced
+          // variables. Then load the argument from the arguments
+          // object using keyed load.
+          __ ldr(r1,
+                 ContextSlotOperandCheckExtensions(obj_proxy->var()->AsSlot(),
+                                                   slow));
+          __ mov(r0, Operand(key_literal->handle()));
+          Handle<Code> ic =
+              isolate()->builtins()->KeyedLoadIC_Initialize();
+          EmitCallIC(ic, RelocInfo::CODE_TARGET);
+          __ jmp(done);
+        }
+      }
+    }
+  }
 }
 
 
