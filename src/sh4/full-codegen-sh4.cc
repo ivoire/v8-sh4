@@ -1858,7 +1858,69 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
 
 
 void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
-  __ UNIMPLEMENTED_BREAK();
+  // Invalid left-hand sides are rewritten to have a 'throw
+  // ReferenceError' on the left-hand side.
+  if (!expr->IsValidLeftHandSide()) {
+    VisitForEffect(expr);
+    return;
+  }
+
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
+  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  LhsKind assign_type = VARIABLE;
+  Property* prop = expr->AsProperty();
+  if (prop != NULL) {
+    assign_type = (prop->key()->IsPropertyName())
+        ? NAMED_PROPERTY
+        : KEYED_PROPERTY;
+  }
+
+  switch (assign_type) {
+    case VARIABLE: {
+      Variable* var = expr->AsVariableProxy()->var();
+      EffectContext context(this);
+      EmitVariableAssignment(var, Token::ASSIGN);
+      break;
+    }
+    case NAMED_PROPERTY: {
+      __ push(r0);  // Preserve value.
+      VisitForAccumulatorValue(prop->obj());
+      __ mov(r1, r0);
+      __ pop(r0);  // Restore value.
+      __ mov(r2, Immediate(prop->key()->AsLiteral()->handle()));
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->StoreIC_Initialize_Strict()
+          : isolate()->builtins()->StoreIC_Initialize();
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      break;
+    }
+    case KEYED_PROPERTY: {
+      __ push(r0);  // Preserve value.
+      if (prop->is_synthetic()) {
+        ASSERT(prop->obj()->AsVariableProxy() != NULL);
+        ASSERT(prop->key()->AsLiteral() != NULL);
+        { AccumulatorValueContext for_object(this);
+          EmitVariableLoad(prop->obj()->AsVariableProxy()->var());
+        }
+        __ mov(r2, r0);
+        __ mov(r1, Immediate(prop->key()->AsLiteral()->handle()));
+      } else {
+        VisitForStackValue(prop->obj());
+        VisitForAccumulatorValue(prop->key());
+        __ mov(r1, r0);
+        __ pop(r2);
+      }
+      __ pop(r0);  // Restore value.
+      Handle<Code> ic = is_strict_mode()
+          ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
+          : isolate()->builtins()->KeyedStoreIC_Initialize();
+      EmitCallIC(ic, RelocInfo::CODE_TARGET);
+      break;
+    }
+  }
+  PrepareForBailoutForId(bailout_ast_id, TOS_REG);
+  context()->Plug(r0);
 }
 
 
@@ -3868,7 +3930,8 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
 
 
 void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  __ UNIMPLEMENTED_BREAK();
+  __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  context()->Plug(r0);
 }
 
 
