@@ -2074,6 +2074,7 @@ MaybeObject* MacroAssembler::TryTailCallExternalReference(
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
+  RECORD_LINE();
   mov(r0, Immediate(num_arguments));
   return TryJumpToExternalReference(ext);
 }
@@ -2363,6 +2364,7 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
     Register scratch,
     Label* not_power_of_two_or_zero) {
   ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
+  RECORD_LINE();
   // Note: actually the case 0x80000000 is considered a power of two (not a neg value)
   sub(scratch, reg, Immediate(1));
   cmpge(scratch, Immediate(0));
@@ -2378,6 +2380,7 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
     Label* zero_and_neg,
     Label* not_power_of_two) {
   ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
+  RECORD_LINE();
   // Note: actually the case 0x80000000 is considered a pozer of two (not a neg value)
   sub(scratch, reg, Immediate(1));
   cmpge(scratch, Immediate(0));
@@ -2392,7 +2395,7 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Label* on_not_both_smi) {
   ASSERT(!reg1.is(sh4_ip) && !reg2.is(sh4_ip));
   STATIC_ASSERT(kSmiTag == 0);
-
+  RECORD_LINE();
   tst(reg1, Immediate(kSmiTagMask));
   b(ne, on_not_both_smi);
   tst(reg2, Immediate(kSmiTagMask));
@@ -2405,7 +2408,7 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
                                      Label* on_either_smi) {
   ASSERT(!reg1.is(sh4_ip) && !reg2.is(sh4_ip));
   STATIC_ASSERT(kSmiTag == 0);
-
+  RECORD_LINE();
   tst(reg1, Immediate(kSmiTagMask));
   b(eq, on_either_smi);
   tst(reg2, Immediate(kSmiTagMask));
@@ -2491,6 +2494,7 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
                                          Register heap_number_map,
                                          Register scratch,
                                          Label* on_not_heap_number) {
+  RECORD_LINE();
   ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
   AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   cmp(scratch, heap_number_map);
@@ -2507,7 +2511,7 @@ void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
 
   ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
          !scratch2.is(sh4_ip));
-
+  RECORD_LINE();
   // Test that both first and second are sequential ASCII strings.
   // Assume that they are non-smis.
   ldr(scratch1, FieldMemOperand(first, HeapObject::kMapOffset));
@@ -2531,7 +2535,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
 
   ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
          !scratch2.is(sh4_ip));
-
+  RECORD_LINE();
   // Check that neither is a smi.
   STATIC_ASSERT(kSmiTag == 0);
   land(scratch1, first, second);
@@ -2558,11 +2562,12 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
   int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
   int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  RECORD_LINE();
   land(scratch1, first, Immediate(kFlatAsciiStringMask));
   land(scratch2, second, Immediate(kFlatAsciiStringMask));
   cmp(scratch1, Immediate(kFlatAsciiStringTag));
   b(ne, failure);
-  // Ignore second test if first test failed.
+  RECORD_LINE();
   cmp(scratch2, Immediate(kFlatAsciiStringTag));
   b(ne, failure);
 }
@@ -2577,6 +2582,7 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
   int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
   int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  RECORD_LINE();
   land(scratch, type, Immediate(kFlatAsciiStringMask));
   cmp(scratch, Immediate(kFlatAsciiStringTag));
   b(ne, failure);
@@ -2623,6 +2629,7 @@ void MacroAssembler::CompareInstanceType(Register map,
 void MacroAssembler::CompareRoot(Register obj,
                                  Heap::RootListIndex index) {
   ASSERT(!obj.is(sh4_ip));
+  RECORD_LINE();
   LoadRoot(sh4_ip, index);
   cmpeq(obj, sh4_ip);
 }
