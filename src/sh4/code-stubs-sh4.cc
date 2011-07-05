@@ -955,7 +955,7 @@ static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
   __ tst(r2, Immediate(kIsSymbolMask));
   __ b(eq, possible_strings);
   __ CompareObjectType(lhs, r3, r3, FIRST_NONSTRING_TYPE, ge);
-  __ b(not_both_strings);
+  __ bt(not_both_strings);
   __ tst(r3, Immediate(kIsSymbolMask));
   __ b(eq, possible_strings);
 
@@ -3128,7 +3128,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // Check for index out of range.
   __ ldr(ip, FieldMemOperand(object_, String::kLengthOffset));
-  __ cmpgeu(scratch_, ip);
+  __ cmphi(ip, scratch_);
   __ bf(index_out_of_range_);
 
   // We need special handling for non-flat strings.
@@ -3147,7 +3147,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // the string.
   __ ldr(result_, FieldMemOperand(object_, ConsString::kSecondOffset));
   __ LoadRoot(ip, Heap::kEmptyStringRootIndex);
-  __ cmpeq(result_, ip);
+  __ cmp(result_, ip);
   __ b(ne, &call_runtime_);
   // Get the first of the two strings and load its instance type.
   __ ldr(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
@@ -3170,8 +3170,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // number of bytes in a two-byte character.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1 && kSmiShiftSize == 0);
   __ add(scratch_, object_, scratch_);
-  __ bkpt();
-  __ mov(result_, FieldMemOperand(scratch_, SeqTwoByteString::kHeaderSize));    // FIXME: mov.w ??
+  __ ldrh(result_, FieldMemOperand(scratch_, SeqTwoByteString::kHeaderSize));
   __ jmp(&got_char_code);
 
   // ASCII string.
