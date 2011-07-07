@@ -187,6 +187,7 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['-m32'],
     },
     'arch:sh4': {
+      'CCFLAGS':      ['-mieee'],
       'CPPDEFINES':   ['V8_TARGET_ARCH_SH4']
     },
     'arch:mips': {
