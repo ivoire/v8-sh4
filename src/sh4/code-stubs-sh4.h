@@ -343,7 +343,7 @@ class DirectCEntryStub: public CodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  Major MajorKey() { UNIMPLEMENTED(); /*return DirectCEntry;*/ }
+  Major MajorKey() { return DirectCEntry; }
   int MinorKey() { return 0; }
 
   bool NeedsImmovableCode() { return true; }
