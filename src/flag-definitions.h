@@ -100,7 +100,7 @@ private:
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 
 // Flags for Crankshaft.
-#ifdef V8_TARGET_ARCH_MIPS
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_SH4)
   DEFINE_bool(crankshaft, false, "use crankshaft")
 #else
   DEFINE_bool(crankshaft, true, "use crankshaft")
