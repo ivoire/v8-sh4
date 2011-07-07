@@ -2540,7 +2540,25 @@ void FullCodeGenerator::EmitIsSpecObject(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ JumpIfSmi(r0, if_false);
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldrb(r1, FieldMemOperand(r1, Map::kBitFieldOffset));
+  __ tst(r1, Immediate(1 << Map::kIsUndetectable));
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Split(ne, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
 }
 
 
@@ -2801,7 +2819,20 @@ void FullCodeGenerator::EmitRegExpExec(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitValueOf(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));  // Load the object.
+
+  Label done;
+  // If the object is a smi return the object.
+  __ JumpIfSmi(r0, &done);
+  // If the object is not a value type, return the object.
+  __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE, eq);
+  __ b(f, &done);
+  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
+
+  __ bind(&done);
+  context()->Plug(r0);
 }
 
 
@@ -3995,12 +4026,13 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
 
 
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);
+  __ str(value, MemOperand(fp, frame_offset));
 }
 
 
 void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
-  __ UNIMPLEMENTED_BREAK();
+  __ ldr(dst, ContextOperand(cp, context_index));
 }
 
 
