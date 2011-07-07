@@ -328,8 +328,12 @@ void Isolate::EnsureDefaultIsolate() {
 
 
 Debugger* Isolate::GetDefaultIsolateDebugger() {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   EnsureDefaultIsolate();
   return default_isolate_->debugger();
+#else
+  return NULL;
+#endif
 }
 
 
