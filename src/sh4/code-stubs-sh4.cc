@@ -1311,30 +1311,31 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
       break;
     case Token::MUL:
       // TODO: implement optimized multiply with overflow check for SH4
-      // // Remove tag from one of the operands. This way the multiplication result
-      // // will be a smi if it fits the smi range.
-      // __ SmiUntag(ip, right);
-      // // Do multiplication
-      // // scratch1 = lower 32 bits of ip * left.
-      // // scratch2 = higher 32 bits of ip * left.
-      // __ smull(scratch1, scratch2, left, ip);
-      // // Check for overflowing the smi range - no overflow if higher 33 bits of
-      // // the result are identical.
-      // __ mov(ip, Operand(scratch1, ASR, 31));
-      // __ cmp(ip, Operand(scratch2));
-      // __ b(ne, &not_smi_result);
-      // // Go slow on zero result to handle -0.
-      // __ tst(scratch1, Operand(scratch1));
-      // __ mov(right, Operand(scratch1), LeaveCC, ne);
-      // __ Ret(ne);
-      // // We need -0 if we were multiplying a negative number with 0 to get 0.
-      // // We know one of them was zero.
-      // __ add(scratch2, right, Operand(left), SetCC);
-      // __ mov(right, Operand(Smi::FromInt(0)), LeaveCC, pl);
-      // __ Ret(pl);  // Return smi 0 if the non-zero one was positive.
+      // Remove tag from one of the operands. This way the multiplication result
+      // will be a smi if it fits the smi range.
+      __ SmiUntag(ip, right);
+      // Do multiplication
+      // scratch1 = lower 32 bits of ip * left.
+      // scratch2 = higher 32 bits of ip * left.
+      __ dmuls(scratch1, scratch2, left, ip);
+      // Check for overflowing the smi range - no overflow if higher 33 bits of
+      // the result are identical.
+      __ asr(ip, scratch1, Immediate(31));
+      __ cmp(ip, scratch2);
+      __ b(ne, &not_smi_result);
+      // Go slow on zero result to handle -0.
+      // TODO: merge cond mov and cond Ret or use fast branch
+      __ tst(scratch1, scratch1);
+      __ mov(right, scratch1, ne);
+      __ Ret(ne);
+      // We need -0 if we were multiplying a negative number with 0 to get 0.
+      // We know one of them was zero.
+      __ add(scratch2, right, left);
+      __ cmpge(scratch2, Immediate(0));
+      __ mov(right, Immediate(Smi::FromInt(0)), t);
+      __ Ret(t);  // Return smi 0 if the non-zero one was positive.
       // We fall through here if we multiplied a negative number with 0, because
       // that would mean we should produce -0.
-      __ UNIMPLEMENTED_BREAK();
       break;
     case Token::DIV:
       // Check for power of two on the right hand side.
@@ -1759,7 +1760,19 @@ void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Label call_runtime, call_string_add_or_runtime;
+
+  GenerateSmiCode(masm, &call_runtime, &call_runtime, ALLOW_HEAPNUMBER_RESULTS);
+
+  GenerateFPOperation(masm, false, &call_string_add_or_runtime, &call_runtime);
+
+  __ bind(&call_string_add_or_runtime);
+  if (op_ == Token::ADD) {
+    GenerateAddStrings(masm);
+  }
+
+  __ bind(&call_runtime);
+  GenerateCallRuntime(masm);
 }
 
 
