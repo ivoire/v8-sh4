@@ -76,7 +76,7 @@ namespace internal {
   V(StringDictionaryNegativeLookup)
 
 // List of code stubs only used on ARM platforms.
-#ifdef V8_TARGET_ARCH_ARM
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_SH4)
 #define CODE_STUB_LIST_ARM(V)  \
   V(GetProperty)               \
   V(SetProperty)               \
