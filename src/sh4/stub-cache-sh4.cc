@@ -581,7 +581,8 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
     __ Move(r6, Handle<Object>(call_data));
   }
   // Store js function and call data.
-  __ Strd(r5, r6, MemOperand(sp)); // TODO: rigth direction ? 5 then 6 or the other way around ?
+  __ str(r5, MemOperand(sp, 4));
+  __ str(r6, MemOperand(sp, 8));
 
   // r2 points to call data as expected by Arguments
   // (refer to layout above).
@@ -854,6 +855,62 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
   // Return the constant value.
   __ mov(r0, Immediate(Handle<Object>(value)));
   __ Ret();
+}
+
+
+MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
+                                                JSObject* holder,
+                                                Register receiver,
+                                                Register name_reg,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                Register scratch3,
+                                                AccessorInfo* callback,
+                                                String* name,
+                                                Label* miss) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Immediate(kSmiTagMask));
+  __ b(eq, miss);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      CheckPrototypes(object, receiver, holder, scratch1, scratch2, scratch3,
+                      name, miss);
+
+  // Build AccessorInfo::args_ list on the stack and push property name below
+  // the exit frame to make GC aware of them and store pointers to them.
+  __ push(receiver);
+  __ mov(scratch2, sp);  // scratch2 = AccessorInfo::args_
+  Handle<AccessorInfo> callback_handle(callback);
+  if (heap()->InNewSpace(callback_handle->data())) {
+    __ Move(scratch3, callback_handle);
+    __ ldr(scratch3, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
+  } else {
+    __ Move(scratch3, Handle<Object>(callback_handle->data()));
+  }
+  __ Push(reg, scratch3, name_reg);
+  __ mov(r0, sp);  // r0 = Handle<String>
+
+  Address getter_address = v8::ToCData<Address>(callback->getter());
+  ApiFunction fun(getter_address);
+
+  const int kApiStackSpace = 1;
+  __ EnterExitFrame(false, kApiStackSpace);
+  // Create AccessorInfo instance on the stack above the exit frame with
+  // scratch2 (internal::Object **args_) as the data.
+  __ str(scratch2, MemOperand(sp, 1 * kPointerSize));
+  __ add(r1, sp, Immediate(1 * kPointerSize));  // r1 = AccessorInfo&
+
+  // Emitting a stub call may try to allocate (if the code is not
+  // already generated).  Do not allow the assembler to perform a
+  // garbage collection but instead return the allocation failure
+  // object.
+  const int kStackUnwindSpace = 4;
+  ExternalReference ref =
+      ExternalReference(&fun,
+                        ExternalReference::DIRECT_GETTER_CALL,
+                        masm()->isolate());
+  return masm()->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
 
@@ -1133,8 +1190,25 @@ MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
                                                    JSObject* object,
                                                    JSObject* holder,
                                                    AccessorInfo* callback) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  MaybeObject* result = GenerateLoadCallback(object, holder, r0, r2, r3, r1, r4,
+                                             callback, name, &miss);
+  if (result->IsFailure()) {
+    miss.Unuse();
+    return result;
+  }
+
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(CALLBACKS, name);
 }
 
 
