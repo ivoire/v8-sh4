@@ -533,6 +533,41 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
+static void PushInterceptorArguments(MacroAssembler* masm,
+                                     Register receiver,
+                                     Register holder,
+                                     Register name,
+                                     JSObject* holder_obj) {
+  __ push(name);
+  InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
+  ASSERT(!masm->isolate()->heap()->InNewSpace(interceptor));
+  Register scratch = name;
+  __ mov(scratch, Operand(Handle<Object>(interceptor)));
+  __ push(scratch);
+  __ push(receiver);
+  __ push(holder);
+  __ ldr(scratch, FieldMemOperand(scratch, InterceptorInfo::kDataOffset));
+  __ push(scratch);
+}
+
+
+static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
+                                                   Register receiver,
+                                                   Register holder,
+                                                   Register name,
+                                                   JSObject* holder_obj) {
+  PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
+
+  ExternalReference ref =
+      ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
+                        masm->isolate());
+  __ mov(r0, Immediate(5));
+  __ mov(r1, Operand(ref));
+
+  CEntryStub stub(1);
+  __ CallStub(&stub);
+}
+
 static const int kFastApiCallArguments = 3;
 
 // Reserves space for the extra arguments to FastHandleApiCall in the
@@ -914,6 +949,151 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
 }
 
 
+void StubCompiler::GenerateLoadInterceptor(JSObject* object,
+                                           JSObject* interceptor_holder,
+                                           LookupResult* lookup,
+                                           Register receiver,
+                                           Register name_reg,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Register scratch3,
+                                           String* name,
+                                           Label* miss) {
+  ASSERT(interceptor_holder->HasNamedInterceptor());
+  ASSERT(!interceptor_holder->GetNamedInterceptor()->getter()->IsUndefined());
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(receiver, miss);
+
+  // So far the most popular follow ups for interceptor loads are FIELD
+  // and CALLBACKS, so inline only them, other cases may be added
+  // later.
+  bool compile_followup_inline = false;
+  if (lookup->IsProperty() && lookup->IsCacheable()) {
+    if (lookup->type() == FIELD) {
+      compile_followup_inline = true;
+    } else if (lookup->type() == CALLBACKS &&
+        lookup->GetCallbackObject()->IsAccessorInfo() &&
+        AccessorInfo::cast(lookup->GetCallbackObject())->getter() != NULL) {
+      compile_followup_inline = true;
+    }
+  }
+
+  if (compile_followup_inline) {
+    // Compile the interceptor call, followed by inline code to load the
+    // property from further up the prototype chain if the call fails.
+    // Check that the maps haven't changed.
+    Register holder_reg = CheckPrototypes(object, receiver, interceptor_holder,
+                                          scratch1, scratch2, scratch3,
+                                          name, miss);
+    ASSERT(holder_reg.is(receiver) || holder_reg.is(scratch1));
+
+    // Save necessary data before invoking an interceptor.
+    // Requires a frame to make GC aware of pushed pointers.
+    __ EnterInternalFrame();
+
+    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+      // CALLBACKS case needs a receiver to be passed into C++ callback.
+      __ Push(receiver, holder_reg, name_reg);
+    } else {
+      __ Push(holder_reg, name_reg);
+    }
+
+    // Invoke an interceptor.  Note: map checks from receiver to
+    // interceptor's holder has been compiled before (see a caller
+    // of this method.)
+    CompileCallLoadPropertyWithInterceptor(masm(),
+                                           receiver,
+                                           holder_reg,
+                                           name_reg,
+                                           interceptor_holder);
+
+    // Check if interceptor provided a value for property.  If it's
+    // the case, return immediately.
+    Label interceptor_failed;
+    __ LoadRoot(scratch1, Heap::kNoInterceptorResultSentinelRootIndex);
+    __ cmp(r0, scratch1);
+    __ b(eq, &interceptor_failed);
+    __ LeaveInternalFrame();
+    __ Ret();
+
+    __ bind(&interceptor_failed);
+    __ pop(name_reg);
+    __ pop(holder_reg);
+    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+      __ pop(receiver);
+    }
+
+    __ LeaveInternalFrame();
+
+    // Check that the maps from interceptor's holder to lookup's holder
+    // haven't changed.  And load lookup's holder into |holder| register.
+    if (interceptor_holder != lookup->holder()) {
+      holder_reg = CheckPrototypes(interceptor_holder,
+                                   holder_reg,
+                                   lookup->holder(),
+                                   scratch1,
+                                   scratch2,
+                                   scratch3,
+                                   name,
+                                   miss);
+    }
+
+    if (lookup->type() == FIELD) {
+      // We found FIELD property in prototype chain of interceptor's holder.
+      // Retrieve a field from field's holder.
+      GenerateFastPropertyLoad(masm(), r0, holder_reg,
+                               lookup->holder(), lookup->GetFieldIndex());
+      __ Ret();
+    } else {
+      // We found CALLBACKS property in prototype chain of interceptor's
+      // holder.
+      ASSERT(lookup->type() == CALLBACKS);
+      ASSERT(lookup->GetCallbackObject()->IsAccessorInfo());
+      AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
+      ASSERT(callback != NULL);
+      ASSERT(callback->getter() != NULL);
+
+      // Tail call to runtime.
+      // Important invariant in CALLBACKS case: the code above must be
+      // structured to never clobber |receiver| register.
+      __ Move(scratch2, Handle<AccessorInfo>(callback));
+      // holder_reg is either receiver or scratch1.
+      if (!receiver.is(holder_reg)) {
+        ASSERT(scratch1.is(holder_reg));
+        __ Push(receiver, holder_reg);
+        __ ldr(scratch3,
+               FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+        __ Push(scratch3, scratch2, name_reg);
+      } else {
+        __ push(receiver);
+        __ ldr(scratch3,
+               FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+        __ Push(holder_reg, scratch3, scratch2, name_reg);
+      }
+
+      ExternalReference ref =
+          ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
+                            masm()->isolate());
+      __ TailCallExternalReference(ref, 5, 1);
+    }
+  } else {  // !compile_followup_inline
+    // Call the runtime system to load the interceptor.
+    // Check that the maps haven't changed.
+    Register holder_reg = CheckPrototypes(object, receiver, interceptor_holder,
+                                          scratch1, scratch2, scratch3,
+                                          name, miss);
+    PushInterceptorArguments(masm(), receiver, holder_reg,
+                             name_reg, interceptor_holder);
+
+    ExternalReference ref =
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad),
+                          masm()->isolate());
+    __ TailCallExternalReference(ref, 5, 1);
+  }
+}
+
+
 void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
     __ cmp(r2, Immediate(Handle<String>(name)));
@@ -1178,11 +1358,33 @@ MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
+MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
                                                       JSObject* holder,
                                                       String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  LookupResult lookup;
+  LookupPostInterceptor(holder, name, &lookup);
+  GenerateLoadInterceptor(object,
+                          holder,
+                          &lookup,
+                          r0,
+                          r2,
+                          r3,
+                          r1,
+                          r4,
+                          name,
+                          &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(INTERCEPTOR, name);
 }
 
 
