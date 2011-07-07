@@ -390,8 +390,12 @@ void Isolate::EnsureDefaultIsolate() {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Debugger* Isolate::GetDefaultIsolateDebugger() {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   EnsureDefaultIsolate();
   return default_isolate_->debugger();
+#else
+  return NULL;
+#endif
 }
 #endif
 
