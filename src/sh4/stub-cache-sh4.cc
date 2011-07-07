@@ -1366,8 +1366,50 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
 MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
                                                      AccessorInfo* callback,
                                                      String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the object isn't a smi.
+  __ tst(r1, Immediate(kSmiTagMask));
+  __ b(eq, &miss);
+
+  // Check that the map of the object hasn't changed.
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ mov(ip, Operand(Handle<Map>(object->map())));
+  __ cmp(r3, ip);
+  __ b(ne, &miss);
+
+  // Perform global security token check if needed.
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(r1, r3, &miss);
+  }
+
+  // Stub never generated for non-global objects that require access
+  // checks.
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
+  __ push(r1);  // receiver
+  __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback info
+  __ Push(ip, r2, r0);
+
+  // Do tail-call to the runtime system.
+  ExternalReference store_callback_property =
+      ExternalReference(IC_Utility(IC::kStoreCallbackProperty),
+                        masm()->isolate());
+  __ TailCallExternalReference(store_callback_property, 4, 1);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  Handle<Code> ic = masm()->isolate()->builtins()->StoreIC_Miss();
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(CALLBACKS, name);
 }
 
 
