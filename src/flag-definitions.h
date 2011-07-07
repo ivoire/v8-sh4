@@ -107,7 +107,7 @@ DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_bool(string_slices, false, "use string slices")
 
 // Flags for Crankshaft.
-#ifdef V8_TARGET_ARCH_MIPS
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_SH4)
   DEFINE_bool(crankshaft, false, "use crankshaft")
 #else
   DEFINE_bool(crankshaft, true, "use crankshaft")
