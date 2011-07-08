@@ -817,7 +817,7 @@ class Assembler : public AssemblerBase {
   void asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);    // arithmetic shift left
 
   void lsl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
-  void lsl(Register Rd, Register Rs, Register Rt);
+  void lsl(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
   void lsr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
   void lsr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
@@ -826,7 +826,9 @@ class Assembler : public AssemblerBase {
   void bic(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp) { //bit clear
     land(Rd, Rs, Immediate(~imm.x_), rtmp);
   }
-
+  void bic(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp) {
+    lnot(rtmp, Rt); land(Rd, Rs, rtmp);
+  }
   void lnot(Register Rd, Register Rs) { not_(Rs, Rd); }
   void mvn(Register Rd, Register Rs) { lnot(Rd, Rs); } // Alias for lnot()
 
@@ -875,6 +877,8 @@ class Assembler : public AssemblerBase {
   void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { mov(Rd, src, rtmp); }
   void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { movb(Rd, src, rtmp); }
   void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { movw(Rd, src, rtmp); }
+  void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp); // unsigned 8 bit load op.
+  void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp); // signed 16 bit load op.
   void str(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { mov(dst, Rs, rtmp); }
   void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movw(dst, Rs, rtmp); }
   void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movb(dst, Rs, rtmp); }
