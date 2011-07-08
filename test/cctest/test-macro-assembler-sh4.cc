@@ -175,7 +175,7 @@ TEST(sh4_ma_0) {
 }
 
 
-// Test Bfc/Ubfx/Sbfx
+// Test Bfc/Ubfx/Sbfx/Bfi/Usat
 TEST(sh4_ma_1) {
   BEGIN();
 
@@ -183,54 +183,96 @@ TEST(sh4_ma_1) {
 
   PROLOGUE();
 
-  // Verify Bfc
-  __ mov(r0, Immediate(~0x01233210)); // encodes 0xfdeccdef
+  CMT("Verify Bfc(0xfdeccdefu, 0, 32) == 0");
+  __ mov(r0, Immediate(0xfdeccdefu));
   __ mov(r1, r0);
   __ Bfc(r1, 0, 32); // a full clear
   __ cmp(r1, Immediate(0));
   B_LINE(ne, &error); 
+  CMT("Verify Bfc(0xfdeccdefu, 0, 31) == 0x80000000");
   __ mov(r1, r0);
   __ Bfc(r1, 0, 31);
-  __ cmp(r1, Immediate(~0x7fffffff)); // encodes 0x80000000
+  __ cmp(r1, Immediate(0x80000000u));
   B_LINE(ne, &error); 
+  CMT("Verify Bfc(0xfdeccdefu, 1, 31) == 0x80000000");
   __ mov(r1, r0);
   __ Bfc(r1, 1, 30);
-  __ cmp(r1, Immediate(~0x7ffffffe)); // encodes 0x80000001
+  __ cmp(r1, Immediate(0x80000001u));
   B_LINE(ne, &error); 
+  CMT("Verify Bfc(0xfdeccdefu, 9, 16) == 0xfc0001ef");
   __ mov(r1, r0);
   __ Bfc(r1, 9, 16);
-  __ cmp(r1, Immediate(~0x01fffe10)); // encodes 0x0xfe0001ef
-  B_LINE(ne, &error); 
+  __ cmp(r1, Immediate(0xfc0001efu));
+  B_LINE(ne, &error);
 
-  // Verify Ubfx
-  __ mov(r0, Immediate(~0x01233210)); // encodes 0xfdeccdef
+  CMT("Verify Ubfx(0xfdeccdefu, 0, 32) == 0xfdeccdef");
+  __ mov(r0, Immediate(0xfdeccdefu));
   __ Ubfx(r1, r0, 0, 32); // a mov actually
-  __ cmp(r1, Immediate(~0x01233210)); // encodes 0xfdeccdef
+  __ cmp(r1, Immediate(0xfdeccdefu));
   B_LINE(ne, &error); 
+  CMT("Verify Ubfx(0xfdeccdef, 0, 31) == 0x7deccdef");
   __ Ubfx(r1, r0, 0, 31);
-  __ cmp(r1, Immediate(0x7edccdef));
+  __ cmp(r1, Immediate(0x7deccdef));
   B_LINE(ne, &error); 
+  CMT("Verify Ubfx(0xfdeccdef, 1, 30) == 0x3ef666f7");
   __ Ubfx(r1, r0, 1, 30);
-  __ cmp(r1, Immediate(0x3f6e66f7));
+  __ cmp(r1, Immediate(0x3ef666f7));
   B_LINE(ne, &error); 
+  CMT("Verify Ubfx(0xfdeccdef, 9, 16) == 0xf666");
   __ Ubfx(r1, r0, 9, 16);
-  __ cmp(r1, Immediate(0x6e66));
+  __ cmp(r1, Immediate(0xf666));
   B_LINE(ne, &error); 
 
-
-  // Verify Sbfx
-  __ mov(r0, Immediate(~0x01233210)); // encodes 0xfdeccdef
+  CMT("Verify Sbfx(0xfdeccdef, 0, 32) == 0xfdeccdef");
+  __ mov(r0, Immediate(0xfdeccdefu));
   __ Sbfx(r1, r0, 0, 32); // a mov actually
-  __ cmp(r1, Immediate(~0x01233210)); // encodes 0xfdeccdef
+  __ cmp(r1, Immediate(0xfdeccdefu));
   B_LINE(ne, &error); 
+  CMT("Verify Sbfx(0xfdeccdef, 0, 31) == 0xfdeccdef");
   __ Sbfx(r1, r0, 0, 31);
-  __ cmp(r1, Immediate(~0x01233210)); // encodes 0xfedccdef
+  __ cmp(r1, Immediate(0xfdeccdefu));
   B_LINE(ne, &error); 
+  CMT("Verify Sbfx(0xfdeccdef, 1, 31) == 0xfef666f7");
   __ Sbfx(r1, r0, 1, 30);
-  __ cmp(r1, Immediate(~0x00919908));  // encodes 0xff6e66f7
+  __ cmp(r1, Immediate(0xfef666f7u));
   B_LINE(ne, &error); 
+  CMT("Verify Sbfx(0xfdeccdef, 9, 16) == 0xfffff666");
   __ Sbfx(r1, r0, 9, 16);
-  __ cmp(r1, Immediate(0x6e66));
+  __ cmp(r1, Immediate(0xfffff666));
+  B_LINE(ne, &error); 
+
+  CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 0, 0) == 0xfdeccdef");
+  __ mov(r2, Immediate(0xaaaaaa));
+  __ mov(r0, Immediate(0xfdeccdefu));
+  __ mov(r1, r0);
+  __ Bfi(r1, r2, r4, 0, 0); // a nop
+  __ cmp(r1, r0);
+  B_LINE(ne, &error); 
+  CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 0, 32) == 0xaaaaaaaa");
+  __ mov(r1, r0);
+  __ Bfi(r1, r2, r4, 0, 32); // a mov actually
+  __ cmp(r1, r2);
+  B_LINE(ne, &error); 
+  CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 0, 16) == 0xfdecaaaa");
+  __ mov(r1, r0);
+  __ Bfi(r1, r2, r4, 0, 16);
+  __ cmp(r1, Immediate(0xfdecaaaau));
+  B_LINE(ne, &error); 
+  CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 4, 28) == 0xfd5555ef");
+  __ mov(r1, r0);
+  __ Bfi(r1, r2, r4, 9, 16);
+  __ cmp(r1, Immediate(0xfd5555efu));
+  B_LINE(ne, &error);
+
+  CMT("Verify Usat(-10, 8) == 0");
+  __ mov(r0, Immediate(-10));
+  __ Usat(r1, 8, r0);
+  __ cmp(r1, Immediate(0));
+  B_LINE(ne, &error); 
+  CMT("Verify Usat(256, 8) == 255");
+  __ mov(r0, Immediate(256));
+  __ Usat(r0, 8, r0);
+  __ cmp(r0, Immediate(255));
   B_LINE(ne, &error); 
 
   // All ok.
