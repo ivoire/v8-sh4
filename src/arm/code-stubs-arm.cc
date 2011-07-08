@@ -404,11 +404,11 @@ void FloatingPointHelper::LoadOperands(
     Register scratch2,
     Label* slow) {
 
-  // Load right operand (r0) to d6 or r2/r3.
+  // Load right operand (r0) to d7 or r2/r3.
   LoadNumber(masm, destination,
              r0, d7, r2, r3, heap_number_map, scratch1, scratch2, slow);
 
-  // Load left operand (r1) to d7 or r0/r1.
+  // Load left operand (r1) to d6 or r0/r1.
   LoadNumber(masm, destination,
              r1, d6, r0, r1, heap_number_map, scratch1, scratch2, slow);
 }
