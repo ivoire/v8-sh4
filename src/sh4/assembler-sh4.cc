@@ -359,7 +359,7 @@ void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
   }
 }
 
-
+// TODO: check why asl is useful? Is it like lsl?
 void Assembler::asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
   ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
@@ -414,12 +414,17 @@ void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm, Register rtm
 }
 
 
-void Assembler::lsl(Register Rd, Register Rs, Register Rt) {
+void Assembler::lsl(Register Rd, Register Rs, Register Rt, Register rtmp) {
+  ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
+  Register rshift = Rt;
   if (Rs.code() != Rd.code()) {
-    ASSERT(!Rt.is(Rd));
+    if (Rt.is(Rd)) {
+      rshift = rtmp;
+      mov_(Rt, rtmp);
+    }
     mov_(Rs, Rd);
   }
-  shld_(Rt, Rd);
+  shld_(rshift, Rd);
 }
 
 
@@ -989,42 +994,84 @@ void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 
-void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
-  ASSERT(!dst.rn_.is_valid()); // @(Rm + Rn) mode not supported for store
-  if (dst.offset_ == 0) {
-    movl_indRd_(Rd, dst.rm_);
+void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
+  if (src.rn_.is_valid()) {
+    add(rtmp, src.rm_, src.rn_);
+    movb_indRs_(rtmp, Rd);
   } else {
-    if (FITS_SH4_movl_dispRd(dst.offset_)) {
-      movl_dispRd_(Rd, dst.offset_, dst.rm_);
+    if (src.offset_ == 0) {
+      movb_indRs_(src.rm_, Rd);
     } else {
-      ASSERT(!Rd.is(rtmp));
-      add(rtmp, dst.rm_, Immediate(dst.offset_));
-      movl_indRd_(Rd, rtmp);
+      add(rtmp, src.rm_, Immediate(src.offset_));
+      movb_indRs_(rtmp, Rd);
+    }
+  }
+}
+
+
+void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
+  if (src.rn_.is_valid()) {
+    add(rtmp, src.rm_, src.rn_);
+    movw_indRs_(rtmp, Rd);
+  } else {
+    if (src.offset_ == 0) {
+      movw_indRs_(src.rm_, Rd);
+    } else {
+      add(rtmp, src.rm_, Immediate(src.offset_));
+      movw_indRs_(rtmp, Rd);
+    }
+  }
+}
+
+
+void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
+  if (dst.rn_.is_valid()) {
+    add(rtmp, dst.rm_, dst.rn_);
+    movl_indRd_(Rd, rtmp);
+  } else {
+    if (dst.offset_ == 0) {
+      movl_indRd_(Rd, dst.rm_);
+    } else {
+      if (FITS_SH4_movl_dispRd(dst.offset_)) {
+	movl_dispRd_(Rd, dst.offset_, dst.rm_);
+      } else {
+	ASSERT(!Rd.is(rtmp));
+	add(rtmp, dst.rm_, Immediate(dst.offset_));
+	movl_indRd_(Rd, rtmp);
+      }
     }
   }
 }
 
 
 void Assembler::movb(const MemOperand& dst, Register Rd, Register rtmp) {
-  ASSERT(!dst.rn_.is_valid()); // @(Rm + Rn) mode not supported for store
-  if (dst.offset_ == 0) {
-    movb_indRd_(Rd, dst.rm_);
-  } else {
-    ASSERT(!Rd.is(rtmp));
-    add(rtmp, dst.rm_, Immediate(dst.offset_));
+  if (dst.rn_.is_valid()) {
+    add(rtmp, dst.rm_, dst.rn_);
     movb_indRd_(Rd, rtmp);
+  } else {
+    if (dst.offset_ == 0) {
+      movb_indRd_(Rd, dst.rm_);
+    } else {
+      ASSERT(!Rd.is(rtmp));
+      add(rtmp, dst.rm_, Immediate(dst.offset_));
+      movb_indRd_(Rd, rtmp);
+    }
   }
 }
 
 
 void Assembler::movw(const MemOperand& dst, Register Rd, Register rtmp) {
-  ASSERT(!dst.rn_.is_valid()); // @(Rm + Rn) mode not supported for store
-  if (dst.offset_ == 0) {
-    movw_indRd_(Rd, dst.rm_);
-  } else {
-    ASSERT(!Rd.is(rtmp));
-    add(rtmp, dst.rm_, Immediate(dst.offset_));
+  if (dst.rn_.is_valid()) {
+    add(rtmp, dst.rm_, dst.rn_);
     movw_indRd_(Rd, rtmp);
+  } else {
+    if (dst.offset_ == 0) {
+      movw_indRd_(Rd, dst.rm_);
+    } else {
+      ASSERT(!Rd.is(rtmp));
+      add(rtmp, dst.rm_, Immediate(dst.offset_));
+      movw_indRd_(Rd, rtmp);
+    }
   }
 }
 

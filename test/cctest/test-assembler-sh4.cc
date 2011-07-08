@@ -192,7 +192,8 @@ TEST(6) {
   __ lsl(r4, r0, Immediate(2));
   __ mov(r1, Immediate(1));
   __ lsl(r4, r4, r1);
-  __ lsl(r0, r4, r1);
+  __ lsl(r1, r4, r1);
+  __ mov(r0, r1);
   __ rts();
 
   JIT();
@@ -566,11 +567,18 @@ TEST(15) {
   __ b(cond, target);  \
   } while(0);
 
+#define PROLOGUE() \
+  __ push(r10)
+#define EPILOGUE() \
+  __ pop(r10)
+
 // Test logical and, or, xor
 TEST(16) {
   BEGIN();
 
   Label error;
+
+  PROLOGUE();
 
   __ mov(r1, Immediate(0x00ff00ff));
   __ land(r1, r1, Immediate(0xff00ff00), r2);
@@ -660,12 +668,23 @@ TEST(16) {
   __ cmpeq(r1, Immediate(0xf0));           // true
   B_LINE(f, &error);
 
+  __ mov(r1, Immediate(0x0ff));
+  __ mov(r2, Immediate(0x040));
+  __ bic(r1, r1, r2);
+  __ cmpeq(r1, Immediate(0xbf));           // true
+  B_LINE(f, &error);
+  __ bic(r0, r1, Immediate(0x80));
+  __ cmpeq(r0, Immediate(0x3f));           // true
+  B_LINE(f, &error);
+
   // All ok.
   __ mov(r0, Immediate(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
   __ mov(r0, r10);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -687,6 +706,7 @@ TEST(17) {
 
   Label error;
   
+  PROLOGUE();
   __ mov(r0, Immediate(0));
   __ mov(r1, Immediate(0));
   __ mov(r2, Immediate(0));
@@ -745,10 +765,12 @@ TEST(17) {
   
   // All ok.
   __ mov(r0, Immediate(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
   __ mov(r0, r10);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -770,6 +792,7 @@ TEST(18) {
 
   Label error;
   
+  PROLOGUE();
   __ mov(r0, Immediate(0xFFFFFFFE));
   __ mov(r1, Immediate(1));
   __ addc(r2, r0, r1);
@@ -844,10 +867,12 @@ TEST(18) {
 
   // All ok.
   __ mov(r0, Immediate(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
   __ mov(r0, r10);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -868,6 +893,7 @@ TEST(19) {
 
   Label error;
   
+  PROLOGUE();
   __ mov(r0, Immediate(0x7FFFFFFE));
   __ mov(r1, Immediate(1));
   __ addv(r2, r0, r1);
@@ -942,10 +968,12 @@ TEST(19) {
 
   // All ok.
   __ mov(r0, Immediate(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
   __ mov(r0, r10);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -966,6 +994,7 @@ TEST(20) {
   Label error;
   Condition cond;
 
+  PROLOGUE();
   cond = eq;
   __ cmp(cond, r4, Immediate(0), r0);
   CHECK_EQ(eq, cond);
@@ -982,10 +1011,12 @@ TEST(20) {
   B_LINE(t, &error);
 
   __ mov(r0, Immediate(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
-  __ mov(r0, Immediate(1));
+  __ mov(r0, r10);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -1236,4 +1267,120 @@ TEST(26) {
   CHECK_EQ(14, Registers::Number("fp"));
   CHECK_EQ(15, Registers::Number("sp"));
   CHECK_EQ(kNoRegister, Registers::Number("r16"));
+}
+
+
+// Test load/store operations
+TEST(27) {
+  BEGIN();
+
+  Label error;
+
+  PROLOGUE();
+  __ mov(r3, sp);
+  __ sub(sp, sp, Immediate(16));
+
+  // Test str/ldr
+  __ mov(r1, Immediate(3));
+  __ str(r1, MemOperand(sp, 0));
+  __ mov(r1, Immediate(7));
+  __ mov(r2, Immediate(4));
+  __ str(r1, MemOperand(sp, r2));
+  __ mov(r1, Immediate(9));
+  __ str(r1, MemOperand(sp, 8));
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldr(r0, MemOperand(sp, 0));
+  __ cmpeq(r0, Immediate(3));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldr(r0, MemOperand(sp, r2));
+  __ cmpeq(r0, Immediate(7));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldr(r0, MemOperand(sp, 8));
+  __ cmpeq(r0, Immediate(9));
+  B_LINE(f, &error);
+
+  // Test strh/ldrh/ldrsh
+  __ mov(r1, Immediate(3));
+  __ strh(r1, MemOperand(sp, 0));
+  __ mov(r1, Immediate(0xff07));
+  __ strh(r1, MemOperand(sp, 2));
+  __ mov(r2, Immediate(4));
+  __ mov(r1, Immediate(0x09));
+  __ strh(r1, MemOperand(sp, r2));
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldr(r0, MemOperand(sp, 0));
+  __ cmpeq(r0, Immediate(0xff070003));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldrh(r0, MemOperand(sp, 0));
+  __ cmpeq(r0, Immediate(0x03));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldrh(r0, MemOperand(sp, 2));
+  __ cmpeq(r0, Immediate(0xff07));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldrh(r0, MemOperand(sp, r2));
+  __ cmpeq(r0, Immediate(0x09));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldrsh(r0, MemOperand(sp, 2));
+  __ cmpeq(r0, Immediate(0xffffff07));
+  B_LINE(f, &error);
+
+  // Test strb/ldrb
+  __ mov(r1, Immediate(3));
+  __ strb(r1, MemOperand(sp, 0));
+  __ mov(r1, Immediate(0xf7));
+  __ mov(r2, Immediate(1));
+  __ strb(r1, MemOperand(sp, r2));
+  __ mov(r1, Immediate(5));
+  __ strb(r1, MemOperand(sp, 2));
+  __ mov(r1, Immediate(1));
+  __ strb(r1, MemOperand(sp, 3));
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldr(r0, MemOperand(sp, 0));
+  __ cmpeq(r0, Immediate(0x0105f703));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldrb(r0, MemOperand(sp, 0));
+  __ cmpeq(r0, Immediate(0x03));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldrb(r0, MemOperand(sp, r2));
+  __ cmpeq(r0, Immediate(0xf7));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldrb(r0, MemOperand(sp, 2));
+  __ cmpeq(r0, Immediate(0x05));
+  B_LINE(f, &error);
+  __ mov(r0, Immediate(0xdeadbeef));
+  __ ldrsb(r0, MemOperand(sp, 1));
+  __ cmpeq(r0, Immediate(0xfffffff7));
+  B_LINE(f, &error);
+
+  // All ok.
+  __ mov(sp, r3);
+  __ mov(r0, Immediate(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
+  __ mov(sp, r3);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
 }
