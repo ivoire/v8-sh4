@@ -2891,7 +2891,49 @@ void FullCodeGenerator::EmitStringCharFromCode(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitStringCharCodeAt(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 2);
+
+  VisitForStackValue(args->at(0));
+  VisitForAccumulatorValue(args->at(1));
+
+  Register object = r1;
+  Register index = r0;
+  Register scratch = r2;
+  Register result = r3;
+
+  __ pop(object);
+
+  Label need_conversion;
+  Label index_out_of_range;
+  Label done;
+  StringCharCodeAtGenerator generator(object,
+                                      index,
+                                      scratch,
+                                      result,
+                                      &need_conversion,
+                                      &need_conversion,
+                                      &index_out_of_range,
+                                      STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm_);
+  __ jmp(&done);
+
+  __ bind(&index_out_of_range);
+  // When the index is out of range, the spec requires us to return
+  // NaN.
+  __ LoadRoot(result, Heap::kNanValueRootIndex);
+  __ jmp(&done);
+
+  __ bind(&need_conversion);
+  // Load the undefined value into the result register, which will
+  // trigger conversion.
+  __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+  __ jmp(&done);
+
+  NopRuntimeCallHelper call_helper;
+  generator.GenerateSlow(masm_, call_helper);
+
+  __ bind(&done);
+  context()->Plug(result);
 }
 
 
@@ -3000,7 +3042,13 @@ void FullCodeGenerator::EmitCallFunction(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitRegExpConstructResult(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  RegExpConstructResultStub stub;
+  ASSERT(args->length() == 3);
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+  VisitForStackValue(args->at(2));
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
@@ -3087,7 +3135,17 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+  VisitForAccumulatorValue(args->at(0));
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(r0);
+  }
+
+  __ ldr(r0, FieldMemOperand(r0, String::kHashFieldOffset));
+  __ IndexFromHash(r0, r0);
+
+  context()->Plug(r0);
 }
 
 

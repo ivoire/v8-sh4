@@ -118,7 +118,7 @@ static void GenerateStringDictionaryProbes(MacroAssembler* masm,
                                            Register scratch1,
                                            Register scratch2) {
   // Assert that name contains a string.
-  if (FLAG_debug_code) __ AbortIfNotString(name);
+  if (FLAG_debug_code) { __ AbortIfNotString(name); }
 
   // Compute the capacity mask.
   const int kCapacityOffset = StringDictionary::kHeaderSize +
@@ -159,11 +159,11 @@ static void GenerateStringDictionaryProbes(MacroAssembler* masm,
     __ lsl(scratch2, scratch2, Immediate(2));
     __ add(scratch2, elements, scratch2);
     __ ldr(ip, FieldMemOperand(scratch2, kElementsStartOffset));
-    __ cmpeq(name, /*TODO:Operand()*/ip);
+    __ cmp(name, ip);
     if (i != kProbes - 1) {
-      __ bt(done);
+      __ b(eq, done);
     } else {
-      __ bf(miss);
+      __ b(ne, miss);
     }
   }
 }
@@ -212,7 +212,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ ldr(scratch1, FieldMemOperand(scratch2, kDetailsOffset));
   __ tst(scratch1, Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
-  __ bf(miss);
+  __ b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
   __ ldr(result,
@@ -311,7 +311,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   // with ComputeIntegerHash in utils.h.
   //
   // hash = ~hash + (hash << 15);
-  __ mvn(t1, /*TODO:Operand()*/t0);
+  __ mvn(t1, t0);
   __ lsl(t2, t0, Immediate(15));
   __ add(t0, t1, t2);
   // hash = hash ^ (hash >> 12);
@@ -344,7 +344,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
     if (i > 0) {
       __ add(t2, t2, Immediate(NumberDictionary::GetProbeOffset(i)));
     }
-    __ land(t2, t2, /*TODO:Operand()*/t1);
+    __ land(t2, t2, t1);
 
     // Scale the index by multiplying by the element size.
     ASSERT(NumberDictionary::kEntrySize == 3);
@@ -355,11 +355,11 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
     __ lsl(ip, t2, Immediate(kPointerSizeLog2));
     __ add(t2, elements, ip);
     __ ldr(ip, FieldMemOperand(t2, NumberDictionary::kElementsStartOffset));
-    __ cmpeq(key, /*TODO:Operand()*/ip);
+    __ cmp(key, ip);
     if (i != kProbes - 1) {
-      __ bt(&done);
+      __ b(eq, &done);
     } else {
-      __ bf(miss);
+      __ b(ne, miss);
     }
   }
 
@@ -370,7 +370,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
       NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   __ ldr(t1, FieldMemOperand(t2, kDetailsOffset));
   __ tst(t1, Immediate(Smi::FromInt(PropertyDetails::TypeField::mask())));
-  __ bf(miss);
+  __ b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
   const int kValueOffset =
@@ -442,14 +442,14 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
   __ tst(scratch,
          Immediate((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
-  __ bf(slow);
+  __ b(ne,slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing into string
   // objects work as intended.
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ cmpge(scratch, Immediate(JS_OBJECT_TYPE));   // 'lower than' negated
+  __ cmpge(scratch, Immediate(JS_OBJECT_TYPE));
   __ bf(slow);
 }
 
@@ -492,8 +492,8 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
     // Check that the object is in fast mode and writable.
     __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-    __ cmpeq(scratch1, ip);
-    __ bf(not_fast_array);
+    __ cmp(scratch1, ip);
+    __ b(ne, not_fast_array);
   } else {
     __ AssertFastElements(elements);
   }
@@ -508,10 +508,10 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   __ lsl(scratch2, key, Immediate(kPointerSizeLog2 - kSmiTagSize));
   __ ldr(scratch2, MemOperand(scratch1, scratch2));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-  __ cmpeq(scratch2, ip);
+  __ cmp(scratch2, ip);
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
-  __ bt(out_of_range);
+  __ b(eq, out_of_range);
   __ mov(result, scratch2);
 }
 
@@ -532,14 +532,14 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
   // Is the string an array index, with cached numeric value?
   __ ldr(hash, FieldMemOperand(key, String::kHashFieldOffset));
   __ tst(hash, Immediate(String::kContainsCachedArrayIndexMask));
-  __ bt(index_string);
+  __ b(eq, index_string);
 
   // Is the string a symbol?
   // map: key map
   __ ldrb(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
   ASSERT(kSymbolTag != 0);
   __ tst(hash, Immediate(kIsSymbolMask));
-  __ bt(not_symbol);
+  __ b(eq, not_symbol);
 }
 
 
@@ -573,8 +573,8 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // to probe.
   //
   // Check for number.
-  __ tst(r1, Immediate/*TODO:Operand*/(kSmiTagMask));
-  __ bt(&number);
+  __ tst(r1, Immediate(kSmiTagMask));
+  __ b(eq, &number);
   __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE, eq);
   __ bf(&non_number);
   __ bind(&number);
@@ -584,7 +584,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 
   // Check for string.
   __ bind(&non_number);
-  __ cmphs(r3, Immediate/*TODO:Operand*/(FIRST_NONSTRING_TYPE));
+  __ cmphs(r3, Immediate(FIRST_NONSTRING_TYPE));
   __ bt(&non_string);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::STRING_FUNCTION_INDEX, r1);
@@ -593,11 +593,11 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // Check for boolean.
   __ bind(&non_string);
   __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  __ cmpeq(r1, ip);
-  __ bt(&boolean);
+  __ cmp(r1, ip);
+  __ b(eq, &boolean);
   __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-  __ cmpeq(r1, ip);
-  __ bf(&miss);
+  __ cmp(r1, ip);
+  __ b(ne, &miss);
   __ bind(&boolean);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::BOOLEAN_FUNCTION_INDEX, r1);
@@ -755,7 +755,104 @@ void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
 
 
 void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
-  __ UNIMPLEMENTED_BREAK();
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+
+  // Get the receiver of the function from the stack into r1.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+
+  Label do_call, slow_call, slow_load, slow_reload_receiver;
+  Label check_number_dictionary, check_string, lookup_monomorphic_cache;
+  Label index_smi, index_string;
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(r2, &check_string);
+  __ bind(&index_smi);
+  // Now the key is known to be a smi. This place is also jumped to from below
+  // where a numeric string is converted to a smi.
+
+  GenerateKeyedLoadReceiverCheck(
+      masm, r1, r0, r3, Map::kHasIndexedInterceptor, &slow_call);
+
+  GenerateFastArrayLoad(
+      masm, r1, r2, r4, r3, r0, r1, &check_number_dictionary, &slow_load);
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->keyed_call_generic_smi_fast(), 1, r0, r3);
+
+  __ bind(&do_call);
+  // receiver in r1 is not used after this point.
+  // r2: key
+  // r1: function
+  GenerateFunctionTailCall(masm, argc, &slow_call, r0);
+
+  __ bind(&check_number_dictionary);
+  // r2: key
+  // r3: elements map
+  // r4: elements
+  // Check whether the elements is a number dictionary.
+  __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
+  __ cmp(r3, ip);
+  __ b(ne, &slow_load);
+  __ asr(r0, r2, Immediate(kSmiTagSize));
+  // r0: untagged index
+  GenerateNumberDictionaryLoad(masm, &slow_load, r4, r2, r1, r0, r3, r5);
+  __ IncrementCounter(counters->keyed_call_generic_smi_dict(), 1, r0, r3);
+  __ jmp(&do_call);
+
+  __ bind(&slow_load);
+  // This branch is taken when calling KeyedCallIC_Miss is neither required
+  // nor beneficial.
+  __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1, r0, r3);
+  __ EnterInternalFrame();
+  __ push(r2);  // save the key
+  __ Push(r1, r2);  // pass the receiver and the key
+  __ CallRuntime(Runtime::kKeyedGetProperty, 2);
+  __ pop(r2);  // restore the key
+  __ LeaveInternalFrame();
+  __ mov(r1, r0);
+  __ jmp(&do_call);
+
+  __ bind(&check_string);
+  GenerateKeyStringCheck(masm, r2, r0, r3, &index_string, &slow_call);
+
+  // The key is known to be a symbol.
+  // If the receiver is a regular JS object with slow properties then do
+  // a quick inline probe of the receiver's dictionary.
+  // Otherwise do the monomorphic cache probe.
+  GenerateKeyedLoadReceiverCheck(
+      masm, r1, r0, r3, Map::kHasNamedInterceptor, &lookup_monomorphic_cache);
+
+  __ ldr(r0, FieldMemOperand(r1, JSObject::kPropertiesOffset));
+  __ ldr(r3, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
+  __ cmp(r3, ip);
+  __ b(ne, &lookup_monomorphic_cache);
+
+  GenerateDictionaryLoad(masm, &slow_load, r0, r2, r1, r3, r4);
+  __ IncrementCounter(counters->keyed_call_generic_lookup_dict(), 1, r0, r3);
+  __ jmp(&do_call);
+
+  __ bind(&lookup_monomorphic_cache);
+  __ IncrementCounter(counters->keyed_call_generic_lookup_cache(), 1, r0, r3);
+  GenerateMonomorphicCacheProbe(masm, argc, Code::KEYED_CALL_IC);
+  // Fall through on miss.
+
+  __ bind(&slow_call);
+  // This branch is taken if:
+  // - the receiver requires boxing or access check,
+  // - the key is neither smi nor symbol,
+  // - the value loaded is not a function,
+  // - there is hope that the runtime will create a monomorphic call stub
+  //   that will get fetched next time.
+  __ IncrementCounter(counters->keyed_call_generic_slow(), 1, r0, r3);
+  GenerateMiss(masm, argc);
+
+  __ bind(&index_string);
+  __ IndexFromHash(r3, r2);
+  // Now jump to the place where smi keys are handled.
+  __ jmp(&index_smi);
 }
 
 
