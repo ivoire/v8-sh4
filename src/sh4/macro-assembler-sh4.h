@@ -785,9 +785,17 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
+  void Usat(Register dst, int satpos, Register src);
   void Ubfx(Register dst, Register src, int lsb, int width);
   void Sbfx(Register dst, Register src, int lsb, int width);
   void Bfc(Register dst, int lsb, int width);
+  // scratch can be the same register as src (in which case it is trashed), but
+  // not the same as dst.
+  void Bfi(Register dst,
+           Register src,
+           Register scratch,
+           int lsb,
+           int width);
 
   Handle<Object> CodeObject() { return code_object_; }
 

@@ -889,6 +889,28 @@ void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width) {
 }
 
 
+void MacroAssembler::Bfi(Register dst,
+                         Register src,
+                         Register scratch,
+                         int lsb,
+                         int width) {
+  ASSERT(0 <= lsb && lsb < 32);
+  ASSERT(0 <= width && width <= 32);
+  ASSERT(lsb + width <= 32);
+  ASSERT(!scratch.is(dst));
+  if (width == 0) return;
+  if (width == 32) {
+    mov(dst, src);
+    return;
+  }
+  int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+  bic(dst, dst, Immediate(mask));
+  land(scratch, src, Immediate((1 << width) - 1));
+  lsl(scratch, scratch, Immediate(lsb));
+  orr(dst, dst, scratch);
+}
+
+
 void MacroAssembler::PopTryHandler() {
   RECORD_LINE();
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
@@ -1997,6 +2019,21 @@ void MacroAssembler::CopyFields(Register dst,
     mov(tmp, FieldMemOperand(src, i * kPointerSize));
     mov(FieldMemOperand(dst, i * kPointerSize), tmp);
   }
+}
+
+
+void MacroAssembler::Usat(Register dst, int satpos, Register src) {
+    ASSERT((satpos > 0) && (satpos <= 31));
+
+    int satval = (1 << satpos) - 1;
+
+    if (!src.is(dst)) {
+      mov(dst, src);
+    }
+    cmpge(dst, Immediate(0));
+    mov(dst, Immediate(0), f);  // 0 if negative.
+    cmpgt(dst, Immediate(satval));
+    mov(dst, Immediate(satval), t);  // satval if > satval
 }
 
 
