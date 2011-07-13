@@ -8,6 +8,13 @@ error() {
     exit 1
 }
 
+cleanup() {
+    true
+}
+
+trap "cleanup; exit 1" 1 2 15
+trap "cleanup" 0
+
 . ./source_sh4.sh
 
 QEMU=${QEMU:-/home/compwork/guillon/qemu-stm/build-x86_64/sh4-linux-user/qemu-sh4}
