@@ -2686,7 +2686,16 @@ void FullCodeGenerator::EmitObjectEquals(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  // ArgumentsAccessStub expects the key in edx and the formal
+  // parameter count in r0.
+  VisitForAccumulatorValue(args->at(0));
+  __ mov(r1, r0);
+  __ mov(r0, Immediate(Smi::FromInt(scope()->num_parameters())));
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
@@ -2886,7 +2895,20 @@ void FullCodeGenerator::EmitNumberToString(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitStringCharFromCode(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label done;
+  StringCharFromCodeGenerator generator(r0, r1);
+  generator.GenerateFast(masm_);
+  __ jmp(&done);
+
+  NopRuntimeCallHelper call_helper;
+  generator.GenerateSlow(masm_, call_helper);
+
+  __ bind(&done);
+  context()->Plug(r1);
 }
 
 
@@ -3019,7 +3041,11 @@ void FullCodeGenerator::EmitMathLog(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitMathSqrt(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  // Load the argument on the stack and call the runtime function.
+  ASSERT(args->length() == 1);
+  VisitForStackValue(args->at(0));
+  __ CallRuntime(Runtime::kMath_sqrt, 1);
+  context()->Plug(r0);
 }
 
 
