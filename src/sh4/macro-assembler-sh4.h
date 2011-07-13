@@ -410,8 +410,19 @@ class MacroAssembler: public Assembler {
                       Register dest,
                       Register scratch,
                       Register scratch2,
-                      Register double_scratch,
+                      DwVfpRegister double_scratch,
                       Label *not_int32);
+
+  // Helper for EmitECMATruncate.
+  // This will truncate a floating-point value outside of the singed 32bit
+  // integer range to a 32bit signed integer.
+  // Expects the double value loaded in input_high and input_low.
+  // Exits with the answer in 'result'.
+  // Note that this code does not work for values in the 32bit range!
+  void EmitOutOfInt32RangeTruncate(Register result,
+                                   Register input_high,
+                                   Register input_low,
+                                   Register scratch);
 
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object);
