@@ -105,7 +105,7 @@ static void InitializeVM() {
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();      \
   CHECK(code->IsCode());
 
-#define CMT(msg) { Comment cmnt(&assm, msg); } while(0)
+#define CMT(msg) do { Comment cmnt(&assm, msg); } while(0)
 
 #define __ assm.
 
@@ -870,7 +870,7 @@ TEST(sh4_ma_7) {
   num = assm.isolate()->factory()->NewNumber(4.1, TENURED);
   __ mov(r0, Immediate(4));
   __ mov(r1, Operand(num));
-  __ ConvertToInt32(r1, r2, r3, r4, no_reg, &not_int32_1);
+  __ ConvertToInt32(r1, r2, r3, r4, no_dreg, &not_int32_1);
   __ cmp(r2, r0);
   B_LINE(ne, &error);
   __ jmp(&skip_int32_1);
@@ -880,14 +880,14 @@ TEST(sh4_ma_7) {
 
   CMT("Check ConvertToInt32(nan) == not int32");
   __ mov(r1, Operand(NAN_VALUE()));
-  __ ConvertToInt32(r1, r2, r3, r4, no_reg, &not_int32_2);
+  __ ConvertToInt32(r1, r2, r3, r4, no_dreg, &not_int32_2);
   B_LINE(al, &error);
   __ bind(&not_int32_2);
 
   CMT("Check ConvertToInt32(0X80000000) == not int32");
   num = assm.isolate()->factory()->NewNumber((double)0x80000000U, TENURED);
   __ mov(r1, Operand(num));
-  __ ConvertToInt32(r1, r2, r3, r4, no_reg, &not_int32_3);
+  __ ConvertToInt32(r1, r2, r3, r4, no_dreg, &not_int32_3);
   B_LINE(al, &error);
   __ bind(&not_int32_3);
   
