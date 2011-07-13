@@ -1900,8 +1900,34 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
                                                            JSObject* holder,
                                                            String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Check the key is the cached one.
+  __ mov(ip, Operand(Handle<String>(name)));
+  __ cmp(r0, ip);
+  __ b(ne, &miss);
+
+  LookupResult lookup;
+  LookupPostInterceptor(holder, name, &lookup);
+  GenerateLoadInterceptor(receiver,
+                          holder,
+                          &lookup,
+                          r1,
+                          r0,
+                          r2,
+                          r3,
+                          r4,
+                          name,
+                          &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(INTERCEPTOR, name);
 }
 
 
@@ -2150,8 +2176,85 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
                                                    JSGlobalPropertyCell* cell,
                                                    JSFunction* function,
                                                    String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r2    : name
+  //  -- lr    : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- sp[argc * 4]           : receiver
+  // -----------------------------------
+
+  // If object is not an array, bail out to regular call.
+  if (!object->IsJSArray() || cell != NULL) return heap()->undefined_value();
+
+  Label miss, return_undefined, call_builtin;
+
+  Register receiver = r1;
+  Register elements = r3;
+
+  GenerateNameCheck(name, &miss);
+
+  // Get the receiver from the stack
+  const int argc = arguments().immediate();
+  __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(receiver, &miss);
+
+  // Check that the maps haven't changed.
+  CheckPrototypes(JSObject::cast(object),
+                  receiver, holder, elements, r4, r0, name, &miss);
+
+  // Get the elements array of the object.
+  __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
+
+  // Check that the elements are in fast mode and writable.
+  __ CheckMap(elements, r0, Heap::kFixedArrayMapRootIndex, &call_builtin, true);
+
+  // Get the array's length into r4 and calculate new length.
+  __ ldr(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ sub(r4, r4, Immediate(Smi::FromInt(1)));
+  __ cmpge(r4, Immediate(0));
+  __ bf(&return_undefined);
+
+  // Get the last element.
+  __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+  // We can't address the last element in one operation. Compute the more
+  // expensive shift first, and use an offset later on.
+  __ lsl(ip, r4, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(elements, elements, ip);
+  __ ldr(r0, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ cmp(r0, r6);
+  __ b(eq, &call_builtin);
+
+  // Set the array's length.
+  __ str(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+  // Fill with the hole.
+  __ str(r6, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Drop(argc + 1);
+  __ Ret();
+
+  __ bind(&return_undefined);
+  __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ Drop(argc + 1);
+  __ Ret();
+
+  __ bind(&call_builtin);
+  __ TailCallExternalReference(ExternalReference(Builtins::c_ArrayPop,
+                                                 masm()->isolate()),
+                               argc + 1,
+                               1);
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  MaybeObject* maybe_result = GenerateMissBranch();
+  if (maybe_result->IsFailure()) return maybe_result;
+
+  // Return the generated code.
+  return GetCode(function);
 }
 
 
@@ -2478,8 +2581,16 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
                                                     JSGlobalPropertyCell* cell,
                                                     JSFunction* function,
                                                     String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- r2                     : function name
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- sp[argc * 4]           : receiver
+  // -----------------------------------
+
+  //TODO: implement FP support: see ARM code
+  return heap()->undefined_value();
 }
 
 
@@ -2570,30 +2681,181 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
 
 
 MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
-                        Object* object,
-                        JSObject* holder,
-                        JSGlobalPropertyCell* cell,
-                        JSFunction* function,
-                        String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+    Object* object,
+    JSObject* holder,
+    JSGlobalPropertyCell* cell,
+    JSFunction* function,
+    String* name) {
+  // ----------- S t a t e -------------
+  //  -- r2                     : function name
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- sp[argc * 4]           : receiver
+  // -----------------------------------
+
+  // If object is not a string, bail out to regular call.
+  if (!object->IsString() || cell != NULL) return heap()->undefined_value();
+
+  const int argc = arguments().immediate();
+
+  Label miss;
+  Label name_miss;
+  Label index_out_of_range;
+  Label* index_out_of_range_label = &index_out_of_range;
+
+  if (kind_ == Code::CALL_IC && extra_ic_state_ == DEFAULT_STRING_STUB) {
+    index_out_of_range_label = &miss;
+  }
+
+  GenerateNameCheck(name, &name_miss);
+
+  // Check that the maps starting from the prototype haven't changed.
+  GenerateDirectLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            r0,
+                                            &miss);
+  ASSERT(object != holder);
+  CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder,
+                  r1, r3, r4, name, &miss);
+
+  Register receiver = r1;
+  Register index = r4;
+  Register scratch = r3;
+  Register result = r0;
+  __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
+  if (argc > 0) {
+    __ ldr(index, MemOperand(sp, (argc - 1) * kPointerSize));
+  } else {
+    __ LoadRoot(index, Heap::kUndefinedValueRootIndex);
+  }
+
+  StringCharCodeAtGenerator char_code_at_generator(receiver,
+                                                   index,
+                                                   scratch,
+                                                   result,
+                                                   &miss,  // When not a string.
+                                                   &miss,  // When not a number.
+                                                   index_out_of_range_label,
+                                                   STRING_INDEX_IS_NUMBER);
+  char_code_at_generator.GenerateFast(masm());
+  __ Drop(argc + 1);
+  __ Ret();
+
+  StubRuntimeCallHelper call_helper;
+  char_code_at_generator.GenerateSlow(masm(), call_helper);
+
+  if (index_out_of_range.is_linked()) {
+    __ bind(&index_out_of_range);
+    __ LoadRoot(r0, Heap::kNanValueRootIndex);
+    __ Drop(argc + 1);
+    __ Ret();
+  }
+
+  __ bind(&miss);
+  // Restore function name in r2.
+  __ Move(r2, Handle<String>(name));
+  __ bind(&name_miss);
+  MaybeObject* maybe_result = GenerateMissBranch();
+  if (maybe_result->IsFailure()) return maybe_result;
+
+  // Return the generated code.
+  return GetCode(function);
 }
 
 
 MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
-                        Object* object,
-                        JSObject* holder,
-                        JSGlobalPropertyCell* cell,
-                        JSFunction* function,
-                        String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+    Object* object,
+    JSObject* holder,
+    JSGlobalPropertyCell* cell,
+    JSFunction* function,
+    String* name) {
+  // ----------- S t a t e -------------
+  //  -- r2                     : function name
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- sp[argc * 4]           : receiver
+  // -----------------------------------
+
+  const int argc = arguments().immediate();
+
+  // If the object is not a JSObject or we got an unexpected number of
+  // arguments, bail out to the regular call.
+  if (!object->IsJSObject() || argc != 1) return heap()->undefined_value();
+
+  Label miss;
+  GenerateNameCheck(name, &miss);
+
+  if (cell == NULL) {
+    __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
+
+    STATIC_ASSERT(kSmiTag == 0);
+    __ tst(r1, Immediate(kSmiTagMask));
+    __ b(eq, &miss);
+
+    CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
+                    &miss);
+  } else {
+    ASSERT(cell->value() == function);
+    GenerateGlobalReceiverCheck(JSObject::cast(object), holder, name, &miss);
+    GenerateLoadFunctionFromCell(cell, function, &miss);
+  }
+
+  // Load the char code argument.
+  Register code = r1;
+  __ ldr(code, MemOperand(sp, 0 * kPointerSize));
+
+  // Check the code is a smi.
+  Label slow;
+  STATIC_ASSERT(kSmiTag == 0);
+  __ tst(code, Immediate(kSmiTagMask));
+  __ b(ne, &slow);
+
+  // Convert the smi code to uint16.
+  __ land(code, code, Immediate(Smi::FromInt(0xffff)));
+
+  StringCharFromCodeGenerator char_from_code_generator(code, r0);
+  char_from_code_generator.GenerateFast(masm());
+  __ Drop(argc + 1);
+  __ Ret();
+
+  StubRuntimeCallHelper call_helper;
+  char_from_code_generator.GenerateSlow(masm(), call_helper);
+
+  // Tail call the full function. We do not have to patch the receiver
+  // because the function makes no use of it.
+  __ bind(&slow);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
+
+  __ bind(&miss);
+  // r2: function name.
+  MaybeObject* maybe_result = GenerateMissBranch();
+  if (maybe_result->IsFailure()) return maybe_result;
+
+  // Return the generated code.
+  return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
 }
 
 
 MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Check the key is the cached one.
+  __ mov(ip, Operand(Handle<String>(name)));
+  __ cmp(r0, ip);
+  __ b(ne, &miss);
+
+  GenerateLoadArrayLength(masm(), r1, r2, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(CALLBACKS, name);
 }
 
 
@@ -2632,8 +2894,27 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
 
 
 MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->keyed_load_function_prototype(), 1, r2, r3);
+
+  // Check the name hasn't changed.
+  __ mov(ip,  Operand(Handle<String>(name)));
+  __ cmp(r0, ip);
+  __ b(ne, &miss);
+
+  GenerateLoadFunctionPrototype(masm(), r1, r2, r3, &miss);
+  __ bind(&miss);
+  __ DecrementCounter(counters->keyed_load_function_prototype(), 1, r2, r3);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(CALLBACKS, name);
 }
 
 
@@ -2687,8 +2968,28 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
 
 
 MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- r0    : key
+  //  -- r1    : receiver
+  // -----------------------------------
+  Label miss;
+
+  Counters* counters = masm()->isolate()->counters();
+  __ IncrementCounter(counters->keyed_load_string_length(), 1, r2, r3);
+
+  // Check the key is the cached one.
+  __ mov(ip, Operand(Handle<String>(name)));
+  __ cmp(r0, ip);
+  __ b(ne, &miss);
+
+  GenerateLoadStringLength(masm(), r1, r2, r3, &miss, true);
+  __ bind(&miss);
+  __ DecrementCounter(counters->keyed_load_string_length(), 1, r2, r3);
+
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(CALLBACKS, name);
 }
 
 
