@@ -503,6 +503,53 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 }
 
 
+void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
+                                               Register object,
+                                               Register dst,
+                                               Register heap_number_map,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Register scratch3,
+                                               DwVfpRegister double_scratch,
+                                               Label* not_number) {
+  ASSERT(double_scratch.is(no_dreg)); //TODO: remove when FP unit active
+  if (FLAG_debug_code) {
+    __ AbortIfNotRootValue(heap_number_map,
+                           Heap::kHeapNumberMapRootIndex,
+                           "HeapNumberMap register clobbered.");
+  }
+  Label is_smi;
+  Label done;
+  Label not_in_int32_range;
+
+  __ JumpIfSmi(object, &is_smi);
+  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kMapOffset));
+  __ cmp(scratch1, heap_number_map);
+  __ b(ne, not_number);
+  __ ConvertToInt32(object,
+                    dst,
+                    scratch1,
+                    scratch2,
+                    double_scratch,
+                    &not_in_int32_range);
+  __ jmp(&done);
+
+  __ bind(&not_in_int32_range);
+  __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
+  __ ldr(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
+
+  __ EmitOutOfInt32RangeTruncate(dst,
+                                 scratch1,
+                                 scratch2,
+                                 scratch3);
+  __ jmp(&done);
+
+  __ bind(&is_smi);
+  __ SmiUntag(dst, object);
+  __ bind(&done);
+}
+
+
 void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
                                              Register int_scratch,
                                              Destination destination,
@@ -1835,8 +1882,6 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         __ SmiUntag(r3, left);
         __ SmiUntag(r2, right);
       } else {
-        UNIMPLEMENTED();
-/*
         // Convert operands to 32-bit integers. Right in r2 and left in r3.
         FloatingPointHelper::ConvertNumberToInt32(masm,
                                                   left,
@@ -1845,7 +1890,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                                   scratch1,
                                                   scratch2,
                                                   scratch3,
-                                                  d0,
+                                                  no_dreg/*TODO:d0*/,
                                                   not_numbers);
         FloatingPointHelper::ConvertNumberToInt32(masm,
                                                   right,
@@ -1854,9 +1899,8 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                                   scratch1,
                                                   scratch2,
                                                   scratch3,
-                                                  d0,
+                                                  no_dreg/*TODO:d0*/,
                                                   not_numbers);
-*/
       }
 
       Label result_not_a_smi;
@@ -1884,10 +1928,10 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
           // The code below for writing into heap numbers isn't capable of
           // writing the register as an unsigned int so we go to slow case if we
           // hit this case.
-//TODO: VFP
-//          if (CpuFeatures::IsSupported(VFP3)) {
-//            __ b(mi, &result_not_a_smi);
-//          } else
+	  //TODO: VFP
+	  //if (CpuFeatures::IsSupported(VFP3)) {
+	  //  __ b(mi, &result_not_a_smi);
+	  //} else
           {
             __ bf(not_numbers);
           }
@@ -1915,10 +1959,8 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         __ AllocateHeapNumber(
             result, scratch1, scratch2, heap_number_map, gc_required);
       } else {
-        UNIMPLEMENTED();
-//TODO: VFP
-//        GenerateHeapResultAllocation(
-//            masm, result, heap_number_map, scratch1, scratch2, gc_required);
+	GenerateHeapResultAllocation(
+	  masm, result, heap_number_map, scratch1, scratch2, gc_required);
       }
 
       // r2: Answer as signed int32.
@@ -1928,21 +1970,21 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       // result.
       __ mov(r0, r5);
 
-//TODO: VFP
-//      if (CpuFeatures::IsSupported(VFP3)) {
-//        // Convert the int32 in r2 to the heap number in r0. r3 is corrupted. As
-//        // mentioned above SHR needs to always produce a positive result.
-//        CpuFeatures::Scope scope(VFP3);
-//        __ vmov(s0, r2);
-//        if (op_ == Token::SHR) {
-//          __ vcvt_f64_u32(d0, s0);
-//        } else {
-//          __ vcvt_f64_s32(d0, s0);
-//        }
-//        __ sub(r3, r0, Immediate(kHeapObjectTag));
-//        __ vstr(d0, r3, HeapNumber::kValueOffset);
-//        __ Ret();
-//      } else
+      //TODO: VFP
+      //if (CpuFeatures::IsSupported(VFP3)) {
+      //  // Convert the int32 in r2 to the heap number in r0. r3 is corrupted. As
+      //  // mentioned above SHR needs to always produce a positive result.
+      //  CpuFeatures::Scope scope(VFP3);
+      //  __ vmov(s0, r2);
+      //  if (op_ == Token::SHR) {
+      //    __ vcvt_f64_u32(d0, s0);
+      //  } else {
+      //     __ vcvt_f64_s32(d0, s0);
+      //  }
+      //  __ sub(r3, r0, Immediate(kHeapObjectTag));
+      //  __ vstr(d0, r3, HeapNumber::kValueOffset);
+      //  __ Ret();
+      //} else
       {
         // Tail call that writes the int32 in r2 to the heap number in r0, using
         // r3 as scratch. r0 is preserved and returned.
@@ -2367,7 +2409,35 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
 
 void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Label call_runtime;
+
+  if (op_ == Token::ADD) {
+    // Handle string addition here, because it is the only operation
+    // that does not do a ToNumber conversion on the operands.
+    GenerateAddStrings(masm);
+  }
+
+  // Convert oddball arguments to numbers.
+  Label check, done;
+  __ CompareRoot(r1, Heap::kUndefinedValueRootIndex);
+  __ b(ne, &check);
+  if (Token::IsBitOp(op_)) {
+    __ mov(r1, Immediate(Smi::FromInt(0)));
+  } else {
+    __ LoadRoot(r1, Heap::kNanValueRootIndex);
+  }
+  __ jmp(&done);
+  __ bind(&check);
+  __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ b(ne, &done);
+  if (Token::IsBitOp(op_)) {
+    __ mov(r0, Immediate(Smi::FromInt(0)));
+  } else {
+    __ LoadRoot(r0, Heap::kNanValueRootIndex);
+  }
+  __ bind(&done);
+
+  GenerateHeapNumberStub(masm);
 }
 
 
@@ -2596,7 +2666,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ b(ne, &slow);
 
     // Convert the heap number in r0 to an untagged integer in r1.
-    __ ConvertToInt32(r0, r1, r2, r3, no_reg, &slow);
+    __ ConvertToInt32(r0, r1, r2, r3, no_dreg, &slow);
 
     // Do the bitwise operation (move negated) and check if the result
     // fits in a smi.
@@ -3218,14 +3288,10 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   Label slow;
-  // SH4 live-in: r0, r1
-  // SH4 live-out: r0, r1
   __ JumpIfNotSmi(r1, &slow);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
-  // SH4 live-in: r0, r1
-  // SH4 live-out: r0, r1, r2
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
@@ -3234,17 +3300,13 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // Check index against formal parameters count limit passed in
   // through register r0. Use unsigned comparison to get negative
   // check for free.
-  // SH4 live-in: r0, r1
-  // SH4 live-out: r0, r1
-  __ cmpgeu(r1, r0);
+  __ cmphs(r1, r0);
   __ bt(&slow);
 
   // Read the argument from the stack and return it.
-  // SH4 live-in: r0, r1
-  // SH4 live-out: r0
   __ sub(r3, r0, r1);
-  __ lsl(r4, r3, Immediate(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r3, fp, r4);
+  __ lsl(r0, r3, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, fp, r0);
   __ ldr(r0, MemOperand(r3, kDisplacement));
   __ rts();
 
@@ -3252,21 +3314,19 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // limit found in the arguments adaptor frame. Use unsigned
   // comparison to get negative check for free.
   __ bind(&adaptor);
-  // SH4 live-in: r1, r2
-  // SH4 live-out: r0, r1, r2
   __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ cmpgeu(r1, r0);
   __ bt(&slow);
 
   // Read the argument from the adaptor frame and return it.
-  // SH4 live-in: r0, r1, r2
-  // SH4 live-out: r0
   __ sub(r3, r0, r1);
   __ lsl(r0, r3, Immediate(kPointerSizeLog2 - kSmiTagSize));
   __ add(r3, r2, r0);
   __ ldr(r0, MemOperand(r3, kDisplacement));
   __ rts();
 
+  // Slow-case: Handle non-smi or out-of-bounds access to arguments
+  // by calling the runtime system.
   __ bind(&slow);
   __ push(r1);
   __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
@@ -3278,231 +3338,110 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // sp[4] : receiver displacement
   // sp[8] : function
 
-  // live-in registers: none
-  // defined registers (live through the whole function): sp, fp, cp
-
-  // Some preconditions, make the code selection simpler
-  // If these fail, verify and adapt the code below.
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kPointerSizeLog2 == 2);
-
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor_frame, try_allocate, runtime;
-  // Pseudo code {
-  //   live-in: none
-  //   live-out: r2
-  //   r2 = load32(add32(fp, kCallerFPOffset))
-  //   r3 = load32(add32(r2, kContextOffset))
-  //   t0 = r3 == ARGUMENTS_ADAPTOR
-  //   if (t0) goto adaptor_frame
-  // }
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmpeq(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ bt(&adaptor_frame);
+  __ cmp(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(eq,&adaptor_frame);
 
   // Get the length from the frame.
-  // Pseudo code {
-  //   live-in: r2
-  //   live-out: r2, r1
-  //   r1 = load32(add32(sp, 0))
-  //   goto  try_allocate
-  // }
   __ ldr(r1, MemOperand(sp, 0));
   __ jmp(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
-  // Pseudo code {
-  //   live-in: r2
-  //   live-out: r2, r1
-  //   r1 = load32(add32(r2, kLengthOffset))
-  //   store32(add32(sp, 0), r1)
-  //   r3 = add32(r2, shl32(r1, kPointerSizeLog2 - kSmiTagSize))
-  //   r3 = add32(r3, kCallerSPOffset)
-  //   store32(add32(sp, 1 * kPointerSize), r3)
-  // }
   __ ldr(r1, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ str(r1, MemOperand(sp, 0));
-  __ lsl(r0, r1, Immediate(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r0, r2, r0);
-  __ add(r0, r0, Immediate(StandardFrameConstants::kCallerSPOffset));
-  __ str(r0, MemOperand(sp, 1 * kPointerSize));
+  __ lsl(r3, r1, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, r2, r3);
+  __ add(r3, r3, Immediate(StandardFrameConstants::kCallerSPOffset));
+  __ str(r3, MemOperand(sp, 1 * kPointerSize));
 
   // Try the new space allocation. Start out with computing the size
   // of the arguments object and the elements array in words.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  // Pseudo code {
-  //   live-in: r2, r1
-  //   live-out: r2, r1
-  //   t0 = r1 == 0
-  //   if (t0) goto add_arguments_object
-  //   r1 = r1 >> kSmiTagSize
-  //   r1 = r1 + FixedArray::kHeaderSize / kPointerSize
-  //   add_arguments_object:
-  //   r1 = r1 + GetArgumentsObjectSize() / kPointerSize
-  // }
-  __ cmpeq(r1, Immediate(0));
-  __ bt(&add_arguments_object);
+  __ cmp(r1, Immediate(0));
+  __ b(eq, &add_arguments_object);
   __ lsr(r1, r1, Immediate(kSmiTagSize));
   __ add(r1, r1, Immediate(FixedArray::kHeaderSize / kPointerSize));
   __ bind(&add_arguments_object);
   __ add(r1, r1, Immediate(GetArgumentsObjectSize() / kPointerSize));
   
   // Do the allocation of both objects in one go.
-  // Pseudo code {
-  //   live-in: r1
-  //   live-out: r0
-  //   AllocateInNewSpace(r1, r0, r2, r3)
-  // }
   __ AllocateInNewSpace(
       r1, // object size
       r0, // result
       r2, // scratch1
-      r4, // scratch2
+      r3, // scratch2
       &runtime,
       static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
 
   // Get the arguments boilerplate from the current (global) context.
-  // Pseudo code {
-  //   live-in: r0
-  //   live-out: r0, r4
-  //   r4 = load32(add32(cp, Context::SlotOffset(Context::GLOBAL_INDEX)))
-  //   r4 = load32(add32(r4, GlobalObject::kGlobalContextOffset))
-  //   r4 = load32(add32(r4, Context::SlotOffset(GetArgumentsBoilerplateIndex())))
-  // }
   __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
   __ ldr(r4, MemOperand(r4,
 			Context::SlotOffset(GetArgumentsBoilerplateIndex())));
-  // }
 
   // Copy the JS object part.
-  // Pseudo code {
-  //   live-in: r0, r4
-  //   live-out: r0
-  //   CopyFields(r0 // dst , r4 //src , r3.bit() // scratch list,
-  //              JSObject::kHeaderSize / kPointerSize)
-  // }
   __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
 
   if (type_ == NEW_NON_STRICT) {
     // Setup the callee in-object property.
     STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
+    __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
     const int kCalleeOffset = JSObject::kHeaderSize +
                               Heap::kArgumentsCalleeIndex * kPointerSize;
-    // Pseudo code {
-    //   live-in: r0
-    //   live-out: r0
-    //   r3 = load32(add32(sp, 2 * kPointerSize))
-    //   store32(add32(r0, kCalleeOffset), r3)
-    // }
-    __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
-    __ str(r1, FieldMemOperand(r0, kCalleeOffset));
+    __ str(r3, FieldMemOperand(r0, kCalleeOffset));
   }
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  // Pseudo code {
-  //   live-in: r0
-  //   live-out: r0, r1
-  //   r1 = load32(add32(sp, 0 * kPointerSize))
-  //   store32(add32(r0, JSObject::kHeaderSize + Heap::kArgumentsLengthIndex * kPointerSize), r1)
-  // }
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
   __ str(r1, FieldMemOperand(r0, JSObject::kHeaderSize +
 			         Heap::kArgumentsLengthIndex * kPointerSize));
 
   // If there are no actual arguments, we're done.
   Label done;
-  // Pseudo code {
-  //   live-in: r1, r0
-  //   live-out: r1, r0
-  //   t0 = r1 == 0
-  //   if (t0) goto done
-  // }
-  __ cmpeq(r1, Immediate(0));
-  __ bt(&done);
-  // }
+  __ cmp(r1, Immediate(0));
+  __ b(eq, &done);
 
   // Get the parameters pointer from the stack.
-  // Pseudo code {
-  //   live-in: r1, r0
-  //   live-out: r1, r0, r2
-  //   r2 = load32(add32(sp, 1 * kPointerSize))
-  // }
   __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
 
   // Setup the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
-  // Pseudo code {
-  //   live-in: r1, r0, r2
-  //   live-out: r1, r0, r2
-  //   r4 = add32(r0, GetArgumentsObjectSize())
-  //   store32(add32(r0, JSObject::kElementsOffset), r4)
-  //   LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
-  //   store32(add32(r4, FixedArray::kMapOffset), r3)
-  //   store32(add32(r4, FixedArray::kLengthOffset), r1)
-  //   r1 = shr(r1, kSmiTagSize)
-  // }
   __ add(r4, r0, Immediate(GetArgumentsObjectSize()));
   __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
   __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
   __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
   __ str(r1, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  __ lsr(r1, r1, Immediate(kSmiTagSize));
+  __ lsr(r1, r1, Immediate(kSmiTagSize));  // Untag the length for the loop.
 
   // Copy the fixed array slots.
   Label loop;
   // Setup r4 to point to the first array slot.
-  // Pseudo code {
-  //   live-in: r1, r0, r2, r4
-  //   live-out: r1, r0, r2, r4
-  //   r4 = add32(r4, FixedArray::kHeaderSize - kHeapObjectTag)
-  // }
   __ add(r4, r4, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
   __ bind(&loop);
   // Pre-decrement r2 with kPointerSize on each iteration.
   // Pre-decrement in order to skip receiver.
   // Post-increment r4 with kPointerSize on each iteration.
-  // Pseudo code {
-  //   live-in: r1, r0, r2, r4
-  //   live-out: r1, r0, r2, r4
-  //   r2 = sub32(r2, kPointerSize)
-  //   r3 = load32(r2)
-  //   store32(r4, r3)
-  //   r4 = add32(r4, kPointerSize)
-  //   r1 = sub32(r1, 1)
-  //   t0 = r1 == 0
-  //   if (!t0) goto loop
-  // }
   __ sub(r2, r2, Immediate(kPointerSize));
   __ ldr(r3, MemOperand(r2, 0));
   __ str(r3, MemOperand(r4, 0));
   __ add(r4, r4, Immediate(kPointerSize));
   __ sub(r1, r1, Immediate(1));
-  __ cmpeq(r1, Immediate(0));
-  __ bf(&loop);
+  __ cmp(r1, Immediate(0));
+  __ b(ne, &loop);
 
   // Return and remove the on-stack parameters.
   __ bind(&done);
-  // Pseudo code {
-  //   live-in: none
-  //   live-out: none
-  //   sp = sp + 3 * kPointerSize
-  //   return
-  // }
   __ add(sp, sp, Immediate(3 * kPointerSize));
   __ Ret();
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  // Pseudo code {
-  //   live-in: none
-  //   live-out: none
-  //   TailCallRuntime
-  // }
   __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
@@ -4955,12 +4894,12 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   if (GetCondition() == eq) {
     // For equality we do not care about the sign of the result.
     __ sub(r0, r0, r1);
-    __ tst(r0, r0);
+    __ tst(r0, r0);//TODO: why setting CC? is it used?
   } else {
     // Untag before subtracting to avoid handling overflow.
     __ SmiUntag(r1);
-    __ asr(ip, r0, Immediate(kSmiTagSize));
-    __ sub(r0, r1, ip);
+    __ SmiUntag(r0);
+    __ sub(r0, r1, r0);
   }
   __ Ret();
 
