@@ -12,7 +12,8 @@ cleanup() {
     [ "$tmpfile" = "" ] || rm -f $tmpfile
 }
 
-trap "cleanup" 0 1 2 15
+trap "cleanup; exit 1" 1 2 15
+trap "cleanup" 0
 
 . ./source_sh4.sh
 
