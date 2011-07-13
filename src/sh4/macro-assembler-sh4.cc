@@ -237,11 +237,10 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     Register dest,
                                     Register scratch,
                                     Register scratch2,
-                                    Register double_scratch,
+                                    DwVfpRegister double_scratch,
                                     Label *not_int32) {
-
   ASSERT(!source.is(sh4_ip) && !dest.is(sh4_ip) && !scratch.is(sh4_ip) &&
-         !scratch2.is(sh4_ip) && !double_scratch.is(sh4_ip));
+         !scratch2.is(sh4_ip));
   ASSERT(!source.is(dest));
 
   // TODO: SH4, check VFP code
@@ -337,6 +336,80 @@ void MacroAssembler::ConvertToInt32(Register source,
     rsb(dest, dest, Immediate(0));
     bind(&done);
   }
+}
+
+
+void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
+                                                 Register input_high,
+                                                 Register input_low,
+                                                 Register scratch) {
+  Label done, normal_exponent, restore_sign;
+
+  // Extract the biased exponent in result.
+  Ubfx(result,
+       input_high,
+       HeapNumber::kExponentShift,
+       HeapNumber::kExponentBits);
+
+  // Check for Infinity and NaNs, which should return 0.
+  cmp(result, Immediate(HeapNumber::kExponentMask));
+  mov(result, Immediate(0), eq);
+  b(eq, &done);
+
+  // Express exponent as delta to (number of mantissa bits + 31).
+  sub(result,
+      result,
+      Immediate(HeapNumber::kExponentBias + HeapNumber::kMantissaBits + 31));
+  cmpgt(result, Immediate(0));
+
+  // If the delta is strictly positive, all bits would be shifted away,
+  // which means that we can return 0.
+  b(f, &normal_exponent);
+  mov(result, Immediate(0));
+  b(&done);
+
+  bind(&normal_exponent);
+  const int kShiftBase = HeapNumber::kNonMantissaBitsInTopWord - 1;
+  // Calculate shift.
+  add(scratch, result, Immediate(kShiftBase + HeapNumber::kMantissaBits));
+
+  // Save the sign.
+  Register sign = result;
+  result = no_reg;
+  land(sign, input_high, Immediate(HeapNumber::kSignMask));
+
+  // Set the implicit 1 before the mantissa part in input_high.
+  orr(input_high,
+      input_high,
+      Immediate(1 << HeapNumber::kMantissaBitsInTopWord));
+  // Shift the mantissa bits to the correct position.
+  // We don't need to clear non-mantissa bits as they will be shifted away.
+  // If they weren't, it would mean that the answer is in the 32bit range.
+  lsl(input_high, input_high, scratch);
+
+  // Replace the shifted bits with bits from the lower mantissa word.
+  Label pos_shift, shift_done;
+  rsb(scratch, scratch, Immediate(32));
+  cmpge(scratch, Immediate(0));
+  bt(&pos_shift);
+
+  // Negate scratch.
+  rsb(scratch, scratch, Immediate(0));
+  lsl(input_low, input_low, scratch);
+  b(&shift_done);
+
+  bind(&pos_shift);
+  lsr(input_low, input_low, scratch);
+
+  bind(&shift_done);
+  orr(input_high, input_high, input_low);
+  // Restore sign if necessary.
+  cmp(sign, Immediate(0));
+  result = sign;
+  sign = no_reg;
+  rsb(result, input_high, Immediate(0));
+  mov(result, input_high, eq);
+  bind(&done);
 }
 
 
