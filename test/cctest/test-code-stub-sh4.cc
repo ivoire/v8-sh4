@@ -102,7 +102,7 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 #define GLOBAL_OBJECT_FUNCTION_PTR() (isolate->global_context()->object_function())
 #define GLOBAL_BUILTINS_PTR() (*isolate->builtins())
 
-#define CMT(msg) { Comment cmnt(&assm, msg); } while(0)
+#define CMT(msg) do { Comment cmnt(&assm, msg); } while(0)
 
 #define __ assm.
 
@@ -626,4 +626,71 @@ TEST(sh4_cs_7) {
   CALL();
   CHECK(result->IsNumber());
   CHECK(ObjectToNumber(*result) == 0);
+}
+
+
+// Test CompareStub()
+TEST(sh4_cs_8) {
+  BEGIN();
+
+  Label error;
+
+  __ EnterInternalFrame(); // Enter Fram before call stubs
+
+  CompareStub stub(eq/*cond*/, true/*strict*/, NO_COMPARE_FLAGS, r0, r1);
+#if 1 && defined(DEBUG)
+  stub.GetCode()->Print();
+#endif
+
+  CMT("Check CompareStub(0, 0) == 0");
+  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ mov(r1, Immediate(Smi::FromInt(0)));
+  __ CallStub(&stub);
+  __ cmp(r0, Immediate(0));
+  B_LINE(ne, &error);
+
+  CMT("Check CompareStub(1, 1) == 0");
+  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ mov(r1, Immediate(Smi::FromInt(1)));
+  __ CallStub(&stub);
+  __ cmp(r0, Immediate(0));
+  B_LINE(ne, &error);
+
+  CMT("Check CompareStub(0, 1) > 0");
+  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ mov(r1, Immediate(Smi::FromInt(1)));
+  __ CallStub(&stub);
+  __ cmpgt(r0, Immediate(0));
+  B_LINE(ne, &error);
+
+  CMT("Check CompareStub(-1, 2) > 0");
+  __ mov(r0, Immediate(Smi::FromInt(-1)));
+  __ mov(r1, Immediate(Smi::FromInt(2)));
+  __ CallStub(&stub);
+  __ cmp(r0, Immediate(0));
+  B_LINE(eq, &error);
+
+  // CMT("Check CompareStub(0, heap(0)) == 0");
+  // __ mov(r0, Immediate(Smi::FromInt(0)));
+  // __ mov(r1, Immediate(0));
+  // GenerateNumberFromReg(assm, r1, r1);
+  // __ CallStub(&stub);
+  // __ cmp(r0, Immediate(0));
+  // B_LINE(ne, &error);
+
+  // All ok.
+  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ LeaveInternalFrame();
+  __ rts();
+
+  __ bind(&error);
+  __ SmiTag(r0, r10);
+  __ LeaveInternalFrame();
+  __ rts();
+
+  JIT();
+  PRINT();
+  CALL();
+  CHECK(result->IsNumber());
+  CHECK_EQ(0, (int)ObjectToNumber(*result));
 }
