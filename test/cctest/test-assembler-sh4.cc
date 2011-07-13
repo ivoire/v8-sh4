@@ -190,6 +190,8 @@ TEST(6) {
   __ lsl(r0, r4, Immediate(14), r1);
   __ lsl(r0, r0, Immediate(1));
   __ lsl(r4, r0, Immediate(2));
+  __ mov(r0, Immediate(0));
+  __ add(r4, r4, r0);
   __ mov(r1, Immediate(1));
   __ lsl(r4, r4, r1);
   __ lsl(r1, r4, r1);
