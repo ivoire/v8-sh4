@@ -2579,6 +2579,51 @@ void TypeRecordingBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 }
 
 
+void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
+  // Untagged case: double input in d2, double result goes
+  //   into d2.
+  // Tagged case: tagged input on top of stack and in r0,
+  //   tagged result (heap number) goes into r0.
+
+  Label input_not_smi;
+  Label loaded;
+  Label calculate;
+  Label invalid_cache;
+  const Register scratch0 = r9;
+  const Register scratch1 = r7;
+  const Register cache_entry = r0;
+  const bool tagged = (argument_type_ == TAGGED);
+
+//FIXME: VFP
+//  if (CpuFeatures::IsSupported(VFP3)) {
+//  }  // if (CpuFeatures::IsSupported(VFP3))
+
+  __ bind(&calculate);
+  if (tagged) {
+    __ bind(&invalid_cache);
+    ExternalReference runtime_function =
+        ExternalReference(RuntimeFunction(), masm->isolate());
+    __ TailCallExternalReference(runtime_function, 1, 1);
+  } else {
+    //FIXME: VFP
+    UNREACHABLE();
+  }
+}
+
+
+Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
+  switch (type_) {
+    // Add more cases when necessary.
+    case TranscendentalCache::SIN: return Runtime::kMath_sin;
+    case TranscendentalCache::COS: return Runtime::kMath_cos;
+    case TranscendentalCache::LOG: return Runtime::kMath_log;
+    default:
+      UNIMPLEMENTED();
+      return Runtime::kAbort;
+  }
+}
+
+
 void StackCheckStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kStackGuard, 0, 1);
 }
