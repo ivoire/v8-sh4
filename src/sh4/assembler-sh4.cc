@@ -312,7 +312,7 @@ void Assembler::addv(Register Rd, Register Rs, const Immediate& imm, Register rt
   addv(Rd, Rs, rtmp);
 }
 
- 
+
 void Assembler::addc(Register Rd, Register Rs, Register Rt) {
   clrt_(); // Clear T bit before using addc
   if (Rs.code() == Rd.code())
@@ -326,7 +326,7 @@ void Assembler::addc(Register Rd, Register Rs, Register Rt) {
   }
 }
 
- 
+
 void Assembler::subv(Register Rd, Register Rs, Register Rt, Register rtmp) {
   if (Rs.code() == Rd.code())
     subv_(Rt, Rd);
@@ -597,7 +597,7 @@ bool Assembler::IsBranch(Instr instr) {
 
 Condition Assembler::GetCondition(Instr instr) {
   ASSERT(IsBranch(instr));
-  return (instr & 0x200) == 0x200 ? 
+  return (instr & 0x200) == 0x200 ?
     ne : // bf| bf/s
     eq;  // bt|bt/s
 }
@@ -1033,11 +1033,11 @@ void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
       movl_indRd_(Rd, dst.rm_);
     } else {
       if (FITS_SH4_movl_dispRd(dst.offset_)) {
-	movl_dispRd_(Rd, dst.offset_, dst.rm_);
+        movl_dispRd_(Rd, dst.offset_, dst.rm_);
       } else {
-	ASSERT(!Rd.is(rtmp));
-	add(rtmp, dst.rm_, Immediate(dst.offset_));
-	movl_indRd_(Rd, rtmp);
+        ASSERT(!Rd.is(rtmp));
+        add(rtmp, dst.rm_, Immediate(dst.offset_));
+        movl_indRd_(Rd, rtmp);
       }
     }
   }

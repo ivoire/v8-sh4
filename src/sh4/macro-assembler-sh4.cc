@@ -57,7 +57,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // Check that the function really is a function.  Load map into result reg.
   CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE, eq);
   bf(miss);
-  
+
   RECORD_LINE();
   // Make sure that the function has an instance prototype.
   Label non_instance;
@@ -76,7 +76,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   LoadRoot(sh4_ip, Heap::kTheHoleValueRootIndex);
   cmpeq(result, sh4_ip);
   bt(miss);
-  
+
   RECORD_LINE();
   // If the function does not have an initial map, we're done.
   Label done;
@@ -258,7 +258,7 @@ void MacroAssembler::ConvertToInt32(Register source,
   //   cmp(scratch, Operand(LONG_MAX - 1));
   //   // If equal then dest was LONG_MAX, if greater dest was LONG_MIN.
   //   b(ge, not_int32);
-  // } else 
+  // } else
   {
     // This code is faster for doubles that are in the ranges -0x7fffffff to
     // -0x40000000 or 0x40000000 to 0x7fffffff. This corresponds almost to
@@ -703,18 +703,18 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   mov(r2, Immediate(0));
   mov(r3, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
   str(r2, MemOperand(r3));
-  
+
   // Restore current context from top and clear it in debug mode.
   mov(r2, Operand(ExternalReference(Isolate::k_context_address, isolate())));
   ldr(cp, MemOperand(r2));
-  
+
   // Tear down the exit frame, pop the arguments, and return.
   mov(sp, fp);
-      
+
   Pop(pr, fp);
   if (argument_count.is_valid()) {
     ASSERT(!argument_count.is(r2));
-    ASSERT(!argument_count.is(r3)); 
+    ASSERT(!argument_count.is(r3));
     lsl(r2, argument_count, Immediate(kPointerSizeLog2));
     add(sp, sp, r2);
   }
@@ -765,8 +765,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         mov(r2, Immediate(expected.immediate()));
       }
     }
-  }
- else {
+  } else {
     if (actual.is_immediate()) {
       cmpeq(expected.reg(), Immediate((actual.immediate())));
       bt(&regular_invoke);
@@ -1477,7 +1476,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
   ASSERT(value > 0);
   ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
   RECORD_LINE();
-  if (FLAG_native_code_counters && counter->Enabled()) { 
+  if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
     mov(scratch2, Operand(ExternalReference(counter)));
     ldr(scratch1, MemOperand(scratch2));
@@ -1786,7 +1785,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   }
 }
 
- 
+
 void MacroAssembler::InitializeNewString(Register string,
                                          Register length,
                                          Heap::RootListIndex map_index,
@@ -2117,7 +2116,7 @@ void MacroAssembler::LoadRoot(Register destination,
 }
 
 void MacroAssembler::StoreRoot(Register source,
-			       Heap::RootListIndex index) {
+                               Heap::RootListIndex index) {
   RECORD_LINE();
   mov(MemOperand(roots, index << kPointerSizeLog2), source);
 }
@@ -2437,7 +2436,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     mov(sh4_ip, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
     cmpeq(dst, sh4_ip);
     Check(eq, "Yo dawg, I heard you liked function contexts "
-	  "so I put function contexts in all your contexts");
+          "so I put function contexts in all your contexts");
   }
 }
 
@@ -2581,7 +2580,7 @@ void MacroAssembler::PrintRegisterValue(Register reg) {
   RECORD_LINE();
   LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
   AllocateHeapNumber(r4/*result heap number*/, r5/*scratch*/, r6/*scratch*/,
-		     r7/*heap_number_map*/, &gc_required);
+                     r7/*heap_number_map*/, &gc_required);
   WriteInt32ToHeapNumberStub stub(reg, r4, r5/*scratch*/);
   CallStub(&stub);
   jmp(&skip);
@@ -2816,7 +2815,7 @@ void CodePatcher::EmitCondition(Condition cond) {
   ASSERT(cond == eq || cond == ne);
   ASSERT(Assembler::IsBranch(instr));
   instr = (instr & ~0x200); // Changed to bt
-  if (cond == ne) 
+  if (cond == ne)
     instr |= 0x200; // Changed to bf
   masm_.emit(instr);
 }

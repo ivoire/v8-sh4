@@ -564,7 +564,7 @@ TEST(15) {
 // This macro stores in r10 the line number before branching to the error label.
 // At the error label r10 can be moved to r0 such that return code of the
 // function if not 0 indicates an error at the line of the branch.
-#define B_LINE(cond, target) do {	   \
+#define B_LINE(cond, target) do {           \
   __ mov(r10, Immediate(__LINE__)); \
   __ b(cond, target);  \
   } while(0);
@@ -707,7 +707,7 @@ TEST(17) {
   BEGIN();
 
   Label error;
-  
+
   PROLOGUE();
   __ mov(r0, Immediate(0));
   __ mov(r1, Immediate(0));
@@ -752,7 +752,7 @@ TEST(17) {
   B_LINE(f, &error);
   __ cmpeq(r2, Immediate(0xffff));
   B_LINE(f, &error);
-  
+
   __ mov(r0, Immediate(0));
   __ mov(r1, Immediate(0));
   __ mov(r2, Immediate(0));
@@ -764,7 +764,7 @@ TEST(17) {
   B_LINE(f, &error);
   __ cmpeq(r2, Immediate(0));
   B_LINE(f, &error);
-  
+
   // All ok.
   __ mov(r0, Immediate(0));
   EPILOGUE();
@@ -793,7 +793,7 @@ TEST(18) {
   BEGIN();
 
   Label error;
-  
+
   PROLOGUE();
   __ mov(r0, Immediate(0xFFFFFFFE));
   __ mov(r1, Immediate(1));
@@ -894,7 +894,7 @@ TEST(19) {
   BEGIN();
 
   Label error;
-  
+
   PROLOGUE();
   __ mov(r0, Immediate(0x7FFFFFFE));
   __ mov(r1, Immediate(1));

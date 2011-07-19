@@ -662,11 +662,11 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
           // active as it makes no sense to compile optimized code then.
           if (FLAG_always_opt &&
 #ifndef ENABLE_DEBUGGER_SUPPORT
-	      0
+              0
 #else
               !Isolate::Current()->DebuggerHasBreakPoints()
 #endif
-	      ) {
+             ) {
             CompilationInfo optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);

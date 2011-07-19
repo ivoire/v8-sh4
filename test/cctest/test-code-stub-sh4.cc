@@ -36,10 +36,10 @@
 
 using namespace v8::internal;
 
-Handle<JSFunction> 
+Handle<JSFunction>
 CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
   Factory* factory = isolate->factory();
-  
+
   // Allocate the function
   Handle<String> symbol = factory->LookupAsciiSymbol(name);
   Handle<JSFunction> new_function =
@@ -68,20 +68,20 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
   LocalContext env; \
   MacroAssembler assm(Isolate::Current(), NULL, 0);
 
-  
+
 #define JIT() \
   CodeDesc desc; \
   assm.GetCode(&desc); \
   Code* code = Code::cast(HEAP-> \
-			  CreateCode(desc, \
-				     Code::ComputeFlags(Code::BUILTIN), \
-				     Handle<Object>(HEAP->null_value()))-> \
-			  ToObjectChecked()); \
+                          CreateCode(desc, \
+                                     Code::ComputeFlags(Code::BUILTIN), \
+                                     Handle<Object>(HEAP->null_value()))-> \
+                          ToObjectChecked()); \
   Handle<JSFunction> func = CreateJSFunctionFromCode(__FUNCTION__, \
-						     code, isolate);
+                                                     code, isolate);
 
 #define CALL() \
-  CHECK(func->code()->IsCode());		\
+  CHECK(func->code()->IsCode());                \
   bool exc; \
   Handle<Object> receiver(isolate->context()->global_proxy(), isolate); \
   Handle<Object> result = Execution::Call(func, receiver, 0, NULL, &exc); \
@@ -127,25 +127,25 @@ TEST(sh4_cs_0) {
   BEGIN();
 
   // Force use of empty function (global_context()->closure())
-  Handle<JSFunction> func = 
+  Handle<JSFunction> func =
     Handle<JSFunction>(isolate->global_context()->closure(), isolate);
-  
-  fprintf(stderr, "isolate = Isolate::Current(): %p\n", 
-	  (void *)isolate);
-  fprintf(stderr, "isolate_context = isolate->context(): %p\n", 
-	  (void *)isolate->context());
+
+  fprintf(stderr, "isolate = Isolate::Current(): %p\n",
+          (void *)isolate);
+  fprintf(stderr, "isolate_context = isolate->context(): %p\n",
+          (void *)isolate->context());
   fprintf(stderr, "global_context = isolate->global_context(): %p\n",
-	  (void *)*isolate->global_context());
+          (void *)*isolate->global_context());
   fprintf(stderr, "global_context_closure = global_context->closure(): %p\n",
-	  (void *)isolate->global_context()->closure());
-  fprintf(stderr, "global = isolate->global(): %p\n", 
-	  (void *)*isolate->global());
-  fprintf(stderr, "global_proxy = isolate->global_proxy(): %p\n", 
-	  (void *)isolate->context()->global_proxy());
+          (void *)isolate->global_context()->closure());
+  fprintf(stderr, "global = isolate->global(): %p\n",
+          (void *)*isolate->global());
+  fprintf(stderr, "global_proxy = isolate->global_proxy(): %p\n",
+          (void *)isolate->context()->global_proxy());
   fprintf(stderr, "closure_code = global_context_closure->code(): %p \n",
-	  (void *)func->code());
+          (void *)func->code());
   fprintf(stderr, "closure_entry = code->entry(): %p \n",
-	  (void *)func->code()->entry());
+          (void *)func->code()->entry());
 
   PRINT();
 
@@ -156,7 +156,7 @@ TEST(sh4_cs_0) {
   CHECK(HeapObject::cast(*result)->IsUndefined());
 }
 
-// Test empty function that scratches all JS registers 
+// Test empty function that scratches all JS registers
 // (except roots, cp, fp, sp)
 TEST(sh4_cs_1) {
   BEGIN();
@@ -170,7 +170,7 @@ TEST(sh4_cs_1) {
   __ rts();
 
   JIT();
-  
+
   PRINT();
 
   CALL();
@@ -178,7 +178,7 @@ TEST(sh4_cs_1) {
   // The function must return a result as Smi.
   CHECK(result->IsSmi());
   CHECK_EQ(0, Smi::cast(*result)->value());
-}						     
+}                                                
 
 
 // Test CompareInstanceType(), CompareObjectType()
@@ -192,11 +192,11 @@ TEST(sh4_cs_2) {
   __ mov(r0, Operand(ExternalReference::roots_address(assm.isolate())));
   __ cmp(r0, roots);
   B_LINE(ne, &error);
-  
+
   // Check that cp is actually the current context
   CMT("Check cp");
-  __ mov(r0, Operand((intptr_t)GLOBAL_CONTEXT_PTR(), 
-		     RelocInfo::EXTERNAL_REFERENCE));
+  __ mov(r0, Operand((intptr_t)GLOBAL_CONTEXT_PTR(),
+                     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, cp);
   B_LINE(ne, &error);
 
@@ -208,23 +208,23 @@ TEST(sh4_cs_2) {
 
   CMT("Check FieldMemOperand(GLOBAL_PTR(), GlobalContextOffset) == GLOBAL_CONTEXT_PTR())");
   __ ldr(r0, FieldMemOperand(r0,
-			     GlobalObject::kGlobalContextOffset));
-  __ mov(r1, Operand((intptr_t)GLOBAL_CONTEXT_PTR(), 
-		     RelocInfo::EXTERNAL_REFERENCE));
+                             GlobalObject::kGlobalContextOffset));
+  __ mov(r1, Operand((intptr_t)GLOBAL_CONTEXT_PTR(),
+                     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
   CMT("Check MemOperand(GLOBAL_CONTEXT_PTR(), CLOSURE_INDEX) == GLOBAL_CLOSURE_PTR())");
   __ ldr(r0, MemOperand(r0,
-			Context::SlotOffset(Context::CLOSURE_INDEX)));
-  __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(), 
-		     RelocInfo::EXTERNAL_REFERENCE));
+                        Context::SlotOffset(Context::CLOSURE_INDEX)));
+  __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(),
+                     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
   CMT("Check CompareInstanceType(GLOBAL_PTR()) == JS_GLOBAL_OBJECT_TYPE");
-  __ mov(r0, Operand((intptr_t)GLOBAL_PTR(), 
-		     RelocInfo::EXTERNAL_REFERENCE));
+  __ mov(r0, Operand((intptr_t)GLOBAL_PTR(),
+                     RelocInfo::EXTERNAL_REFERENCE));
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ CompareInstanceType(r1, r2/*type*/ , JS_GLOBAL_OBJECT_TYPE, eq);
   B_LINE(f, &error);
@@ -259,7 +259,7 @@ TEST(sh4_cs_2) {
   __ rts();
 
   JIT();
-  
+
   PRINT();
 
   CALL();
@@ -284,8 +284,8 @@ TEST(sh4_cs_3) {
   __ cmp(r0, r1);
   B_LINE(ne, &error);
   // Get cp from isolate directly
-  __ mov(r1, Operand((intptr_t)isolate->context(), 
-		     RelocInfo::EXTERNAL_REFERENCE));
+  __ mov(r1, Operand((intptr_t)isolate->context(),
+                     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
@@ -302,25 +302,25 @@ TEST(sh4_cs_3) {
 
   // Check LoadGlobalFunction()
   __ LoadGlobalFunction(Context::CLOSURE_INDEX, r0/* Resulting closure*/);
-  __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(), 
-		     RelocInfo::EXTERNAL_REFERENCE));
+  __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(),
+                     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
   // Check LoadGlobalFunctionInitialMap() on global object function
   __ LoadGlobalFunction(Context::OBJECT_FUNCTION_INDEX, r0/* Resulting closure*/);
-  __ mov(r1, Operand((intptr_t)GLOBAL_OBJECT_FUNCTION_PTR(), 
-		     RelocInfo::EXTERNAL_REFERENCE));
-  
+  __ mov(r1, Operand((intptr_t)GLOBAL_OBJECT_FUNCTION_PTR(),
+                     RelocInfo::EXTERNAL_REFERENCE));
+
   __ cmp(r0, r1);
   B_LINE(ne, &error);
   __ LoadGlobalFunctionInitialMap(r0, r1/*result map*/, r2/*scratch*/);
   __ mov(r0, Operand((intptr_t)GLOBAL_OBJECT_FUNCTION_PTR()->
-		     prototype_or_initial_map(), 
-		     RelocInfo::EXTERNAL_REFERENCE));
+                     prototype_or_initial_map(),
+                     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r1, r0);
   B_LINE(ne, &error);
-  
+
   Label miss1, miss2, miss3, miss4, skip_proto4;
   CMT("Check TryGetFunctionPrototype: Smi");
   __ mov(r0, Immediate(Smi::FromInt(1)));
@@ -362,7 +362,7 @@ TEST(sh4_cs_3) {
   __ rts();
 
   JIT();
-  
+
   PRINT();
 
   CALL();
@@ -370,7 +370,7 @@ TEST(sh4_cs_3) {
   // The function must return a result as Smi.
   CHECK(result->IsSmi());
   CHECK_EQ(0, Smi::cast(*result)->value());
-}						     
+}                                                
 
 
 // Test GetBuiltinFunction()/GetBuiltinEntry()
@@ -383,26 +383,26 @@ TEST(sh4_cs_4) {
   // as we do not activate natives.
   // Then install the empty function for the purpose of the tests.
   CHECK(isolate->global()->builtins()->
-	javascript_builtin(Builtins::MUL)->IsUndefined());
+        javascript_builtin(Builtins::MUL)->IsUndefined());
   isolate->global()->builtins()->
     set_javascript_builtin(Builtins::MUL,
-			   isolate->global_context()->closure());
+                           isolate->global_context()->closure());
   isolate->global()->builtins()->
     set_javascript_builtin_code(Builtins::MUL,
-				isolate->global_context()->closure()->code());
+                                isolate->global_context()->closure()->code());
   CMT("Check GetBuiltinFunction(Builtins::MUL)");
   __ GetBuiltinFunction(r0, Builtins::MUL);
   __ mov(r1, Immediate((intptr_t)isolate->global()->builtins()->
-		       javascript_builtin(Builtins::MUL),
-		       RelocInfo::EXTERNAL_REFERENCE));
+                       javascript_builtin(Builtins::MUL),
+                       RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
   CMT("Check GetBuiltinEntry(Builtins::MUL)");
   __ GetBuiltinEntry(r0, Builtins::MUL);
   __ mov(r1, Immediate((intptr_t)isolate->global()->builtins()->
-		       javascript_builtin_code(Builtins::MUL)->entry(),
-		       RelocInfo::EXTERNAL_REFERENCE));
+                       javascript_builtin_code(Builtins::MUL)->entry(),
+                       RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
@@ -415,7 +415,7 @@ TEST(sh4_cs_4) {
   __ rts();
 
   JIT();
-  
+
   PRINT();
 
   CALL();
@@ -423,7 +423,7 @@ TEST(sh4_cs_4) {
   // The function must return a result as Smi.
   CHECK(result->IsSmi());
   CHECK_EQ(0, Smi::cast(*result)->value());
-}						     
+}                                                
 
 
 static double
@@ -490,7 +490,7 @@ TEST(sh4_cs_5) {
     CHECK(result->IsString());
     CHECK(String::cast(*result)->IsEqualTo(CStrVector("1234")));
   }
-}						     
+}                                                
 
 static void
 GenerateNumberFromReg(MacroAssembler &assm, Register heap, Register reg)
@@ -505,7 +505,7 @@ GenerateNumberFromReg(MacroAssembler &assm, Register heap, Register reg)
   __ bind(&not_smi);
   __ LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
   __ AllocateHeapNumber(r4/*result heap number*/, r5/*scratch*/, r6/*scratch*/,
-			r7/*heap_number_map*/, &gc_required);
+                        r7/*heap_number_map*/, &gc_required);
   WriteInt32ToHeapNumberStub stub(reg, r4, r5/*scratch*/);
   __ CallStub(&stub);
   __ mov(heap, r4);
@@ -523,11 +523,11 @@ GenerateNumberFromReg(MacroAssembler &assm, Register heap, Register reg)
 TEST(sh4_cs_6) {
   {
     BEGIN();
-    
+
     __ mov(r0, Immediate(0));
     GenerateNumberFromReg(assm, r0, r0);
     __ Ret();
-    
+
     JIT();
     PRINT();
     CALL();
@@ -536,11 +536,11 @@ TEST(sh4_cs_6) {
   }
   {
       BEGIN();
-    
+
     __ mov(r0, Immediate(1234));
     GenerateNumberFromReg(assm, r0, r0);
     __ Ret();
-    
+
     JIT();
     PRINT();
     CALL();
@@ -549,11 +549,11 @@ TEST(sh4_cs_6) {
   }
   {
       BEGIN();
-    
+
     __ mov(r0, Immediate(0x7fffffff));
     GenerateNumberFromReg(assm, r0, r0);
     __ Ret();
-    
+
     JIT();
     PRINT();
     CALL();
@@ -562,11 +562,11 @@ TEST(sh4_cs_6) {
   }
   {
       BEGIN();
-    
+
     __ mov(r0, Immediate(0x80000000u));
     GenerateNumberFromReg(assm, r0, r0);
     __ Ret();
-    
+
     JIT();
     PRINT();
     CALL();
@@ -590,7 +590,7 @@ GeneratePrintReg(MacroAssembler &assm, Register reg)
   __ bind(&not_smi);
   __ LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
   __ AllocateHeapNumber(r4/*result heap number*/, r5/*scratch*/, r6/*scratch*/,
-			r7/*heap_number_map*/, &gc_required);
+                        r7/*heap_number_map*/, &gc_required);
   WriteInt32ToHeapNumberStub stub(reg, r4, r5/*scratch*/);
   __ CallStub(&stub);
   __ jmp(&skip);
@@ -610,7 +610,7 @@ GeneratePrintReg(MacroAssembler &assm, Register reg)
 // Test GeneratePrintReg()
 TEST(sh4_cs_7) {
   BEGIN();
-  
+
   __ mov(r0, Immediate(1234));
   GeneratePrintReg(assm, r0);
   __ mov(r0, Immediate(0x7fffffff));
@@ -620,7 +620,7 @@ TEST(sh4_cs_7) {
   __ PrintRegisterValue(r0);
   __ mov(r0, Immediate(0));
   __ Ret();
-  
+
   JIT();
   PRINT();
   CALL();

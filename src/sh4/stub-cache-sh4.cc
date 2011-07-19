@@ -3236,10 +3236,10 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       //   CpuFeatures::Scope scope(VFP3);
       //   __ add(r2, r3, Operand(key, LSL, 1));
       //   __ vldr(s0, r2, 0);
-      //} else 
+      //} else
       {
-	__ lsr(ip, key, Immediate(1));
-	__ ldr(value, MemOperand(r3, ip));
+        __ lsr(ip, key, Immediate(1));
+        __ ldr(value, MemOperand(r3, ip));
       }
       break;
     case kExternalDoubleArray:
@@ -3250,11 +3250,11 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       //   __ vldr(d0, r2, 0);
       // } else
       {
-	__ lsr(ip, key, Immediate(2));
-	__ add(r4, r3, ip);
-	// r4: pointer to the beginning of the double we want to load.
-	__ ldr(r2, MemOperand(r4, 0));
-	__ ldr(r3, MemOperand(r4, 4));
+        __ lsr(ip, key, Immediate(2));
+        __ add(r4, r3, ip);
+        // r4: pointer to the beginning of the double we want to load.
+        __ ldr(r2, MemOperand(r4, 0));
+        __ ldr(r3, MemOperand(r4, 4));
       }
       break;
     default:
@@ -3334,7 +3334,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
 
     //   __ mov(r0, r2);
     //   __ Ret();
-    //} else 
+    //} else
     {
       // Check whether unsigned integer fits into smi.
       Label box_int_0, box_int_1, done;
@@ -3345,20 +3345,20 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       // Tag integer as smi and return it.
       __ lsl(r0, value, Immediate(kSmiTagSize));
       __ Ret();
-      
+
       Register hiword = value;  // r2.
       Register loword = r3;
-      
+
       __ bind(&box_int_0);
       // Integer does not have leading zeros.
       GenerateUInt2Double(masm(), hiword, loword, r4, 0);
       __ b(&done);
-      
+
       __ bind(&box_int_1);
       // Integer has one leading zero.
       GenerateUInt2Double(masm(), hiword, loword, r4, 1);
-      
-      
+
+
       __ bind(&done);
       // Integer was converted to double in registers hiword:loword.
       // Wrap it into a HeapNumber. Don't use r0 and r1 as AllocateHeapNumber
@@ -3366,10 +3366,10 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       // space.
       __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
       __ AllocateHeapNumber(r4, r5, r7, r6, &slow);
-      
+
       __ str(hiword, FieldMemOperand(r4, HeapNumber::kExponentOffset));
       __ str(loword, FieldMemOperand(r4, HeapNumber::kMantissaOffset));
-      
+
       __ mov(r0, r4);
       __ Ret();
     }
@@ -3398,52 +3398,52 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
       __ AllocateHeapNumber(r3, r4, r5, r6, &slow);
       // VFP is not available, do manual single to double conversion.
-      
+
       // r2: floating point value (binary32)
       // r3: heap number for result
-      
+
       // Extract mantissa to r0. OK to clobber r0 now as there are no jumps to
       // the slow case from here.
       __ land(r0, value, Immediate(kBinary32MantissaMask));
-      
+
       // Extract exponent to r1. OK to clobber r1 now as there are no jumps to
       // the slow case from here.
       __ lsr(r1, value, Immediate(kBinary32MantissaBits));
       __ land(r1, r1, Immediate(kBinary32ExponentMask >> kBinary32MantissaBits));
-      
+
       Label exponent_rebiased;
       __ cmp(r1, Immediate(0x00));
       __ b(eq, &exponent_rebiased);
-      
+
       __ cmp(r1, Immediate(0xff));
       __ mov(r1, Immediate(0x7ff), eq);
       __ b(eq, &exponent_rebiased);
-      
+
       // Rebias exponent.
       __ add(r1,
-	     r1,
-	     Immediate(-kBinary32ExponentBias + HeapNumber::kExponentBias));
-      
+             r1,
+             Immediate(-kBinary32ExponentBias + HeapNumber::kExponentBias));
+
       __ bind(&exponent_rebiased);
       __ land(r2, value, Immediate(kBinary32SignMask));
       value = no_reg;
       __ lsl(ip, r1, Immediate(HeapNumber::kMantissaBitsInTopWord));
       __ orr(r2, r2, ip);
-      
+
       // Shift mantissa.
       static const int kMantissaShiftForHiWord =
-	kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
-      
+        kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
+
       static const int kMantissaShiftForLoWord =
-	kBitsPerInt - kMantissaShiftForHiWord;
-      
+        kBitsPerInt - kMantissaShiftForHiWord;
+
       __ lsr(ip, r0, Immediate(kMantissaShiftForHiWord));
       __ orr(r2, r2, ip);
       __ lsl(r0, r0, Immediate(kMantissaShiftForLoWord));
-      
+
       __ str(r2, FieldMemOperand(r3, HeapNumber::kExponentOffset));
       __ str(r0, FieldMemOperand(r3, HeapNumber::kMantissaOffset));
-      
+
       __ mov(r0, r3);
       __ Ret();
     }
@@ -3468,7 +3468,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       // exhausted young space.
       __ LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
       __ AllocateHeapNumber(r4, r5, r6, r7, &slow);
-      
+
       __ str(r2, FieldMemOperand(r4, HeapNumber::kMantissaOffset));
       __ str(r3, FieldMemOperand(r4, HeapNumber::kExponentOffset));
       __ mov(r0, r4);
@@ -3589,7 +3589,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       //  destination = FloatingPointHelper::kVFPRegisters;
       //} else
       {
-	destination = FloatingPointHelper::kCoreRegisters;
+        destination = FloatingPointHelper::kCoreRegisters;
       }
       FloatingPointHelper::ConvertIntToDouble(
           masm(), r5, destination,
@@ -3601,8 +3601,8 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       //  __ vstr(d0, r3, 0);
       //} else
       {
-	__ str(r6, MemOperand(r3, 0));
-	__ str(r7, MemOperand(r3, 4));
+        __ str(r6, MemOperand(r3, 0));
+        __ str(r7, MemOperand(r3, 4));
       }
       break;
     default:
@@ -3690,157 +3690,157 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
     //   // Entry registers are intact, r0 holds the value which is the return
     //   // value.
     //   __ Ret();
-    //} else 
+    //} else
     {
       // VFP3 is not available do manual conversions.
       __ ldr(r5, FieldMemOperand(value, HeapNumber::kExponentOffset));
       __ ldr(r6, FieldMemOperand(value, HeapNumber::kMantissaOffset));
-      
+
       if (array_type == kExternalFloatArray) {
-	Label done, nan_or_infinity_or_zero;
-	static const int kMantissaInHiWordShift =
-	  kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
-	
-	static const int kMantissaInLoWordShift =
-	  kBitsPerInt - kMantissaInHiWordShift;
-	
-	// Test for all special exponent values: zeros, subnormal numbers, NaNs
-	// and infinities. All these should be converted to 0.
-	__ mov(r7, Immediate(HeapNumber::kExponentMask));
-	__ land(r9, r5, r7);
-	__ cmp(r9, Immediate(0));
-	__ b(eq, &nan_or_infinity_or_zero);
-	
-	__ cmp(r9, r7);
-	__ mov(r9, Immediate(kBinary32ExponentMask), eq);
-	__ b(eq, &nan_or_infinity_or_zero);
-	
+        Label done, nan_or_infinity_or_zero;
+        static const int kMantissaInHiWordShift =
+          kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
+
+        static const int kMantissaInLoWordShift =
+          kBitsPerInt - kMantissaInHiWordShift;
+
+        // Test for all special exponent values: zeros, subnormal numbers, NaNs
+        // and infinities. All these should be converted to 0.
+        __ mov(r7, Immediate(HeapNumber::kExponentMask));
+        __ land(r9, r5, r7);
+        __ cmp(r9, Immediate(0));
+        __ b(eq, &nan_or_infinity_or_zero);
+
+        __ cmp(r9, r7);
+        __ mov(r9, Immediate(kBinary32ExponentMask), eq);
+        __ b(eq, &nan_or_infinity_or_zero);
+
         // Rebias exponent.
-	__ lsr(r9, r9, Immediate(HeapNumber::kExponentShift));
-	__ add(r9,
-	       r9,
-	       Immediate(kBinary32ExponentBias - HeapNumber::kExponentBias));
-	
-	Label skip1;
-	__ cmpgt(r9, Immediate(kBinary32MaxExponent));
-	__ bf(&skip1);
-	__ land(r5, r5, Immediate(HeapNumber::kSignMask));
-	__ orr(r5, r5, Immediate(kBinary32ExponentMask));
-	__ b(&done);
-	__ bind(&skip1);
-	
-	Label skip2;
-	__ cmpge(r9, Immediate(kBinary32MinExponent));
-	__ bt(&skip2);
-	__ land(r5, r5, Immediate(HeapNumber::kSignMask));
-	__ b(&done);
-	__ bind(&skip2);
-	
-	__ land(r7, r5, Immediate(HeapNumber::kSignMask));
-	__ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
-	__ lsl(ip, r5, Immediate(kMantissaInHiWordShift));
-	__ orr(r7, r7, ip);
-	__ lsr(ip, r6, Immediate(kMantissaInLoWordShift));
-	__ orr(r7, r7, ip);
-	__ lsl(ip, r9, Immediate(kBinary32ExponentShift));
-	__ orr(r5, r7, ip);
-	
-	__ bind(&done);
-	__ lsl(ip, r4, Immediate(2));
-	__ str(r5, MemOperand(r3, ip));
-	// Entry registers are intact, r0 holds the value which is the return
-	// value.
-	__ Ret();
-	
-	__ bind(&nan_or_infinity_or_zero);
-	__ land(r7, r5, Immediate(HeapNumber::kSignMask));
-	__ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
-	__ orr(r9, r9, r7);
-	__ lsl(ip, r5, Immediate(kMantissaInHiWordShift));
-	__ orr(r9, r9, ip);
-	__ lsr(ip, r6, Immediate(kMantissaInLoWordShift));
-	__ orr(r5, r9, ip);
-	__ b(&done);
+        __ lsr(r9, r9, Immediate(HeapNumber::kExponentShift));
+        __ add(r9,
+               r9,
+               Immediate(kBinary32ExponentBias - HeapNumber::kExponentBias));
+
+        Label skip1;
+        __ cmpgt(r9, Immediate(kBinary32MaxExponent));
+        __ bf(&skip1);
+        __ land(r5, r5, Immediate(HeapNumber::kSignMask));
+        __ orr(r5, r5, Immediate(kBinary32ExponentMask));
+        __ b(&done);
+        __ bind(&skip1);
+
+        Label skip2;
+        __ cmpge(r9, Immediate(kBinary32MinExponent));
+        __ bt(&skip2);
+        __ land(r5, r5, Immediate(HeapNumber::kSignMask));
+        __ b(&done);
+        __ bind(&skip2);
+
+        __ land(r7, r5, Immediate(HeapNumber::kSignMask));
+        __ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
+        __ lsl(ip, r5, Immediate(kMantissaInHiWordShift));
+        __ orr(r7, r7, ip);
+        __ lsr(ip, r6, Immediate(kMantissaInLoWordShift));
+        __ orr(r7, r7, ip);
+        __ lsl(ip, r9, Immediate(kBinary32ExponentShift));
+        __ orr(r5, r7, ip);
+
+        __ bind(&done);
+        __ lsl(ip, r4, Immediate(2));
+        __ str(r5, MemOperand(r3, ip));
+        // Entry registers are intact, r0 holds the value which is the return
+        // value.
+        __ Ret();
+
+        __ bind(&nan_or_infinity_or_zero);
+        __ land(r7, r5, Immediate(HeapNumber::kSignMask));
+        __ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
+        __ orr(r9, r9, r7);
+        __ lsl(ip, r5, Immediate(kMantissaInHiWordShift));
+        __ orr(r9, r9, ip);
+        __ lsr(ip, r6, Immediate(kMantissaInLoWordShift));
+        __ orr(r5, r9, ip);
+        __ b(&done);
       } else if (array_type == kExternalDoubleArray) {
-	__ lsl(ip, r4, Immediate(3));
-	__ add(r7, r3, ip);
-	// r7: effective address of destination element.
-	__ str(r6, MemOperand(r7, 0));
-	__ str(r5, MemOperand(r7, 4));
-	__ Ret();
+        __ lsl(ip, r4, Immediate(3));
+        __ add(r7, r3, ip);
+        // r7: effective address of destination element.
+        __ str(r6, MemOperand(r7, 0));
+        __ str(r5, MemOperand(r7, 4));
+        __ Ret();
       } else {
-	bool is_signed_type = IsElementTypeSigned(array_type);
-	int meaningfull_bits = is_signed_type ? (kBitsPerInt - 1) : kBitsPerInt;
-	int32_t min_value = is_signed_type ? 0x80000000 : 0x00000000;
-	
-	Label done, sign;
-	
-	// Test for all special exponent values: zeros, subnormal numbers, NaNs
-	// and infinities. All these should be converted to 0.
-	__ mov(r7, Immediate(HeapNumber::kExponentMask));
-	__ land(r9, r5, r7);
-	__ cmp(r9, Immediate(0));
-	__ mov(r5, Immediate(0), eq);
-	__ b(eq, &done);
+        bool is_signed_type = IsElementTypeSigned(array_type);
+        int meaningfull_bits = is_signed_type ? (kBitsPerInt - 1) : kBitsPerInt;
+        int32_t min_value = is_signed_type ? 0x80000000 : 0x00000000;
 
-	__ cmp(r9, r7);
-	__ mov(r5, Immediate(0), eq);
-	__ b(eq, &done);
+        Label done, sign;
 
-	// Unbias exponent.
-	__ lsr(r9, r9, Immediate(HeapNumber::kExponentShift));
-	__ sub(r9, r9, Immediate(HeapNumber::kExponentBias));
-	// If exponent is negative then result is 0.
-	__ cmpge(r9, Immediate(0));
-	__ mov(r5, Immediate(0), f);
-	__ b(f, &done);
+        // Test for all special exponent values: zeros, subnormal numbers, NaNs
+        // and infinities. All these should be converted to 0.
+        __ mov(r7, Immediate(HeapNumber::kExponentMask));
+        __ land(r9, r5, r7);
+        __ cmp(r9, Immediate(0));
+        __ mov(r5, Immediate(0), eq);
+        __ b(eq, &done);
 
-	// If exponent is too big then result is minimal value.
-	__ cmpge(r9, Immediate(meaningfull_bits - 1));
-	__ mov(r5, Immediate(min_value), t);
-	__ b(t, &done);
+        __ cmp(r9, r7);
+        __ mov(r5, Immediate(0), eq);
+        __ b(eq, &done);
 
-	__ land(r7, r5, Immediate(HeapNumber::kSignMask));
-	__ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
-	__ orr(r5, r5, Immediate(1u << HeapNumber::kMantissaBitsInTopWord));
+        // Unbias exponent.
+        __ lsr(r9, r9, Immediate(HeapNumber::kExponentShift));
+        __ sub(r9, r9, Immediate(HeapNumber::kExponentBias));
+        // If exponent is negative then result is 0.
+        __ cmpge(r9, Immediate(0));
+        __ mov(r5, Immediate(0), f);
+        __ b(f, &done);
 
-	__ rsb(r9, r9, Immediate(HeapNumber::kMantissaBitsInTopWord));
-	__ cmpge(r9, Immediate(0));
-	__ lsr(ip, r5, r9);
-	__ mov(r5, ip, t);
-	__ b(t, &sign);
+        // If exponent is too big then result is minimal value.
+        __ cmpge(r9, Immediate(meaningfull_bits - 1));
+        __ mov(r5, Immediate(min_value), t);
+        __ b(t, &done);
 
-	__ rsb(r9, r9, Immediate(0));
-	__ lsl(r5, r5, r9);
-	__ rsb(r9, r9, Immediate(meaningfull_bits));
-	__ lsr(ip, r6, r9);
-	__ orr(r5, r5, ip);
+        __ land(r7, r5, Immediate(HeapNumber::kSignMask));
+        __ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
+        __ orr(r5, r5, Immediate(1u << HeapNumber::kMantissaBitsInTopWord));
 
-	__ bind(&sign);
-	__ cmp(r7, Immediate(0));
-	__ rsb(ip, r5, Immediate(0));
-	__ mov(r5, ip, ne);
+        __ rsb(r9, r9, Immediate(HeapNumber::kMantissaBitsInTopWord));
+        __ cmpge(r9, Immediate(0));
+        __ lsr(ip, r5, r9);
+        __ mov(r5, ip, t);
+        __ b(t, &sign);
 
-	__ bind(&done);
-	switch (array_type) {
-	case kExternalByteArray:
-	case kExternalUnsignedByteArray:
-	  __ strb(r5, MemOperand(r3, r4));
-	  break;
-	case kExternalShortArray:
-	case kExternalUnsignedShortArray:
-	  __ lsl(ip, r4, Immediate(1));
-	  __ strh(r5, MemOperand(r3, ip));
-	  break;
-	case kExternalIntArray:
-	case kExternalUnsignedIntArray:
-	  __ lsl(ip, r4, Immediate(2));
-	  __ str(r5, MemOperand(r3, ip));
-	  break;
-	default:
-	  UNREACHABLE();
-	  break;
-	}
+        __ rsb(r9, r9, Immediate(0));
+        __ lsl(r5, r5, r9);
+        __ rsb(r9, r9, Immediate(meaningfull_bits));
+        __ lsr(ip, r6, r9);
+        __ orr(r5, r5, ip);
+
+        __ bind(&sign);
+        __ cmp(r7, Immediate(0));
+        __ rsb(ip, r5, Immediate(0));
+        __ mov(r5, ip, ne);
+
+        __ bind(&done);
+        switch (array_type) {
+        case kExternalByteArray:
+        case kExternalUnsignedByteArray:
+          __ strb(r5, MemOperand(r3, r4));
+          break;
+        case kExternalShortArray:
+        case kExternalUnsignedShortArray:
+          __ lsl(ip, r4, Immediate(1));
+          __ strh(r5, MemOperand(r3, ip));
+          break;
+        case kExternalIntArray:
+        case kExternalUnsignedIntArray:
+          __ lsl(ip, r4, Immediate(2));
+          __ str(r5, MemOperand(r3, ip));
+          break;
+        default:
+          UNREACHABLE();
+          break;
+        }
       }
     }
   }

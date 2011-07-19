@@ -149,7 +149,7 @@ static int DecodeIt(FILE* f,
         OS::SNPrintF(decode_buffer,
                      "%08x       constant pool%s",
                      *reinterpret_cast<int32_t*>(pc),
-		     num_const > 0 ? " begin":"");
+                     num_const > 0 ? " begin":"");
         constants = num_const;
         pc += 4;
       } else if (it != NULL && !it->done() && it->rinfo()->pc() == pc &&

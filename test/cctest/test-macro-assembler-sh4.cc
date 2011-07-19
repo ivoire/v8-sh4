@@ -65,7 +65,7 @@ static void InitializeVM() {
   do { \
   __ pop(roots); \
   __ pop(r11); \
-  __ pop(r10);	\
+  __ pop(r10);        \
   __ pop(r9); \
   __ pop(r8); \
   } while (0)
@@ -141,9 +141,9 @@ TEST(sh4_ma_0) {
   __ mov(r0, Immediate(~0x00110011)); // encodes 0xffeeffee
   __ Move(r1, r0);
   __ cmp(r0, r1);
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
 
-  
+
   // Verify register move to same register does not emit anything
   __ mov(r0, Immediate(~0x11001100)); // encodes 0xeeffeeff
   int offset = assm.pc_offset();
@@ -151,9 +151,9 @@ TEST(sh4_ma_0) {
   offset = assm.pc_offset() - offset;
   __ mov(r1, Immediate(offset));
   __ cmp(r1, Immediate(0));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
 
-  
+
   // All ok.
   __ mov(r0, Immediate(0));
   EPILOGUE();
@@ -188,17 +188,17 @@ TEST(sh4_ma_1) {
   __ mov(r1, r0);
   __ Bfc(r1, 0, 32); // a full clear
   __ cmp(r1, Immediate(0));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Bfc(0xfdeccdefu, 0, 31) == 0x80000000");
   __ mov(r1, r0);
   __ Bfc(r1, 0, 31);
   __ cmp(r1, Immediate(0x80000000u));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Bfc(0xfdeccdefu, 1, 31) == 0x80000000");
   __ mov(r1, r0);
   __ Bfc(r1, 1, 30);
   __ cmp(r1, Immediate(0x80000001u));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Bfc(0xfdeccdefu, 9, 16) == 0xfc0001ef");
   __ mov(r1, r0);
   __ Bfc(r1, 9, 16);
@@ -209,37 +209,37 @@ TEST(sh4_ma_1) {
   __ mov(r0, Immediate(0xfdeccdefu));
   __ Ubfx(r1, r0, 0, 32); // a mov actually
   __ cmp(r1, Immediate(0xfdeccdefu));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Ubfx(0xfdeccdef, 0, 31) == 0x7deccdef");
   __ Ubfx(r1, r0, 0, 31);
   __ cmp(r1, Immediate(0x7deccdef));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Ubfx(0xfdeccdef, 1, 30) == 0x3ef666f7");
   __ Ubfx(r1, r0, 1, 30);
   __ cmp(r1, Immediate(0x3ef666f7));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Ubfx(0xfdeccdef, 9, 16) == 0xf666");
   __ Ubfx(r1, r0, 9, 16);
   __ cmp(r1, Immediate(0xf666));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
 
   CMT("Verify Sbfx(0xfdeccdef, 0, 32) == 0xfdeccdef");
   __ mov(r0, Immediate(0xfdeccdefu));
   __ Sbfx(r1, r0, 0, 32); // a mov actually
   __ cmp(r1, Immediate(0xfdeccdefu));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Sbfx(0xfdeccdef, 0, 31) == 0xfdeccdef");
   __ Sbfx(r1, r0, 0, 31);
   __ cmp(r1, Immediate(0xfdeccdefu));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Sbfx(0xfdeccdef, 1, 31) == 0xfef666f7");
   __ Sbfx(r1, r0, 1, 30);
   __ cmp(r1, Immediate(0xfef666f7u));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Sbfx(0xfdeccdef, 9, 16) == 0xfffff666");
   __ Sbfx(r1, r0, 9, 16);
   __ cmp(r1, Immediate(0xfffff666));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
 
   CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 0, 0) == 0xfdeccdef");
   __ mov(r2, Immediate(0xaaaaaa));
@@ -247,17 +247,17 @@ TEST(sh4_ma_1) {
   __ mov(r1, r0);
   __ Bfi(r1, r2, r4, 0, 0); // a nop
   __ cmp(r1, r0);
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 0, 32) == 0xaaaaaaaa");
   __ mov(r1, r0);
   __ Bfi(r1, r2, r4, 0, 32); // a mov actually
   __ cmp(r1, r2);
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 0, 16) == 0xfdecaaaa");
   __ mov(r1, r0);
   __ Bfi(r1, r2, r4, 0, 16);
   __ cmp(r1, Immediate(0xfdecaaaau));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 4, 28) == 0xfd5555ef");
   __ mov(r1, r0);
   __ Bfi(r1, r2, r4, 9, 16);
@@ -268,12 +268,12 @@ TEST(sh4_ma_1) {
   __ mov(r0, Immediate(-10));
   __ Usat(r1, 8, r0);
   __ cmp(r1, Immediate(0));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
   CMT("Verify Usat(256, 8) == 255");
   __ mov(r0, Immediate(256));
   __ Usat(r0, 8, r0);
   __ cmp(r0, Immediate(255));
-  B_LINE(ne, &error); 
+  B_LINE(ne, &error);
 
   // All ok.
   __ mov(r0, Immediate(0));
@@ -308,12 +308,12 @@ TEST(sh4_ma_2) {
   __ add(sp, sp, Immediate(-16));
 
   __ mov(sp, r8);
-    
+
   __ mov(r0, Immediate(0));
 
   EPILOGUE();
   __ rts();
-  
+
   JIT();
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -455,7 +455,7 @@ TEST(sh4_ma_4) {
   B_LINE(ne, &error);
   __ cmp(r3, Immediate(7));
   B_LINE(ne, &error);
-  
+
   // All ok.
   __ mov(sp, r8);
   __ mov(r0, Immediate(0));
@@ -501,7 +501,7 @@ TEST(sh4_ma_5) {
   __ cmp(r1, Immediate(0xdead));
   B_LINE(ne, &error);
   __ StoreRoot(r0, Heap::kRealStackLimitRootIndex);
-  
+
   __ mov(r0, Immediate(THE_HOLE_VALUE()));
   __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
   __ cmp(r0, r1);
@@ -550,43 +550,43 @@ TEST(sh4_ma_5) {
 
   Label no_map1, no_map2, no_map3, no_map4, no_map5, skip_no_map1;
   __ mov(r0, Immediate(2)); // Smi integer 1
-  __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(), 
-	      &no_map1, false); // Check that Smi fails
+  __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(),
+              &no_map1, false); // Check that Smi fails
   B_LINE(al, &error); // should not be there
   __ bind(&no_map1);
 
   __ mov(r0, Immediate(EMPTY_STRING())); // String object
-  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(), 
-	      &no_map2, false); // Not the right map
+  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(),
+              &no_map2, false); // Not the right map
   B_LINE(al, &error); // should not be there
   __ bind(&no_map2);
 
   __ mov(r0, Immediate(EMPTY_STRING())); // String object
-  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(), 
-	      &no_map3, true); // Heap object but not the right map
+  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(),
+              &no_map3, true); // Heap object but not the right map
   B_LINE(al, &error); // should not be there
   __ bind(&no_map3);
 
   __ mov(r0, Immediate(EMPTY_STRING())); // String object
-  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex, 
-	      &no_map4, true); // Heap object but not the right map
+  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex,
+              &no_map4, true); // Heap object but not the right map
   B_LINE(al, &error); // should not be there
   __ bind(&no_map4);
 
   __ mov(r0, Immediate(NAN_VALUE())); // HeapNumber object
-  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(), 
- 	      &no_map5, false); // This is the right map 
-  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(), 
- 	      &no_map5, true);
-  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex, 
- 	      &no_map5, false);
-  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex, 
- 	      &no_map5, true);
+  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(),
+               &no_map5, false); // This is the right map
+  __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(),
+               &no_map5, true);
+  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex,
+               &no_map5, false);
+  __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex,
+               &no_map5, true);
   __ jmp(&skip_no_map1);
   __ bind(&no_map5);
   B_LINE(al, &error); // should not be there
   __ bind(&skip_no_map1);
- 
+
   Label skip_is_string;
   __ mov(r0, Immediate(EMPTY_STRING())); // String object
   Condition cond = assm.IsObjectStringType(r0, r1);
@@ -654,15 +654,15 @@ TEST(sh4_ma_6) {
   B_LINE(ne, &error);
 
   CMT("Check GetLeastBitsFromSmi(Smi(33), 5) == 1");
-  __ mov(r0, Immediate(33<<1)); 
-  __ mov(r2, Immediate(1)); 
+  __ mov(r0, Immediate(33<<1));
+  __ mov(r2, Immediate(1));
   __ GetLeastBitsFromSmi(r1, r0, 5);
   __ cmp(r1, r2);
   B_LINE(ne, &error);
 
   CMT("Check GetLeastBitsFromInt32(34, 5) == 2");
-  __ mov(r0, Immediate(34)); 
-  __ mov(r2, Immediate(2)); 
+  __ mov(r0, Immediate(34));
+  __ mov(r2, Immediate(2));
   __ GetLeastBitsFromInt32(r1, r0, 5);
   __ cmp(r1, r2);
   B_LINE(ne, &error);
@@ -686,7 +686,7 @@ TEST(sh4_ma_6) {
   __ TrySmiTag(r0, &not_smi3, r1/*scratch*/);
   B_LINE(ne, &error);
   __ bind(&not_smi3);
-  
+
 
   Label not_power1, not_power2, not_power3, not_power4,
     skip_power1, skip_power2, skip_power3;
@@ -786,7 +786,7 @@ TEST(sh4_ma_6) {
   __ bind(&not_both_smi1);
   B_LINE(al, &error);
   __ bind(&skip_not_both_smi1);
-  
+
   CMT("Check JumpIfNotBothSmi(): left Smi");
   __ mov(r0, Immediate(Smi::FromInt(1)));
   __ mov(r1, Immediate(0x41)); // not a smi
@@ -804,9 +804,9 @@ TEST(sh4_ma_6) {
   __ JumpIfNotBothSmi(r1, r0, &not_both_smi4);
   B_LINE(al, &error);
   __ bind(&not_both_smi4);
-  
-  
-  Label either_smi1, either_smi2, either_smi3, either_smi4, 
+
+
+  Label either_smi1, either_smi2, either_smi3, either_smi4,
     skip_either_smi4;
   CMT("Check JumpIfEitherSmi(): both Smi");
   __ mov(r0, Immediate(Smi::FromInt(1)));
@@ -814,7 +814,7 @@ TEST(sh4_ma_6) {
   __ JumpIfEitherSmi(r0, r1, &either_smi1);
   B_LINE(al, &error);
   __ bind(&either_smi1);
-  
+
   CMT("Check JumpIfEitherSmi(): left Smi");
   __ mov(r0, Immediate(Smi::FromInt(1)));
   __ mov(r1, Immediate(0x41)); // not a smi
@@ -834,8 +834,8 @@ TEST(sh4_ma_6) {
   __ bind(&either_smi4);
   B_LINE(al, &error);
   __ bind(&skip_either_smi4);
-  
-  
+
+
   // All ok.
   __ mov(r0, Immediate(0));
   EPILOGUE();
@@ -890,7 +890,7 @@ TEST(sh4_ma_7) {
   __ ConvertToInt32(r1, r2, r3, r4, no_dreg, &not_int32_3);
   B_LINE(al, &error);
   __ bind(&not_int32_3);
-  
+
   // All ok.
   __ mov(r0, Immediate(0));
   EPILOGUE();
