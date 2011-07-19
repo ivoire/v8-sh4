@@ -3387,7 +3387,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(eq,&adaptor_frame);
+  __ b(eq, &adaptor_frame);
 
   // Get the length from the frame.
   __ ldr(r1, MemOperand(sp, 0));
@@ -4074,7 +4074,7 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   // Copy bytes from src to dst until dst hits limit.
   __ bind(&byte_loop);
   __ ldrb(scratch1, MemOperand(src));
-  __ add(src,src, Immediate(1));
+  __ add(src, src, Immediate(1));
   __ strb(scratch1, MemOperand(dest));
   __ add(dest, dest, Immediate(1));
   __ cmpge(dest, limit);
@@ -4241,7 +4241,6 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
                                             Register hash,
                                             Register character,
                                             Register scratch) {
-
   // Added a scratch parameter for the SH4 implementation compared to ARM.
   // hash += character;
   __ add(hash, hash, character);
@@ -4604,9 +4603,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT(kStringTag == 0);
     // If either is not a string, go to runtime.
     __ tst(r4, Immediate(kIsNotStringMask));
-    __ b(ne,&string_add_runtime);
+    __ b(ne, &string_add_runtime);
     __ tst(r5, Immediate(kIsNotStringMask));
-    __ b(ne,&string_add_runtime);
+    __ b(ne, &string_add_runtime);
   } else {
     // Here at least one of the arguments is definitely a string.
     // We convert the one that is not known to be a string.

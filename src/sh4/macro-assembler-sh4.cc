@@ -593,7 +593,7 @@ void MacroAssembler::UnimplementedBreak(const char *file, int line) {
   const char *base = strrchr(file, '/');
   if (base == NULL)
     base = file;
-  while(*base) {
+  while (*base) {
     file_id += *base;
     base++;
   }
@@ -1513,11 +1513,11 @@ void MacroAssembler::AssertFastElements(Register elements) {
     ldr(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
     LoadRoot(sh4_ip, Heap::kFixedArrayMapRootIndex);
     cmp(elements, sh4_ip);
-    b(eq,&ok);
+    b(eq, &ok);
     RECORD_LINE();
     LoadRoot(sh4_ip, Heap::kFixedCOWArrayMapRootIndex);
     cmp(elements, sh4_ip);
-    b(eq,&ok);
+    b(eq, &ok);
     RECORD_LINE();
     Abort("JSObject with fast elements map has slow elements");
     bind(&ok);
@@ -1763,7 +1763,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     addc(scratch2, result, object_size);
   }
   RECORD_LINE();
-  b(cs,gc_required);
+  b(cs, gc_required);
   RECORD_LINE();
   cmpgtu(scratch2, sh4_ip);
   bt(gc_required);
@@ -2129,8 +2129,11 @@ void MacroAssembler::Ret(Condition cond) {
   } else {
     RECORD_LINE();
     Label skip;
-    if (cond == eq) bf(&skip);
-    else bt(&skip);
+    if (cond == eq) {
+      bf(&skip);
+    } else {
+      bt(&skip);
+    }
     rts();
     bind(&skip);
   }
@@ -2641,7 +2644,6 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                                          Register scratch1,
                                                          Register scratch2,
                                                          Label* failure) {
-
   ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
          !scratch2.is(sh4_ip));
   RECORD_LINE();
@@ -2664,7 +2666,6 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
     Register scratch1,
     Register scratch2,
     Label* failure) {
-
   ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
          !scratch2.is(sh4_ip));
 
@@ -2685,8 +2686,7 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
                                                             Register scratch,
                                                             Label* failure) {
-
-  ASSERT(!type.is(sh4_ip) && ! scratch.is(sh4_ip));
+  ASSERT(!type.is(sh4_ip) && !scratch.is(sh4_ip));
 
   int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
@@ -2719,7 +2719,7 @@ void MacroAssembler::CompareInstanceType(Register map,
 
   RECORD_LINE();
   ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  switch(cond) {
+  switch (cond) {
   case eq:
     RECORD_LINE();
     cmpeq(type_reg, Immediate(type)); break;

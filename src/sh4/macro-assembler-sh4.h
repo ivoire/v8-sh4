@@ -135,7 +135,7 @@ class MacroAssembler: public Assembler {
   // Mark the register as dead. Put the pattern 0xFFFFFFDE into the register.
   void Dead(Register dead) {
     // Fit in a single SH4 mov_imm_ instruction
-    mov(dead, Immediate((int)0xFFFFFFDE));
+    mov(dead, Immediate(static_cast<int>(0xFFFFFFDE)));
   }
 
   // Mark up to four registers dead at a time.
@@ -441,7 +441,7 @@ class MacroAssembler: public Assembler {
                            Heap::RootListIndex root_value_index,
                            const char* message);
 
-  // Prints the value of the register to stdout. Use for debug only. 
+  // Prints the value of the register to stdout. Use for debug only.
   void PrintRegisterValue(Register reg);
 
   // ---------------------------------------------------------------------------

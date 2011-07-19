@@ -998,7 +998,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ add(sp, sp, Immediate(kPointerSize));
   __ IncrementCounter(isolate->counters()->constructed_objects(), 1, r1, r2);
   __ rts();
-
 }
 
 
@@ -1349,7 +1348,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     (tail-call) to the code in register edx without checking arguments.
   // r0: actual number of arguments
   // r1: function
- Label end;
+  Label end;
   __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r2,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
