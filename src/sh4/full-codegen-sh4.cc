@@ -3021,17 +3021,36 @@ void FullCodeGenerator::EmitStringAdd(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitStringCompare(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT_EQ(2, args->length());
+
+  VisitForStackValue(args->at(0));
+  VisitForStackValue(args->at(1));
+
+  StringCompareStub stub;
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
 void FullCodeGenerator::EmitMathSin(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  // Load the argument on the stack and call the stub.
+  TranscendentalCacheStub stub(TranscendentalCache::SIN,
+                               TranscendentalCacheStub::TAGGED);
+  ASSERT(args->length() == 1);
+  VisitForStackValue(args->at(0));
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
 void FullCodeGenerator::EmitMathCos(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  // Load the argument on the stack and call the stub.
+  TranscendentalCacheStub stub(TranscendentalCache::COS,
+                               TranscendentalCacheStub::TAGGED);
+  ASSERT(args->length() == 1);
+  VisitForStackValue(args->at(0));
+  __ CallStub(&stub);
+  context()->Plug(r0);
 }
 
 
