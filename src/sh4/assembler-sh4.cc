@@ -709,7 +709,7 @@ void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
 }
 
 void Assembler::branch(int offset, Register rtmp, branch_type type, bool patched_later) {
-  switch(type) {
+  switch (type) {
   case branch_true:
     bt(offset, rtmp, patched_later); break;
   case branch_false:
@@ -726,7 +726,7 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant) {
   // Patch the constant
   ASSERT(*(p_constant - 1) == 0x09);
   // Is it a jsr or any other branch ?
-  if(*(p_constant - 2) == 0xa002)
+  if (*(p_constant - 2) == 0xa002)
     *reinterpret_cast<uint32_t*>(p_constant) = target_pos - (unsigned)p_constant + 4;
   else
     *reinterpret_cast<uint32_t*>(p_constant) = target_pos - (unsigned)p_constant;
@@ -745,7 +745,7 @@ void Assembler::bt(int offset, Register rtmp, bool patched_later) {
     *reinterpret_cast<uint32_t*>(pc_) = offset;
     pc_ += sizeof(uint32_t);
   } else {
-    if(FITS_SH4_bt(offset - 4)) {
+    if (FITS_SH4_bt(offset - 4)) {
       bt_(offset - 4);
       nop_();
     } else {
@@ -794,7 +794,6 @@ void Assembler::bf(int offset, Register rtmp, bool patched_later) {
 
 
 void Assembler::jmp(int offset, Register rtmp, bool patched_later) {
-
   positions_recorder()->WriteRecordedPositions();
 
   // Is it going to be pacthed later on
@@ -826,7 +825,6 @@ void Assembler::jmp(int offset, Register rtmp, bool patched_later) {
 }
 
 void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
-
   positions_recorder()->WriteRecordedPositions();
 
   // Is it going to be patched later on ?

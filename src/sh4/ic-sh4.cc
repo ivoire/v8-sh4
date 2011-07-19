@@ -442,7 +442,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   __ ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
   __ tst(scratch,
          Immediate((1 << Map::kIsAccessCheckNeeded) | (1 << interceptor_bit)));
-  __ b(ne,slow);
+  __ b(ne, slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing into string

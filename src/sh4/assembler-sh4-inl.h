@@ -312,7 +312,7 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
 void Assembler::cmp(Condition &cond, Register Rd, Register Rs) {
   Condition cond_to_test = eq;
-  switch(cond) {
+  switch (cond) {
   case ne:
     cond_to_test = ne;
   case eq:

@@ -293,7 +293,7 @@ enum Condition {
   ql = 12,      // negativ
   qz = 13,      // negativ or null
   al = 14,      // Always
-  
+
   // Aliases
   t = eq,        // cmp eq; if SH4 cmpeq/cmp sets the T bit, t == eq
   f = ne,        // cmp ne: if SH4 cmpeq/cmp clears the T bit, f == ne
@@ -301,7 +301,6 @@ enum Condition {
   vc = f,        // overflow clear: if SH4 addv/subv clears the T bit, vc == f
   cs = t,        // carry set: if SH4 addc/subc sets the T bit, cs == t
   cc = f         // carry clear: if SH4 addc/subc clears the T bit, vc == f
-
 };
 
 
@@ -676,7 +675,7 @@ class Assembler : public AssemblerBase {
   // bra skip
   // nop
   // const_pool:
-  // .long call_address       
+  // .long call_address
   // skip:
   // jsr rx
   // nop
@@ -716,7 +715,7 @@ class Assembler : public AssemblerBase {
   void bf(Label* L, Register rtmp = sh4_rtmp)    { branch(L, rtmp, branch_false); }
   void jmp(Label* L, Register rtmp = sh4_rtmp)   { branch(L, rtmp, branch_unconditional); }
   void b(Label* L, Register rtmp = sh4_rtmp)   { jmp(L, rtmp); }
-  void b(Condition cond, Label* L, Register rtmp = sh4_rtmp)   { 
+  void b(Condition cond, Label* L, Register rtmp = sh4_rtmp)   {
     ASSERT(cond == ne || cond == eq);
     branch(L, rtmp, cond == eq ? branch_true: branch_false);
   }
@@ -739,7 +738,7 @@ class Assembler : public AssemblerBase {
   void cmpge(Register Rd, Register Rs) { cmpge_(Rs, Rd); }      // is Rd >= Rs ?
   void cmpgtu(Register Rd, Register Rs) { cmphi_(Rs, Rd); }     // is Rd u> Rs ?
   void cmpgeu(Register Rd, Register Rs) { cmphs_(Rs, Rd); }     // is Rd u>= Rs ?
-  void cmpeq(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) { 
+  void cmpeq(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) {
     mov(rtmp, imm); cmpeq_(rtmp, Rd); }
   void cmpgt(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) {
     mov(rtmp, imm); cmpgt_(rtmp, Rd); }
@@ -769,7 +768,7 @@ class Assembler : public AssemblerBase {
              Register rtmp = sh4_rtmp) { cmpgtu(Rd, imm, rtmp); }
 
   void cmpeq_r0_raw_immediate(int raw_immediate) { cmpeq_imm_R0_((int8_t)raw_immediate); }
-  int fits_raw_immediate(int raw_immediate) { return (raw_immediate & ~0xFF) == 0; };
+  int fits_raw_immediate(int raw_immediate) { return (raw_immediate & ~0xFF) == 0; }
 
   // Read/patch instructions
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
@@ -857,8 +856,8 @@ class Assembler : public AssemblerBase {
   void orr(Register Rd, Register Rs, Register Rt, Condition cond) { // Alias for lor
     lor(Rd, Rs, Rt, cond);
   }
-    
-  void tst(Register Rd, Register Rs) { tst_(Rs, Rd); };
+
+  void tst(Register Rd, Register Rs) { tst_(Rs, Rd); }
   void tst(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp);
 
   void mov(Register Rd, Register Rs, Condition cond); // Conditional move
@@ -883,8 +882,8 @@ class Assembler : public AssemblerBase {
   void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movw(dst, Rs, rtmp); }
   void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movb(dst, Rs, rtmp); }
 
-  void ldrpr(Register Rd) { lds_PR_(Rd); };
-  void strpr(Register Rs) { sts_PR_(Rs); };
+  void ldrpr(Register Rd) { lds_PR_(Rd); }
+  void strpr(Register Rs) { sts_PR_(Rs); }
 
   void mul(Register Rd, Register Rs, Register Rt);
   void dmuls(Register dstL, Register dstH, Register src1, Register src2);
