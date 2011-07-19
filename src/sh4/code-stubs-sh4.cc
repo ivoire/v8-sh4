@@ -352,6 +352,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   // For 1 or -1 we need to or in the 0 exponent (biased to 1023).
   static const uint32_t exponent_word_for_1 =
       HeapNumber::kExponentBias << HeapNumber::kExponentShift;
+  __ cmpeq(source_, Immediate(1));
   __ orr(exponent, exponent, Immediate(exponent_word_for_1), eq);
   // 1, 0 and -1 all have 0 for the second word.
   __ mov(mantissa, Immediate(0));
@@ -2772,8 +2773,6 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  Label call_runtime;
-
   //TODO: VFP
   __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
 }
@@ -2818,6 +2817,23 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r4 = argc, r5 = argv, r6 = isolate
   __ mov(r4, sh4_r8);
   __ mov(r5, sh4_r10);
+
+#if defined(V8_HOST_ARCH_SH4)
+  int frame_alignment = OS::ActivationFrameAlignment();
+  int frame_alignment_mask = frame_alignment - 1;
+  if (FLAG_debug_code) {
+    if (frame_alignment > kPointerSize) {
+      Label alignment_as_expected;
+      ASSERT(IsPowerOf2(frame_alignment));
+      __ tst(sp, Immediate(frame_alignment_mask));
+      __ bt(&alignment_as_expected);
+      // Don't use Check here, as it will call Runtime_Abort re-entering here.
+      __ stop("Unexpected alignment");
+      __ bind(&alignment_as_expected);
+    }
+  }
+#endif
+
   __ mov(r6, Operand(ExternalReference::isolate_address()));
 
   // TODO(1242173): To let the GC traverse the return address of the exit
