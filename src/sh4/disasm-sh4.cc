@@ -79,7 +79,7 @@ class Decoder {
   // From Architecture Manual ADCS 7182230G SH-4 CPU Core Architecture
   // Revision: 30 April 2003
   // Section 7.3, p. 149: Instruciton set summary
-  
+
   // Decode instructions from Table 39, p.150
   int DecodeTable39(Instruction* instr);
 
@@ -360,83 +360,83 @@ int Decoder::DecodeTable39(Instruction *instr) {
 #ifdef FMT_T39_1
   case FMT_T39_1_OPC_MOV:
     Format(FMT_T39_1_FMT, FMT_T39_1_STR,
-	   FMT_T39_1_i8(instr),
-	   Registers::Name(FMT_T39_1_n(instr))
-	   );
+           FMT_T39_1_i8(instr),
+           Registers::Name(FMT_T39_1_n(instr))
+           );
     break;
 #endif
 #ifdef FMT_T39_2
   case FMT_T39_2_OPC_MOV_W:
-    Format(FMT_T39_2_FMT, FMT_T39_2_STR, 
-	   FMT_T39_2_d8(instr),
-	   Registers::Name(FMT_T39_2_n(instr))
-	   );
+    Format(FMT_T39_2_FMT, FMT_T39_2_STR,
+           FMT_T39_2_d8(instr),
+           Registers::Name(FMT_T39_2_n(instr))
+           );
     break;
 #endif
 #ifdef FMT_T39_3
   case FMT_T39_3_OPC_MOV_L:
-    Format(FMT_T39_3_FMT, FMT_T39_3_STR, 
-	   FMT_T39_3_d8(instr),
-	   Registers::Name(FMT_T39_3_n(instr))
-	   );
+    Format(FMT_T39_3_FMT, FMT_T39_3_STR,
+           FMT_T39_3_d8(instr),
+           Registers::Name(FMT_T39_3_n(instr))
+           );
     break;
 #endif
   case FMT_T39_4_OPC_MOV:
     switch(FMT_T39_4_OPC2(instr)) {
 #ifdef FMT_T39_4
     case FMT_T39_4_OPC2_MOV:
-      Format(FMT_T39_4_FMT, FMT_T39_4_STR, 
-	     Registers::Name(FMT_T39_4_m(instr)),
-	     Registers::Name(FMT_T39_4_n(instr))
-	     );
+      Format(FMT_T39_4_FMT, FMT_T39_4_STR,
+             Registers::Name(FMT_T39_4_m(instr)),
+             Registers::Name(FMT_T39_4_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_8
     case FMT_T39_8_OPC2_MOV_B:
-      Format(FMT_T39_8_FMT, FMT_T39_8_STR, 
-	     Registers::Name(FMT_T39_8_m(instr)),
-	     Registers::Name(FMT_T39_8_n(instr))
-	     );
+      Format(FMT_T39_8_FMT, FMT_T39_8_STR,
+             Registers::Name(FMT_T39_8_m(instr)),
+             Registers::Name(FMT_T39_8_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_9
     case FMT_T39_9_OPC2_MOV_W:
-      Format(FMT_T39_9_FMT, FMT_T39_9_STR, 
-	     Registers::Name(FMT_T39_9_m(instr)),
-	     Registers::Name(FMT_T39_9_n(instr))
-	     );
+      Format(FMT_T39_9_FMT, FMT_T39_9_STR,
+             Registers::Name(FMT_T39_9_m(instr)),
+             Registers::Name(FMT_T39_9_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_10
     case FMT_T39_10_OPC2_MOV_L:
-      Format(FMT_T39_10_FMT, FMT_T39_10_STR, 
-	     Registers::Name(FMT_T39_10_m(instr)),
-	     Registers::Name(FMT_T39_10_n(instr))
-	     );
+      Format(FMT_T39_10_FMT, FMT_T39_10_STR,
+             Registers::Name(FMT_T39_10_m(instr)),
+             Registers::Name(FMT_T39_10_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_14
     case FMT_T39_14_OPC2_MOV_B:
-      Format(FMT_T39_14_FMT, FMT_T39_14_STR, 
-	     Registers::Name(FMT_T39_14_m(instr)),
-	     Registers::Name(FMT_T39_14_n(instr))
-	     );
+      Format(FMT_T39_14_FMT, FMT_T39_14_STR,
+             Registers::Name(FMT_T39_14_m(instr)),
+             Registers::Name(FMT_T39_14_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_15
     case FMT_T39_15_OPC2_MOV_W:
-      Format(FMT_T39_15_FMT, FMT_T39_15_STR, 
-	     Registers::Name(FMT_T39_15_m(instr)),
-	     Registers::Name(FMT_T39_15_n(instr))
-	     );
+      Format(FMT_T39_15_FMT, FMT_T39_15_STR,
+             Registers::Name(FMT_T39_15_m(instr)),
+             Registers::Name(FMT_T39_15_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_16
     case FMT_T39_16_OPC2_MOV_L:
-      Format(FMT_T39_16_FMT, FMT_T39_16_STR, 
-	     Registers::Name(FMT_T39_16_m(instr)),
-	     Registers::Name(FMT_T39_16_n(instr))
-	     );
+      Format(FMT_T39_16_FMT, FMT_T39_16_STR,
+             Registers::Name(FMT_T39_16_m(instr)),
+             Registers::Name(FMT_T39_16_n(instr))
+             );
       break;
 #endif
     default:
@@ -447,50 +447,50 @@ int Decoder::DecodeTable39(Instruction *instr) {
     switch(FMT_T39_5_OPC2(instr)) {
 #ifdef FMT_T39_5
     case FMT_T39_5_OPC2_MOV_B:
-      Format(FMT_T39_5_FMT, FMT_T39_5_STR, 
-	     Registers::Name(FMT_T39_5_m(instr)),
-	     Registers::Name(FMT_T39_5_n(instr))
-	     );
+      Format(FMT_T39_5_FMT, FMT_T39_5_STR,
+             Registers::Name(FMT_T39_5_m(instr)),
+             Registers::Name(FMT_T39_5_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_6
     case FMT_T39_6_OPC2_MOV_W:
-      Format(FMT_T39_6_FMT, FMT_T39_6_STR, 
-	     Registers::Name(FMT_T39_6_m(instr)),
-	     Registers::Name(FMT_T39_6_n(instr))
-	     );
+      Format(FMT_T39_6_FMT, FMT_T39_6_STR,
+             Registers::Name(FMT_T39_6_m(instr)),
+             Registers::Name(FMT_T39_6_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_7
     case FMT_T39_7_OPC2_MOV_L:
-      Format(FMT_T39_7_FMT, FMT_T39_7_STR, 
-	     Registers::Name(FMT_T39_7_m(instr)),
-	     Registers::Name(FMT_T39_7_n(instr))
-	     );
+      Format(FMT_T39_7_FMT, FMT_T39_7_STR,
+             Registers::Name(FMT_T39_7_m(instr)),
+             Registers::Name(FMT_T39_7_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_11
     case FMT_T39_11_OPC2_MOV_B:
-      Format(FMT_T39_11_FMT, FMT_T39_11_STR, 
-	     Registers::Name(FMT_T39_11_m(instr)),
-	     Registers::Name(FMT_T39_11_n(instr))
-	     );
+      Format(FMT_T39_11_FMT, FMT_T39_11_STR,
+             Registers::Name(FMT_T39_11_m(instr)),
+             Registers::Name(FMT_T39_11_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_12
     case FMT_T39_12_OPC2_MOV_W:
-      Format(FMT_T39_12_FMT, FMT_T39_12_STR, 
-	     Registers::Name(FMT_T39_12_m(instr)),
-	     Registers::Name(FMT_T39_12_n(instr))
-	     );
+      Format(FMT_T39_12_FMT, FMT_T39_12_STR,
+             Registers::Name(FMT_T39_12_m(instr)),
+             Registers::Name(FMT_T39_12_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_13
     case FMT_T39_13_OPC2_MOV_L:
-      Format(FMT_T39_13_FMT, FMT_T39_13_STR, 
-	     Registers::Name(FMT_T39_13_m(instr)),
-	     Registers::Name(FMT_T39_13_n(instr))
-	     );
+      Format(FMT_T39_13_FMT, FMT_T39_13_STR,
+             Registers::Name(FMT_T39_13_m(instr)),
+             Registers::Name(FMT_T39_13_n(instr))
+             );
       break;
 #endif
     default:
@@ -501,34 +501,34 @@ int Decoder::DecodeTable39(Instruction *instr) {
     switch(FMT_T39_17_OPC3(instr)) {
 #ifdef FMT_T39_17
     case FMT_T39_17_OPC3_MOV_B:
-      Format(FMT_T39_17_FMT, FMT_T39_17_STR, 
-	     FMT_T39_17_d(instr),
-	     Registers::Name(FMT_T39_17_n(instr))
-	     );
+      Format(FMT_T39_17_FMT, FMT_T39_17_STR,
+             FMT_T39_17_d(instr),
+             Registers::Name(FMT_T39_17_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_18
     case FMT_T39_18_OPC3_MOV_W:
-      Format(FMT_T39_18_FMT, FMT_T39_18_STR, 
-	     FMT_T39_18_d(instr),
-	     Registers::Name(FMT_T39_18_n(instr))
-	     );
+      Format(FMT_T39_18_FMT, FMT_T39_18_STR,
+             FMT_T39_18_d(instr),
+             Registers::Name(FMT_T39_18_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_20
     case FMT_T39_20_OPC3_MOV_B:
-      Format(FMT_T39_20_FMT, FMT_T39_20_STR, 
-	     FMT_T39_20_d(instr),
-	     Registers::Name(FMT_T39_20_m(instr))
-	     );
+      Format(FMT_T39_20_FMT, FMT_T39_20_STR,
+             FMT_T39_20_d(instr),
+             Registers::Name(FMT_T39_20_m(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_21
     case FMT_T39_21_OPC3_MOV_W:
-      Format(FMT_T39_21_FMT, FMT_T39_21_STR, 
-	     FMT_T39_21_d(instr),
-	     Registers::Name(FMT_T39_21_m(instr))
-	     );
+      Format(FMT_T39_21_FMT, FMT_T39_21_STR,
+             FMT_T39_21_d(instr),
+             Registers::Name(FMT_T39_21_m(instr))
+             );
       break;
 #endif
     default:
@@ -537,20 +537,20 @@ int Decoder::DecodeTable39(Instruction *instr) {
     break;
 #ifdef FMT_T39_19
   case FMT_T39_19_OPC_MOV_L:
-    Format(FMT_T39_19_FMT, FMT_T39_19_STR, 
-	   Registers::Name(FMT_T39_19_m(instr)),
-	   FMT_T39_19_d(instr),
-	   Registers::Name(FMT_T39_19_n(instr))
-	   );
+    Format(FMT_T39_19_FMT, FMT_T39_19_STR,
+           Registers::Name(FMT_T39_19_m(instr)),
+           FMT_T39_19_d(instr),
+           Registers::Name(FMT_T39_19_n(instr))
+           );
     break;
 #endif
 #ifdef FMT_T39_22
   case FMT_T39_22_OPC_MOV_L:
     Format(FMT_T39_22_FMT, FMT_T39_22_STR,
-	   FMT_T39_22_d(instr),
-	   Registers::Name(FMT_T39_22_m(instr)),
-	   Registers::Name(FMT_T39_22_n(instr))
-	   );
+           FMT_T39_22_d(instr),
+           Registers::Name(FMT_T39_22_m(instr)),
+           Registers::Name(FMT_T39_22_n(instr))
+           );
     break;
 #endif
   case FMT_T39_23_OPC_MOV_B:
@@ -558,49 +558,49 @@ int Decoder::DecodeTable39(Instruction *instr) {
 #ifdef FMT_T39_23
     case FMT_T39_23_OPC2_MOV_B:
       Format(FMT_T39_23_FMT, FMT_T39_23_STR,
-	     Registers::Name(FMT_T39_23_m(instr)),
-	     Registers::Name(FMT_T39_23_n(instr))
-	     );
+             Registers::Name(FMT_T39_23_m(instr)),
+             Registers::Name(FMT_T39_23_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_24
     case FMT_T39_24_OPC2_MOV_W:
       Format(FMT_T39_24_FMT, FMT_T39_24_STR,
-	     Registers::Name(FMT_T39_24_m(instr)),
-	     Registers::Name(FMT_T39_24_n(instr))
-	     );
+             Registers::Name(FMT_T39_24_m(instr)),
+             Registers::Name(FMT_T39_24_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_25
     case FMT_T39_25_OPC2_MOV_L:
       Format(FMT_T39_25_FMT, FMT_T39_25_STR,
-	     Registers::Name(FMT_T39_25_m(instr)),
-	     Registers::Name(FMT_T39_25_n(instr))
-	     );
+             Registers::Name(FMT_T39_25_m(instr)),
+             Registers::Name(FMT_T39_25_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_26
     case FMT_T39_26_OPC2_MOV_B:
       Format(FMT_T39_26_FMT, FMT_T39_26_STR,
-	     Registers::Name(FMT_T39_26_m(instr)),
-	     Registers::Name(FMT_T39_26_n(instr))
-	     );
+             Registers::Name(FMT_T39_26_m(instr)),
+             Registers::Name(FMT_T39_26_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_27
     case FMT_T39_27_OPC2_MOV_W:
       Format(FMT_T39_27_FMT, FMT_T39_27_STR,
-	     Registers::Name(FMT_T39_27_m(instr)),
-	     Registers::Name(FMT_T39_27_n(instr))
-	     );
+             Registers::Name(FMT_T39_27_m(instr)),
+             Registers::Name(FMT_T39_27_n(instr))
+             );
       break;
 #endif
 #ifdef FMT_T39_28
     case FMT_T39_28_OPC2_MOV_L:
       Format(FMT_T39_28_FMT, FMT_T39_28_STR,
-	     Registers::Name(FMT_T39_28_m(instr)),
-	     Registers::Name(FMT_T39_28_n(instr))
-	     );
+             Registers::Name(FMT_T39_28_m(instr)),
+             Registers::Name(FMT_T39_28_n(instr))
+             );
       break;
 #endif
     default:
@@ -611,7 +611,7 @@ int Decoder::DecodeTable39(Instruction *instr) {
   }
   return 1;
 }
-  
+
 // Append the ch to the output buffer.
 void Decoder::PrintChar(const char ch) {
   out_buffer_[out_buffer_pos_++] = ch;
@@ -641,8 +641,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   uint16_t bits = (uint16_t)(instr->InstructionBits());
   // Print raw instruction bytes.
   out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%02x %02x     ", 
-				  (bits & 0xff), ((bits>>8) & 0xff)
+                                  "%02x %02x     ",
+                                  (bits & 0xff), ((bits>>8) & 0xff)
                                   );
   DecodeTable39(instr);
   return Instruction::kInstrSize;
@@ -706,8 +706,8 @@ class Decoder {
 
 #define printk Format
 #define __get_user(val,ptr) \
-  do { last_pool_offset_ = (u32)(ptr) - memaddr;	\
-    last_pool_size_ = sizeof(*(ptr));			\
+  do { last_pool_offset_ = (u32)(ptr) - memaddr;        \
+    last_pool_size_ = sizeof(*(ptr));                        \
     ((val) = *(ptr)); } while(0)
 #define u16 uint16_t
 #define u32 uint32_t
@@ -731,8 +731,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   unsigned long pc = (unsigned long)(instr_ptr);
   // Print raw instruction bytes.
   out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%02x %02x     ", 
-				  (bits & 0xff), ((bits>>8) & 0xff)
+                                  "%02x %02x     ",
+                                  (bits & 0xff), ((bits>>8) & 0xff)
                                   );
   print_sh_insn(pc, bits);
   return Instruction::kInstrSize;
@@ -803,7 +803,7 @@ public:
   virtual ~DisassemblerSH4() {}
 
   virtual int InstructionDecode(v8::internal::Vector<char> buffer,
-				byte* instruction);
+                                byte* instruction);
 
   virtual int ConstantPoolSizeAt(byte* instruction);
 
@@ -820,7 +820,7 @@ private:
 
 
 int DisassemblerSH4::InstructionDecode(v8::internal::Vector<char> buffer,
-				       byte* instruction) {
+                                       byte* instruction) {
   if (start_pc_ == 0)
     start_pc_ = (uint32_t)instruction;
   v8::internal::Decoder d(buffer);

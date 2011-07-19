@@ -66,7 +66,7 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond);
 
 
 // Copy from ARM
-#include "map-sh4.h" // Define register map
+#include "map-sh4.h"  // Define register map
 
 void ToNumberStub::Generate(MacroAssembler* masm) {
   // Entry argument: r0
@@ -117,7 +117,6 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Compute the function map in the current global context and set that
   // as the map of the allocated object.
   __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-//__ bkpt(); __ nop();
   __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
   __ ldr(r2, MemOperand(r2, Context::SlotOffset(map_index)));
   __ str(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -851,7 +850,7 @@ void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
   __ lsl(ip, src1, Immediate(HeapNumber::kNonMantissaBitsInTopWord));
   __ orr(dst,
          dst,
-	 ip);
+         ip);
 
   // Create the mask and test the lower bits (of the higher bits).
   __ rsb(scratch, scratch, Immediate(32));
@@ -1662,14 +1661,14 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
   Label not_smi_result;
   switch (op_) {
     case Token::ADD:
-      __ addv(right, left, right);	// Add optimistically.
-      __ Ret(vc);			// Return if no overflow
-      __ sub(right, right, left);  	// Revert optimistic add.
+      __ addv(right, left, right);        // Add optimistically.
+      __ Ret(vc);                        // Return if no overflow
+      __ sub(right, right, left);          // Revert optimistic add.
       break;
     case Token::SUB:
-      __ subv(right, left, right);	// Subtract optimistically.
-      __ Ret(vc);			// Return if no overflow
-      __ sub(right, left, right);	// Revert optimistic subtract.
+      __ subv(right, left, right);        // Subtract optimistically.
+      __ Ret(vc);                        // Return if no overflow
+      __ sub(right, left, right);        // Revert optimistic subtract.
       break;
     case Token::MUL:
       // TODO: implement optimized multiply with overflow check for SH4
@@ -1928,10 +1927,10 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
           // The code below for writing into heap numbers isn't capable of
           // writing the register as an unsigned int so we go to slow case if we
           // hit this case.
-	  //TODO: VFP
-	  //if (CpuFeatures::IsSupported(VFP3)) {
-	  //  __ b(mi, &result_not_a_smi);
-	  //} else
+          //TODO: VFP
+          //if (CpuFeatures::IsSupported(VFP3)) {
+          //  __ b(mi, &result_not_a_smi);
+          //} else
           {
             __ bf(not_numbers);
           }
@@ -1959,8 +1958,8 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         __ AllocateHeapNumber(
             result, scratch1, scratch2, heap_number_map, gc_required);
       } else {
-	GenerateHeapResultAllocation(
-	  masm, result, heap_number_map, scratch1, scratch2, gc_required);
+        GenerateHeapResultAllocation(
+          masm, result, heap_number_map, scratch1, scratch2, gc_required);
       }
 
       // r2: Answer as signed int32.
@@ -2327,14 +2326,14 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // to return a heap number if we can.
           // The non vfp3 code does not support this special case, so jump to
           // runtime if we don't support it.
-	  __ cmpge(r2, Immediate(0));
+          __ cmpge(r2, Immediate(0));
           //TODO: FP unit
-	  // if (CpuFeatures::IsSupported(VFP3)) {
+          // if (CpuFeatures::IsSupported(VFP3)) {
           //   __ b(f,
           //        (result_type_ <= TRBinaryOpIC::INT32) ? &transition
           //                                              : &return_heap_number);
           //} else
-	  {
+          {
             __ b(f, (result_type_ <= TRBinaryOpIC::INT32) ? &transition
                                                            : &call_runtime);
           }
@@ -2651,14 +2650,14 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
         // If we have to check for zero, then we can check for the max negative
         // smi while we are at it.
         __ bic(ip, r0, Immediate(0x80000000));
-	__ tst(ip, ip);
+        __ tst(ip, ip);
         __ b(eq, &slow);
         __ rsb(r0, r0, Immediate(0));
         __ Ret();
       } else {
         // The value of the expression is a smi and 0 is OK for -0.  Try
         // optimistic subtraction '0 - value'.
-	__ mov(ip, Immediate(0));
+        __ mov(ip, Immediate(0));
         __ subv(r0, ip, r0);
         __ Ret(vc);
         // We don't have to reverse the optimistic neg since the only case
@@ -3427,7 +3426,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
   __ ldr(r4, MemOperand(r4,
-			Context::SlotOffset(GetArgumentsBoilerplateIndex())));
+                        Context::SlotOffset(GetArgumentsBoilerplateIndex())));
 
   // Copy the JS object part.
   __ CopyFields(r0, r4, r3.bit(), JSObject::kHeaderSize / kPointerSize);
@@ -3445,7 +3444,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
   __ str(r1, FieldMemOperand(r0, JSObject::kHeaderSize +
-			         Heap::kArgumentsLengthIndex * kPointerSize));
+                                 Heap::kArgumentsLengthIndex * kPointerSize));
 
   // If there are no actual arguments, we're done.
   Label done;
@@ -3796,7 +3795,7 @@ class StringHelper : public AllStatic {
   static void GenerateHashInit(MacroAssembler* masm,
                                Register hash,
                                Register character,
-			       Register scratch);
+                               Register scratch);
 
   static void GenerateHashAddCharacter(MacroAssembler* masm,
                                        Register hash,
@@ -4257,7 +4256,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
 
 void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
                                        Register hash,
-				       Register scratch) {
+                                       Register scratch) {
   // Added a scratch parameter for the SH4 implementation compared to ARM.
   // hash += hash << 3;
   __ lsl(scratch, hash, Immediate(3));
@@ -4914,7 +4913,7 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   __ bind(&not_cached);
   __ JumpIfSmi(arg, slow);
   __ CompareObjectType(
-	arg, scratch1, scratch2, JS_VALUE_TYPE, eq);  // map -> scratch1.
+        arg, scratch1, scratch2, JS_VALUE_TYPE, eq);  // map -> scratch1.
   __ bf(slow);
   __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitField2Offset));
   __ land(scratch2,

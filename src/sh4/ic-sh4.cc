@@ -1565,7 +1565,7 @@ void PatchInlinedSmiCode(Address address) {
   Address patch_address =
       cmp_instruction_address - delta * Assembler::kInstrSize;
   Instr instr_at_patch = Assembler::instr_at(patch_address);
-  Instr instr_before_patch = 
+  Instr instr_before_patch =
     Assembler::instr_at(patch_address - Assembler::kInstrSize);
   Instr branch_instr =
       Assembler::instr_at(patch_address + Assembler::kInstrSize);

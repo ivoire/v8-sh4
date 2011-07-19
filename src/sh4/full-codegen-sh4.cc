@@ -47,11 +47,11 @@ namespace internal {
 
 // A patch site is a location in the code which it is possible to patch. This
 // class has a number of methods to emit the code which is patchable and the
-// method EmitPatchInfo to record a marker back to the patchable code. 
+// method EmitPatchInfo to record a marker back to the patchable code.
 // On SH4 this marker is a cmp #ii, r0 operation, this limits the range
 // of #ii to -128..+127 instructions for the distance betwen the patch and
 // the label.
-// The #ii (8 bits signed value) is the delta from the pc to 
+// The #ii (8 bits signed value) is the delta from the pc to
 // the first instruction of the patchable code.
 class JumpPatchSite BASE_EMBEDDED {
  public:
@@ -202,7 +202,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // clobbering cp.
         __ mov(r2, cp);
         __ RecordWrite(r2/*input/scratch*/, r1,
-		       r3 /*scratch*/, r0 /*scratch*/);
+                       r3 /*scratch*/, r0 /*scratch*/);
       }
     }
   }
@@ -290,7 +290,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   // TODO: implement this when const pool are active
   // Force emit the constant pool, so it doesn't get emitted in the middle
   // of the stack check table.
-  //masm()->CheckConstPool(true, false);
+  // masm()->CheckConstPool(true, false);
 }
 
 
@@ -607,7 +607,7 @@ void FullCodeGenerator::DoTest(Label* if_true,
 //     ToBooleanStub stub(result_register());
 //     __ CallStub(&stub);
 //     __ tst(result_register(), result_register());
-//   } else 
+//   } else
   {
     // Call the runtime to find the boolean value of the source and then
     // translate it into control flow to the pair of labels.
@@ -623,7 +623,7 @@ void FullCodeGenerator::DoTest(Label* if_true,
 
 
 void FullCodeGenerator::Split(Condition cond,
-			      Label* if_true,
+                              Label* if_true,
                               Label* if_false,
                               Label* fall_through) {
   // We use ne for inverting conditions.
@@ -1178,7 +1178,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
     TypeofState typeof_state,
     Label* slow,
     Label* done) {
- 
+
   // Generate fast-case code for variables that might be shadowed by
   // eval-introduced variables.  Eval is used a lot without
   // introducing variables.  In those cases, we do not want to
@@ -4014,7 +4014,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         Label slow_case;
         __ lor(r2, r0, r1);
         patch_site.EmitJumpIfNotSmi(r2, &slow_case);
-	Condition tmp_cond = cond;
+        Condition tmp_cond = cond;
         __ cmp(tmp_cond, r1, r0);
         Split(tmp_cond, if_true, if_false, NULL);
         __ bind(&slow_case);

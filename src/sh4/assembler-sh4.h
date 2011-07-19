@@ -292,15 +292,15 @@ enum Condition {
   pz = 11,      // positiv or null
   ql = 12,      // negativ
   qz = 13,      // negativ or null
-  al = 14,	// Always
+  al = 14,      // Always
   
   // Aliases
-  t = eq,	// cmp eq; if SH4 cmpeq/cmp sets the T bit, t == eq
-  f = ne,	// cmp ne: if SH4 cmpeq/cmp clears the T bit, f == ne
-  vs = t,	// overflow set: if SH4 addv/subv sets the T bit, vs == t
-  vc = f,	// overflow clear: if SH4 addv/subv clears the T bit, vc == f
-  cs = t,	// carry set: if SH4 addc/subc sets the T bit, cs == t
-  cc = f	// carry clear: if SH4 addc/subc clears the T bit, vc == f
+  t = eq,        // cmp eq; if SH4 cmpeq/cmp sets the T bit, t == eq
+  f = ne,        // cmp ne: if SH4 cmpeq/cmp clears the T bit, f == ne
+  vs = t,        // overflow set: if SH4 addv/subv sets the T bit, vs == t
+  vc = f,        // overflow clear: if SH4 addv/subv clears the T bit, vc == f
+  cs = t,        // carry set: if SH4 addc/subc sets the T bit, cs == t
+  cc = f         // carry clear: if SH4 addc/subc clears the T bit, vc == f
 
 };
 
@@ -761,12 +761,12 @@ class Assembler : public AssemblerBase {
   void cmphs(Register Rd, Register Rs) { // Alias for cmpgeu
     cmpgeu(Rd, Rs); }
   void cmphs(Register Rd, const Immediate& imm, // Alias for cmpgeu
-	     Register rtmp = sh4_rtmp) { cmpgeu(Rd, imm, rtmp); }
+             Register rtmp = sh4_rtmp) { cmpgeu(Rd, imm, rtmp); }
 
   void cmphi(Register Rd, Register Rs) { // Alias for cmpgtu
     cmpgtu(Rd, Rs); }
   void cmphi(Register Rd, const Immediate& imm, // Alias for cmpgtu
-	     Register rtmp = sh4_rtmp) { cmpgtu(Rd, imm, rtmp); }
+             Register rtmp = sh4_rtmp) { cmpgtu(Rd, imm, rtmp); }
 
   void cmpeq_r0_raw_immediate(int raw_immediate) { cmpeq_imm_R0_((int8_t)raw_immediate); }
   int fits_raw_immediate(int raw_immediate) { return (raw_immediate & ~0xFF) == 0; };
@@ -812,7 +812,7 @@ class Assembler : public AssemblerBase {
   void addc(Register Rd, Register Rs, Register Rt);
   void subc(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
-  void asr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);	// arithmetic shift right
+  void asr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);        // arithmetic shift right
   void asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);    // arithmetic shift right
   void asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);    // arithmetic shift left
 
@@ -841,18 +841,18 @@ class Assembler : public AssemblerBase {
   void lxor(Register Rd, Register Rs, Register Rt);
 
   void eor(Register Rd, Register Rs, const Immediate& imm,// Alias for lxor
-	   Register rtmp = sh4_rtmp) { lxor(Rd, Rs, imm, rtmp); }
+           Register rtmp = sh4_rtmp) { lxor(Rd, Rs, imm, rtmp); }
   void eor(Register Rd, Register Rs, Register Rt)  { // Alias for lxor
     lxor(Rd, Rs, Rt);
   }
 
   void orr(Register Rd, Register Rs, const Immediate& imm,// Alias for lor
-	   Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, rtmp); }
+           Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, rtmp); }
   void orr(Register Rd, Register Rs, Register Rt)  { // Alias for lor
     lor(Rd, Rs, Rt);
   }
   void orr(Register Rd, Register Rs, const Immediate& imm,// Alias for lor
-	   Condition cond, Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, cond, rtmp); }
+           Condition cond, Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, cond, rtmp); }
 
   void orr(Register Rd, Register Rs, Register Rt, Condition cond) { // Alias for lor
     lor(Rd, Rs, Rt, cond);

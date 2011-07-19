@@ -219,7 +219,7 @@ static void AllocateJSArray(MacroAssembler* masm,
          Immediate((JSArray::kSize + FixedArray::kHeaderSize) / kPointerSize));
   __ asr(scratch1, array_size, Immediate(kSmiTagSize));
   __ add(elements_array_end,
-	 elements_array_end,
+         elements_array_end,
          scratch1);
   __ AllocateInNewSpace(
       elements_array_end,
@@ -264,7 +264,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
   __ str(scratch1, MemOperand(elements_array_storage));
   __ add(elements_array_storage, elements_array_storage, 
-	 Immediate(kPointerSize));
+         Immediate(kPointerSize));
   ASSERT(kSmiTag == 0);
   __ tst(array_size, array_size);
   // Length of the FixedArray is the number of pre-allocated elements if
@@ -277,7 +277,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ str(array_size,
          MemOperand(elements_array_storage));
   __ add(elements_array_storage, elements_array_storage,
-	 Immediate(kPointerSize));
+         Immediate(kPointerSize));
 
   // Calculate elements array and elements array end.
   // result: JSObject
@@ -287,7 +287,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ lsl(scratch1, array_size, Immediate(kPointerSizeLog2 - kSmiTagSize));
   __ add(elements_array_end,
          elements_array_storage,
-	 scratch1);
+         scratch1);
 
   // Fill the allocated FixedArray with the hole value if requested.
   // result: JSObject
@@ -301,7 +301,7 @@ static void AllocateJSArray(MacroAssembler* masm,
     __ str(scratch1,
            MemOperand(elements_array_storage));
     __ add(elements_array_storage, elements_array_storage,
-	   Immediate(kPointerSize));
+           Immediate(kPointerSize));
     __ bind(&entry);
     __ cmpge(elements_array_storage, elements_array_end);
     __ bf(&loop);
