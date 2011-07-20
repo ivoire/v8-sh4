@@ -328,6 +328,7 @@ class ConvertToDoubleStub : public CodeStub {
 
 
 void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
+  ASSERT(!result1_.is(ip) && !result2_.is(ip) && !zeros_.is(ip));
   Register exponent = result1_;
   Register mantissa = result2_;
 
@@ -347,7 +348,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   // absolute value: it is either equal to 1 (special case of -1 and 1),
   // greater than 1 (not a special case) or less than 1 (special case of 0).
   __ cmpgt(source_, Immediate(1));
-  __ b(&not_special);
+  __ bt(&not_special);
 
   // For 1 or -1 we need to or in the 0 exponent (biased to 1023).
   static const uint32_t exponent_word_for_1 =
@@ -829,8 +830,8 @@ void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
   // Another way to put it is that if (exponent - signbit) > 30 then the
   // number cannot be represented as an int32.
   Register tmp = dst;
-  __ lsr(ip, src1, Immediate(31));
-  __ sub(tmp, scratch, ip);
+  __ lsr(tmp, src1, Immediate(31));
+  __ sub(tmp, scratch, tmp);
   __ cmpgt(tmp, Immediate(30));
   __ b(t, not_int32);
   // - Bits [21:0] in the mantissa are not null.
@@ -898,6 +899,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
 
 // See comment for class.
 void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
+  ASSERT(!scratch_.is(ip) && !the_int_.is(ip));
   Label max_negative_int;
   // the_int_ has the answer which is a signed int32 but not a Smi.
   // We test for the special value that has a different exponent.  This test
@@ -968,14 +970,14 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
     // Smis.  If it's not a heap number, then return equal.
     if (cond == lt || cond == gt) {
       __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE, ge);
-      __ b(t, slow);
+      __ bt(slow);
     } else {
       __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE, eq);
-      __ b(eq, &heap_number);
+      __ bt(&heap_number);
       // Comparing JS objects with <=, >= is complicated.
       if (cond != eq) {
         __ cmpge(r4, Immediate(FIRST_JS_OBJECT_TYPE));
-        __ b(t, slow);
+        __ bt(slow);
         // Normally here we fall through to return_equal, but undefined is
         // special: (undefined == undefined) == true, but
         // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
@@ -1194,7 +1196,7 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
     // Doubles are not equal unless they have the same bit pattern.
     // Exception: 0 and -0.
     __ cmp(rhs_mantissa, lhs_mantissa);
-    __ lor(r0, rhs_mantissa, lhs_mantissa, ne);
+    __ orr(r0, rhs_mantissa, lhs_mantissa, ne);
     // Return non-zero if the numbers are unequal.
     __ Ret(ne);
 
@@ -1245,7 +1247,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     // Get the type of the first operand into r2 and compare it with
     // FIRST_JS_OBJECT_TYPE.
     __ CompareObjectType(rhs, r2, r2, FIRST_JS_OBJECT_TYPE, ge);
-    __ b(f, &first_non_object);
+    __ bf(&first_non_object);
 
     // Return non-zero (r0 is not zero)
     Label return_not_equal;
@@ -1258,7 +1260,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     __ b(eq, &return_not_equal);
 
     __ CompareObjectType(lhs, r3, r3, FIRST_JS_OBJECT_TYPE, ge);
-    __ b(t, &return_not_equal);
+    __ bt(&return_not_equal);
 
     // Check for oddballs: true, false, null, undefined.
     __ cmp(r3, Immediate(ODDBALL_TYPE));
