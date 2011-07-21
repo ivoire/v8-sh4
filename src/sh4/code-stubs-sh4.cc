@@ -876,8 +876,15 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // r3: Right value (sign, exponent, top of mantissa).
 
   // Assert that heap_number_result is callee-saved.
-  // We currently always use r5 to pass it.
-  ASSERT(heap_number_result.is(r5));
+  // We currently always use r8 to pass it.
+  ASSERT(heap_number_result.is(sh4_r8));
+
+  // Calling C function: move r0..r3 to r4..r7
+  __ Push(r4, r5, r6, r7);
+  __ mov(r4, r0);
+  __ mov(r5, r1);
+  __ mov(r6, r2);
+  __ mov(r7, r3);
 
   // Push the current return address before the C call. Return will be
   // through pop(pc) below.
@@ -893,6 +900,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // Place heap_number_result in r0 and return to the pushed return address.
   __ mov(r0, heap_number_result);
   __ pop(lr);
+  __ Pop(r4, r5, r6, r7);
   __ rts();
 }
 
@@ -1816,7 +1824,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
           FloatingPointHelper::kCoreRegisters;
 
       // Allocate new heap number for result.
-      Register result = r5;
+      Register result = sh4_r8;
       GenerateHeapResultAllocation(
           masm, result, heap_number_map, scratch1, scratch2, gc_required);
 
@@ -2803,6 +2811,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   if (do_gc) {
     // Passing r0.
     __ PrepareCallCFunction(1, r1);
+    __ mov(r4, r0);
     __ CallCFunction(ExternalReference::perform_gc_function(isolate), 1);
   }
 
