@@ -87,7 +87,7 @@ class StackHandlerConstants : public AllStatic {
 
 class EntryFrameConstants : public AllStatic {
  public:
-  static const int kCallerFPOffset      = -3 * kPointerSize; // FIXME(STM): is it the right value (normall yes)
+  static const int kCallerFPOffset      = -3 * kPointerSize;
 };
 
 

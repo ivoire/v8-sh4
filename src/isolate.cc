@@ -1282,7 +1282,7 @@ Handle<Context> Isolate::GetCallingGlobalContext() {
 
 
 char* Isolate::ArchiveThread(char* to) {
-  if (RuntimeProfiler::IsEnabled() && 
+  if (RuntimeProfiler::IsEnabled() &&
 #ifdef ENABLE_VMSTATE_TRACKING
       current_vm_state() == JS
 #else

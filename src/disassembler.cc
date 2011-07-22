@@ -124,7 +124,7 @@ static int DecodeIt(FILE* f,
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
   StringBuilder out(out_buffer.start(), out_buffer.length());
   byte* pc = begin;
-  disasm::DisassemblerInterface *d = 
+  disasm::DisassemblerInterface *d =
     disasm::DisassemblerFactory::NewDisassembler(converter);
   RelocIterator* it = NULL;
   if (converter.code() != NULL) {

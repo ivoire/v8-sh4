@@ -102,7 +102,7 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 #define GLOBAL_OBJECT_FUNCTION_PTR() (isolate->global_context()->object_function())
 #define GLOBAL_BUILTINS_PTR() (*isolate->builtins())
 
-#define CMT(msg) do { Comment cmnt(&assm, msg); } while(0)
+#define CMT(msg) do { Comment cmnt(&assm, msg); } while (0)
 
 #define __ assm.
 
@@ -116,7 +116,7 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
     } else { \
       __ b(cond, target);  \
     } \
-  } while(0);
+  } while (0);
 
 
 // Test Empty function call
@@ -178,7 +178,7 @@ TEST(sh4_cs_1) {
   // The function must return a result as Smi.
   CHECK(result->IsSmi());
   CHECK_EQ(0, Smi::cast(*result)->value());
-}                                                
+}
 
 
 // Test CompareInstanceType(), CompareObjectType()
@@ -370,7 +370,7 @@ TEST(sh4_cs_3) {
   // The function must return a result as Smi.
   CHECK(result->IsSmi());
   CHECK_EQ(0, Smi::cast(*result)->value());
-}                                                
+}
 
 
 // Test GetBuiltinFunction()/GetBuiltinEntry()
@@ -423,7 +423,7 @@ TEST(sh4_cs_4) {
   // The function must return a result as Smi.
   CHECK(result->IsSmi());
   CHECK_EQ(0, Smi::cast(*result)->value());
-}                                                
+}
 
 
 static double
@@ -454,7 +454,7 @@ TEST(sh4_cs_5) {
     PRINT();
     CALL();
     CHECK(result->IsNumber());
-    CHECK(ObjectToNumber(*result) == 13);
+    CHECK_EQ(13.0, ObjectToNumber(*result));
   }
   {
     BEGIN();
@@ -470,7 +470,7 @@ TEST(sh4_cs_5) {
     PRINT();
     CALL();
     CHECK(result->IsNumber());
-    CHECK(ObjectToNumber(*result) == 34);
+    CHECK_EQ(34.0, ObjectToNumber(*result));
   }
   {
     BEGIN();
@@ -490,11 +490,10 @@ TEST(sh4_cs_5) {
     CHECK(result->IsString());
     CHECK(String::cast(*result)->IsEqualTo(CStrVector("1234")));
   }
-}                                                
+}
 
 static void
-GenerateNumberFromReg(MacroAssembler &assm, Register heap, Register reg)
-{
+GenerateNumberFromReg(MacroAssembler &assm, Register heap, Register reg) {
   ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
   Label gc_required, skip, not_smi;
   __ EnterInternalFrame();
@@ -577,8 +576,7 @@ TEST(sh4_cs_6) {
 
 
 static void
-GeneratePrintReg(MacroAssembler &assm, Register reg)
-{
+GeneratePrintReg(MacroAssembler &assm, Register reg) {
   ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
   Label gc_required, skip, not_smi;
   __ EnterInternalFrame();
@@ -625,7 +623,7 @@ TEST(sh4_cs_7) {
   PRINT();
   CALL();
   CHECK(result->IsNumber());
-  CHECK(ObjectToNumber(*result) == 0);
+  CHECK_EQ(0.0, ObjectToNumber(*result));
 }
 
 

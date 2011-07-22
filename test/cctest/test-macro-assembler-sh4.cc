@@ -105,7 +105,7 @@ static void InitializeVM() {
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();      \
   CHECK(code->IsCode());
 
-#define CMT(msg) do { Comment cmnt(&assm, msg); } while(0)
+#define CMT(msg) do { Comment cmnt(&assm, msg); } while (0)
 
 #define __ assm.
 
@@ -119,7 +119,7 @@ static void InitializeVM() {
     } else { \
       __ b(cond, target);  \
     } \
-  } while(0);
+  } while (0);
 
 
 // Test Move(...)
@@ -340,21 +340,21 @@ TEST(sh4_ma_3) {
   __ mov(r1, Immediate(5));
   __ mov(r2, Immediate(7));
   __ mov(r3, Immediate(11));
-  __ Push(r0,r1);
+  __ Push(r0, r1);
   __ mov(r0, Immediate(0xdeadbeef));
   __ mov(r1, Immediate(0xdeadbeef));
-  __ Pop(r0,r1);
+  __ Pop(r0, r1);
   __ cmp(r0, Immediate(3));
   B_LINE(ne, &error);
   __ cmp(r1, Immediate(5));
   B_LINE(ne, &error);
 
-  __ Push(r0,r1,r2);
+  __ Push(r0, r1, r2);
   __ mov(r0, Immediate(0xdeadbeef));
   __ mov(r1, Immediate(0xdeadbeef));
   __ mov(r2, Immediate(0xdeadbeef));
   __ pop(r2);
-  __ Pop(r0,r1);
+  __ Pop(r0, r1);
   __ cmp(r0, Immediate(3));
   B_LINE(ne, &error);
   __ cmp(r1, Immediate(5));
@@ -362,7 +362,7 @@ TEST(sh4_ma_3) {
   __ cmp(r2, Immediate(7));
   B_LINE(ne, &error);
 
-  __ Push(r0,r1,r2,r3);
+  __ Push(r0, r1, r2, r3);
   __ mov(r0, Immediate(0xdeadbeef));
   __ mov(r1, Immediate(0xdeadbeef));
   __ mov(r2, Immediate(0xdeadbeef));
@@ -416,7 +416,7 @@ TEST(sh4_ma_4) {
   __ mov(r1, Immediate(5));
   __ mov(r2, Immediate(7));
   __ mov(r3, Immediate(11));
-  __ Push(r0,r1,r2,r3);
+  __ Push(r0, r1, r2, r3);
   __ mov(r0, Immediate(0xdeadbeef));
   __ mov(r1, Immediate(0xdeadbeef));
   __ mov(r2, Immediate(0xdeadbeef));
@@ -445,8 +445,8 @@ TEST(sh4_ma_4) {
 
   __ Strd(r0, r1, MemOperand(sp, 0));
   __ Strd(r2, r3, MemOperand(sp, 8));
-  __ Pop(r1,r0);
-  __ Pop(r3,r2);
+  __ Pop(r1, r0);
+  __ Pop(r3, r2);
   __ cmp(r0, Immediate(5));
   B_LINE(ne, &error);
   __ cmp(r1, Immediate(3));
@@ -597,7 +597,7 @@ TEST(sh4_ma_5) {
   cond = assm.IsObjectStringType(r0, r1);
   B_LINE(cond, &error);
 
- // All ok.
+  // All ok.
   __ mov(r0, Immediate(0));
   EPILOGUE();
   __ rts();
@@ -736,7 +736,7 @@ TEST(sh4_ma_6) {
   B_LINE(al, &error);
   __ bind(&zero_neg2);
   B_LINE(al, &error);
-  __ bind (&skip_pow2);
+  __ bind(&skip_pow2);
   __ cmp(r1, Immediate(0x7fffffff));
     B_LINE(ne, &error);
 
@@ -1080,29 +1080,36 @@ TEST(sh4_ma_9) {
   __ CopyBytes(r1, r0, r2, r3);
 
   // Check that the src is untouched
-  __ pop(r0); __ cmpeq(r0, Immediate(0x789abcde)); __ mov(r1, Immediate(19 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0xabcdef01)); __ mov(r1, Immediate(18 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x13453abb)); __ mov(r1, Immediate(17 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x0000000f)); __ mov(r1, Immediate(16 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x000000f0)); __ mov(r1, Immediate(15 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x00000f00)); __ mov(r1, Immediate(14 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x000f0000)); __ mov(r1, Immediate(13 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x00f00000)); __ mov(r1, Immediate(12 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x0f000000)); __ mov(r1, Immediate(11 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0xf0000000)); __ mov(r1, Immediate(10 * 4)); B_LINE(ne, &error);
+#define POP_AND_CHECK(addr, val)        \
+  __ pop(r0);                           \
+  __ cmpeq(r0, Immediate(addr));        \
+  __ mov(r1, Immediate(val));           \
+  B_LINE(ne, &error);
+
+  POP_AND_CHECK(0x789abcde, 19 * 4);
+  POP_AND_CHECK(0xabcdef01, 18 * 4);
+  POP_AND_CHECK(0x13453abb, 17 * 4);
+  POP_AND_CHECK(0x0000000f, 16 * 4);
+  POP_AND_CHECK(0x000000f0, 15 * 4);
+  POP_AND_CHECK(0x00000f00, 14 * 4);
+  POP_AND_CHECK(0x000f0000, 13 * 4);
+  POP_AND_CHECK(0x00f00000, 12 * 4);
+  POP_AND_CHECK(0x0f000000, 11 * 4);
+  POP_AND_CHECK(0xf0000000, 10 * 4);
 
   // check that the dst is modified
-  __ pop(r0); __ cmpeq(r0, Immediate(0x789abcde)); __ mov(r1, Immediate(9 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0xabcdef01)); __ mov(r1, Immediate(8 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x13453abb)); __ mov(r1, Immediate(7 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x0000000f)); __ mov(r1, Immediate(6 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x000000f0)); __ mov(r1, Immediate(5 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x00000f00)); __ mov(r1, Immediate(4 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x000f0000)); __ mov(r1, Immediate(3 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x00f00000)); __ mov(r1, Immediate(2 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x0f000000)); __ mov(r1, Immediate(1 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0xf0000000)); __ mov(r1, Immediate(0 * 4)); B_LINE(ne, &error);
+  POP_AND_CHECK(0x789abcde, 9 * 4);
+  POP_AND_CHECK(0xabcdef01, 8 * 4);
+  POP_AND_CHECK(0x13453abb, 7 * 4);
+  POP_AND_CHECK(0x0000000f, 6 * 4);
+  POP_AND_CHECK(0x000000f0, 5 * 4);
+  POP_AND_CHECK(0x00000f00, 4 * 4);
+  POP_AND_CHECK(0x000f0000, 3 * 4);
+  POP_AND_CHECK(0x00f00000, 2 * 4);
+  POP_AND_CHECK(0x0f000000, 1 * 4);
+  POP_AND_CHECK(0xf0000000, 0 * 4);
 
+#undef POP_AND_CHECK
 
   // Test that copying 0 bytes dos not do anything
   __ push(Immediate(0xdeadbeef));
@@ -1112,8 +1119,15 @@ TEST(sh4_ma_9) {
 
   __ mov(r2, Immediate(0));
   __ CopyBytes(r1, r0, r2, r3);
-  __ pop(r0); __ cmpeq(r0, Immediate(0x00000ff0)); __ mov(r1, Immediate(1 * 4)); B_LINE(ne, &error);
-  __ pop(r0); __ cmpeq(r0, Immediate(0xdeadbeef)); __ mov(r1, Immediate(0 * 4)); B_LINE(ne, &error);
+  __ pop(r0);
+  __ cmpeq(r0, Immediate(0x00000ff0));
+  __ mov(r1, Immediate(1 * 4));
+  B_LINE(ne, &error);
+
+  __ pop(r0);
+  __ cmpeq(r0, Immediate(0xdeadbeef));
+  __ mov(r1, Immediate(0 * 4));
+  B_LINE(ne, &error);
 
   EPILOGUE();
   __ mov(r0, Immediate(0));
