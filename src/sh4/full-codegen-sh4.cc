@@ -3272,7 +3272,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
     __ Assert(eq, "No empty arrays here in EmitFastAsciiArrayJoin");
   }
   __ bind(&loop);
-  __ ldr(string, MemOperand(element)); __ add(element, element, Immediate(kPointerSize));
+  __ ldr(string, MemOperand(element));
+  __ add(element, element, Immediate(kPointerSize));
   __ JumpIfSmi(string, &bailout);
   __ ldr(scratch1, FieldMemOperand(string, HeapObject::kMapOffset));
   __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
@@ -3362,7 +3363,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   //   elements_end: Array end.
 
   // Copy next array element to the result.
-  __ ldr(string, MemOperand(element)); __ add(element, element, Immediate(kPointerSize));
+  __ ldr(string, MemOperand(element));
+  __ add(element, element, Immediate(kPointerSize));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
   __ add(string, string, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
@@ -3388,11 +3390,13 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   //   separator: Single separator ascii char (in lower byte).
 
   // Copy the separator character to the result.
-  __ strb(separator, MemOperand(result_pos)); __ add(result_pos, result_pos, Immediate(1));
+  __ strb(separator, MemOperand(result_pos));
+  __ add(result_pos, result_pos, Immediate(1));
 
   // Copy next array element to the result.
   __ bind(&one_char_separator_loop_entry);
-  __ ldr(string, MemOperand(element)); __ add(element, element, Immediate(kPointerSize));
+  __ ldr(string, MemOperand(element));
+  __ add(element, element, Immediate(kPointerSize));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
   __ add(string, string, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
@@ -3420,7 +3424,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ CopyBytes(string, result_pos, string_length, scratch1);
 
   __ bind(&long_separator);
-  __ ldr(string, MemOperand(element)); __ add(element, element, Immediate(kPointerSize));
+  __ ldr(string, MemOperand(element));
+  __ add(element, element, Immediate(kPointerSize));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
   __ add(string, string, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));

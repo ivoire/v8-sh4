@@ -25,13 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-
-#if defined(V8_TARGET_ARCH_SH4)
-
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <asm/cachectl.h>
+
+#include "v8.h"
+
+#if defined(V8_TARGET_ARCH_SH4)
 
 #include "cpu.h"
 #include "macro-assembler.h"

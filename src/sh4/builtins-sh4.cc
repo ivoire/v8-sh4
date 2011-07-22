@@ -263,7 +263,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ LoadRoot(scratch1, Heap::kFixedArrayMapRootIndex);
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
   __ str(scratch1, MemOperand(elements_array_storage));
-  __ add(elements_array_storage, elements_array_storage, 
+  __ add(elements_array_storage, elements_array_storage,
          Immediate(kPointerSize));
   ASSERT(kSmiTag == 0);
   __ tst(array_size, array_size);
@@ -746,11 +746,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
     __ mov(r5, r4);
     ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
-    __ str(r2, MemOperand(r5)); __ add(r5, r5, Immediate(kPointerSize));
+    __ str(r2, MemOperand(r5));
+    __ add(r5, r5, Immediate(kPointerSize));
     ASSERT_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
-    __ str(r6, MemOperand(r5)); __ add(r5, r5, Immediate(kPointerSize));
+    __ str(r6, MemOperand(r5));
+    __ add(r5, r5, Immediate(kPointerSize));
     ASSERT_EQ(2 * kPointerSize, JSObject::kElementsOffset);
-    __ str(r6, MemOperand(r5)); __ add(r5, r5, Immediate(kPointerSize));
+    __ str(r6, MemOperand(r5));
+    __ add(r5, r5, Immediate(kPointerSize));
 
     // Fill all the in-object properties with the appropriate filler.
     // r1: constructor function
@@ -770,7 +773,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
       __ b(&entry);
       __ bind(&loop);
-      __ str(r7, MemOperand(r5)); __ add(r5, r5, Immediate(kPointerSize));
+      __ str(r7, MemOperand(r5));
+      __ add(r5, r5, Immediate(kPointerSize));
       __ bind(&entry);
       __ cmpge(r5, r6);
       __ bf(&loop);
@@ -825,10 +829,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ LoadRoot(r6, Heap::kFixedArrayMapRootIndex);
     __ mov(r2, r5);
     ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
-    __ str(r6, MemOperand(r2)); __ add(r2, r2, Immediate(kPointerSize));
+    __ str(r6, MemOperand(r2));
+    __ add(r2, r2, Immediate(kPointerSize));
     ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
     __ lsl(r0, r3, Immediate(kSmiTagSize));
-    __ str(r0, MemOperand(r2)); __ add(r2, r2, Immediate(kPointerSize));
+    __ str(r0, MemOperand(r2));
+    __ add(r2, r2, Immediate(kPointerSize));
 
     // Initialize the fields to undefined.
     // r1: constructor function
@@ -849,7 +855,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
       __ b(&entry);
       __ bind(&loop);
-      __ str(r7, MemOperand(r2)); __ add(r2, r2, Immediate(kPointerSize));
+      __ str(r7, MemOperand(r2));
+      __ add(r2, r2, Immediate(kPointerSize));
       __ bind(&entry);
       __ cmpge(r2, r6);
       __ bf(&loop);
@@ -1259,8 +1266,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bf(&shift_arguments);
 
     __ bind(&convert_to_object);
-    __ EnterInternalFrame();  // In order to preserve argument count.
-    __ lsl(r0, r0, Immediate(kSmiTagSize)); // Smi-tagged.
+    __ EnterInternalFrame();    // In order to preserve argument count.
+    __ lsl(r0, r0, Immediate(kSmiTagSize));     // Smi-tagged.
     __ push(r0);
 
     __ push(r2);

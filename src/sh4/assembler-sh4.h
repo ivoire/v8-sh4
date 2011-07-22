@@ -147,8 +147,8 @@ const Register sh4_r10 = r10;
 const Register sh4_r11 = r11;
 const Register sh4_r12 = roots;
 const Register sh4_r13 = cp;
-const Register sh4_rtmp = r11; // Used for low level (assembler-sh4.cc)
-const Register sh4_ip = r10; // Used as additional scratch in JS code
+const Register sh4_rtmp = r11;  // Used for low level (assembler-sh4.cc)
+const Register sh4_ip = r10;    // Used as additional scratch in JS code
 
 
 // Single word VFP register.
@@ -684,14 +684,14 @@ class Assembler : public AssemblerBase {
 
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
-  static const int kPatchReturnSequenceAddressOffset = 0 * kInstrSize; // FIXME(STM)
+  static const int kPatchReturnSequenceAddressOffset = 0 * kInstrSize;
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-  static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize; // FIXME(STM)
+  static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
 
   // The debug break slot must be able to contain a call instruction.
-  static const int kDebugBreakSlotLength = kInstrSize; // FIXME(STM)
+  static const int kDebugBreakSlotLength = kInstrSize;
 
 
   // branch type
@@ -727,8 +727,8 @@ class Assembler : public AssemblerBase {
     return (pc_offset() - l->pos()) / kInstrSize;
   }
 
-  void jmp(Register Rd)                    { jmp_indRd_(Rd); nop_(); }
-  void jsr(Register Rd)                    { jsr_indRd_(Rd); nop_(); }
+  void jmp(Register Rd) { jmp_indRd_(Rd); nop_(); }
+  void jsr(Register Rd) { jsr_indRd_(Rd); nop_(); }
 
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
