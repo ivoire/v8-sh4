@@ -108,6 +108,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
                                              String* name,
                                              Register scratch0,
                                              Register scratch1) {
+  ASSERT(!scratch0.is(ip) && !scratch1.is(ip));
   ASSERT(name->IsSymbol());
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1, scratch0, scratch1);
@@ -128,7 +129,7 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   // Check that receiver is a JSObject.
   __ ldrb(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
   __ cmpge(scratch0, Immediate(FIRST_JS_OBJECT_TYPE));
-  __ b(ne, miss_label);
+  __ bf(miss_label);
 
   // Load properties array.
   Register properties = scratch0;
@@ -172,15 +173,15 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
 
     // Scale the index by multiplying by the entry size.
     ASSERT(StringDictionary::kEntrySize == 3);
-    __ lsl(scratch1, index, Immediate(1));
-    __ add(index, index, scratch1);  // index *= 3.
+    __ lsl(ip, index, Immediate(1));
+    __ add(index, index, ip);  // index *= 3.
 
     Register entity_name = scratch1;
     // Having undefined at this place means the name is not contained.
     ASSERT_EQ(kSmiTagSize, 1);
     Register tmp = properties;
-    __ lsl(tmp, index, Immediate(1));
-    __ add(tmp, properties, tmp);
+    __ lsl(ip, index, Immediate(1));
+    __ add(tmp, properties, ip);
     __ ldr(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
 
     ASSERT(!tmp.is(entity_name));
