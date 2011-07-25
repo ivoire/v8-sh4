@@ -5083,12 +5083,13 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ExternalReference function) {
   __ mov(ip, Immediate(reinterpret_cast<intptr_t>(GetCode().location()),
                        RelocInfo::CODE_TARGET));
-  __ ldrpr(ip);
+  __ push(ip);  // save pr ont he stask before the call to addpc that change
   __ mov(r2, Immediate(function));
   // Push return address (accessible to GC through exit frame pc).
-  __ addpc(ip, 0);
+  __ addpc(ip, 4 * Assembler::kInstrSize);
+  __ pop(pr);   // restaure the right pr (pointing to DirectCEntryStub::Generate)
   __ str(ip, MemOperand(sp, 0));
-  __ jmp(r2);  // Call the api function.
+  __ jmp(r2);   // Call the api function.
 }
 
 
