@@ -2798,7 +2798,39 @@ void FullCodeGenerator::EmitLog(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT(args->length() == 0);
+
+  Label slow_allocate_heapnumber;
+  Label heapnumber_allocated;
+
+  __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+  __ AllocateHeapNumber(r4, r1, r2, r6, &slow_allocate_heapnumber);
+  __ jmp(&heapnumber_allocated);
+
+  __ bind(&slow_allocate_heapnumber);
+  // Allocate a heap number.
+  __ CallRuntime(Runtime::kNumberAlloc, 0);
+  __ mov(r4, r0);
+
+  __ bind(&heapnumber_allocated);
+
+  // Convert 32 random bits in r0 to 0.(32 random bits) in a double
+  // by computing:
+  // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+// TODO: VFP
+//  if (CpuFeatures::IsSupported(VFP3)) {
+//  } else
+  {
+    __ Push(r4, r5, r6, r7);
+    __ PrepareCallCFunction(2, r0);
+    __ mov(r5, Immediate(ExternalReference::isolate_address()));
+    __ CallCFunction(
+        ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
+    __ Pop(r4, r5, r6, r7);
+  }
+
+  context()->Plug(r0);
+
 }
 
 
