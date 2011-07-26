@@ -2260,7 +2260,7 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         __ Push(r5, r4);
 
         // Allocate a heap number to store the result.
-        heap_number_result = r5;
+        heap_number_result = sh4_r8;
         GenerateHeapResultAllocation(masm,
                                      heap_number_result,
                                      heap_number_map,
