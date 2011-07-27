@@ -278,21 +278,21 @@ enum Condition {
   // any value < 0 is considered no_condition
   kNoCondition = -1,
 
-  eq = 0,       // equal
-  ne = 1,       // not equal
-  gt = 2,       // greater
-  ge = 3,       // greater or equal
-  hi = 4,       // unsigned higher
-  hs = 5,       // unsigned higher or equal
-  lt = 6,       // lesser
-  le = 7,       // lesser or equal
-  ui = 8,       // unsigned lower
-  us = 9,       // unsigned lower or equal
-  pl = 10,      // positiv
-  pz = 11,      // positiv or null
-  ql = 12,      // negativ
-  qz = 13,      // negativ or null
-  al = 14,      // Always
+  eq = 0 << 28,       // equal
+  ne = 1 << 28,       // not equal
+  gt = 2 << 28,       // greater
+  ge = 3 << 28,       // greater or equal
+  hi = 4 << 28,       // unsigned higher
+  hs = 5 << 28,       // unsigned higher or equal
+  lt = 6 << 28,       // lesser
+  le = 7 << 28,       // lesser or equal
+  ui = 8 << 28,       // unsigned lower
+  us = 9 << 28,       // unsigned lower or equal
+  pl = 10 << 28,      // positiv
+  pz = 11 << 28,      // positiv or null
+  ql = 12 << 28,      // negativ
+  qz = 13 << 28,      // negativ or null
+  al = 14 << 28,      // Always
 
   // Aliases
   t = eq,        // cmp eq; if SH4 cmpeq/cmp sets the T bit, t == eq
