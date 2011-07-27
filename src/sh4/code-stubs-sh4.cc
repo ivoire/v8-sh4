@@ -889,8 +889,9 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // Push the current return address before the C call. Return will be
   // through pop(pc) below.
   __ push(lr);
-  __ PrepareCallCFunction(4, scratch);  // Two doubles are 4 arguments.
+  __ PrepareCallCFunction(4, r0);  // Two doubles are 4 arguments.
   // Call C routine that may not cause GC or other trouble.
+
   __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
                    4);
   // Store answer in the overwritable heap number. Double returned in
@@ -1229,12 +1230,20 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
     __ lsl(r0, rhs_exponent, Immediate(kSmiTagSize));
     __ Ret();
   } else {
+    // Calling C function: move r0..r3 to r4..r7
+    __ Push(r4, r5, r6, r7);
+    __ mov(r4, r0);
+    __ mov(r5, r1);
+    __ mov(r6, r2);
+    __ mov(r7, r3);
+
     // Call a native function to do a comparison between two non-NaNs.
     // Call C routine that may not cause GC or other trouble.
     __ push(lr);
-    __ PrepareCallCFunction(4, r5);  // Two doubles count as 4 arguments.
+    __ PrepareCallCFunction(4, r0);  // Two doubles count as 4 arguments.
     __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()), 4);
     __ pop(lr);
+    __ Pop(r4, r5, r6, r7);
     __ Ret();
   }
 }

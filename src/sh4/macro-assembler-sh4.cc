@@ -210,7 +210,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   bind(&delete_allocated_handles);
   str(r5, MemOperand(r7, kLimitOffset));
   mov(r4, r0);
-  PrepareCallCFunction(1, r5);
+  PrepareCallCFunction(1, r0);
   mov(r0, Operand(ExternalReference::isolate_address()));
   CallCFunction(
       ExternalReference::delete_handle_scope_extensions(isolate()), 1);
@@ -997,6 +997,7 @@ static const int kRegisterPassedArguments = 4;
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   ASSERT(!scratch.is(sh4_ip));
+  ASSERT(!scratch.is(r4) && !scratch.is(r5) && !scratch.is(r6) && !scratch.is(r7));
   int frame_alignment = OS::ActivationFrameAlignment();
 
   // Up to four simple arguments are passed in registers r4..r7.
