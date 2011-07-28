@@ -211,7 +211,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
       StringDictionary::kElementsStartIndex * kPointerSize;
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   __ ldr(scratch1, FieldMemOperand(scratch2, kDetailsOffset));
-  __ tst(scratch1, Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
+  __ tst(scratch1,
+         Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
   __ b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
@@ -502,7 +503,8 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   __ cmphs(key, scratch1);
   __ bt(out_of_range);
   // Fast case: Do the load.
-  __ add(scratch1, elements, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(scratch1, elements,
+         Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
   // The key is a smi.
   ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   __ lsl(scratch2, key, Immediate(kPointerSizeLog2 - kSmiTagSize));
