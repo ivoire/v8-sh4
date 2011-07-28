@@ -16,7 +16,7 @@ SHELL="$RUN_PREFIX ./shell_g"
 total=0
 failed=0
 
-files=${1:-"$(ls test/mjsunit/*.js)"}
+files=${1:-"$(ls test/mjsunit/*.js | grep -v 'debug-')"}
 
 rm -f run_mjsunit.log
 echo "Running the tests..."
@@ -24,7 +24,8 @@ for file in $files
 do
   echo "=== $file ===" | tee -a run_mjsunit.log
   res=0
-  $SHELL test/mjsunit/mjsunit.js $file >>run_mjsunit.log 2>&1 || res=1
+  flags=$(grep 'Flags:' $file | sed 's/.*Flags: //')
+  $SHELL $flags test/mjsunit/mjsunit.js $file >>run_mjsunit.log 2>&1 || res=1
   if [ $res != 0 ]
   then
     echo "...FAILED" | tee -a run_mjsunit.log
