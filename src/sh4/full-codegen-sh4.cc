@@ -1508,9 +1508,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ ldr(r0, MemOperand(sp));
         __ push(r0);
         VisitForStackValue(key);
-        __ mov(r1, Immediate(property->kind() == ObjectLiteral::Property::SETTER ?
-                           Smi::FromInt(1) :
-                           Smi::FromInt(0)));
+        __ mov(r1, Immediate(property->kind() ==
+                             ObjectLiteral::Property::SETTER ? Smi::FromInt(1)
+                                                           : Smi::FromInt(0)));
         __ push(r1);
         VisitForStackValue(value);
         __ CallRuntime(Runtime::kDefineAccessor, 4);
@@ -2732,7 +2732,8 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE, ge);  // Map is now in r0.
+  // Map is now in r0.
+  __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE, ge);
   __ b(f, &null);
 
   // As long as JS_FUNCTION_TYPE is the last instance type and it is
@@ -3181,7 +3182,8 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ bf(&slow_case);
 
   // Bring the address of the elements into index1 and index2.
-  __ add(scratch1, elements, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(scratch1, elements,
+         Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
   __ lsl(index1, index1, Immediate(kPointerSizeLog2 - kSmiTagSize));
   __ add(index1, scratch1, index1);
   __ lsl(index2, index2, Immediate(kPointerSizeLog2 - kSmiTagSize));
@@ -3475,7 +3477,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ add(element, element, Immediate(kPointerSize));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
-  __ add(string, string, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(string, string,
+         Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   __ CopyBytes(string, result_pos, string_length, scratch1);
   __ cmpge(element, elements_end);
   __ bf(&empty_separator_loop);  // End while (element < elements_end).
@@ -3507,7 +3510,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ add(element, element, Immediate(kPointerSize));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
-  __ add(string, string, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(string, string,
+         Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   __ CopyBytes(string, result_pos, string_length, scratch1);
   __ cmpge(element, elements_end);
   __ bf(&one_char_separator_loop);  // End while (element < elements_end).
@@ -3536,7 +3540,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ add(element, element, Immediate(kPointerSize));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
-  __ add(string, string, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(string, string,
+         Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   __ CopyBytes(string, result_pos, string_length, scratch1);
   __ cmpge(element, elements_end);
   __ bf(&long_separator_loop);  // End while (element < elements_end).

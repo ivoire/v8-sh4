@@ -1062,7 +1062,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ jmp(&entry);
   __ bind(&loop);
     __ ldr(r0, MemOperand(r4));     // read next parameter
-    __ add(r4, r4, Immediate(kPointerSize));      // mov the r4 pointer onto the next parameter
+    // mov the r4 pointer onto the next parameter
+    __ add(r4, r4, Immediate(kPointerSize));
     __ ldr(r0, MemOperand(r0));  // dereference handle
     __ push(r0);  // push parameter
   __ bind(&entry);
@@ -1110,7 +1111,8 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
-static void Generate_LazyCompileHelper(MacroAssembler* masm, Runtime::FunctionId fid) {
+static void Generate_LazyCompileHelper(MacroAssembler* masm,
+                                       Runtime::FunctionId fid) {
   // Enter an internal frame.
   __ EnterInternalFrame();
 
@@ -1333,7 +1335,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Adjust the actual number of arguments and remove the top element
     // (which is a copy of the last argument).
     __ sub(r0, r0, Immediate(1));
-    __ add(sp, sp, Immediate(kPointerSize));    // Pop one pointer without saving it
+    // Pop one pointer without saving it
+    __ add(sp, sp, Immediate(kPointerSize));
   }
 
   // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin.

@@ -429,11 +429,13 @@ void FloatingPointHelper::LoadOperands(
 
   // Load right operand (r0) to d7 or r2/r3.
   LoadNumber(masm, destination,
-             r0, no_dreg/*d7*/, r2, r3, heap_number_map, scratch1, scratch2, slow);
+             r0, no_dreg/*d7*/, r2, r3, heap_number_map, scratch1, scratch2,
+             slow);
 
   // Load left operand (r1) to d6 or r0/r1.
   LoadNumber(masm, destination,
-             r1, no_dreg/*d7*/, r0, r1, heap_number_map, scratch1, scratch2, slow);
+             r1, no_dreg/*d7*/, r0, r1, heap_number_map, scratch1, scratch2,
+             slow);
 }
 
 
@@ -2815,7 +2817,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // sh4_r9: pointer to builtin function  (C callee-saved)
   // sh4_r10: pointer to the first argument (C callee-saved)
   Isolate* isolate = masm->isolate();
-  ASSERT(!r0.is(sh4_rtmp) && !sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) && !sh4_r10.is(sh4_rtmp));
+  ASSERT(!r0.is(sh4_rtmp) && !sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) &&
+         !sh4_r10.is(sh4_rtmp));
 
   if (do_gc) {
     // Passing r0.
@@ -3039,14 +3042,16 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r3: argc
   // r4: argv
   Isolate* isolate = masm->isolate();
-  __ mov(ip, Immediate(-1));       // Push a bad frame pointer to fail if it is used.
+  // Push a bad frame pointer to fail if it is used.
+  __ mov(ip, Immediate(-1));
   __ push(ip);
 
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ mov(r7, Immediate(Smi::FromInt(marker)));
   __ mov(r6, Immediate(Smi::FromInt(marker)));
 
-  __ mov(r5, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate)));
+  __ mov(r5, Operand(ExternalReference(Isolate::k_c_entry_fp_address,
+                                       isolate)));
   __ mov(r5, MemOperand(r5));
 
   __ push(r7);
@@ -5096,7 +5101,8 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ mov(r2, Immediate(function));
   // Push return address (accessible to GC through exit frame pc).
   __ addpc(ip, 4 * Assembler::kInstrSize);
-  __ pop(pr);   // restaure the right pr (pointing to DirectCEntryStub::Generate)
+  // restaure the right pr (pointing to DirectCEntryStub::Generate)
+  __ pop(pr);
   __ str(ip, MemOperand(sp, 0));
   __ jmp(r2);   // Call the api function.
 }

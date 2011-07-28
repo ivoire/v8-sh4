@@ -186,7 +186,8 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   // Check if the function scheduled an exception.
   bind(&leave_exit_frame);
   LoadRoot(r4, Heap::kTheHoleValueRootIndex);
-  mov(sh4_ip, Immediate(ExternalReference::scheduled_exception_address(isolate())));
+  mov(sh4_ip,
+      Immediate(ExternalReference::scheduled_exception_address(isolate())));
   ldr(r5, MemOperand(sh4_ip));
   cmp(r4, r5);
   b(ne, &promote_scheduled_exception);
@@ -987,7 +988,8 @@ void MacroAssembler::PopTryHandler() {
   RECORD_LINE();
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
   pop(r1);
-  mov(sh4_ip, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  mov(sh4_ip,
+      Operand(ExternalReference(Isolate::k_handler_address, isolate())));
   add(sp, sp, Immediate(StackHandlerConstants::kSize - kPointerSize));
   str(r1, MemOperand(sh4_ip));
 }
@@ -997,7 +999,8 @@ static const int kRegisterPassedArguments = 4;
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   ASSERT(!scratch.is(sh4_ip));
-  ASSERT(!scratch.is(r4) && !scratch.is(r5) && !scratch.is(r6) && !scratch.is(r7));
+  ASSERT(!scratch.is(r4) && !scratch.is(r5) && !scratch.is(r6) &&
+         !scratch.is(r7));
   int frame_alignment = OS::ActivationFrameAlignment();
 
   // Up to four simple arguments are passed in registers r4..r7.
@@ -1447,7 +1450,8 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
   RECORD_LINE();
-  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
     mov(scratch1, Immediate(value));
@@ -1460,7 +1464,8 @@ void MacroAssembler::SetCounter(StatsCounter* counter, int value,
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value > 0);
-  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
@@ -1475,7 +1480,8 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
 void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value > 0);
-  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
@@ -1636,17 +1642,19 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   mov(topaddr, Immediate(new_space_allocation_top));
   mov(obj_size_reg, Immediate(object_size));
 
-  // This code stores a temporary value in sh4_ip (ARM:ip). This is OK, as the code below
+  // This code stores a temporary value in sh4_ip (ARM:ip).
+  // This is OK, as the code below
   // does not need sh4_ip (ARM:ip) for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     RECORD_LINE();
-    // Load allocation top into result and allocation limit into sh4_ip (ARM:ip).
+    // Load allocation top into result and allocation limit into sh4_ip (ARM:ip)
     ldr(result, MemOperand(topaddr));
     ldr(sh4_ip, MemOperand(topaddr, 4));
   } else {
     if (emit_debug_code()) {
       RECORD_LINE();
-      // Assert that result actually contains top on entry. sh4_ip (ARM:ip) is used
+      // Assert that result actually contains top on entry.
+      // sh4_ip (ARM:ip) is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
       ldr(sh4_ip, MemOperand(topaddr));
@@ -1654,7 +1662,8 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
       Check(eq, "Unexpected allocation top");
     }
     RECORD_LINE();
-    // Load allocation limit into sh4_ip (ARM: ip). Result already contains allocation top.
+    // Load allocation limit into sh4_ip (ARM: ip).
+    // Result already contains allocation top.
     ldr(sh4_ip, MemOperand(topaddr, limit - top));
   }
 
@@ -1729,17 +1738,19 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   RECORD_LINE();
   mov(topaddr, Operand(new_space_allocation_top));
 
-  // This code stores a temporary value in sh4_ip (ARM:ip). This is OK, as the code below
+  // This code stores a temporary value in sh4_ip (ARM:ip).
+  // This is OK, as the code below
   // does not need sh4_ip (ARM:ip) for implicit literal generation.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     RECORD_LINE();
-    // Load allocation top into result and allocation limit into sh4_ip (ARM:ip).
+    // Load allocation top into result and allocation limit into sh4_ip (ARM:ip)
     ldr(result, MemOperand(topaddr));
     ldr(sh4_ip, MemOperand(topaddr, 4));
   } else {
     if (emit_debug_code()) {
       RECORD_LINE();
-      // Assert that result actually contains top on entry. sh4_ip (ARM:ip) is used
+      // Assert that result actually contains top on entry.
+      // sh4_ip (ARM:ip) is used
       // immediately below so this use of ip does not cause difference with
       // respect to register content between debug and release mode.
       ldr(sh4_ip, MemOperand(topaddr));
@@ -1747,7 +1758,8 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
       Check(eq, "Unexpected allocation top");
     }
     RECORD_LINE();
-    // Load allocation limit into sh4_ip (ARM: ip). Result already contains allocation top.
+    // Load allocation limit into sh4_ip (ARM: ip).
+    // Result already contains allocation top.
     ldr(sh4_ip, MemOperand(topaddr, limit - top));
   }
 
@@ -2233,9 +2245,11 @@ void MacroAssembler::Bfc(Register dst, int lsb, int width) {
 }
 
 
-MacroAssembler* MacroAssembler::RecordFunctionLine(const char* function, int line) {
+MacroAssembler* MacroAssembler::RecordFunctionLine(const char* function,
+                                                   int line) {
   if (FLAG_code_comments) {
-    int size = strlen("/line/")+strlen(function) + 10 + 1 + 1; /* 10(strlen of MAXINT) + 1(separator) +1(nul). */
+    /* 10(strlen of MAXINT) + 1(separator) +1(nul). */
+    int size = strlen("/line/")+strlen(function) + 10 + 1 + 1;
     char *buffer = new char[size];
     snprintf(buffer, size, "/line/%s/%d", function, line);
     buffer[size-1] = '\0';
@@ -2252,7 +2266,8 @@ void MacroAssembler::InNewSpace(Register object,
   ASSERT(!object.is(sh4_ip) && !scratch.is(sh4_ip));
   ASSERT(cond == eq || cond == ne);
   RECORD_LINE();
-  land(scratch, object, Immediate(ExternalReference::new_space_mask(isolate())));
+  land(scratch, object,
+       Immediate(ExternalReference::new_space_mask(isolate())));
   mov(sh4_ip, Immediate(ExternalReference::new_space_start(isolate())));
   cmpeq(scratch, sh4_ip);
   b(cond, branch);
@@ -2478,7 +2493,8 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
     Label* not_power_of_two_or_zero) {
   ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
   RECORD_LINE();
-  // Note: actually the case 0x80000000 is considered a power of two (not a neg value)
+  // Note: actually the case 0x80000000 is considered a power of two
+  // (not a neg value)
   sub(scratch, reg, Immediate(1));
   cmpge(scratch, Immediate(0));
   bf(not_power_of_two_or_zero);
@@ -2494,7 +2510,8 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
     Label* not_power_of_two) {
   ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
   RECORD_LINE();
-  // Note: actually the case 0x80000000 is considered a pozer of two (not a neg value)
+  // Note: actually the case 0x80000000 is considered a pozer of two
+  // (not a neg value)
   sub(scratch, reg, Immediate(1));
   cmpge(scratch, Immediate(0));
   bf(zero_and_neg);

@@ -245,7 +245,8 @@ void Assembler::add(Register Rd, const Immediate& imm, Register rtmp) {
 }
 
 
-void Assembler::add(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::add(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
   if (Rs.code() != Rd.code()) {
     mov(Rd, imm);
     add_(Rs, Rd);
@@ -268,7 +269,8 @@ void Assembler::add(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::sub(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::sub(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
   mov(rtmp, imm);
   if (Rs.code() == Rd.code()) {
     sub_(rtmp, Rd);
@@ -307,14 +309,16 @@ void Assembler::addv(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::addv(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::addv(Register Rd, Register Rs, const Immediate& imm,
+                     Register rtmp) {
   mov(rtmp, imm);
   addv(Rd, Rs, rtmp);
 }
 
 
 void Assembler::addc(Register Rd, Register Rs, Register Rt) {
-  clrt_(); // Clear T bit before using addc
+  // Clear T bit before using addc
+  clrt_();
   if (Rs.code() == Rd.code())
     addc_(Rt, Rd);
   else if (Rt.code() == Rd.code()) {
@@ -344,7 +348,8 @@ void Assembler::subv(Register Rd, Register Rs, Register Rt, Register rtmp) {
 
 
 void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
-  clrt_(); // Clear T bit before using subc
+  // Clear T bit before using subc
+  clrt_();
   if (Rs.code() == Rd.code())
     subc_(Rt, Rd);
   else if (Rt.code() == Rd.code()) {
@@ -360,7 +365,8 @@ void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
 }
 
 // TODO: check why asl is useful? Is it like lsl?
-void Assembler::asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::asl(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
   ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
@@ -384,7 +390,8 @@ void Assembler::asr(Register Rd, Register Rs, Register Rt, Register rtmp) {
 }
 
 
-void Assembler::asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::asr(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
   ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
@@ -398,7 +405,8 @@ void Assembler::asr(Register Rd, Register Rs, const Immediate& imm, Register rtm
 }
 
 
-void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
   ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
@@ -428,7 +436,8 @@ void Assembler::lsl(Register Rd, Register Rs, Register Rt, Register rtmp) {
 }
 
 
-void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
   ASSERT(imm.x_ >= 0 && imm.x_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
@@ -454,7 +463,8 @@ void Assembler::lsr(Register Rd, Register Rs, Register Rt, Register rtmp) {
 }
 
 
-void Assembler::land(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::land(Register Rd, Register Rs, const Immediate& imm,
+                     Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_and_imm_R0(imm.x_)) {
     and_imm_R0_(imm.x_);
   } else {
@@ -476,7 +486,8 @@ void Assembler::land(Register Rd, Register Rs, Register Rt) {
   }
 }
 
-void Assembler::lor(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+void Assembler::lor(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_or_imm_R0(imm.x_)) {
     or_imm_R0_(imm.x_);
   } else {
@@ -507,7 +518,8 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt, Condition cond) {
   bind(&end);
 }
 
-void Assembler::lor(Register Rd, Register Rs, const Immediate& imm, Condition cond, Register rtmp) {
+void Assembler::lor(Register Rd, Register Rs, const Immediate& imm,
+                    Condition cond, Register rtmp) {
   ASSERT(cond == ne || cond == eq);
   Label end;
   if (cond == eq) bf(&end); // Jump after sequence if T bit is false
@@ -515,7 +527,10 @@ void Assembler::lor(Register Rd, Register Rs, const Immediate& imm, Condition co
   lor(Rd, Rs, imm, rtmp);
   bind(&end);
 }
-void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm, Register rtmp) {
+
+
+void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm,
+                     Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(imm.x_)) {
     xor_imm_R0_(imm.x_);
   } else {
@@ -572,7 +587,8 @@ void Assembler::dd(uint32_t data) {
 Register Assembler::GetRn(Instr instr) {
   ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
   Register reg;
-  reg.code_ = (instr & 0x0F00) >> 8; // extract Rn from cmp/xx Rm, Rn
+  // extract Rn from cmp/xx Rm, Rn
+  reg.code_ = (instr & 0x0F00) >> 8;
   return reg;
 }
 
@@ -580,36 +596,41 @@ Register Assembler::GetRn(Instr instr) {
 Register Assembler::GetRm(Instr instr) {
   ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
   Register reg;
-  reg.code_ = (instr & 0x00F0) >> 4; // extract Rn from cmp/xx Rm, Rn
+  // extract Rn from cmp/xx Rm, Rn
+  reg.code_ = (instr & 0x00F0) >> 4;
   return reg;
 }
 
 
 bool Assembler::IsMovImmediate(Instr instr) {
-  return (instr & 0xF000) == 0xE000; // mov #ii, Rn
+  // mov #ii, Rn
+  return (instr & 0xF000) == 0xE000;
 }
 
 
 bool Assembler::IsBranch(Instr instr) {
-  return (instr & 0xF900) == 0x8900; // bt|bf|bt/s|bf/s instrs.
+  // bt|bf|bt/s|bf/s instrs.
+  return (instr & 0xF900) == 0x8900;
 }
 
 
 Condition Assembler::GetCondition(Instr instr) {
   ASSERT(IsBranch(instr));
   return (instr & 0x200) == 0x200 ?
-    ne : // bf| bf/s
-    eq;  // bt|bt/s
+    ne :        // bf| bf/s
+    eq;         // bt|bt/s
 }
 
 
 bool Assembler::IsCmpRegister(Instr instr) {
-  return (instr & 0xF00F) == 0x3000; // cmp/eq Rm, Rn
+  // cmp/eq Rm, Rn
+  return (instr & 0xF00F) == 0x3000;
 }
 
 
 bool Assembler::IsCmpImmediate(Instr instr) {
-  return (instr & 0xFF00) == 0x8800; // cmp/eq #ii, R0
+  // cmp/eq #ii, R0
+  return (instr & 0xFF00) == 0x8800;
 }
 
 
@@ -708,16 +729,21 @@ void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   nop_();
 }
 
-void Assembler::branch(int offset, Register rtmp, branch_type type, bool patched_later) {
+void Assembler::branch(int offset, Register rtmp, branch_type type,
+                       bool patched_later) {
   switch (type) {
   case branch_true:
-    bt(offset, rtmp, patched_later); break;
+    bt(offset, rtmp, patched_later);
+    break;
   case branch_false:
-    bf(offset, rtmp, patched_later); break;
+    bf(offset, rtmp, patched_later);
+    break;
   case branch_unconditional:
-    jmp(offset, rtmp, patched_later); break;
+    jmp(offset, rtmp, patched_later);
+    break;
   case branch_subroutine:
-    jsr(offset, rtmp, patched_later); break;
+    jsr(offset, rtmp, patched_later);
+    break;
   }
 }
 
@@ -727,9 +753,11 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant) {
   ASSERT(*(p_constant - 1) == 0x09);
   // Is it a jsr or any other branch ?
   if (*(p_constant - 2) == 0xa002)
-    *reinterpret_cast<uint32_t*>(p_constant) = target_pos - (unsigned)p_constant + 4;
+    *reinterpret_cast<uint32_t*>(p_constant) = target_pos -
+                                               (unsigned)p_constant + 4;
   else
-    *reinterpret_cast<uint32_t*>(p_constant) = target_pos - (unsigned)p_constant;
+    *reinterpret_cast<uint32_t*>(p_constant) = target_pos -
+                                               (unsigned)p_constant;
 }
 
 
@@ -888,7 +916,8 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
       Address target_address = pc_;
       // Verify that target_address_address_at() is actually returning
       // the address where the target address for the instruction is stored.
-      ASSERT(target_address == target_address_address_at((byte*)(buffer_ + instr_address)));
+      ASSERT(target_address ==
+             target_address_address_at((byte*)(buffer_ + instr_address)));
     }
 #endif
     *reinterpret_cast<uint32_t*>(pc_) = imm.x_;
@@ -988,7 +1017,8 @@ void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
       movw_indRs_(rtmp, Rd);
     }
   }
-  extuw_(Rd, Rd); // Zero extension
+  // Zero extension
+  extuw_(Rd, Rd);
 }
 
 
@@ -1080,7 +1110,8 @@ void Assembler::mul(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::dmuls(Register dstL, Register dstH, Register src1, Register src2) {
+void Assembler::dmuls(Register dstL, Register dstH, Register src1,
+                      Register src2) {
   dmulsl_(src1, src2);
   sts_MACL_(dstL);
   sts_MACH_(dstH);
