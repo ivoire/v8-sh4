@@ -248,7 +248,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   ASSERT(!extra2.is(no_reg));
 
   // Check that ip is not used
-  ASSERT(!receiver.is(ip) && !name.is(ip) && !scratch.is(ip) && !extra.is(ip) && !extra2.is(ip));
+  ASSERT(!receiver.is(ip) && !name.is(ip) && !scratch.is(ip) &&
+         !extra.is(ip) && !extra2.is(ip));
 
   // Check that the receiver isn't a smi.
   __ tst(receiver, Immediate(kSmiTagMask));
@@ -259,7 +260,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, ip);
   __ lxor(scratch, scratch, Immediate(flags));
-  __ land(scratch, scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  __ land(scratch, scratch,
+          Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the primary table.
   ProbeTable(isolate, masm, flags, kPrimary, name, scratch, extra, extra2);
@@ -267,7 +269,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   // Primary miss: Compute hash for secondary probe.
   __ sub(scratch, scratch, name);
   __ add(scratch, scratch, Immediate(flags));
-  __ land(scratch, scratch, Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
+  __ land(scratch, scratch,
+          Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the secondary table.
   ProbeTable(isolate, masm, flags, kSecondary, name, scratch, extra, extra2);
@@ -3505,7 +3508,8 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       // Extract exponent to r1. OK to clobber r1 now as there are no jumps to
       // the slow case from here.
       __ lsr(r1, value, Immediate(kBinary32MantissaBits));
-      __ land(r1, r1, Immediate(kBinary32ExponentMask >> kBinary32MantissaBits));
+      __ land(r1, r1,
+              Immediate(kBinary32ExponentMask >> kBinary32MantissaBits));
 
       Label exponent_rebiased;
       __ cmp(r1, Immediate(0x00));
@@ -3746,12 +3750,13 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
     //     // Test for NaN or infinity (both give zero).
     //     __ ldr(r6, FieldMemOperand(value, HeapNumber::kExponentOffset));
 
-    //     // Hoisted load.  vldr requires offset to be a multiple of 4 so we can
+    //     // Hoisted load. vldr requires offset to be a multiple of 4 so we can
     //     // not include -kHeapObjectTag into it.
     //     __ sub(r5, value, Operand(kHeapObjectTag));
     //     __ vldr(d0, r5, HeapNumber::kValueOffset);
 
-    //     __ Sbfx(r6, r6, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+    //     __ Sbfx(r6, r6, HeapNumber::kExponentShift,
+    //             HeapNumber::kExponentBits);
     //     // NaNs and Infinities have all-one exponents so they sign extend to -1.
     //     __ cmp(r6, Operand(-1));
     //     __ mov(r5, Operand(0), LeaveCC, eq);
@@ -3782,7 +3787,6 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
     //         break;
     //     }
     //   }
-
     //   // Entry registers are intact, r0 holds the value which is the return
     //   // value.
     //   __ Ret();
