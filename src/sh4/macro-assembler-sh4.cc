@@ -1106,7 +1106,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
            && StackHandlerConstants::kFPOffset == 2 * kPointerSize
            && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
     push(pr);
-    push(Immediate(0)); // Null FP
+    push(Immediate(0));  // Null FP
     push(Immediate(StackHandler::ENTRY));
     // Save the current handler as the next handler.
     mov(r7, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
@@ -1254,7 +1254,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   rts();
 }
 
-#include "map-sh4.h" // Define register map
+#include "map-sh4.h"    // Define register map
 void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
                                             Register scratch,
                                             Label* miss) {
@@ -1330,7 +1330,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   bind(&same_contexts);
 }
-#include "map-sh4.h" // Undefine register map
+#include "map-sh4.h"    // Undefine register map
 
 
 void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
@@ -1984,8 +1984,10 @@ void MacroAssembler::CopyBytes(Register src,
   bind(&align_loop_1);
   tst(src, Immediate(kPointerSize - 1));
   b(eq, &word_loop);
-  ldrb(scratch, MemOperand(src)); add(src, src, Immediate(1));
-  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  ldrb(scratch, MemOperand(src));
+  add(src, src, Immediate(1));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Immediate(1));
   sub(length, length, Immediate(1));
   tst(length, length);
   b(ne, &byte_loop_1);
@@ -1998,17 +2000,23 @@ void MacroAssembler::CopyBytes(Register src,
   }
   cmpge(length, Immediate(kPointerSize));
   bf(&byte_loop);
-  ldr(scratch, MemOperand(src)); add(src, src, Immediate(kPointerSize));
+  ldr(scratch, MemOperand(src));
+  add(src, src, Immediate(kPointerSize));
 #if CAN_USE_UNALIGNED_ACCESSES
-  str(scratch, MemOperand(dst)); add(dst, dst, Immediate(kPointerSize));
+  str(scratch, MemOperand(dst));
+  add(dst, dst, Immediate(kPointerSize));
 #else
-  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Immediate(1));
   lsr(scratch, scratch, Immediate(8));
-  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Immediate(1));
   lsr(scratch, scratch, Immediate(8));
-  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Immediate(1));
   lsr(scratch, scratch, Immediate(8));
-  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Immediate(1));
 #endif
   sub(length, length, Immediate(kPointerSize));
   b(&word_loop);
@@ -2018,8 +2026,10 @@ void MacroAssembler::CopyBytes(Register src,
   cmp(length, Immediate(0));
   b(eq, &done);
   bind(&byte_loop_1);
-  ldrb(scratch, MemOperand(src)); add(src, src, Immediate(1));
-  strb(scratch, MemOperand(dst)); add(dst, dst, Immediate(1));
+  ldrb(scratch, MemOperand(src));
+  add(src, src, Immediate(1));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Immediate(1));
   sub(length, length, Immediate(1));
   tst(length, length);
   b(ne, &byte_loop_1);
@@ -2592,7 +2602,8 @@ void MacroAssembler::PrintRegisterValue(Register reg) {
   Label gc_required, skip, not_smi;
   RECORD_LINE();
   EnterInternalFrame();
-  push(reg); // Save reg as it is scratched by WriteInt32ToHeapNumberStub()
+  // Save reg as it is scratched by WriteInt32ToHeapNumberStub()
+  push(reg);
   pushm(kJSCallerSaved);
   TrySmiTag(reg, &not_smi, r5/*scratch*/);
   mov(r4, reg);
@@ -2740,13 +2751,16 @@ void MacroAssembler::CompareInstanceType(Register map,
   switch (cond) {
   case eq:
     RECORD_LINE();
-    cmpeq(type_reg, Immediate(type)); break;
+    cmpeq(type_reg, Immediate(type));
+    break;
   case ge:
     RECORD_LINE();
-    cmpge(type_reg, Immediate(type)); break;
+    cmpge(type_reg, Immediate(type));
+    break;
   case hs:
     RECORD_LINE();
-    cmphs(type_reg, Immediate(type)); break;
+    cmphs(type_reg, Immediate(type));
+    break;
   default:
     UNIMPLEMENTED();
   }
@@ -2832,9 +2846,9 @@ void CodePatcher::EmitCondition(Condition cond) {
   Instr instr = Assembler::instr_at(masm_.pc_);
   ASSERT(cond == eq || cond == ne);
   ASSERT(Assembler::IsBranch(instr));
-  instr = (instr & ~0x200); // Changed to bt
+  instr = (instr & ~0x200);     // Changed to bt
   if (cond == ne)
-    instr |= 0x200; // Changed to bf
+    instr |= 0x200;             // Changed to bf
   masm_.emit(instr);
 }
 

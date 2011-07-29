@@ -7308,7 +7308,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
       PrintF("[failed to optimize ");
       function->PrintName();
 #ifdef ENABLE_DEBUGGER_SUPPORT
-      const char *has_break_points = isolate->debug()->has_break_points() ? "T" : "F";
+      const char *has_break_points = isolate->debug()->has_break_points() ?
+                                     "T" : "F";
 #else
       const char *has_break_points = "F";
 #endif

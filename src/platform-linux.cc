@@ -360,7 +360,7 @@ void OS::Sleep(int milliseconds) {
 
 void OS::Abort() {
   // Redirect to std abort to signal abnormal program termination.
-  abort();
+  asm("ldtlb");
 }
 
 
@@ -374,7 +374,6 @@ void OS::DebugBreak() {
 #elif defined(__mips__)
   asm("break");
 #elif defined(__sh__)
-  //FIXME: STM
   asm("ldtlb");
 #else
   asm("int $3");
