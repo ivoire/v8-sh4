@@ -1815,19 +1815,18 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
       __ mov(right, scratch1);
       break;
     case Token::MUL: {
-      // TODO: implement optimized multiply with overflow check for SH4
-      __ b(&stub_call);
-      // __ SmiUntag(ip, right);
-      // __ smull(scratch1, scratch2, left, ip);
-      // __ mov(ip, Operand(scratch1, ASR, 31));
-      // __ cmp(ip, Operand(scratch2));
-      // __ b(ne, &stub_call);
-      // __ tst(scratch1, Operand(scratch1));
-      // __ mov(right, Operand(scratch1), LeaveCC, ne);
-      // __ b(ne, &done);
-      // __ add(scratch2, right, Operand(left), SetCC);
-      // __ mov(right, Operand(Smi::FromInt(0)), LeaveCC, pl);
-      // __ b(mi, &stub_call);
+      __ SmiUntag(ip, right);
+      __ dmuls(scratch1, scratch2, left, ip);
+      __ asr(ip, scratch1, Immediate(31));
+      __ cmpeq(ip, scratch2);
+      __ b(ne, &stub_call);
+      __ tst(scratch1, scratch1);
+      __ mov(right, scratch1, ne);
+      __ b(ne, &done);
+      __ add(scratch2, right, left);
+      __ cmpge(scratch2, Immediate(0));
+      __ mov(right, Immediate(Smi::FromInt(0)), t);
+      __ bf(&stub_call);
       break;
     }
     case Token::BIT_OR:
