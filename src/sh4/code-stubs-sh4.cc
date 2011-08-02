@@ -428,6 +428,7 @@ void FloatingPointHelper::LoadOperands(
     Label* slow) {
 
   // Load right operand (r0) to d7 or r2/r3.
+  ASSERT(!heap_number_map.is(r0) && !heap_number_map.is(r1) && !heap_number_map.is(r2) && !heap_number_map.is(r3));
   LoadNumber(masm, destination,
              r0, no_dreg/*d7*/, r2, r3, heap_number_map, scratch1, scratch2,
              slow);
@@ -881,12 +882,9 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // We currently always use r8 to pass it.
   ASSERT(heap_number_result.is(sh4_r8));
 
-  // Calling C function: move r0..r3 to r4..r7
-  __ Push(r4, r5, r6, r7);
-  __ mov(r4, r0);
-  __ mov(r5, r1);
-  __ mov(r6, r2);
-  __ mov(r7, r3);
+  // Calling C function (using double registers): move r0..r3 to fr4..fr7
+  __ movd(dr4, r0, r1);
+  __ movd(dr6, r2, r3);
 
   // Push the current return address before the C call. Return will be
   // through pop(pc) below.
@@ -896,6 +894,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
 
   __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
                    4);
+  __ movd(r0, r1, dr0);
   // Store answer in the overwritable heap number. Double returned in
   // registers r0 and r1.
   __ Strd(r0, r1, FieldMemOperand(heap_number_result,
@@ -903,7 +902,6 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // Place heap_number_result in r0 and return to the pushed return address.
   __ mov(r0, heap_number_result);
   __ pop(lr);
-  __ Pop(r4, r5, r6, r7);
   __ rts();
 }
 
