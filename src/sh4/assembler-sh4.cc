@@ -656,7 +656,7 @@ void Assembler::bind(Label* L) {
   ASSERT(!L->is_bound());
 
   // Jump directly to the current PC
-  int target_pos = (int)pc_;
+  int target_pos = reinterpret_cast<int>(pc_);
 
   // List the linked to patch
   while (L->is_linked()) {
@@ -941,8 +941,10 @@ void Assembler::addpc(Register Rd, int offset, Register rtmp) {
 void Assembler::mov(Register Rd, Register Rs, Condition cond) {
   ASSERT(cond == ne || cond == eq);
   // If cond is eq, we move Rs into Rd, otherwise, nop
-  if (cond == eq) bf_(0); // Jump after sequence if T bit is false
-  else bt_(0); // Jump after sequence if T bit is true
+  if (cond == eq)
+    bf_(0);     // Jump after sequence if T bit is false
+  else
+    bt_(0);     // Jump after sequence if T bit is true
   mov_(Rs, Rd);
 }
 
@@ -951,13 +953,17 @@ void Assembler::mov(Register Rd, const Immediate& imm, Condition cond) {
   ASSERT(cond == ne || cond == eq);
   if (FITS_SH4_mov_imm(imm.x_)) {
     // If cond is eq, we move Rs into Rd, otherwise, nop
-    if (cond == eq) bf_(0); // Jump after sequence if T bit is false
-    else bt_(0); // Jump after sequence if T bit is true
+    if (cond == eq)
+      bf_(0);           // Jump after sequence if T bit is false
+    else
+      bt_(0);           // Jump after sequence if T bit is true
     mov_imm_(imm.x_, Rd);
   } else {
     Label skip;
-    if (cond == eq) bf(&skip);
-    else bt(&skip);
+    if (cond == eq)
+      bf(&skip);
+    else
+      bt(&skip);
     mov(Rd, imm);
     bind(&skip);
   }
