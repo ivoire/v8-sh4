@@ -1608,12 +1608,9 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
 
   // Assert that the register arguments are different and that none of
   // them are ip. ip is used explicitly in the code generated below.
-  ASSERT(!result.is(scratch1));
-  ASSERT(!result.is(scratch2));
-  ASSERT(!scratch1.is(scratch2));
-  ASSERT(!result.is(sh4_ip));
-  ASSERT(!scratch1.is(sh4_ip));
-  ASSERT(!scratch2.is(sh4_ip));
+  ASSERT(!result.is(scratch1) && !result.is(scratch2) && !scratch1.is(scratch2));
+  ASSERT(!result.is(sh4_ip) && !scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
+  ASSERT(!result.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
 
   // Make object size into bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {

@@ -417,7 +417,8 @@ enum ScaleFactor {
 
 class Operand BASE_EMBEDDED {
  public:
-  INLINE(explicit Operand(int32_t immediate, RelocInfo::Mode rmode = RelocInfo::NONE));
+  INLINE(explicit Operand(int32_t immediate,
+                          RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
   explicit Operand(Handle<Object> handle);
 
@@ -640,7 +641,8 @@ class Assembler : public AssemblerBase {
   // Note: The same Label can be used for forward and backward branches
   // but it may be bound only once.
 
-  void bind(Label* L);  // binds an unbound label L to the current code position
+  // binds an unbound label L to the current code position
+  void bind(Label* L);
 
 
   // Return the address in the constant pool of the code target address used by
@@ -684,7 +686,8 @@ class Assembler : public AssemblerBase {
   // jsr rx
   // nop
   // ...                      @ return address (put in pr by the jsr)
-  static const int kCallTargetAddressOffset = 2 * kInstrSize + 4 + 4 * kInstrSize;
+  static const int kCallTargetAddressOffset = 2 * kInstrSize + 4 +
+                                              4 * kInstrSize;
 
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
@@ -712,7 +715,8 @@ class Assembler : public AssemblerBase {
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
   void add(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp);
-  void add(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void add(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
   void add(Register Rd, Register Rs, Register Rt);
 
   void bt(Label* L, Register rtmp = sh4_rtmp)    { branch(L, rtmp, branch_true); }
