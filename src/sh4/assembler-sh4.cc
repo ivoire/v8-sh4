@@ -1022,6 +1022,26 @@ void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 
+void Assembler::movd(DwVfpRegister Dd, Register Rs1, Register Rs2)
+{
+  align();
+  push(Rs1);
+  push(Rs2);
+  fmov_incRs_(sp, SwVfpRegister::from_code(Dd.code()));
+  fmov_incRs_(sp, SwVfpRegister::from_code(Dd.code()+1));
+}
+
+
+void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds)
+{
+  align();
+  fmov_decRd_(SwVfpRegister::from_code(Ds.code()), sp);
+  fmov_decRd_(SwVfpRegister::from_code(Ds.code()+1), sp);
+  pop(Rd1);
+  pop(Rd2);
+}
+
+
 void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
   if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
@@ -1127,7 +1147,8 @@ void Assembler::pop(Register dst) {
 
 
 void Assembler::pop(DwVfpRegister dst) {
-  fmov_incRs_(sp, dst);
+  fmov_incRs_(sp, SwVfpRegister::from_code(dst.code()));
+  fmov_incRs_(sp, SwVfpRegister::from_code(dst.code()+1));
 }
 
 
@@ -1157,7 +1178,8 @@ void Assembler::push(Register src) {
 
 
 void Assembler::push(DwVfpRegister src) {
-  fmov_decRd_(src, sp);
+  fmov_decRd_(SwVfpRegister::from_code(src.code()), sp);
+  fmov_decRd_(SwVfpRegister::from_code(src.code()+1), sp);
 }
 
 

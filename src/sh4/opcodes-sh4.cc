@@ -1519,21 +1519,21 @@ void Assembler::fmov_indRd_(Register Rs, Register Rd) {
 }
 
 
-void Assembler::fmov_Xdouble_indRd_(Register Rs, Register Rd) {
+void Assembler::fmov_Xdouble_indRd_(DwVfpRegister Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
   emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xA << 0));
   asm_output("fmov_Xdouble_indRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
-void Assembler::fmov_incRs_(Register Rs, DwVfpRegister Rd) {
+void Assembler::fmov_incRs_(Register Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
   emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x9 << 0));
   asm_output("fmov_incRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
-void Assembler::fmov_decRd_(DwVfpRegister Rs, Register Rd) {
+void Assembler::fmov_decRd_(SwVfpRegister Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
   emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xB << 0));
   asm_output("fmov_decRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));

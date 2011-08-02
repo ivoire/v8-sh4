@@ -163,6 +163,10 @@ struct SwVfpRegister {
     ASSERT(is_valid());
     return 1 << code_;
   }
+  static SwVfpRegister from_code(int code) {
+    SwVfpRegister r = { code };
+    return r;
+  }
   void split_code(int* vm, int* m) const {
     ASSERT(is_valid());
     *m = code_ & 0x1;
@@ -872,6 +876,9 @@ class Assembler : public AssemblerBase {
   void mov(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store op.
   void movb(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store 8 bits op.
   void movw(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store 16 bits op.
+
+  void movd(DwVfpRegister Dd, Register Rs1, Register Rs2);
+  void movd(Register Rd1, Register Rd2, DwVfpRegister Ds);
 
   void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { mov(Rd, src, rtmp); }
   void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { movb(Rd, src, rtmp); }
