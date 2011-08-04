@@ -389,20 +389,9 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
                                    FloatingPointHelper::Destination destination,
                                    Register scratch1,
                                    Register scratch2) {
-//TODO: VFP
-//  if (CpuFeatures::IsSupported(VFP3)) {
-//    CpuFeatures::Scope scope(VFP3);
-//    __ mov(scratch1, Operand(r0, ASR, kSmiTagSize));
-//    __ vmov(d7.high(), scratch1);
-//    __ vcvt_f64_s32(d7, d7.high());
-//    __ mov(scratch1, Operand(r1, ASR, kSmiTagSize));
-//    __ vmov(d6.high(), scratch1);
-//    __ vcvt_f64_s32(d6, d6.high());
-//    if (destination == kCoreRegisters) {
-//      __ vmov(r2, r3, d7);
-//      __ vmov(r0, r1, d6);
-//    }
-//  } else
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
   {
     ASSERT(destination == kCoreRegisters);
     // Write Smi from r0 to r3 and r2 in double format.
@@ -428,7 +417,8 @@ void FloatingPointHelper::LoadOperands(
     Label* slow) {
 
   // Load right operand (r0) to d7 or r2/r3.
-  ASSERT(!heap_number_map.is(r0) && !heap_number_map.is(r1) && !heap_number_map.is(r2) && !heap_number_map.is(r3));
+  ASSERT(!heap_number_map.is(r0) && !heap_number_map.is(r1) &&
+         !heap_number_map.is(r2) && !heap_number_map.is(r3));
   LoadNumber(masm, destination,
              r0, no_dreg/*d7*/, r2, r3, heap_number_map, scratch1, scratch2,
              slow);
@@ -450,7 +440,8 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
                                      Register scratch1,
                                      Register scratch2,
                                      Label* not_number) {
-  ASSERT(dst.is(no_dreg));  // TODO: FP unit, then remove this assert
+  // TODO(stm): remove this assert when FPU is supported
+  ASSERT(dst.is(no_dreg));
 
   if (FLAG_debug_code) {
     __ AbortIfNotRootValue(heap_number_map,
@@ -464,14 +455,10 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
 
   // Handle loading a double from a heap number.
-//TODO: VFP
-//  if (CpuFeatures::IsSupported(VFP3) &&
-//      destination == kVFPRegisters) {
-//    CpuFeatures::Scope scope(VFP3);
-//    // Load the double from tagged HeapNumber to double register.
-//    __ sub(scratch1, object, Operand(kHeapObjectTag));
-//    __ vldr(dst, scratch1, HeapNumber::kValueOffset);
-//  } else
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3) &&
+  //     destination == kVFPRegisters) {
+  // } else
   {
     ASSERT(destination == kCoreRegisters);
     // Load the double from heap number to dst1 and dst2 in double format.
@@ -481,23 +468,15 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 
   // Handle loading a double from a smi.
   __ bind(&is_smi);
-//TODO: VFP
-//  if (CpuFeatures::IsSupported(VFP3)) {
-//    CpuFeatures::Scope scope(VFP3);
-//    // Convert smi to double using VFP instructions.
-//    __ SmiUntag(scratch1, object);
-//    __ vmov(dst.high(), scratch1);
-//    __ vcvt_f64_s32(dst, dst.high());
-//    if (destination == kCoreRegisters) {
-//      // Load the converted smi to dst1 and dst2 in double format.
-//      __ vmov(dst1, dst2, dst);
-//    }
-//  } else
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
   {
     ASSERT(destination == kCoreRegisters);
     // Write smi to dst1 and dst2 double format.
     __ mov(scratch1, object);
-    ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2); //TODO: check order of dst2, dst1
+    // TODO(stm): check order of dst2, dst1
+    ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
     __ push(lr);
     __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
     __ pop(lr);
@@ -516,7 +495,8 @@ void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
                                                Register scratch3,
                                                DwVfpRegister double_scratch,
                                                Label* not_number) {
-  ASSERT(double_scratch.is(no_dreg)); //TODO: remove when FP unit active
+  // TODO(stm): remove when FPU is active
+  ASSERT(double_scratch.is(no_dreg));
   if (FLAG_debug_code) {
     __ AbortIfNotRootValue(heap_number_map,
                            Heap::kHeapNumberMapRootIndex,
@@ -562,22 +542,17 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
                                              Register dst2,
                                              Register scratch2,
                                              SwVfpRegister single_scratch) {
-  ASSERT(double_dst.is(no_dreg));  // TODO: FP unit, then remove this assert
-  ASSERT(single_scratch.is(no_freg));  // TODO: FP unit, then remove this assert
+  // TODO(stm): remove these asserts when the FPU is used
+  ASSERT(double_dst.is(no_dreg));
+  ASSERT(single_scratch.is(no_freg));
 
   ASSERT(!int_scratch.is(scratch2));
 
   Label done;
 
-  // TODO: FP unit
+  // TODO(stm): FPU
   // if (CpuFeatures::IsSupported(VFP3)) {
-  //   CpuFeatures::Scope scope(VFP3);
-  //   __ vmov(single_scratch, int_scratch);
-  //   __ vcvt_f64_s32(double_dst, single_scratch);
-  //   if (destination == kCoreRegisters) {
-  //     __ vmov(dst1, dst2, double_dst);
-  //   }
-  //} else
+  // } else
   {
     Label fewer_than_20_useful_bits;
     // Expected output:
@@ -647,8 +622,9 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Register scratch2,
                                                   SwVfpRegister single_scratch,
                                                   Label* not_int32) {
-  ASSERT(single_scratch.is(no_freg)); //TODO: FP unit: remove this assert when ready
-  ASSERT(double_dst.is(no_dreg)); //TODO: FP unit: remove this assert when ready
+  // TODO(stm): remove these asserts when the FPU is used
+  ASSERT(single_scratch.is(no_freg));
+  ASSERT(double_dst.is(no_dreg));
   ASSERT(!scratch1.is(object) && !scratch2.is(object));
   ASSERT(!scratch1.is(scratch2));
   ASSERT(!heap_number_map.is(object) &&
@@ -672,28 +648,9 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_int32);
 
   // Load the number.
-  // TODO: FP unit
+  // TODO(stm): FPU
   // if (CpuFeatures::IsSupported(VFP3)) {
-  //   CpuFeatures::Scope scope(VFP3);
-  //   // Load the double value.
-  //   __ sub(scratch1, object, Operand(kHeapObjectTag));
-  //   __ vldr(double_dst, scratch1, HeapNumber::kValueOffset);
-
-  //   __ EmitVFPTruncate(kRoundToZero,
-  //                      single_scratch,
-  //                      double_dst,
-  //                      scratch1,
-  //                      scratch2,
-  //                      kCheckForInexactConversion);
-
-  //   // Jump to not_int32 if the operation did not succeed.
-  //   __ b(ne, not_int32);
-
-  //   if (destination == kCoreRegisters) {
-  //     __ vmov(dst1, dst2, double_dst);
-  //   }
-
-  //} else
+  // } else
   {
     ASSERT(!scratch1.is(object) && !scratch2.is(object));
     // Load the double value in the destination registers..
@@ -726,7 +683,8 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
                                             Register scratch3,
                                             DwVfpRegister double_scratch,
                                             Label* not_int32) {
-  ASSERT(double_scratch.is(no_dreg)); //TODO: FP unit: remove this assert when ready
+  // TODO(stm): remove these asserts when the FPU is used
+  ASSERT(double_scratch.is(no_dreg));
   ASSERT(!dst.is(object));
   ASSERT(!scratch1.is(object) && !scratch2.is(object) && !scratch3.is(object));
   ASSERT(!scratch1.is(scratch2) &&
@@ -749,26 +707,8 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
 
   // Object is a heap number.
   // Convert the floating point value to a 32-bit integer.
-  // TODO: FP unit
+  // TODO(stm): FPU
   // if (CpuFeatures::IsSupported(VFP3)) {
-  //   CpuFeatures::Scope scope(VFP3);
-  //   SwVfpRegister single_scratch = double_scratch.low();
-  //   // Load the double value.
-  //   __ sub(scratch1, object, Operand(kHeapObjectTag));
-  //   __ vldr(double_scratch, scratch1, HeapNumber::kValueOffset);
-
-  //   __ EmitVFPTruncate(kRoundToZero,
-  //                      single_scratch,
-  //                      double_scratch,
-  //                      scratch1,
-  //                      scratch2,
-  //                      kCheckForInexactConversion);
-
-  //   // Jump to not_int32 if the operation did not succeed.
-  //   __ b(ne, not_int32);
-  //   // Get the result in the destination register.
-  //   __ vmov(dst, single_scratch);
-
   // } else
   {
     // Load the double value in the destination registers.
@@ -1097,15 +1037,19 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   }
 
   // Lhs is a smi, rhs is a number.
-  //TODO: floating point
-  __ push(lr);
-  // Convert lhs to a double in r2, r3.
-  __ mov(r7, lhs);
-  ConvertToDoubleStub stub1(r3, r2, r7, r6);
-  __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
-  // Load rhs to a double in r0, r1.
-  __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-  __ pop(lr);
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
+  {
+    __ push(lr);
+    // Convert lhs to a double in r2, r3.
+    __ mov(r7, lhs);
+    ConvertToDoubleStub stub1(r3, r2, r7, r6);
+    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    // Load rhs to a double in r0, r1.
+    __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
+    __ pop(lr);
+  }
 
   // We now have both loaded as doubles but we can skip the lhs nan check
   // since it's a smi.
@@ -1129,15 +1073,19 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   }
 
   // Rhs is a smi, lhs is a heap number.
-  //TODO: floating point
-  __ push(lr);
-  // Load lhs to a double in r2, r3.
-  __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-  // Convert rhs to a double in r0, r1.
-  __ mov(r7, rhs);
-  ConvertToDoubleStub stub2(r1, r0, r7, r6);
-  __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
-  __ pop(lr);
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
+  {
+    __ push(lr);
+    // Load lhs to a double in r2, r3.
+    __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
+    // Convert rhs to a double in r0, r1.
+    __ mov(r7, rhs);
+    ConvertToDoubleStub stub2(r1, r0, r7, r6);
+    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ pop(lr);
+  }
   // Fall through to both_loaded_as_doubles.
 }
 
@@ -1309,9 +1257,13 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
   // Both are heap numbers.  Load them up then jump to the code we have
   // for that.
-  //TODO: floating point
-  __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-  __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
+  {
+    __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
+    __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
+  }
   __ jmp(both_loaded_as_doubles);
 }
 
@@ -1494,14 +1446,18 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ bind(&both_loaded_as_doubles);
   // The arguments have been converted to doubles and stored in d6 and d7, if
   // VFP3 is supported, or in r0, r1, r2, and r3.
-  //TODO: Floating point
+  // TODO(stm): FPU
   Isolate* isolate = masm->isolate();
-  // Checks for NaN in the doubles we have loaded.  Can return the answer or
-  // fall through if neither is a NaN.  Also binds lhs_not_nan.
-  EmitNanCheck(masm, &lhs_not_nan, cc_);
-  // Compares two doubles in r0, r1, r2, r3 that are not NaNs.  Returns the
-  // answer.  Never falls through.
-  EmitTwoNonNanDoubleComparison(masm, cc_);
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
+  {
+    // Checks for NaN in the doubles we have loaded.  Can return the answer or
+    // fall through if neither is a NaN.  Also binds lhs_not_nan.
+    EmitNanCheck(masm, &lhs_not_nan, cc_);
+    // Compares two doubles in r0, r1, r2, r3 that are not NaNs.  Returns the
+    // answer.  Never falls through.
+    EmitTwoNonNanDoubleComparison(masm, cc_);
+  }
 
   __ bind(&not_smis);
   // At this point we know we are dealing with two different objects,
@@ -1689,7 +1645,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
       __ sub(right, left, right);        // Revert optimistic subtract.
       break;
     case Token::MUL:
-      // TODO: implement optimized multiply with overflow check for SH4
+      // TODO(stm): implement optimized multiply with overflow check for SH4
       // Remove tag from one of the operands. This way the multiplication result
       // will be a smi if it fits the smi range.
       __ SmiUntag(ip, right);
@@ -1703,7 +1659,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiSmiOperation(
       __ cmp(ip, scratch2);
       __ b(ne, &not_smi_result);
       // Go slow on zero result to handle -0.
-      // TODO: merge cond mov and cond Ret or use fast branch
+      // TODO(stm): merge cond mov and cond Ret or use fast branch
       __ tst(scratch1, scratch1);
       __ mov(right, scratch1, ne);
       __ Ret(ne);
@@ -1824,10 +1780,10 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       // Load left and right operands into d6 and d7 or r0/r1 and r2/r3
       // depending on whether VFP3 is available or not.
       FloatingPointHelper::Destination destination =
-//TODO: VFP
-//          CpuFeatures::IsSupported(VFP3) &&
-//          op_ != Token::MOD ?
-//          FloatingPointHelper::kVFPRegisters :
+     // TODO(stm): FPU
+          // CpuFeatures::IsSupported(VFP3) &&
+          // op_ != Token::MOD ?
+          // FloatingPointHelper::kVFPRegisters :
           FloatingPointHelper::kCoreRegisters;
 
       // Allocate new heap number for result.
@@ -1848,35 +1804,9 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       }
 
       // Calculate the result.
-//TODO: VFP
-//      if (destination == FloatingPointHelper::kVFPRegisters) {
-//        // Using VFP registers:
-//        // d6: Left value
-//        // d7: Right value
-//        CpuFeatures::Scope scope(VFP3);
-//        switch (op_) {
-//          case Token::ADD:
-//            __ vadd(d5, d6, d7);
-//            break;
-//          case Token::SUB:
-//            __ vsub(d5, d6, d7);
-//            break;
-//          case Token::MUL:
-//            __ vmul(d5, d6, d7);
-//            break;
-//          case Token::DIV:
-//            __ vdiv(d5, d6, d7);
-//            break;
-//          default:
-//            UNREACHABLE();
-//        }
-//
-//        __ sub(r0, result, Immediate(kHeapObjectTag));
-//        __ vstr(d5, r0, HeapNumber::kValueOffset);
-//        __ add(r0, r0, Immediate(kHeapObjectTag));
-//        __ Ret();
-//
-//      } else
+      // TODO(stm): FPU
+      // if (destination == FloatingPointHelper::kVFPRegisters) {
+      // } else
       {
         // Call the C function to handle the double operation.
         FloatingPointHelper::CallCCodeForDoubleOperation(masm,
@@ -1945,10 +1875,9 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
           // The code below for writing into heap numbers isn't capable of
           // writing the register as an unsigned int so we go to slow case if we
           // hit this case.
-          //TODO: VFP
-          //if (CpuFeatures::IsSupported(VFP3)) {
-          //  __ b(mi, &result_not_a_smi);
-          //} else
+          // TODO(stm): FPU
+          // if (CpuFeatures::IsSupported(VFP3)) {
+          // } else
           {
             __ bf(not_numbers);
           }
@@ -1987,21 +1916,9 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       // result.
       __ mov(r0, r5);
 
-      //TODO: VFP
-      //if (CpuFeatures::IsSupported(VFP3)) {
-      //  // Convert the int32 in r2 to the heap number in r0. r3 is corrupted. As
-      //  // mentioned above SHR needs to always produce a positive result.
-      //  CpuFeatures::Scope scope(VFP3);
-      //  __ vmov(s0, r2);
-      //  if (op_ == Token::SHR) {
-      //    __ vcvt_f64_u32(d0, s0);
-      //  } else {
-      //     __ vcvt_f64_s32(d0, s0);
-      //  }
-      //  __ sub(r3, r0, Immediate(kHeapObjectTag));
-      //  __ vstr(d0, r3, HeapNumber::kValueOffset);
-      //  __ Ret();
-      //} else
+      // TODO(stm): FPU
+      // if (CpuFeatures::IsSupported(VFP3)) {
+      // } else
       {
         // Tail call that writes the int32 in r2 to the heap number in r0, using
         // r3 as scratch. r0 is preserved and returned.
@@ -2121,8 +2038,8 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Register right = r0;
   Register scratch1 = r7;
   Register scratch2 = r9;
-  DwVfpRegister double_scratch = no_dreg/*d0*/; // TODO: FP unit, change when ready
-  SwVfpRegister single_scratch = no_freg/*s3*/; // TODO: FP unit, change when ready
+  DwVfpRegister double_scratch = no_dreg/*d0*/;         // TODO(stm): FPU
+  SwVfpRegister single_scratch = no_freg/*s3*/;         // TODO(stm): FPU
 
   Register heap_number_result = no_reg;
   Register heap_number_map = r6;
@@ -2180,87 +2097,9 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                  no_freg/*TODO:s0*/,
                                                  &transition);
 
-    //TODO: FP unit
+    // TODO(stm): FPU
     // if (destination == FloatingPointHelper::kVFPRegisters) {
-    //     CpuFeatures::Scope scope(VFP3);
-    //     Label return_heap_number;
-    //     switch (op_) {
-    //       case Token::ADD:
-    //         __ vadd(d5, d6, d7);
-    //         break;
-    //       case Token::SUB:
-    //         __ vsub(d5, d6, d7);
-    //         break;
-    //       case Token::MUL:
-    //         __ vmul(d5, d6, d7);
-    //         break;
-    //       case Token::DIV:
-    //         __ vdiv(d5, d6, d7);
-    //         break;
-    //       default:
-    //         UNREACHABLE();
-    //     }
-
-    //     if (op_ != Token::DIV) {
-    //       // These operations produce an integer result.
-    //       // Try to return a smi if we can.
-    //       // Otherwise return a heap number if allowed, or jump to type
-    //       // transition.
-
-    //       __ EmitVFPTruncate(kRoundToZero,
-    //                          single_scratch,
-    //                          d5,
-    //                          scratch1,
-    //                          scratch2);
-
-    //       if (result_type_ <= TRBinaryOpIC::INT32) {
-    //         // If the ne condition is set, result does
-    //         // not fit in a 32-bit integer.
-    //         __ b(ne, &transition);
-    //       }
-
-    //       // Check if the result fits in a smi.
-    //       __ vmov(scratch1, single_scratch);
-    //       __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
-    //       // If not try to return a heap number.
-    //       __ b(mi, &return_heap_number);
-    //       // Check for minus zero. Return heap number for minus zero.
-    //       Label not_zero;
-    //       __ cmp(scratch1, Operand(0));
-    //       __ b(ne, &not_zero);
-    //       __ vmov(scratch2, d5.high());
-    //       __ tst(scratch2, Operand(HeapNumber::kSignMask));
-    //       __ b(ne, &return_heap_number);
-    //       __ bind(&not_zero);
-
-    //       // Tag the result and return.
-    //       __ SmiTag(r0, scratch1);
-    //       __ Ret();
-    //     } else {
-    //       // DIV just falls through to allocating a heap number.
-    //     }
-
-    //     if (result_type_ >= (op_ == Token::DIV) ? TRBinaryOpIC::HEAP_NUMBER
-    //                                             : TRBinaryOpIC::INT32) {
-    //       __ bind(&return_heap_number);
-    //       // We are using vfp registers so r5 is available.
-    //       heap_number_result = r5;
-    //       GenerateHeapResultAllocation(masm,
-    //                                    heap_number_result,
-    //                                    heap_number_map,
-    //                                    scratch1,
-    //                                    scratch2,
-    //                                    &call_runtime);
-    //       __ sub(r0, heap_number_result, Operand(kHeapObjectTag));
-    //       __ vstr(d5, r0, HeapNumber::kValueOffset);
-    //       __ mov(r0, heap_number_result);
-    //       __ Ret();
-    //     }
-
-    //     // A DIV operation expecting an integer result falls through
-    //     // to type transition.
-
-    //} else
+    // } else
     {
         // We preserved r0 and r1 to be able to call runtime.
         // Save the left value on the stack.
@@ -2345,12 +2184,9 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // The non vfp3 code does not support this special case, so jump to
           // runtime if we don't support it.
           __ cmpge(r2, Immediate(0));
-          //TODO: FP unit
+          // TODO(stm): FPU
           // if (CpuFeatures::IsSupported(VFP3)) {
-          //   __ b(f,
-          //        (result_type_ <= TRBinaryOpIC::INT32) ? &transition
-          //                                              : &return_heap_number);
-          //} else
+          // } else
           {
             __ b(f, (result_type_ <= TRBinaryOpIC::INT32) ? &transition
                                                            : &call_runtime);
@@ -2381,25 +2217,9 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                    scratch1,
                                    scratch2,
                                    &call_runtime);
-      //TODO: FP unit
+      // TODO(stm): FPU
       // if (CpuFeatures::IsSupported(VFP3)) {
-      //   CpuFeatures::Scope scope(VFP3);
-      //   if (op_ != Token::SHR) {
-      //     // Convert the result to a floating point value.
-      //     __ vmov(double_scratch.low(), r2);
-      //     __ vcvt_f64_s32(double_scratch, double_scratch.low());
-      //   } else {
-      //     // The result must be interpreted as an unsigned 32-bit integer.
-      //     __ vmov(double_scratch.low(), r2);
-      //     __ vcvt_f64_u32(double_scratch, double_scratch.low());
-      //   }
-
-      //   // Store the result.
-      //   __ sub(r0, heap_number_result, Operand(kHeapObjectTag));
-      //   __ vstr(double_scratch, r0, HeapNumber::kValueOffset);
-      //   __ mov(r0, heap_number_result);
-      //   __ Ret();
-      //} else
+      // } else
       {
         // Tail call that writes the int32 in r2 to the heap number in r0, using
         // r3 as scratch. r0 is preserved and returned.
@@ -2611,9 +2431,9 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   const Register cache_entry = r0;
   const bool tagged = (argument_type_ == TAGGED);
 
-//FIXME: VFP
-//  if (CpuFeatures::IsSupported(VFP3)) {
-//  }  // if (CpuFeatures::IsSupported(VFP3))
+  // FIXME(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // }  // if (CpuFeatures::IsSupported(VFP3))
 
   __ bind(&calculate);
   if (tagged) {
@@ -2622,7 +2442,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime_function, 1, 1);
   } else {
-    //FIXME: VFP
+    // FIXME(stm): FPU
     UNREACHABLE();
   }
 }
@@ -2749,15 +2569,9 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ mov(r0, r2);
     }
 
-    // TODO: check fast version with float for SH4
+    // TODO(stm): FPU
     // if (CpuFeatures::IsSupported(VFP3)) {
-    //   // Convert the int32 in r1 to the heap number in r0. r2 is corrupted.
-    //   CpuFeatures::Scope scope(VFP3);
-    //   __ vmov(s0, r1);
-    //   __ vcvt_f64_s32(d0, s0);
-    //   __ sub(r2, r0, Operand(kHeapObjectTag));
-    //   __ vstr(d0, r2, HeapNumber::kValueOffset);
-    // } else 
+    // } else
     {
       // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
       // have to set up a frame.
@@ -2790,8 +2604,12 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  //TODO: VFP
-  __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
+  {
+    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+  }
 }
 
 
@@ -3029,7 +2847,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r2: receiver
   // r3: argc
   // [sp+0]: argv
-  __ ldr(r4, MemOperand(sp, (kNumCalleeSaved + 1)* kPointerSize)); // argv
+  __ ldr(r4, MemOperand(sp, (kNumCalleeSaved + 1)* kPointerSize));  // argv
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r0: code entry
@@ -3449,13 +3267,13 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ add(r1, r1, Immediate(FixedArray::kHeaderSize / kPointerSize));
   __ bind(&add_arguments_object);
   __ add(r1, r1, Immediate(GetArgumentsObjectSize() / kPointerSize));
-  
+
   // Do the allocation of both objects in one go.
   __ AllocateInNewSpace(
-      r1, // object size
-      r0, // result
-      r2, // scratch1
-      r3, // scratch2
+      r1,  // object size
+      r0,  // result
+      r2,  // scratch1
+      r3,  // scratch2
       &runtime,
       static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
 
@@ -3534,7 +3352,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else
-  //TODO
+  // TODO(stm)
 #endif
 }
 
@@ -4041,7 +3859,7 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
   // short strings.
   if (!ascii) {
     __ add(count, count, count);
-  } 
+  }
   __ cmp(count, Immediate(0));
   __ b(eq, &done);
 
@@ -4097,15 +3915,15 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   Label done;
   if (!ascii) {
     __ add(count, count, count);
-  } 
+  }
   __ cmp(count, Immediate(0));
   __ b(eq, &done);
 
   // Assume that you cannot read (or write) unaligned.
   Label byte_loop;
   __ add(count, dest, count);
-  Register limit = count;  
-  // TODO: SH4 implementation is not optimized, always copy byte per byte.
+  Register limit = count;
+  // TODO(stm): SH4 implementation is not optimized, always copy byte per byte.
   // See ARM version for example of optimized code.
 
   // Copy bytes from src to dst until dst hits limit.
@@ -4347,7 +4165,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Both to and from are smis.
 
   __ sub(r2, r2, r3);
-  __ cmpge(r2, Immediate(0)); 
+  __ cmpge(r2, Immediate(0));
   __ bf(&runtime);  // Fail if from > to.
   // Special handling of sub-strings of length 1 and 2. One character strings
   // are handled in the runtime system (looked up in the single character
@@ -4974,7 +4792,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   if (GetCondition() == eq) {
     // For equality we do not care about the sign of the result.
     __ sub(r0, r0, r1);
-    __ tst(r0, r0);//TODO: why setting CC? is it used?
+    __ tst(r0, r0);     // TODO(stm): why setting CC? is it used?
   } else {
     // Untag before subtracting to avoid handling overflow.
     __ SmiUntag(r1);
@@ -5005,30 +4823,9 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or VFP3 is unsupported.
-//TODO: VFP
-//  if (CpuFeatures::IsSupported(VFP3)) {
-//    CpuFeatures::Scope scope(VFP3);
-//
-//    // Load left and right operand
-//    __ sub(r2, r1, Operand(kHeapObjectTag));
-//    __ vldr(d0, r2, HeapNumber::kValueOffset);
-//    __ sub(r2, r0, Operand(kHeapObjectTag));
-//    __ vldr(d1, r2, HeapNumber::kValueOffset);
-//
-//    // Compare operands
-//    __ VFPCompareAndSetFlags(d0, d1);
-//
-//    // Don't base result on status bits when a NaN is involved.
-//    __ b(vs, &unordered);
-//
-//    // Return a result of -1, 0, or 1, based on status bits.
-//    __ mov(r0, Operand(EQUAL), LeaveCC, eq);
-//    __ mov(r0, Operand(LESS), LeaveCC, lt);
-//    __ mov(r0, Operand(GREATER), LeaveCC, gt);
-//    __ Ret();
-//
-//    __ bind(&unordered);
-//  }
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // }
 
   CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, r1, r0);
   __ bind(&generic_stub);

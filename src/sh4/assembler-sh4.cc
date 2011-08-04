@@ -364,7 +364,7 @@ void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
   }
 }
 
-// TODO: check why asl is useful? Is it like lsl?
+// TODO(stm): check why asl is useful? Is it like lsl?
 void Assembler::asl(Register Rd, Register Rs, const Immediate& imm,
                     Register rtmp) {
   ASSERT(imm.x_ >= 0 && imm.x_ < 32);
@@ -512,8 +512,10 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt) {
 void Assembler::lor(Register Rd, Register Rs, Register Rt, Condition cond) {
   ASSERT(cond == ne || cond == eq);
   Label end;
-  if (cond == eq) bf(&end); // Jump after sequence if T bit is false
-  else bt(&end); // Jump after sequence if T bit is true
+  if (cond == eq)
+    bf(&end);   // Jump after sequence if T bit is false
+  else
+    bt(&end);   // Jump after sequence if T bit is true
   lor(Rd, Rs, Rt);
   bind(&end);
 }
@@ -522,8 +524,10 @@ void Assembler::lor(Register Rd, Register Rs, const Immediate& imm,
                     Condition cond, Register rtmp) {
   ASSERT(cond == ne || cond == eq);
   Label end;
-  if (cond == eq) bf(&end); // Jump after sequence if T bit is false
-  else bt(&end); // Jump after sequence if T bit is true
+  if (cond == eq)
+    bf(&end);   // Jump after sequence if T bit is false
+  else
+    bt(&end);   // Jump after sequence if T bit is true
   lor(Rd, Rs, imm, rtmp);
   bind(&end);
 }
@@ -713,7 +717,7 @@ void Assembler::branch(Label* L, Register rtmp, branch_type type) {
 
 void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  // TODO: make a faster sequence where the constant pool is
+  // TODO(stm): make a faster sequence where the constant pool is
   // after the branch
   mov(rtmp, Immediate(reinterpret_cast<intptr_t>(code.location()), rmode));
   jmp_indRd_(rtmp);
@@ -722,7 +726,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
 
 void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  // TODO: make a faster sequence where the constant pool is
+  // TODO(stm): make a faster sequence where the constant pool is
   // after the branch
   mov(rtmp, Immediate(reinterpret_cast<intptr_t>(code.location()), rmode));
   jsr_indRd_(rtmp);
@@ -1028,8 +1032,7 @@ void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 
-void Assembler::movd(DwVfpRegister Dd, Register Rs1, Register Rs2)
-{
+void Assembler::movd(DwVfpRegister Dd, Register Rs1, Register Rs2) {
   align();
   push(Rs1);
   push(Rs2);
@@ -1038,8 +1041,7 @@ void Assembler::movd(DwVfpRegister Dd, Register Rs1, Register Rs2)
 }
 
 
-void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds)
-{
+void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds) {
   align();
   fmov_decRd_(SwVfpRegister::from_code(Ds.code()), sp);
   fmov_decRd_(SwVfpRegister::from_code(Ds.code()+1), sp);
@@ -1222,7 +1224,7 @@ void Assembler::pushm(RegList src, bool doubles) {
 // Stops with a non-negative code less than kNumOfWatchedStops support
 // enabling/disabling and a counter feature. See simulator-arm.h .
 void Assembler::stop(const char* msg) {
-  // TODO handle simulator based stuff (ref to ARM code)
+  // TODO(stm): handle simulator based stuff (ref to ARM code)
   bkpt();
 }
 
@@ -1233,8 +1235,6 @@ void Assembler::bkpt() {
   ldtlb_();
 }
 
-
-//#define SH4_DUMP_BUFFER
 
 #ifdef SH4_DUMP_BUFFER
 static int buffer_count = 0;

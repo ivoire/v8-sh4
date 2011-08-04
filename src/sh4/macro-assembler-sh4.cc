@@ -244,21 +244,8 @@ void MacroAssembler::ConvertToInt32(Register source,
          !scratch2.is(sh4_ip));
   ASSERT(!source.is(dest));
 
-  // TODO: SH4, check VFP code
+  // TODO(stm): FPU
   // if (CpuFeatures::IsSupported(VFP3)) {
-  //   CpuFeatures::Scope scope(VFP3);
-  //   sub(scratch, source, Operand(kHeapObjectTag));
-  //   vldr(double_scratch, scratch, HeapNumber::kValueOffset);
-  //   vcvt_s32_f64(double_scratch.low(), double_scratch);
-  //   vmov(dest, double_scratch.low());
-  //   // Signed vcvt instruction will saturate to the minimum (0x80000000) or
-  //   // maximun (0x7fffffff) signed 32bits integer when the double is out of
-  //   // range. When substracting one, the minimum signed integer becomes the
-  //   // maximun signed integer.
-  //   sub(scratch, dest, Operand(1));
-  //   cmp(scratch, Operand(LONG_MAX - 1));
-  //   // If equal then dest was LONG_MAX, if greater dest was LONG_MIN.
-  //   b(ge, not_int32);
   // } else
   {
     // This code is faster for doubles that are in the ranges -0x7fffffff to
@@ -445,7 +432,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
 
 void MacroAssembler::Call(
     intptr_t target, RelocInfo::Mode rmode) {
-  //TODO: check whether this is necessaery
+  // TODO(stm): check whether this is necessaery
   //   // Block constant pool for the call instruction sequence.
   //   BlockConstPoolScope block_const_pool(this);
   // #ifdef DEBUG
@@ -454,12 +441,12 @@ void MacroAssembler::Call(
 
   RECORD_LINE();
 
-  align(); // Force alignment such that we can check kCallTargetAddressOffset
+  align();  // Force alignment such that we can check kCallTargetAddressOffset
 #ifdef DEBUG
   int start_position = pc_offset();
 #endif
 
-  // TODO: check whether this is necessary
+  // TODO(stm): check whether this is necessary
   // Statement positions are expected to be recorded when the target
   // address is loaded. The mov method will automatically record
   // positions when pc is the target, since this is not the case here
@@ -474,7 +461,7 @@ void MacroAssembler::Call(
   ASSERT(kCallTargetAddressOffset == pc_offset() - start_position);
 
 
-  //TODO: check whether this is necessaery
+  // TODO(stm): check whether this is necessaery
   // #ifdef DEBUG
   //   int post_position = pc_offset();
   //   CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
@@ -484,7 +471,7 @@ void MacroAssembler::Call(
 
 void MacroAssembler::Call(
     Handle<Code> code, RelocInfo::Mode rmode) {
-  //TODO: check whether this is necessaery
+  // TODO(stm): check whether this is necessaery
   // #ifdef DEBUG
   //   int pre_position = pc_offset();
   // #endif
@@ -493,7 +480,7 @@ void MacroAssembler::Call(
   RECORD_LINE();
   Call(reinterpret_cast<intptr_t>(code.location()), rmode);
 
-  //TODO: check whether this is necessaery
+  // TODO(stm): check whether this is necessaery
   // #ifdef DEBUG
   //   int post_position = pc_offset();
   //   CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
@@ -1437,7 +1424,7 @@ void MacroAssembler::GetBuiltinFunction(Register target,
 
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  //FIXME: why r1 ??
+  // FIXME(stm): why r1 ??
   ASSERT(!target.is(r1) && !target.is(sh4_ip));
   RECORD_LINE();
   GetBuiltinFunction(r1, id);
@@ -1571,18 +1558,9 @@ void MacroAssembler::Abort(const char* msg) {
   push(r0);
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
-  // TODO: implement this when const pool manager is active
-  //if (is_const_pool_blocked()) {
-  //  // If the calling code cares about the exact number of
-  //  // instructions generated, we insert padding here to keep the size
-  //  // of the Abort macro constant.
-  //  static const int kExpectedAbortInstructions = 10;
-  //  int abort_instructions = InstructionsGeneratedSince(&abort_start);
-  //  ASSERT(abort_instructions <= kExpectedAbortInstructions);
-  //  while (abort_instructions++ < kExpectedAbortInstructions) {
-  //    nop();
-  //  }
-  //}
+  // TODO(stm): implement this when const pool manager is active
+  // if (is_const_pool_blocked()) {
+  // }
 }
 
 
@@ -1608,9 +1586,11 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
 
   // Assert that the register arguments are different and that none of
   // them are ip. ip is used explicitly in the code generated below.
-  ASSERT(!result.is(scratch1) && !result.is(scratch2) && !scratch1.is(scratch2));
+  ASSERT(!result.is(scratch1) && !result.is(scratch2) &&
+         !scratch1.is(scratch2));
   ASSERT(!result.is(sh4_ip) && !scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
-  ASSERT(!result.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
+  ASSERT(!result.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
 
   // Make object size into bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {

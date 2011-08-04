@@ -305,7 +305,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   //
   // t1 - used to hold the capacity mask of the dictionary
   //
-  // t2 - used for the index into the dictionary and as scratch for the first part
+  // t2 - used for the index into the dictionary
   Label done;
 
   // Compute the hash code from the untagged key.  This must be kept in sync
