@@ -84,57 +84,57 @@ void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateConstructCallDebugBreak(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateFrameDropperLiveEdit(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateKeyedLoadICDebugBreak(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateKeyedStoreICDebugBreak(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateLoadICDebugBreak(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GeneratePlainReturnLiveEdit(v8::internal::MacroAssembler* masm) {
+void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateReturnDebugBreak(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateSlot(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateSlot(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateSlotDebugBreak(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateStoreICDebugBreak(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateStubNoRegistersDebugBreak(v8::internal::MacroAssembler* masm) {
+void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 

@@ -1548,7 +1548,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   Label enough, too_few;
   __ cmpge(r0, r2);     // actual number of argument lower than expected number
   __ bf(&too_few);
-  __ cmpeq(r2, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));     // FIXME: Immediate or Operand ??
+  __ cmpeq(r2, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ bt(&dont_adapt_arguments);
 
   {  // Enough parameters: actual >= expected

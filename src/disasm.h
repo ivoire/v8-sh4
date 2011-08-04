@@ -55,16 +55,16 @@ class NameConverter {
 // A generic Disassembler interface
 class DisassemblerInterface {
  public:
-  virtual ~DisassemblerInterface() {};
+  virtual ~DisassemblerInterface() {}
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  virtual int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction) = 0;
+  virtual int InstructionDecode(v8::internal::Vector<char> buffer,
+                                byte* instruction) = 0;
 
   // Returns -1 if instruction does not mark the beginning of a constant pool,
   // or the number of entries in the constant pool beginning here.
   virtual int ConstantPoolSizeAt(byte* instruction) = 0;
-
 };
 
 
