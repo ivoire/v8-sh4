@@ -287,7 +287,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
   EmitReturnSequence();
 
-  // TODO: implement this when const pool are active
+  // TODO(stm): implement this when const pool are active
   // Force emit the constant pool, so it doesn't get emitted in the middle
   // of the stack check table.
   // masm()->CheckConstPool(true, false);
@@ -334,7 +334,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ CallRuntime(Runtime::kTraceExit, 1);
     }
 
-    // TODO: is it necessary for SH4?
+    // TODO(stm): is it necessary for SH4?
     // Apparently the return sequence must be fixed for some debugger support.
     // We remove this constraint on SH4.
 // #ifdef DEBUG
@@ -585,29 +585,9 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  // TODO: implement fast code as below
-//   if (CpuFeatures::IsSupported(VFP3)) {
-//     CpuFeatures::Scope scope(VFP3);
-//     // Emit the inlined tests assumed by the stub.
-//     __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-//     __ cmp(result_register(), ip);
-//     __ b(eq, if_false);
-//     __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-//     __ cmp(result_register(), ip);
-//     __ b(eq, if_true);
-//     __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-//     __ cmp(result_register(), ip);
-//     __ b(eq, if_false);
-//     STATIC_ASSERT(kSmiTag == 0);
-//     __ tst(result_register(), result_register());
-//     __ b(eq, if_false);
-//     __ JumpIfSmi(result_register(), if_true);
-
-//     // Call the ToBoolean stub for all other cases.
-//     ToBooleanStub stub(result_register());
-//     __ CallStub(&stub);
-//     __ tst(result_register(), result_register());
-//   } else
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
   {
     // Call the runtime to find the boolean value of the source and then
     // translate it into control flow to the pair of labels.
@@ -2817,9 +2797,9 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // Convert 32 random bits in r0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-// TODO: VFP
-//  if (CpuFeatures::IsSupported(VFP3)) {
-//  } else
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  // } else
   {
     __ Push(r4, r5, r6, r7);
     __ PrepareCallCFunction(2, r0);
@@ -2830,7 +2810,6 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   }
 
   context()->Plug(r0);
-
 }
 
 
@@ -3252,7 +3231,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   // r3 now points to the start of fixed array elements.
   __ lsl(ip, r2, Immediate(kPointerSizeLog2 - kSmiTagSize));
   __ add(r2, r2, ip);
-  __ ldr(r2, MemOperand(r3, r2)); //TODO: right thing ? for 'LSL, kPointerSizeLog2 - kSmiTagSize, PreIndex'
+  __ ldr(r2, MemOperand(r3, r2));
   // Note side effect of PreIndex: r3 now points to the key of the pair.
   __ cmp(key, r2);
   __ b(ne, &not_found);

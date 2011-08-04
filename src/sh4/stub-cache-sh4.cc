@@ -38,7 +38,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-#include "map-sh4.h" // Define register map
+#include "map-sh4.h"    // Define register map
 
 static void ProbeTable(Isolate* isolate,
                        MacroAssembler* masm,
@@ -970,14 +970,9 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register fval,
                             Register scratch1,
                             Register scratch2) {
-  // TODO: FP support
+  // TODO(stm): FPU
   // if (CpuFeatures::IsSupported(VFP3)) {
-  //   CpuFeatures::Scope scope(VFP3);
-  //   __ vmov(s0, ival);
-  //   __ add(scratch1, dst, Operand(wordoffset, LSL, 2));
-  //   __ vcvt_f32_s32(s0, s0);
-  //   __ vstr(s0, scratch1, 0);
-  //} else
+  // } else
   {
     Label not_special, done;
     // Move sign bit from source to destination.  This works because the sign
@@ -2688,7 +2683,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  //TODO: implement FP support: see ARM code
+  // TODO(stm): FPU
   return heap()->undefined_value();
 }
 
@@ -3296,7 +3291,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   // Check that the index is in range.
   __ ldr(ip, FieldMemOperand(r3, ExternalArray::kLengthOffset));
   __ asr(r2, key, Immediate(kSmiTagSize));
-  __ cmphs(ip, r2); // TODO: shouldn-t it be cmphi (i.e. length > key)
+  __ cmphs(ip, r2);     // FIXME: shouldn-t it be cmphi (i.e. length > key)
   // Unsigned comparison catches both negative and too-large values.
   __ bf(&slow);
 
@@ -3330,23 +3325,17 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       __ ldr(value, MemOperand(r3, ip));
       break;
     case kExternalFloatArray:
-      // TODO: FP unir
+      // TODO(stm): FPU
       // if (CpuFeatures::IsSupported(VFP3)) {
-      //   CpuFeatures::Scope scope(VFP3);
-      //   __ add(r2, r3, Operand(key, LSL, 1));
-      //   __ vldr(s0, r2, 0);
-      //} else
+      // } else
       {
         __ lsr(ip, key, Immediate(1));
         __ ldr(value, MemOperand(r3, ip));
       }
       break;
     case kExternalDoubleArray:
-      // TODO: FP unir
+      // TODO(stm): FPU
       // if (CpuFeatures::IsSupported(VFP3)) {
-      //   CpuFeatures::Scope scope(VFP3);
-      //   __ add(r2, r3, Operand(key, LSL, 2));
-      //   __ vldr(d0, r2, 0);
       // } else
       {
         __ lsr(ip, key, Immediate(2));
@@ -3375,7 +3364,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
     Label box_int;
-    //TODO: check if equivalent to TrySmiTag
+    // FIXME: check if equivalent to TrySmiTag
     __ sub(ip, value, Immediate(0xC0000000));
     __ cmpge(ip, Immediate(0));
     __ bf(&box_int);
@@ -3392,15 +3381,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // Now we can use r0 for the result as key is not needed any more.
     __ mov(r0, r5);
 
-    // TODO: FP unit
+    // TODO(stm): FPU
     // if (CpuFeatures::IsSupported(VFP3)) {
-    //   CpuFeatures::Scope scope(VFP3);
-    //   __ vmov(s0, value);
-    //   __ vcvt_f64_s32(d0, s0);
-    //   __ sub(r3, r0, Operand(kHeapObjectTag));
-    //   __ vstr(d0, r3, HeapNumber::kValueOffset);
-    //   __ Ret();
-    //} else
+    // } else
     {
       WriteInt32ToHeapNumberStub stub(value, r0, r3);
       __ TailCallStub(&stub);
@@ -3409,31 +3392,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // The test is different for unsigned int values. Since we need
     // the value to be in the range of a positive smi, we can't
     // handle either of the top two bits being set in the value.
-    // TODO: FP unit
+    // TODO(stm): FPU
     // if (CpuFeatures::IsSupported(VFP3)) {
-    //   CpuFeatures::Scope scope(VFP3);
-    //   Label box_int, done;
-    //   __ tst(value, Operand(0xC0000000));
-    //   __ b(ne, &box_int);
-    //   // Tag integer as smi and return it.
-    //   __ mov(r0, Operand(value, LSL, kSmiTagSize));
-    //   __ Ret();
-
-    //   __ bind(&box_int);
-    //   __ vmov(s0, value);
-    //   // Allocate a HeapNumber for the result and perform int-to-double
-    //   // conversion. Don't use r0 and r1 as AllocateHeapNumber clobbers all
-    //   // registers - also when jumping due to exhausted young space.
-    //   __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
-    //   __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
-
-    //   __ vcvt_f64_u32(d0, s0);
-    //   __ sub(r1, r2, Operand(kHeapObjectTag));
-    //   __ vstr(d0, r1, HeapNumber::kValueOffset);
-
-    //   __ mov(r0, r2);
-    //   __ Ret();
-    //} else
+    // } else
     {
       // Check whether unsigned integer fits into smi.
       Label box_int_0, box_int_1, done;
@@ -3475,21 +3436,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   } else if (array_type == kExternalFloatArray) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
-    // TODO: FP unit
+    // TODO(stm): FPU
     // if (CpuFeatures::IsSupported(VFP3)) {
-    //   CpuFeatures::Scope scope(VFP3);
-    //   // Allocate a HeapNumber for the result. Don't use r0 and r1 as
-    //   // AllocateHeapNumber clobbers all registers - also when jumping due to
-    //   // exhausted young space.
-    //   __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
-    //   __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
-    //   __ vcvt_f64_f32(d0, s0);
-    //   __ sub(r1, r2, Operand(kHeapObjectTag));
-    //   __ vstr(d0, r1, HeapNumber::kValueOffset);
-
-    //   __ mov(r0, r2);
-    //   __ Ret();
-    //} else
+    // } else
     {
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
@@ -3548,20 +3497,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       __ Ret();
     }
   } else if (array_type == kExternalDoubleArray) {
-    // TODO: FP unit
+    // TODO(stm): FP unit
     // if (CpuFeatures::IsSupported(VFP3)) {
-    //   CpuFeatures::Scope scope(VFP3);
-    //   // Allocate a HeapNumber for the result. Don't use r0 and r1 as
-    //   // AllocateHeapNumber clobbers all registers - also when jumping due to
-    //   // exhausted young space.
-    //   __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
-    //   __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
-    //   __ sub(r1, r2, Operand(kHeapObjectTag));
-    //   __ vstr(d0, r1, HeapNumber::kValueOffset);
-
-    //   __ mov(r0, r2);
-    //   __ Ret();
-    //} else
+    // } else
     {
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
@@ -3684,10 +3622,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       __ add(r3, r3, ip);
       // r3: effective address of the double element
       FloatingPointHelper::Destination destination;
-      // TODO: FP unit
-      //if (CpuFeatures::IsSupported(VFP3)) {
-      //  destination = FloatingPointHelper::kVFPRegisters;
-      //} else
+      // TODO(stm): FPU
+      // if (CpuFeatures::IsSupported(VFP3)) {
+      // } else
       {
         destination = FloatingPointHelper::kCoreRegisters;
       }
@@ -3695,11 +3632,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
           masm(), r5, destination,
           no_dreg/*d0*/, r6, r7,  // These are: double_dst, dst1, dst2.
           r4, no_freg/*s2*/);  // These are: scratch2, single_scratch.
-      // TODO: FP unit
-      //if (destination == FloatingPointHelper::kVFPRegisters) {
-      //  CpuFeatures::Scope scope(VFP3);
-      //  __ vstr(d0, r3, 0);
-      //} else
+      // TODO(stm): FPU
+      // if (destination == FloatingPointHelper::kVFPRegisters) {
+      // } else
       {
         __ str(r6, MemOperand(r3, 0));
         __ str(r7, MemOperand(r3, 4));
@@ -3728,69 +3663,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
     // The WebGL specification leaves the behavior of storing NaN and
     // +/-Infinity into integer arrays basically undefined. For more
     // reproducible behavior, convert these to zero.
-    // TODO: FP unit
+    // TODO(stm): FPU
     // if (CpuFeatures::IsSupported(VFP3)) {
-    //   CpuFeatures::Scope scope(VFP3);
-
-    //   if (array_type == kExternalFloatArray) {
-    //     // vldr requires offset to be a multiple of 4 so we can not
-    //     // include -kHeapObjectTag into it.
-    //     __ sub(r5, r0, Operand(kHeapObjectTag));
-    //     __ vldr(d0, r5, HeapNumber::kValueOffset);
-    //     __ add(r5, r3, Operand(r4, LSL, 2));
-    //     __ vcvt_f32_f64(s0, d0);
-    //     __ vstr(s0, r5, 0);
-    //   } else if (array_type == kExternalDoubleArray) {
-    //     __ sub(r5, r0, Operand(kHeapObjectTag));
-    //     __ vldr(d0, r5, HeapNumber::kValueOffset);
-    //     __ add(r5, r3, Operand(r4, LSL, 3));
-    //     __ vstr(d0, r5, 0);
-    //   } else {
-    //     // Need to perform float-to-int conversion.
-    //     // Test for NaN or infinity (both give zero).
-    //     __ ldr(r6, FieldMemOperand(value, HeapNumber::kExponentOffset));
-
-    //     // Hoisted load. vldr requires offset to be a multiple of 4 so we can
-    //     // not include -kHeapObjectTag into it.
-    //     __ sub(r5, value, Operand(kHeapObjectTag));
-    //     __ vldr(d0, r5, HeapNumber::kValueOffset);
-
-    //     __ Sbfx(r6, r6, HeapNumber::kExponentShift,
-    //             HeapNumber::kExponentBits);
-    //     // NaNs and Infinities have all-one exponents so they sign extend to -1.
-    //     __ cmp(r6, Operand(-1));
-    //     __ mov(r5, Operand(0), LeaveCC, eq);
-
-    //     // Not infinity or NaN simply convert to int.
-    //     if (IsElementTypeSigned(array_type)) {
-    //       __ vcvt_s32_f64(s0, d0, kDefaultRoundToZero, ne);
-    //     } else {
-    //       __ vcvt_u32_f64(s0, d0, kDefaultRoundToZero, ne);
-    //     }
-    //     __ vmov(r5, s0, ne);
-
-    //     switch (array_type) {
-    //       case kExternalByteArray:
-    //       case kExternalUnsignedByteArray:
-    //         __ strb(r5, MemOperand(r3, r4, LSL, 0));
-    //         break;
-    //       case kExternalShortArray:
-    //       case kExternalUnsignedShortArray:
-    //         __ strh(r5, MemOperand(r3, r4, LSL, 1));
-    //         break;
-    //       case kExternalIntArray:
-    //       case kExternalUnsignedIntArray:
-    //         __ str(r5, MemOperand(r3, r4, LSL, 2));
-    //         break;
-    //       default:
-    //         UNREACHABLE();
-    //         break;
-    //     }
-    //   }
-    //   // Entry registers are intact, r0 holds the value which is the return
-    //   // value.
-    //   __ Ret();
-    //} else
+    // } else
     {
       // VFP3 is not available do manual conversions.
       __ ldr(r5, FieldMemOperand(value, HeapNumber::kExponentOffset));
