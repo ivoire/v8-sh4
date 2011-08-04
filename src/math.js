@@ -149,7 +149,7 @@ function MathMin(arg1, arg2) {  // length == 2
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
     if (NUMBER_IS_NAN(n)) return n;
-    // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can b a
+    // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can be a
     // Smi or a heap number.
     if (n < r || (r === 0 && n === 0 && !%_IsSmi(n) && 1 / n < 0)) r = n;
   }
