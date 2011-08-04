@@ -99,7 +99,8 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 #define GLOBAL_PTR() (*(isolate->global()))
 #define GLOBAL_CONTEXT_PTR() (*(isolate->global_context()))
 #define GLOBAL_CLOSURE_PTR() (isolate->global_context()->closure())
-#define GLOBAL_OBJECT_FUNCTION_PTR() (isolate->global_context()->object_function())
+#define GLOBAL_OBJECT_FUNCTION_PTR() \
+                (isolate->global_context()->object_function())
 #define GLOBAL_BUILTINS_PTR() (*isolate->builtins())
 
 #define CMT(msg) do { Comment cmnt(&assm, msg); } while (0)
@@ -131,21 +132,21 @@ TEST(sh4_cs_0) {
     Handle<JSFunction>(isolate->global_context()->closure(), isolate);
 
   fprintf(stderr, "isolate = Isolate::Current(): %p\n",
-          (void *)isolate);
+          reinterpret_cast<void *>(isolate));
   fprintf(stderr, "isolate_context = isolate->context(): %p\n",
-          (void *)isolate->context());
+          reinterpret_cast<void *>(isolate->context()));
   fprintf(stderr, "global_context = isolate->global_context(): %p\n",
-          (void *)*isolate->global_context());
+          reinterpret_cast<void *>(*isolate->global_context()));
   fprintf(stderr, "global_context_closure = global_context->closure(): %p\n",
-          (void *)isolate->global_context()->closure());
+          reinterpret_cast<void *>(isolate->global_context()->closure()));
   fprintf(stderr, "global = isolate->global(): %p\n",
-          (void *)*isolate->global());
+          reinterpret_cast<void *>(*isolate->global()));
   fprintf(stderr, "global_proxy = isolate->global_proxy(): %p\n",
-          (void *)isolate->context()->global_proxy());
+          reinterpret_cast<void *>(isolate->context()->global_proxy()));
   fprintf(stderr, "closure_code = global_context_closure->code(): %p \n",
-          (void *)func->code());
+          reinterpret_cast<void *>(func->code()));
   fprintf(stderr, "closure_entry = code->entry(): %p \n",
-          (void *)func->code()->entry());
+          reinterpret_cast<void *>(func->code()->entry()));
 
   PRINT();
 
@@ -206,7 +207,8 @@ TEST(sh4_cs_2) {
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
-  CMT("Check FieldMemOperand(GLOBAL_PTR(), GlobalContextOffset) == GLOBAL_CONTEXT_PTR())");
+  CMT("Check FieldMemOperand(GLOBAL_PTR(), GlobalContextOffset) "
+      "== GLOBAL_CONTEXT_PTR())");
   __ ldr(r0, FieldMemOperand(r0,
                              GlobalObject::kGlobalContextOffset));
   __ mov(r1, Operand((intptr_t)GLOBAL_CONTEXT_PTR(),
@@ -214,7 +216,8 @@ TEST(sh4_cs_2) {
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
-  CMT("Check MemOperand(GLOBAL_CONTEXT_PTR(), CLOSURE_INDEX) == GLOBAL_CLOSURE_PTR())");
+  CMT("Check MemOperand(GLOBAL_CONTEXT_PTR(), CLOSURE_INDEX) "
+      "== GLOBAL_CLOSURE_PTR())");
   __ ldr(r0, MemOperand(r0,
                         Context::SlotOffset(Context::CLOSURE_INDEX)));
   __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(),
@@ -246,9 +249,9 @@ TEST(sh4_cs_2) {
   CMT("Check CompareObjectType(GLOBAL_PTR()) == JS_GLOBAL_OBJECT_TYPE");
   __ CompareObjectType(r0, r3/*map*/, r4/*type*/ , JS_GLOBAL_OBJECT_TYPE, eq);
   B_LINE(f, &error);
-  __ cmp(r1, r3); // check that map matches
+  __ cmp(r1, r3);       // check that map matches
   B_LINE(f, &error);
-  __ cmp(r2, r4); // check that type matches
+  __ cmp(r2, r4);       // check that type matches
 
   // All ok.
   __ mov(r0, Immediate(Smi::FromInt(0)));
@@ -291,7 +294,7 @@ TEST(sh4_cs_3) {
 
   // Check LoadContext with context level 1 and 2.
   // As we are in global context, it alwasy returns the global context
-  // TODO: force a deeper context when initalizing the VM
+  // TODO(stm): force a deeper context when initalizing the VM
   __ LoadContext(r1, 1);
   __ cmp(r0, r1);
   B_LINE(ne, &error);
@@ -308,7 +311,8 @@ TEST(sh4_cs_3) {
   B_LINE(ne, &error);
 
   // Check LoadGlobalFunctionInitialMap() on global object function
-  __ LoadGlobalFunction(Context::OBJECT_FUNCTION_INDEX, r0/* Resulting closure*/);
+  __ LoadGlobalFunction(Context::OBJECT_FUNCTION_INDEX,
+                        r0/* Resulting closure*/);
   __ mov(r1, Operand((intptr_t)GLOBAL_OBJECT_FUNCTION_PTR(),
                      RelocInfo::EXTERNAL_REFERENCE));
 
@@ -341,8 +345,10 @@ TEST(sh4_cs_3) {
   __ cmp(r1, r2);
   B_LINE(ne, &error);
 
-  CMT("Check TryGetFunctionPrototype(global_object_function) == initial_map->prototype()");
-  __ LoadGlobalFunction(Context::OBJECT_FUNCTION_INDEX, r0/* Resulting closure*/);
+  CMT("Check TryGetFunctionPrototype(global_object_function) == "
+      "initial_map->prototype()");
+  __ LoadGlobalFunction(Context::OBJECT_FUNCTION_INDEX,
+                        r0/* Resulting closure*/);
   __ TryGetFunctionPrototype(r0, r1 /*proto*/, r2 /*scratch*/, &miss4);
   __ jmp(&skip_proto4);
   __ bind(&miss4);
@@ -492,8 +498,10 @@ TEST(sh4_cs_5) {
   }
 }
 
+#undef __
+#define __ assm->
 static void
-GenerateNumberFromReg(MacroAssembler &assm, Register heap, Register reg) {
+GenerateNumberFromReg(MacroAssembler *assm, Register heap, Register reg) {
   ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
   Label gc_required, skip, not_smi;
   __ EnterInternalFrame();
@@ -516,7 +524,8 @@ GenerateNumberFromReg(MacroAssembler &assm, Register heap, Register reg) {
   __ Abort("GC required while dumping number");
   __ bind(&skip);
 }
-
+#undef __
+#define __ assm.
 
 // Test WriteInt32ToHeapNumberStub()
 TEST(sh4_cs_6) {
@@ -524,7 +533,7 @@ TEST(sh4_cs_6) {
     BEGIN();
 
     __ mov(r0, Immediate(0));
-    GenerateNumberFromReg(assm, r0, r0);
+    GenerateNumberFromReg(&assm, r0, r0);
     __ Ret();
 
     JIT();
@@ -537,7 +546,7 @@ TEST(sh4_cs_6) {
       BEGIN();
 
     __ mov(r0, Immediate(1234));
-    GenerateNumberFromReg(assm, r0, r0);
+    GenerateNumberFromReg(&assm, r0, r0);
     __ Ret();
 
     JIT();
@@ -550,7 +559,7 @@ TEST(sh4_cs_6) {
       BEGIN();
 
     __ mov(r0, Immediate(0x7fffffff));
-    GenerateNumberFromReg(assm, r0, r0);
+    GenerateNumberFromReg(&assm, r0, r0);
     __ Ret();
 
     JIT();
@@ -563,7 +572,7 @@ TEST(sh4_cs_6) {
       BEGIN();
 
     __ mov(r0, Immediate(0x80000000u));
-    GenerateNumberFromReg(assm, r0, r0);
+    GenerateNumberFromReg(&assm, r0, r0);
     __ Ret();
 
     JIT();
@@ -574,13 +583,15 @@ TEST(sh4_cs_6) {
   }
 }
 
-
+#undef __
+#define __ assm->
 static void
-GeneratePrintReg(MacroAssembler &assm, Register reg) {
+GeneratePrintReg(MacroAssembler *assm, Register reg) {
   ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
   Label gc_required, skip, not_smi;
   __ EnterInternalFrame();
-  __ push(reg); // Save reg as it is scratched by WriteInt32ToHeapNumberStub()
+  // Save reg as it is scratched by WriteInt32ToHeapNumberStub()
+  __ push(reg);
   __ pushm(kJSCallerSaved);
   __ TrySmiTag(reg, &not_smi, r5/*scratch*/);
   __ mov(r4, reg);
@@ -603,18 +614,19 @@ GeneratePrintReg(MacroAssembler &assm, Register reg) {
   __ pop(reg);
   __ LeaveInternalFrame();
 }
-
+#undef __
+#define __ assm.
 
 // Test GeneratePrintReg()
 TEST(sh4_cs_7) {
   BEGIN();
 
   __ mov(r0, Immediate(1234));
-  GeneratePrintReg(assm, r0);
+  GeneratePrintReg(&assm, r0);
   __ mov(r0, Immediate(0x7fffffff));
-  GeneratePrintReg(assm, r0);
+  GeneratePrintReg(&assm, r0);
   __ mov(r0, Immediate(0x80000000));
-  GeneratePrintReg(assm, r0);
+  GeneratePrintReg(&assm, r0);
   __ PrintRegisterValue(r0);
   __ mov(r0, Immediate(0));
   __ Ret();
@@ -633,7 +645,8 @@ TEST(sh4_cs_8) {
 
   Label error;
 
-  __ EnterInternalFrame(); // Enter Fram before call stubs
+  // Enter Fram before call stubs
+  __ EnterInternalFrame();
 
   CompareStub stub(eq/*cond*/, true/*strict*/, NO_COMPARE_FLAGS, r0, r1);
 #if 1 && defined(DEBUG)
@@ -671,7 +684,7 @@ TEST(sh4_cs_8) {
   // CMT("Check CompareStub(0, heap(0)) == 0");
   // __ mov(r0, Immediate(Smi::FromInt(0)));
   // __ mov(r1, Immediate(0));
-  // GenerateNumberFromReg(assm, r1, r1);
+  // GenerateNumberFromReg(&assm, r1, r1);
   // __ CallStub(&stub);
   // __ cmp(r0, Immediate(0));
   // B_LINE(ne, &error);
@@ -690,5 +703,5 @@ TEST(sh4_cs_8) {
   PRINT();
   CALL();
   CHECK(result->IsNumber());
-  CHECK_EQ(0, (int)ObjectToNumber(*result));
+  CHECK_EQ(0, static_cast<int>(ObjectToNumber(*result)));
 }

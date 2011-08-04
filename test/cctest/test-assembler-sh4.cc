@@ -178,7 +178,8 @@ TEST(5) {
 #endif
 
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fecba98, 4, 0, 0, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fecba98, 4,
+                                                      0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ((0x7fecba98>>(4+1))+(0x7fecba98>>(4+2)), res);
 }
@@ -226,7 +227,8 @@ TEST(7) {
 #endif
 
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fecba98, 4, 0, 0, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fecba98, 4,
+                                                      0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ((uint32_t)0x7fecba98>>(4+1+1+2+3), res);
 }
@@ -603,13 +605,13 @@ TEST(16) {
   __ cmpeq(r3, Immediate(0x0f0));           // true
   B_LINE(f, &error);
 
-  __ land(r1, r1, r2); // left auto-modifying
+  __ land(r1, r1, r2);  // left auto-modifying
   __ cmpeq(r1, Immediate(0x0f0));           // true
   B_LINE(f, &error);
 
 
   __ mov(r1, Immediate(0x0f0));
-  __ land(r1, r2, r1); // right auto-modifying
+  __ land(r1, r2, r1);  // right auto-modifying
   __ cmpeq(r1, Immediate(0x0f0));           // true
   B_LINE(f, &error);
 
@@ -635,12 +637,12 @@ TEST(16) {
   __ cmpeq(r3, Immediate(0xff2));           // true
   B_LINE(f, &error);
 
-  __ lor(r1, r1, r2); // left auto-modifying
+  __ lor(r1, r1, r2);  // left auto-modifying
   __ cmpeq(r1, Immediate(0xff2));           // true
   B_LINE(f, &error);
 
   __ mov(r1, Immediate(0x0f0));
-  __ lor(r1, r2, r1); // right auto-modifying
+  __ lor(r1, r2, r1);  // right auto-modifying
   __ cmpeq(r1, Immediate(0xff2));           // true
   B_LINE(f, &error);
 
@@ -661,12 +663,12 @@ TEST(16) {
   __ cmpeq(r3, Immediate(0xf0));           // true
   B_LINE(f, &error);
 
-  __ lxor(r1, r1, r2); // left auto-modifying
+  __ lxor(r1, r1, r2);  // left auto-modifying
   __ cmpeq(r1, Immediate(0xf0));           // true
   B_LINE(f, &error);
 
   __ mov(r1, Immediate(0x0ff));
-  __ lxor(r1, r2, r1); // right auto-modifying
+  __ lxor(r1, r2, r1);  // right auto-modifying
   __ cmpeq(r1, Immediate(0xf0));           // true
   B_LINE(f, &error);
 
@@ -798,17 +800,17 @@ TEST(18) {
   __ mov(r0, Immediate(0xFFFFFFFE));
   __ mov(r1, Immediate(1));
   __ addc(r2, r0, r1);
-  B_LINE(cs, &error); // check that carry is clear
+  B_LINE(cs, &error);  // check that carry is clear
   __ cmpeq(r2, Immediate(0xFFFFFFFF));
   B_LINE(f, &error);
 
-  __ addc(r1, r1, r0); // left auto-modified
+  __ addc(r1, r1, r0);  // left auto-modified
   B_LINE(cs, &error);
   __ cmpeq(r1, Immediate(0xFFFFFFFF));
   B_LINE(f, &error);
 
   __ mov(r1, Immediate(1));
-  __ addc(r1, r0, r1); // right auto-modified
+  __ addc(r1, r0, r1);  // right auto-modified
   B_LINE(cs, &error);
   __ cmpeq(r1, Immediate(0xFFFFFFFF));
   B_LINE(f, &error);
@@ -816,17 +818,17 @@ TEST(18) {
   __ mov(r0, Immediate(0xFFFFFFFF));
   __ mov(r1, Immediate(1));
   __ addc(r2, r0, r1);
-  B_LINE(cc, &error); // check that carry is set
+  B_LINE(cc, &error);  // check that carry is set
   __ cmpeq(r2, Immediate(0));
   B_LINE(f, &error);
 
-  __ addc(r1, r1, r0); // left auto-modified
+  __ addc(r1, r1, r0);  // left auto-modified
   B_LINE(cc, &error);
   __ cmpeq(r1, Immediate(0));
   B_LINE(f, &error);
 
   __ mov(r1, Immediate(1));
-  __ addc(r1, r0, r1); // right auto-modified
+  __ addc(r1, r0, r1);  // right auto-modified
   B_LINE(cc, &error);
   __ cmpeq(r1, Immediate(0));
   B_LINE(f, &error);
@@ -834,17 +836,17 @@ TEST(18) {
   __ mov(r0, Immediate(1));
   __ mov(r1, Immediate(1));
   __ subc(r2, r0, r1);
-  B_LINE(cs, &error); // check that carry is clear
+  B_LINE(cs, &error);  // check that carry is clear
   __ cmpeq(r2, Immediate(0));
   B_LINE(f, &error);
 
-  __ subc(r0, r0, r1); // left auto-modified
+  __ subc(r0, r0, r1);  // left auto-modified
   B_LINE(cs, &error);
   __ cmpeq(r0, Immediate(0));
   B_LINE(f, &error);
 
   __ mov(r0, Immediate(1));
-  __ subc(r1, r0, r1); // right auto-modified
+  __ subc(r1, r0, r1);  // right auto-modified
   B_LINE(cs, &error);
   __ cmpeq(r1, Immediate(0));
   B_LINE(f, &error);
@@ -852,17 +854,17 @@ TEST(18) {
   __ mov(r0, Immediate(0));
   __ mov(r1, Immediate(1));
   __ subc(r2, r0, r1);
-  B_LINE(cc, &error); // check that carry is set
+  B_LINE(cc, &error);  // check that carry is set
   __ cmpeq(r2, Immediate(-1));
   B_LINE(f, &error);
 
-  __ subc(r0, r0, r1); // left auto-modified
+  __ subc(r0, r0, r1);  // left auto-modified
   B_LINE(cc, &error);
   __ cmpeq(r0, Immediate(-1));
   B_LINE(f, &error);
 
   __ mov(r0, Immediate(0));
-  __ subc(r1, r0, r1); // right auto-modified
+  __ subc(r1, r0, r1);  // right auto-modified
   B_LINE(cc, &error);
   __ cmpeq(r1, Immediate(-1));
   B_LINE(f, &error);
@@ -899,17 +901,17 @@ TEST(19) {
   __ mov(r0, Immediate(0x7FFFFFFE));
   __ mov(r1, Immediate(1));
   __ addv(r2, r0, r1);
-  B_LINE(vs, &error); // check that overflow is clear
+  B_LINE(vs, &error);  // check that overflow is clear
   __ cmpeq(r2, Immediate(0x7FFFFFFF));
   B_LINE(f, &error);
 
-  __ addv(r1, r1, r0); // left auto-modified
+  __ addv(r1, r1, r0);  // left auto-modified
   B_LINE(vs, &error);
   __ cmpeq(r1, Immediate(0x7FFFFFFF));
   B_LINE(f, &error);
 
   __ mov(r1, Immediate(1));
-  __ addv(r1, r0, r1); // right auto-modified
+  __ addv(r1, r0, r1);  // right auto-modified
   B_LINE(vs, &error);
   __ cmpeq(r1, Immediate(0x7FFFFFFF));
   B_LINE(f, &error);
@@ -917,17 +919,17 @@ TEST(19) {
   __ mov(r0, Immediate(0x7FFFFFFF));
   __ mov(r1, Immediate(1));
   __ addv(r2, r0, r1);
-  B_LINE(vc, &error); // check that overflow is set
+  B_LINE(vc, &error);  // check that overflow is set
   __ cmpeq(r2, Immediate(0x80000000));
   B_LINE(f, &error);
 
-  __ addv(r1, r1, r0); // left auto-modified
+  __ addv(r1, r1, r0);  // left auto-modified
   B_LINE(vc, &error);
   __ cmpeq(r1, Immediate(0x80000000));
   B_LINE(f, &error);
 
   __ mov(r1, Immediate(1));
-  __ addv(r1, r0, r1); // right auto-modified
+  __ addv(r1, r0, r1);  // right auto-modified
   B_LINE(vc, &error);
   __ cmpeq(r1, Immediate(0x80000000));
   B_LINE(f, &error);
@@ -935,17 +937,17 @@ TEST(19) {
   __ mov(r0, Immediate(0x80000001));
   __ mov(r1, Immediate(1));
   __ subv(r2, r0, r1);
-  B_LINE(vs, &error); // check that overflow is clear
+  B_LINE(vs, &error);  // check that overflow is clear
   __ cmpeq(r2, Immediate(0x80000000));
   B_LINE(f, &error);
 
-  __ subv(r0, r0, r1); // left auto-modified
+  __ subv(r0, r0, r1);  // left auto-modified
   B_LINE(vs, &error);
   __ cmpeq(r0, Immediate(0x80000000));
   B_LINE(f, &error);
 
   __ mov(r0, Immediate(0x80000001));
-  __ subv(r1, r0, r1); // right auto-modified
+  __ subv(r1, r0, r1);  // right auto-modified
   B_LINE(vs, &error);
   __ cmpeq(r1, Immediate(0x80000000));
   B_LINE(f, &error);
@@ -953,17 +955,17 @@ TEST(19) {
   __ mov(r0, Immediate(0x80000000));
   __ mov(r1, Immediate(1));
   __ subv(r2, r0, r1);
-  B_LINE(cc, &error); // check that carry is set
+  B_LINE(cc, &error);  // check that carry is set
   __ cmpeq(r2, Immediate(0x7FFFFFFF));
   B_LINE(f, &error);
 
-  __ subv(r0, r0, r1); // left auto-modified
+  __ subv(r0, r0, r1);  // left auto-modified
   B_LINE(cc, &error);
   __ cmpeq(r0, Immediate(0x7FFFFFFF));
   B_LINE(f, &error);
 
   __ mov(r0, Immediate(0x80000000));
-  __ subv(r1, r0, r1); // right auto-modified
+  __ subv(r1, r0, r1);  // right auto-modified
   B_LINE(cc, &error);
   __ cmpeq(r1, Immediate(0x7FFFFFFF));
   B_LINE(f, &error);
@@ -1054,16 +1056,19 @@ TEST(21) {
   CHECK_EQ(true, __ IsCmpRegister((reinterpret_cast<Instr*>(desc.buffer)[0])));
   CHECK_EQ(false, __ IsCmpRegister((reinterpret_cast<Instr*>(desc.buffer)[1])));
 
-  CHECK_EQ(false, __ IsCmpImmediate((reinterpret_cast<Instr*>(desc.buffer)[1])));
+  CHECK_EQ(false, __ IsCmpImmediate(reinterpret_cast<Instr*>(desc.buffer)[1]));
   CHECK_EQ(true, __ IsCmpImmediate(reinterpret_cast<Instr*>(desc.buffer)[2]));
-  CHECK_EQ(true, (__ GetCmpImmediateRegister(reinterpret_cast<Instr*>(desc.buffer)[2])).is(r0));
-  CHECK_EQ(73, __ GetCmpImmediateRawImmediate((reinterpret_cast<Instr*>(desc.buffer)[2])));
+  CHECK_EQ(true, (__ GetCmpImmediateRegister(
+                        reinterpret_cast<Instr*>(desc.buffer)[2])).is(r0));
+  CHECK_EQ(73, __ GetCmpImmediateRawImmediate(
+                        reinterpret_cast<Instr*>(desc.buffer)[2]));
 
   CHECK_EQ(true, (__ GetRn((reinterpret_cast<Instr*>(desc.buffer)[0])).is(r0)));
   CHECK_EQ(true, (__ GetRm((reinterpret_cast<Instr*>(desc.buffer)[0])).is(r1)));
 
+  // __ bt() generate bt/nop
   CHECK_EQ(eq, __ GetCondition((reinterpret_cast<Instr*>(desc.buffer)[3])));
-  CHECK_EQ(ne, __ GetCondition((reinterpret_cast<Instr*>(desc.buffer)[5])));        // __ bt() generate bt/nop
+  CHECK_EQ(ne, __ GetCondition((reinterpret_cast<Instr*>(desc.buffer)[5])));
 
   CHECK_EQ(true, __ IsMovImmediate(reinterpret_cast<Instr*>(desc.buffer)[7]));
 }
@@ -1219,10 +1224,16 @@ TEST(24) {
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
   CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 2, 0, 0, 0, 0)));
   CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 3, 4, 0, 12, 0)));
-  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 45, 0, 10*45, 0)));
-  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 1000000000, 10000, 2328, 1316134912, 0)));
-  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123465879, 123465780, 3549226, 1458007724, 0)));
-  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 13246579, 0, 0, 0, 0)));
+  CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 45, 0, 10*45,
+                                                        0)));
+  CHECK_EQ(0, reinterpret_cast<int>(
+                CALL_GENERATED_CODE(f, 1000000000, 10000, 2328,
+                                    1316134912, 0)));
+  CHECK_EQ(0, reinterpret_cast<int>(
+                CALL_GENERATED_CODE(f, 123465879, 123465780, 3549226,
+                                    1458007724, 0)));
+  CHECK_EQ(0, reinterpret_cast<int>(
+                CALL_GENERATED_CODE(f, 13246579, 0, 0, 0, 0)));
 }
 
 TEST(25) {
@@ -1243,7 +1254,10 @@ TEST(25) {
   __ rts();
 
   __ bind(&function);
-  __ strpr(r1); __ add(r1, r1, Immediate(10), r2); __ ldrpr(r1);  // return to the second add (skiping the one just after the call)
+  // return to the second add (skiping the one just after the call)
+  __ strpr(r1);
+  __ add(r1, r1, Immediate(10), r2);
+  __ ldrpr(r1);
   __ add(r0, r0, Immediate(1), r2);
   __ rts();
 
