@@ -643,6 +643,7 @@ class Assembler : public AssemblerBase {
 
   // binds an unbound label L to the current code position
   void bind(Label* L);
+  void bind(NearLabel* L);
 
 
   // Return the address in the constant pool of the code target address used by
@@ -740,6 +741,9 @@ class Assembler : public AssemblerBase {
 
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
+
+  void bt(NearLabel* L) { branch(L, branch_true); }
+  void bf(NearLabel* L) { branch(L, branch_false); }
 
   void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
   void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }      // is Rd > Rs ?
@@ -977,6 +981,7 @@ class Assembler : public AssemblerBase {
   void jmp(int offset, Register rtmp, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
 
+  void branch(NearLabel* L, branch_type type);
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos);

@@ -1400,3 +1400,82 @@ TEST(27) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
+
+// Test near labels
+TEST(28) {
+  BEGIN();
+
+  Label l1, l2, l3;
+
+  PROLOGUE();
+
+  __ mov(r0, Immediate(0));
+  __ cmpeq(r4, r5);
+  __ bf(&l1);
+
+  __ add(r0, Immediate(1));
+  __ bind(&l1);
+  __ cmpeq(r4, r5);
+  __ bt(&l2);
+
+  __ sub(r0, r0, Immediate(1));
+  __ sub(r0, r0, Immediate(1));
+  __ sub(r0, r0, Immediate(1));
+  __ sub(r0, r0, Immediate(1));
+  __ bind(&l2);
+  __ add(r0, Immediate(1));
+  __ add(r0, Immediate(1));
+  __ add(r0, Immediate(1));
+  __ add(r0, Immediate(1));
+
+  __ bind(&l3);
+  __ add(r4, Immediate(1));
+  __ cmpeq(r4, Immediate(2));
+  __ bf(&l3);
+
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 1, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
+
+TEST(29) {
+  BEGIN();
+
+  NearLabel l1;
+
+  PROLOGUE();
+
+  __ mov(r0, Immediate(0));
+
+  __ cmpeq(r4, r5);
+  __ bf(&l1);
+  for (int i = 0; i < 50; i++)
+    __ nop();
+  __ add(r0, Immediate(1));
+  __ bind(&l1);
+  __ add(r0, Immediate(2));
+
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+//  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 12, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(2, res);
+}
+

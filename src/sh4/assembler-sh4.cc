@@ -683,6 +683,31 @@ void Assembler::bind(Label* L) {
 }
 
 
+void Assembler::bind(NearLabel* L) {
+  ASSERT(!L->is_bound());
+  while (L->unresolved_branches_ > 0) {
+    int branch_pos = L->unresolved_positions_[L->unresolved_branches_ - 1];
+    uint16_t* p_pos = reinterpret_cast<uint16_t*>(branch_pos + buffer_) - 1;
+    uint16_t disp = pc_offset() - branch_pos - 2;
+    ASSERT(is_int8(disp));
+    branch_type type = static_cast<branch_type>(*p_pos);
+
+    switch (type) {
+    case branch_true:
+      *p_pos = (0x8 << 12) | (0x9 << 8) | (((disp & 0x1FE) >> 1) << 0);
+      break;
+    case branch_false:
+      *p_pos = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0);
+      break;
+    default:
+      UNREACHABLE();
+    }
+    L->unresolved_branches_--;
+  }
+  L->bind_to(pc_offset());
+}
+
+
 void Assembler::next(Label* L) {
   ASSERT(L->is_linked());
   int link = *reinterpret_cast<uint32_t*>(L->pos() + buffer_);
@@ -888,6 +913,30 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
       *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 4 - 2*nop_count;
       pc_ += sizeof(uint32_t);
     }
+  }
+}
+
+
+void Assembler::branch(NearLabel* L, branch_type type) {
+  if (L->is_bound()) {
+    int offset = L->pos() - pc_offset() - 4;
+    ASSERT(is_int8(offset));
+    switch (type) {
+    case branch_true:
+      bt_(offset);
+      break;
+    case branch_false:
+      bf_(offset);
+      break;
+    default:
+      UNREACHABLE();
+    }
+  } else {
+    // Emit the right sequence according to the type
+    *reinterpret_cast<uint16_t*>(pc_) = static_cast<uint16_t>(type);
+    pc_ += sizeof(uint16_t);
+    // The offset is set later
+    L->link_to(pc_offset());
   }
 }
 
