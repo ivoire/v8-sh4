@@ -1405,7 +1405,7 @@ TEST(27) {
 TEST(28) {
   BEGIN();
 
-  Label l1, l2, l3;
+  Label l1, l2, l3, l4;
 
   PROLOGUE();
 
@@ -1432,6 +1432,10 @@ TEST(28) {
   __ add(r4, Immediate(1));
   __ cmpeq(r4, Immediate(2));
   __ bf(&l3);
+
+  __ jmp(&l4);
+  __ add(r0, Immediate(1));
+  __ bind(&l4);
 
   EPILOGUE();
   __ rts();

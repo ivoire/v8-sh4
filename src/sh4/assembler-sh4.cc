@@ -700,6 +700,10 @@ void Assembler::bind(NearLabel* L) {
       ASSERT(FITS_SH4_bt(disp));
       *p_pos = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0);
       break;
+    case branch_unconditional:
+      ASSERT(FITS_SH4_bra(disp));
+      *p_pos = (0xA << 12) | (((disp & 0x1FFE) >> 1) << 0);
+      break;
     default:
       UNREACHABLE();
     }
@@ -928,6 +932,8 @@ void Assembler::branch(NearLabel* L, branch_type type) {
     case branch_false:
       bf_(offset);
       break;
+    case branch_unconditional:
+      bra_(offset);
     default:
       UNREACHABLE();
     }

@@ -667,7 +667,7 @@ class Assembler : public AssemblerBase {
   void bt(Label* L, Register rtmp = sh4_rtmp)    { branch(L, rtmp, branch_true); }
   void bf(Label* L, Register rtmp = sh4_rtmp)    { branch(L, rtmp, branch_false); }
   void jmp(Label* L, Register rtmp = sh4_rtmp)   { branch(L, rtmp, branch_unconditional); }
-  void b(Label* L, Register rtmp = sh4_rtmp)   { jmp(L, rtmp); }
+  void b(Label* L, Register rtmp = sh4_rtmp)     { jmp(L, rtmp); }
   void b(Condition cond, Label* L, Register rtmp = sh4_rtmp)   {
     ASSERT(cond == ne || cond == eq);
     branch(L, rtmp, cond == eq ? branch_true: branch_false);
@@ -686,8 +686,14 @@ class Assembler : public AssemblerBase {
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
 
-  void bt(NearLabel* L) { branch(L, branch_true); }
-  void bf(NearLabel* L) { branch(L, branch_false); }
+  void bt(NearLabel* L)         { branch(L, branch_true); }
+  void bf(NearLabel* L)         { branch(L, branch_false); }
+  void jmp(NearLabel* L)        { branch(L, branch_unconditional); }
+  void b(NearLabel* L)          { jmp(L); }
+  void b(Condition cond, NearLabel* L) {
+    ASSERT(cond == ne || cond == eq);
+    branch(L, cond == eq ? branch_true : branch_false);
+  }
 
   void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
   void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }      // is Rd > Rs ?
