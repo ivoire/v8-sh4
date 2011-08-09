@@ -688,15 +688,16 @@ void Assembler::bind(NearLabel* L) {
   while (L->unresolved_branches_ > 0) {
     int branch_pos = L->unresolved_positions_[L->unresolved_branches_ - 1];
     uint16_t* p_pos = reinterpret_cast<uint16_t*>(branch_pos + buffer_) - 1;
-    uint16_t disp = pc_offset() - branch_pos - 2;
-    ASSERT(is_int8(disp));
+    int disp = pc_offset() - branch_pos - 2;
     branch_type type = static_cast<branch_type>(*p_pos);
 
     switch (type) {
     case branch_true:
+      ASSERT(FITS_SH4_bf(disp));
       *p_pos = (0x8 << 12) | (0x9 << 8) | (((disp & 0x1FE) >> 1) << 0);
       break;
     case branch_false:
+      ASSERT(FITS_SH4_bt(disp));
       *p_pos = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0);
       break;
     default:
@@ -920,7 +921,6 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
 void Assembler::branch(NearLabel* L, branch_type type) {
   if (L->is_bound()) {
     int offset = L->pos() - pc_offset() - 4;
-    ASSERT(is_int8(offset));
     switch (type) {
     case branch_true:
       bt_(offset);
