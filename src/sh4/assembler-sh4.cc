@@ -701,8 +701,10 @@ void Assembler::bind(NearLabel* L) {
       *p_pos = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0);
       break;
     case branch_unconditional:
+      disp += 2;
       ASSERT(FITS_SH4_bra(disp));
-      *p_pos = (0xA << 12) | (((disp & 0x1FFE) >> 1) << 0);
+      *(p_pos-1) = (0xA << 12) | (((disp & 0x1FFE) >> 1) << 0);
+      *p_pos = 0x9;
       break;
     default:
       UNREACHABLE();
@@ -934,11 +936,15 @@ void Assembler::branch(NearLabel* L, branch_type type) {
       break;
     case branch_unconditional:
       bra_(offset);
+      nop_();
     default:
       UNREACHABLE();
     }
   } else {
     // Emit the right sequence according to the type
+    // In case of an unconditional jump, we must add a nop to handle the delay slot
+    if (type == branch_unconditional)
+      nop_();
     *reinterpret_cast<uint16_t*>(pc_) = static_cast<uint16_t>(type);
     pc_ += sizeof(uint16_t);
     // The offset is set later
