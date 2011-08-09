@@ -3018,20 +3018,20 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
   //  -- r0    : key
   //  -- r1    : receiver
   // -----------------------------------
-  Label miss;
+  NearLabel miss;
 
   // Check that the receiver isn't a smi.
   __ tst(r1, Immediate(kSmiTagMask));
-  __ b(eq, &miss);
+  __ bt(&miss);
 
   // Check that the map matches.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r2, Immediate(Handle<Map>(receiver->map())));
-  __ b(ne, &miss);
+  __ cmpeq(r2, Immediate(Handle<Map>(receiver->map())));
+  __ bf(&miss);
 
   // Check that the key is a smi.
   __ tst(r0, Immediate(kSmiTagMask));
-  __ b(ne, &miss);
+  __ bf(&miss);
 
   // Get the elements array.
   __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
@@ -3040,7 +3040,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
   // Check that the key is within bounds.
   __ ldr(r3, FieldMemOperand(r2, FixedArray::kLengthOffset));
   __ cmphs(r0, r3);
-  __ b(t, &miss);
+  __ bt(&miss);
 
   // Load the result and make sure it's not the hole.
   __ add(r3, r2, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -3048,8 +3048,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
   __ lsl(ip, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
   __ ldr(r4, MemOperand(r3, ip));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-  __ cmp(r4, ip);
-  __ b(eq, &miss);
+  __ cmpeq(r4, ip);
+  __ bt(&miss);
   __ mov(r0, r4);
   __ Ret();
 

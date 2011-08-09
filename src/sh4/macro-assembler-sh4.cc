@@ -1030,9 +1030,9 @@ void MacroAssembler::CallCFunctionHelper(Register function,
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {
       ASSERT(IsPowerOf2(frame_alignment));
-      Label alignment_as_expected;
+      NearLabel alignment_as_expected;
       tst(sp, Immediate(frame_alignment_mask));
-      b(eq, &alignment_as_expected);
+      bt(&alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort possibly
       // re-entering here.
       stop("Unexpected alignment");
@@ -1133,7 +1133,8 @@ void MacroAssembler::Throw(Register value) {
   // Before returning we restore the context from the frame pointer if
   // not NULL.  The frame pointer is NULL in the exception handler of a
   // JS entry frame.
-  Label restore, restore_end;
+  NearLabel restore;
+  Label restore_end;
   cmpeq(fp, Immediate(0));
   bf(&restore);
   RECORD_LINE();
@@ -1170,7 +1171,8 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   ldr(sp, MemOperand(r3));
 
   // Unwind the handlers until the ENTRY handler is found.
-  Label loop, done;
+  Label loop;
+  NearLabel done;
   bind(&loop);
   RECORD_LINE();
   // Load the type of the current stack handler.
@@ -2024,7 +2026,8 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   ASSERT(!zeros.is(sh4_rtmp));
   RECORD_LINE();
 
-  Label l0, l1, l2, l3, l4, l5;
+  NearLabel l0, l1, l2, l3, l4;
+  Label l5;
   cmpeq(source, Immediate(0));
   bf(&l0);
   mov(zeros, Immediate(32));
@@ -2128,7 +2131,7 @@ void MacroAssembler::Ret(Condition cond) {
     rts();
   } else {
     RECORD_LINE();
-    Label skip;
+    NearLabel skip;
     if (cond == eq) {
       bf(&skip);
     } else {

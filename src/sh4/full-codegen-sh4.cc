@@ -264,7 +264,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(AstNode::kFunctionEntryId, NO_REGISTERS);
-      Label ok;
+      NearLabel ok;
       __ LoadRoot(ip, Heap::kStackLimitRootIndex);
       __ cmpgeu(sp, ip);
       __ bt(&ok);
@@ -301,10 +301,10 @@ void FullCodeGenerator::ClearAccumulator() {
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
-  Label ok;
+  NearLabel ok;
   __ LoadRoot(ip, Heap::kStackLimitRootIndex);
   __ cmphs(sp, ip);
-  __ b(t, &ok);
+  __ bt(&ok);
   StackCheckStub stub;
   __ CallStub(&stub);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
@@ -962,9 +962,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ JumpIfSmi(r3, &call_runtime);
 
   // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
-  __ cmp(r1, r0);
-  __ b(eq, &check_prototype);
+  NearLabel check_prototype;
+  __ cmpeq(r1, r0);
+  __ bt(&check_prototype);
   __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheBridgeCacheOffset));
   __ cmp(r3, empty_fixed_array_value);
   __ b(ne, &call_runtime);
@@ -989,12 +989,12 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // If we got a map from the runtime call, we can do a fast
   // modification check. Otherwise, we got a fixed array, and we have
   // to do a slow check.
-  Label fixed_array;
+  NearLabel fixed_array;
   __ mov(r2, r0);
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kMetaMapRootIndex);
-  __ cmp(r1, ip);
-  __ b(ne, &fixed_array);
+  __ cmpeq(r1, ip);
+  __ bf(&fixed_array);
 
   // We got a map in register r0. Get the enumeration cache from it.
   __ bind(&use_cache);
@@ -1037,11 +1037,11 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check if the expected map still matches that of the enumerable.
   // If not, we have to filter the key.
-  Label update_each;
+  NearLabel update_each;
   __ ldr(r1, MemOperand(sp, 4 * kPointerSize));
   __ ldr(r4, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r4, r2);
-  __ b(eq, &update_each);
+  __ cmpeq(r4, r2);
+  __ bt(&update_each);
 
   // Convert the entry to a string or (smi) 0 if it isn't a property
   // any more. If the property has been removed while iterating, we
@@ -1174,7 +1174,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
       // Generate fast case for locals that rewrite to slots.
       __ ldr(r0, ContextSlotOperandCheckExtensions(potential_slot, slow));
       if (potential_slot->var()->mode() == Variable::CONST) {
-        Label skip;
+        NearLabel skip;
         __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
         __ cmp(r0, ip);
         __ bf(&skip);
@@ -1314,7 +1314,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     if (var->mode() == Variable::CONST) {
       // Constants may be the hole value if they have not been initialized.
       // Unhole them.
-      Label no_hole;
+      NearLabel no_hole;
 
       MemOperand slot_operand = EmitSlotSearch(slot, r0);
       __ ldr(r0, slot_operand);
@@ -1359,7 +1359,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label materialized;
+  NearLabel materialized;
   // Registers will be used as follows:
   // r5 = materialized value (RegExp literal)
   // r4 = JS function, literals array
@@ -1373,8 +1373,8 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
       FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
   __ ldr(r5, FieldMemOperand(r4, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r5, ip);
-  __ b(ne, &materialized);
+  __ cmpeq(r5, ip);
+  __ bf(&materialized);
 
   // Create regexp literal using runtime function.
   // Result will be in r0.

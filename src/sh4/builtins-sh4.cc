@@ -294,7 +294,8 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_storage: elements array element storage
   // elements_array_end: start of next object
   if (fill_with_hole) {
-    Label loop, entry;
+    NearLabel loop;
+    Label entry;
     __ LoadRoot(scratch1, Heap::kTheHoleValueRootIndex);
     __ jmp(&entry);
     __ bind(&loop);
@@ -329,7 +330,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
 
   // Check for array construction with zero arguments or one.
   __ cmp(r0, Immediate(0));
-  __ b(ne, &argc_one_or_more);
+  __ bf(&argc_one_or_more);
 
   // Handle construction of an empty array.
   AllocateEmptyJSArray(masm,
@@ -412,7 +413,8 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // r4: elements_array storage start (untagged)
   // r5: elements_array_end (untagged)
   // sp[0]: last argument
-  Label loop, entry;
+  NearLabel loop;
+  Label entry;
   __ jmp(&entry);
   __ bind(&loop);
   __ ldr(r2, MemOperand(sp));
@@ -634,7 +636,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- pr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  Label non_function_call;
+  NearLabel non_function_call;
 
   // Check that the function is not a smi.
   __ tst(r1, Immediate(kSmiTagMask));

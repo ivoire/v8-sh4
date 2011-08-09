@@ -690,7 +690,7 @@ static void GenerateCallMiss(MacroAssembler* masm, int argc, IC::UtilityId id) {
   // Check if the receiver is a global object of some sort.
   // This can happen only for regular CallIC but not KeyedCallIC.
   if (id == IC::kCallIC_Miss) {
-    Label invoke, global;
+    NearLabel invoke, global;
     __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
     __ tst(r2, Immediate/*TODO:Operand*/(kSmiTagMask));
     __ bt(&invoke);
