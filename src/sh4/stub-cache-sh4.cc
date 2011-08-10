@@ -3856,7 +3856,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   //  -- r3    : scratch
   //  -- r4    : scratch (elements)
   // -----------------------------------
-  NearLabel miss;
+  Label miss;
 
   Register value_reg = r0;
   Register key_reg = r1;
