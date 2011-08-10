@@ -900,7 +900,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Comment cmnt(masm_, "[ ForInStatement");
   SetStatementPosition(stmt);
 
-  NearLabel loop;
+  Label loop;
   Label exit;
   ForIn loop_statement(this, stmt);
   increment_loop_depth();
