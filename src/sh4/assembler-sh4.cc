@@ -29,6 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_SH4)
 
+#include "sh4/assembler-sh4-inl.h"
 #include "disassembler.h"
 #include "macro-assembler.h"
 #include "serialize.h"
@@ -943,7 +944,8 @@ void Assembler::branch(NearLabel* L, branch_type type) {
     }
   } else {
     // Emit the right sequence according to the type
-    // In case of an unconditional jump, we must add a nop to handle the delay slot
+    // In case of an unconditional jump, we must add a nop to handle
+    // the delay slot
     if (type == branch_unconditional)
       nop_();
     *reinterpret_cast<uint16_t*>(pc_) = static_cast<uint16_t>(type);

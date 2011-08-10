@@ -664,24 +664,35 @@ class Assembler : public AssemblerBase {
            Register rtmp = sh4_rtmp);
   void add(Register Rd, Register Rs, Register Rt);
 
-  void bt(Label* L, Register rtmp = sh4_rtmp)    { branch(L, rtmp, branch_true); }
-  void bf(Label* L, Register rtmp = sh4_rtmp)    { branch(L, rtmp, branch_false); }
-  void jmp(Label* L, Register rtmp = sh4_rtmp)   { branch(L, rtmp, branch_unconditional); }
-  void b(Label* L, Register rtmp = sh4_rtmp)     { jmp(L, rtmp); }
+  void bt(Label* L, Register rtmp = sh4_rtmp)
+        { branch(L, rtmp, branch_true); }
+  void bf(Label* L, Register rtmp = sh4_rtmp)
+        { branch(L, rtmp, branch_false); }
+  void jmp(Label* L, Register rtmp = sh4_rtmp)
+        { branch(L, rtmp, branch_unconditional); }
+  void b(Label* L, Register rtmp = sh4_rtmp)
+        { jmp(L, rtmp); }
   void b(Condition cond, Label* L, Register rtmp = sh4_rtmp)   {
     ASSERT(cond == ne || cond == eq);
     branch(L, rtmp, cond == eq ? branch_true: branch_false);
   }
 
-  void jsr(Label* L, Register rtmp = sh4_rtmp)   { branch(L, rtmp, branch_subroutine); }
+  void jsr(Label* L, Register rtmp = sh4_rtmp)
+        { branch(L, rtmp, branch_subroutine); }
 
   // Check the code size generated from label to here.
   int InstructionsGeneratedSince(Label* l) {
     return (pc_offset() - l->pos()) / kInstrSize;
   }
 
-  void jmp(Register Rd) { jmp_indRd_(Rd); nop_(); }
-  void jsr(Register Rd) { jsr_indRd_(Rd); nop_(); }
+  void jmp(Register Rd) {
+    jmp_indRd_(Rd);
+    nop_();
+  }
+  void jsr(Register Rd) {
+    jsr_indRd_(Rd);
+    nop_();
+  }
 
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
@@ -696,47 +707,54 @@ class Assembler : public AssemblerBase {
   }
 
   void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
-  void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }      // is Rd > Rs ?
-  void cmpge(Register Rd, Register Rs) { cmpge_(Rs, Rd); }      // is Rd >= Rs ?
-  void cmpgtu(Register Rd, Register Rs) { cmphi_(Rs, Rd); }     // is Rd u> Rs ?
-  void cmpgeu(Register Rd, Register Rs) { cmphs_(Rs, Rd); }     // is Rd u>= Rs ?
-  void cmpeq(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) {
-    mov(rtmp, imm); cmpeq_(rtmp, Rd); }
-  void cmpgt(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) {
-    mov(rtmp, imm); cmpgt_(rtmp, Rd); }
-  void cmpge(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) {
-    mov(rtmp, imm); cmpge_(rtmp, Rd); }
-  void cmpgtu(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) {
-    mov(rtmp, imm); cmphi_(rtmp, Rd); }
-  void cmpgeu(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) {
-    mov(rtmp, imm); cmphs_(rtmp, Rd); }
+  void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }     // is Rd > Rs ?
+  void cmpge(Register Rd, Register Rs) { cmpge_(Rs, Rd); }     // is Rd >= Rs ?
+  void cmpgtu(Register Rd, Register Rs) { cmphi_(Rs, Rd); }    // is Rd u> Rs ?
+  void cmpgeu(Register Rd, Register Rs) { cmphs_(Rs, Rd); }    // is Rd u>= Rs ?
 
-  void cmp(Register Rd, Register Rs) { cmpeq(Rd, Rs); } // Alias for cmpeq
-  void cmp(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) { // Alias for cmpeq
-    cmpeq(Rd, imm, rtmp); }
+  inline void  cmpeq(Register Rd, const Immediate& imm,
+                     Register rtmp = sh4_rtmp);
+  inline void  cmpgt(Register Rd, const Immediate& imm,
+                     Register rtmp = sh4_rtmp);
+  inline void  cmpge(Register Rd, const Immediate& imm,
+                     Register rtmp = sh4_rtmp);
+  inline void cmpgtu(Register Rd, const Immediate& imm,
+                     Register rtmp = sh4_rtmp);
+  inline void cmpgeu(Register Rd, const Immediate& imm,
+                     Register rtmp = sh4_rtmp);
 
-  INLINE(void cmp(Condition& cond, Register Rd, Register Rs));
-  void cmp(Condition& cond, Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp) {
-    mov(rtmp, imm); return cmp(cond, Rd, rtmp); }
+  // ALiases for cmpeq
+  void cmp(Register Rd, Register Rs) { cmpeq(Rd, Rs); }
+  void cmp(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp)
+        { cmpeq(Rd, imm, rtmp); }
 
-  void cmphs(Register Rd, Register Rs) { // Alias for cmpgeu
-    cmpgeu(Rd, Rs); }
-  void cmphs(Register Rd, const Immediate& imm, // Alias for cmpgeu
+  inline void cmp(Condition& cond, Register Rd, Register Rs);
+  void cmp(Condition& cond, Register Rd, const Immediate& imm,
+           Register rtmp = sh4_rtmp) {
+    mov(rtmp, imm);
+    return cmp(cond, Rd, rtmp);
+  }
+
+  // Aliases for cmpgeu
+  void cmphs(Register Rd, Register Rs) { cmpgeu(Rd, Rs); }
+  void cmphs(Register Rd, const Immediate& imm,
              Register rtmp = sh4_rtmp) { cmpgeu(Rd, imm, rtmp); }
 
-  void cmphi(Register Rd, Register Rs) { // Alias for cmpgtu
-    cmpgtu(Rd, Rs); }
-  void cmphi(Register Rd, const Immediate& imm, // Alias for cmpgtu
+  // Aliases for cmpgtu
+  void cmphi(Register Rd, Register Rs) { cmpgtu(Rd, Rs); }
+  void cmphi(Register Rd, const Immediate& imm,
              Register rtmp = sh4_rtmp) { cmpgtu(Rd, imm, rtmp); }
 
-  void cmpeq_r0_raw_immediate(int raw_immediate) { cmpeq_imm_R0_((int8_t)raw_immediate); }
-  int fits_raw_immediate(int raw_immediate) { return (raw_immediate & ~0xFF) == 0; }
+  void cmpeq_r0_raw_immediate(int raw_immediate) {
+        cmpeq_imm_R0_((int8_t)raw_immediate); }
+  int fits_raw_immediate(int raw_immediate)
+        { return (raw_immediate & ~0xFF) == 0; }
 
   // Read/patch instructions
-  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(byte* pc, Instr instr) {
-    *reinterpret_cast<Instr*>(pc) = instr;
-  }
+  static Instr instr_at(byte* pc)
+        { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(byte* pc, Instr instr)
+        { *reinterpret_cast<Instr*>(pc) = instr; }
   static Condition GetCondition(Instr instr);
   static bool IsBranch(Instr instr);
   static Register GetRn(Instr instr);
@@ -747,105 +765,126 @@ class Assembler : public AssemblerBase {
   static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsMovImmediate(Instr instr);
 
-  void sub(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void sub(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
   void sub(Register Rd, Register Rs, Register Rt);
 
-  void rsb(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp) { // Reverse sub: imm - Rs
-    mov(rtmp, imm); rsb(Rd, Rs, rtmp);
-  }
-  void rsb(Register Rd, Register Rs, Register Rt) { // Reverse sub: Rt - Rs
-    sub(Rd, Rt, Rs);
-  }
-
-  void rsb(Register Rd, Register Rs, const Immediate& imm, Condition cond, Register rtmp = sh4_rtmp) { // Reverse sub: imm - Rs
-    ASSERT(cond == ne || cond == eq);
-    NearLabel end;
-    if (cond == eq) bf(&end); // Jump after sequence if T bit is false
-    else bt(&end); // Jump after sequence if T bit is true
-    rsb(Rd, Rs, imm, rtmp);
-    bind(&end);
-  }
+  // Reverse sub: imm - Rs
+  inline void rsb(Register Rd, Register Rs, const Immediate& imm,
+                  Register rtmp = sh4_rtmp);
+  // Reverse sub: Rt - Rs
+  inline void rsb(Register Rd, Register Rs, Register Rt);
+  inline void rsb(Register Rd, Register Rs, const Immediate& imm,
+                  Condition cond, Register rtmp = sh4_rtmp);
 
   void addv(Register Rd, Register Rs, Register Rt);
-  void addv(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void addv(Register Rd, Register Rs, const Immediate& imm,
+            Register rtmp = sh4_rtmp);
   void subv(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
   void addc(Register Rd, Register Rs, Register Rt);
   void subc(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
-  void asr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);        // arithmetic shift right
-  void asr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);    // arithmetic shift right
-  void asl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);    // arithmetic shift left
+  // arithmetic shift right
+  void asr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
+  void asr(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
+  // arithmetic shift left
+  void asl(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
 
-  void lsl(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void lsl(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
   void lsl(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
-  void lsr(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void lsr(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
   void lsr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
-  void land(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void land(Register Rd, Register Rs, const Immediate& imm,
+            Register rtmp = sh4_rtmp);
   void land(Register Rd, Register Rs, Register Rt);
-  void bic(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp) { //bit clear
-    land(Rd, Rs, Immediate(~imm.x_), rtmp);
-  }
-  void bic(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp) {
-    lnot(rtmp, Rt); land(Rd, Rs, rtmp);
-  }
-  void lnot(Register Rd, Register Rs) { not_(Rs, Rd); }
-  void mvn(Register Rd, Register Rs) { lnot(Rd, Rs); } // Alias for lnot()
 
-  void lor(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
+  // bit clear
+  void bic(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp)
+        { land(Rd, Rs, Immediate(~imm.x_), rtmp); }
+  void bic(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp) {
+    lnot(rtmp, Rt);
+    land(Rd, Rs, rtmp);
+  }
+
+  void lnot(Register Rd, Register Rs) { not_(Rs, Rd); }
+  void mvn(Register Rd, Register Rs)  { lnot(Rd, Rs); }  // Alias for lnot()
+
+  void lor(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
   void lor(Register Rd, Register Rs, Register Rt);
-  void lor(Register Rd, Register Rs, const Immediate& imm, Condition cond, Register rtmp = sh4_rtmp);
+  void lor(Register Rd, Register Rs, const Immediate& imm, Condition cond,
+           Register rtmp = sh4_rtmp);
   void lor(Register Rd, Register Rs, Register Rt, Condition cond);
 
-  void lxor(Register Rd, Register Rs, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void lxor(Register Rd, Register Rs, const Immediate& imm,
+            Register rtmp = sh4_rtmp);
   void lxor(Register Rd, Register Rs, Register Rt);
 
-  void eor(Register Rd, Register Rs, const Immediate& imm,// Alias for lxor
+  // Aliases for lxor
+  void eor(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp) { lxor(Rd, Rs, imm, rtmp); }
-  void eor(Register Rd, Register Rs, Register Rt)  { // Alias for lxor
-    lxor(Rd, Rs, Rt);
-  }
+  void eor(Register Rd, Register Rs, Register Rt)  { lxor(Rd, Rs, Rt); }
 
-  void orr(Register Rd, Register Rs, const Immediate& imm,// Alias for lor
+  // Aliases for lor
+  void orr(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, rtmp); }
-  void orr(Register Rd, Register Rs, Register Rt)  { // Alias for lor
-    lor(Rd, Rs, Rt);
-  }
-  void orr(Register Rd, Register Rs, const Immediate& imm,// Alias for lor
-           Condition cond, Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, cond, rtmp); }
-
-  void orr(Register Rd, Register Rs, Register Rt, Condition cond) { // Alias for lor
-    lor(Rd, Rs, Rt, cond);
-  }
+  void orr(Register Rd, Register Rs, Register Rt)  { lor(Rd, Rs, Rt); }
+  void orr(Register Rd, Register Rs, const Immediate& imm,
+           Condition cond, Register rtmp = sh4_rtmp)
+        { lor(Rd, Rs, imm, cond, rtmp); }
+  void orr(Register Rd, Register Rs, Register Rt, Condition cond)
+        { lor(Rd, Rs, Rt, cond); }
 
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); }
   void tst(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp);
 
-  void mov(Register Rd, Register Rs, Condition cond); // Conditional move
-  void mov(Register Rd, const Immediate& imm, Condition cond); // Conditional move
+  // Conditional move
+  void mov(Register Rd, Register Rs, Condition cond);
+  void mov(Register Rd, const Immediate& imm, Condition cond);
+
   void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }
   void mov(Register Rd, const Immediate& imm);
   void mov(Register Rd, const Operand& src);
 
-  void mov(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);  // load op.
-  void movb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp); // unsigned 8 bit load op.
-  void movw(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp); // unsigned 16 bit load op.
-  void mov(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store op.
-  void movb(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store 8 bits op.
-  void movw(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);  // store 16 bits op.
+  // load op.
+  void mov(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  // unsigned 8 bit load op.
+  void movb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  // unsigned 16 bit load op.
+  void movw(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  // store op.
+  void mov(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);
+  // store 8 bits op.
+  void movb(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);
+  // store 16 bits op.
+  void movw(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);
 
   void movd(DwVfpRegister Dd, Register Rs1, Register Rs2);
   void movd(Register Rd1, Register Rd2, DwVfpRegister Ds);
 
-  void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { mov(Rd, src, rtmp); }
-  void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { movb(Rd, src, rtmp); }
-  void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp) { movw(Rd, src, rtmp); }
-  void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp); // unsigned 8 bit load op.
-  void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp); // signed 16 bit load op.
-  void str(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { mov(dst, Rs, rtmp); }
-  void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movw(dst, Rs, rtmp); }
-  void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp) { movb(dst, Rs, rtmp); }
+  void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
+        { mov(Rd, src, rtmp); }
+  void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
+        { movb(Rd, src, rtmp); }
+  void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
+        { movw(Rd, src, rtmp); }
+  // unsigned 8 bit load op.
+  void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  // signed 16 bit load op.
+  void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  void str(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)
+        { mov(dst, Rs, rtmp); }
+  void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)
+        { movw(dst, Rs, rtmp); }
+  void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)
+        { movb(dst, Rs, rtmp); }
 
   void ldrpr(Register Rd) { lds_PR_(Rd); }
   void strpr(Register Rs) { sts_PR_(Rs); }
@@ -867,14 +906,14 @@ class Assembler : public AssemblerBase {
   void pop(DwVfpRegister dst);
   void popm(RegList dst, bool doubles = false);
 
-  void rts() { rts_(); nop_(); }
+  inline void rts();
 
   // Exception-generating instructions and debugging support
   void stop(const char* msg);
   void bkpt();
 
   // Align the code
-  int align() { int count = 0; while (((unsigned)pc_ & 0x3) != 0) { nop_(); count++; } return count; }
+  inline int align();
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -883,8 +922,7 @@ class Assembler : public AssemblerBase {
 
   void call(Label* L);
 
-  void emit(Instr x) { CheckBuffer(); *reinterpret_cast<uint16_t*>(pc_) = x; pc_ += sizeof(uint16_t); }
-
+  inline void emit(Instr x);
 
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();

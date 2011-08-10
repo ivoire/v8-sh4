@@ -309,6 +309,15 @@ void Assembler::set_target_address_at(Address pc, Address target) {
   // this address in the constant pool remains unchanged.
 }
 
+int Assembler::align() {
+  int count = 0;
+  while (((unsigned)pc_ & 0x3) != 0) {
+    nop_();
+    count++;
+  }
+  return count;
+}
+
 
 void Assembler::cmp(Condition &cond, Register Rd, Register Rs) {
   Condition cond_to_test = eq;
@@ -327,6 +336,75 @@ void Assembler::cmp(Condition &cond, Register Rd, Register Rs) {
     UNIMPLEMENTED();
   }
   cond = cond_to_test;
+}
+
+
+void Assembler::cmpeq(Register Rd, const Immediate& imm, Register rtmp) {
+  mov(rtmp, imm);
+  cmpeq_(rtmp, Rd);
+}
+
+
+void Assembler::cmpgt(Register Rd, const Immediate& imm, Register rtmp) {
+  mov(rtmp, imm);
+  cmpgt_(rtmp, Rd);
+}
+
+
+void Assembler::cmpge(Register Rd, const Immediate& imm, Register rtmp) {
+  mov(rtmp, imm);
+  cmpge_(rtmp, Rd);
+}
+
+
+void Assembler::cmpgtu(Register Rd, const Immediate& imm, Register rtmp) {
+  mov(rtmp, imm);
+  cmphi_(rtmp, Rd);
+}
+
+
+void Assembler::cmpgeu(Register Rd, const Immediate& imm, Register rtmp) {
+  mov(rtmp, imm);
+  cmphs_(rtmp, Rd);
+}
+
+
+void Assembler::emit(Instr x) {
+  CheckBuffer();
+  *reinterpret_cast<uint16_t*>(pc_) = x;
+  pc_ += sizeof(uint16_t);
+}
+
+
+void Assembler::rsb(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
+  mov(rtmp, imm);
+  rsb(Rd, Rs, rtmp);
+}
+
+
+void Assembler::rsb(Register Rd, Register Rs, Register Rt) {
+  sub(Rd, Rt, Rs);
+}
+
+
+void Assembler::rsb(Register Rd, Register Rs, const Immediate& imm,
+                    Condition cond, Register rtmp) {
+  ASSERT(cond == ne || cond == eq);
+  NearLabel end;
+  if (cond == eq)
+    bf(&end);           // Jump after sequence if T bit is false
+  else
+    bt(&end);           // Jump after sequence if T bit is true
+
+  rsb(Rd, Rs, imm, rtmp);
+  bind(&end);
+}
+
+
+void Assembler::rts() {
+  rts_();
+  nop_();
 }
 
 
@@ -350,11 +428,13 @@ MemOperand::MemOperand(Register Rx, int32_t offset) {
   offset_ = offset;
 }
 
+
 MemOperand::MemOperand(Register Rd, Register offset) {
   rm_ = Rd;
   rn_ = offset;
   offset_ = 0;
 }
+
 
 } }  // namespace v8::internal
 

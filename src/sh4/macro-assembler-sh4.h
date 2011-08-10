@@ -105,7 +105,8 @@ class MacroAssembler: public Assembler {
   // scratch can be object itself, but it will be clobbered.
   void InNewSpace(Register object,
                   Register scratch,
-                  Condition cond,  // eq for "in new space?", ne for "not in new space?"
+                  // eq for "in new space?", ne for "not in new space?"
+                  Condition cond,
                   Label* branch);
 
   // For the page containing |object| mark the region covering
@@ -139,8 +140,10 @@ class MacroAssembler: public Assembler {
   }
 
   // Mark up to four registers dead at a time.
-  void Dead(Register d1, Register d2, Register d3 = no_reg, Register d4 = no_reg) {
-    Dead(d1); Dead(d2);
+  void Dead(Register d1, Register d2, Register d3 = no_reg,
+            Register d4 = no_reg) {
+    Dead(d1);
+    Dead(d2);
     if (d3.is_valid()) Dead(d3);
     if (d4.is_valid()) Dead(d4);
   }
