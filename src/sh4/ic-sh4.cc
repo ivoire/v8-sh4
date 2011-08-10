@@ -306,7 +306,7 @@ static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
   // t1 - used to hold the capacity mask of the dictionary
   //
   // t2 - used for the index into the dictionary
-  Label done;
+  NearLabel done;
 
   // Compute the hash code from the untagged key.  This must be kept in sync
   // with ComputeIntegerHash in utils.h.
@@ -1246,7 +1246,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   //  -- r2     : receiver
   //  -- lr     : return address
   // -----------------------------------
-  Label slow, fast, array, extra, noret;
+  NearLabel slow, fast, array, extra, noret;
 
   // Register usage.
   Register value = r0;

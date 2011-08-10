@@ -62,7 +62,7 @@ static void ProbeTable(Isolate* isolate,
   // Check that ip is not used
   ASSERT(!name.is(ip) && !offset.is(ip) && !scratch.is(ip) && !scratch2.is(ip));
 
-  Label miss;
+  NearLabel miss;
   Register offsets_base_addr = scratch;
 
   // Check that the key in the entry matches the name.
@@ -974,7 +974,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
   // if (CpuFeatures::IsSupported(VFP3)) {
   // } else
   {
-    Label not_special, done;
+    NearLabel not_special, done;
     // Move sign bit from source to destination.  This works because the sign
     // bit in the exponent word of the double has the same position and polarity
     // as the 2's complement sign bit in a Smi.
@@ -1374,7 +1374,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
     // Check if interceptor provided a value for property.  If it's
     // the case, return immediately.
-    Label interceptor_failed;
+    NearLabel interceptor_failed;
     __ LoadRoot(scratch1, Heap::kNoInterceptorResultSentinelRootIndex);
     __ cmp(r0, scratch1);
     __ b(eq, &interceptor_failed);
@@ -2059,7 +2059,7 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   //  -- r2    : name
   //  -- lr    : return address
   // -----------------------------------
-  Label miss;
+  NearLabel miss;
 
   // Check that the map of the global has not changed.
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -2334,7 +2334,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
         // requires boxing.
         __ jmp(&miss);
       } else {
-        Label fast;
+        NearLabel fast;
         // Check that the object is a smi or a heap number.
         __ tst(r1, Immediate(kSmiTagMask));
         __ b(eq, &fast);
@@ -2356,7 +2356,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
         // requires boxing.
         __ jmp(&miss);
       } else {
-        Label fast;
+        NearLabel fast;
         // Check that the object is a boolean.
         __ LoadRoot(ip, Heap::kTrueValueRootIndex);
         __ cmp(r1, ip);
@@ -2637,7 +2637,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
 
   // Check the sign of the argument. If the argument is positive,
   // just return it.
-  Label negative_sign;
+  NearLabel negative_sign;
   __ tst(r1, Immediate(HeapNumber::kSignMask));
   __ b(ne, &negative_sign);
   __ Drop(argc + 1);
@@ -3178,7 +3178,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   SharedFunctionInfo* shared = function->shared();
   for (int i = 0; i < shared->this_property_assignments_count(); i++) {
     if (shared->IsThisPropertyAssignmentArgument(i)) {
-      Label not_passed, next;
+      NearLabel not_passed, next;
       // Check if the argument assigned to the property is actually passed.
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
       __ cmpgt(r0, Immediate(arg_number));
@@ -3363,7 +3363,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // For the Int and UnsignedInt array types, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
-    Label box_int;
+    NearLabel box_int;
     // FIXME: check if equivalent to TrySmiTag
     __ sub(ip, value, Immediate(0xC0000000));
     __ cmpge(ip, Immediate(0));
@@ -3397,7 +3397,8 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // } else
     {
       // Check whether unsigned integer fits into smi.
-      Label box_int_0, box_int_1, done;
+      NearLabel box_int_0;
+      Label box_int_1, done;
       __ tst(value, Immediate(0x80000000u));
       __ b(ne, &box_int_0);
       __ tst(value, Immediate(0x40000000));
@@ -3460,7 +3461,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       __ land(r1, r1,
               Immediate(kBinary32ExponentMask >> kBinary32MantissaBits));
 
-      Label exponent_rebiased;
+      NearLabel exponent_rebiased;
       __ cmp(r1, Immediate(0x00));
       __ b(eq, &exponent_rebiased);
 
@@ -3672,7 +3673,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       __ ldr(r6, FieldMemOperand(value, HeapNumber::kMantissaOffset));
 
       if (array_type == kExternalFloatArray) {
-        Label done, nan_or_infinity_or_zero;
+        NearLabel done, nan_or_infinity_or_zero;
         static const int kMantissaInHiWordShift =
           kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
 
@@ -3696,7 +3697,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
                r9,
                Immediate(kBinary32ExponentBias - HeapNumber::kExponentBias));
 
-        Label skip1;
+        NearLabel skip1;
         __ cmpgt(r9, Immediate(kBinary32MaxExponent));
         __ bf(&skip1);
         __ land(r5, r5, Immediate(HeapNumber::kSignMask));
@@ -3704,7 +3705,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
         __ b(&done);
         __ bind(&skip1);
 
-        Label skip2;
+        NearLabel skip2;
         __ cmpge(r9, Immediate(kBinary32MinExponent));
         __ bt(&skip2);
         __ land(r5, r5, Immediate(HeapNumber::kSignMask));
@@ -3748,7 +3749,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
         int meaningfull_bits = is_signed_type ? (kBitsPerInt - 1) : kBitsPerInt;
         int32_t min_value = is_signed_type ? 0x80000000 : 0x00000000;
 
-        Label done, sign;
+        NearLabel done, sign;
 
         // Test for all special exponent values: zeros, subnormal numbers, NaNs
         // and infinities. All these should be converted to 0.
@@ -3855,7 +3856,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   //  -- r3    : scratch
   //  -- r4    : scratch (elements)
   // -----------------------------------
-  Label miss;
+  NearLabel miss;
 
   Register value_reg = r0;
   Register key_reg = r1;

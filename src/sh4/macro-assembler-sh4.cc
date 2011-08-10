@@ -60,7 +60,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
   RECORD_LINE();
   // Make sure that the function has an instance prototype.
-  Label non_instance;
+  NearLabel non_instance;
   ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
   tst(scratch, Immediate(1 << Map::kHasNonInstancePrototype));
   bf(&non_instance);
@@ -79,7 +79,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
   RECORD_LINE();
   // If the function does not have an initial map, we're done.
-  Label done;
+  NearLabel done;
   CompareObjectType(result, scratch, scratch, MAP_TYPE, eq);
   bf(&done);
 
@@ -154,13 +154,13 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   DirectCEntryStub stub;
   stub.GenerateCall(this, function);
 
-  Label promote_scheduled_exception;
-  Label delete_allocated_handles;
+  NearLabel promote_scheduled_exception;
+  NearLabel delete_allocated_handles;
   Label leave_exit_frame;
 
   // If result is non-zero, dereference to get the result value
   // otherwise set it to undefined.
-  Label ltrue, lfalse;
+  NearLabel ltrue, lfalse;
   cmp(r0, Immediate(0));
   bf(&lfalse);
   LoadRoot(r0, Heap::kUndefinedValueRootIndex);
@@ -253,7 +253,7 @@ void MacroAssembler::ConvertToInt32(Register source,
     // the range of signed int32 values that are not Smis.  Jumps to the label
     // 'not_int32' if the double isn't in the range -0x80000000.0 to
     // 0x80000000.0 (excluding the endpoints).
-    Label right_exponent, done;
+    NearLabel right_exponent, done;
     // Get exponent word.
     ldr(scratch, FieldMemOperand(source, HeapNumber::kExponentOffset));
     // Get exponent alone in scratch2.
@@ -331,7 +331,7 @@ void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
                                                  Register input_high,
                                                  Register input_low,
                                                  Register scratch) {
-  Label done, normal_exponent, restore_sign;
+  NearLabel done, normal_exponent, restore_sign;
 
   // Extract the biased exponent in result.
   Ubfx(result,
@@ -376,7 +376,7 @@ void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
   lsl(input_high, input_high, scratch);
 
   // Replace the shifted bits with bits from the lower mantissa word.
-  Label pos_shift, shift_done;
+  NearLabel pos_shift, shift_done;
   rsb(scratch, scratch, Immediate(32));
   cmpge(scratch, Immediate(0));
   bt(&pos_shift);
@@ -718,7 +718,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     CallWrapper* call_wrapper) {
   ASSERT(!code_reg.is(sh4_ip));
   bool definitely_matches = false;
-  Label regular_invoke;
+  NearLabel regular_invoke;
 
   // Check whether the expected and actual arguments count match. If not,
   // setup registers according to contract with ArgumentsAdaptorTrampoline:
@@ -1133,8 +1133,7 @@ void MacroAssembler::Throw(Register value) {
   // Before returning we restore the context from the frame pointer if
   // not NULL.  The frame pointer is NULL in the exception handler of a
   // JS entry frame.
-  NearLabel restore;
-  Label restore_end;
+  NearLabel restore, restore_end;
   cmpeq(fp, Immediate(0));
   bf(&restore);
   RECORD_LINE();
@@ -1171,8 +1170,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   ldr(sp, MemOperand(r3));
 
   // Unwind the handlers until the ENTRY handler is found.
-  Label loop;
-  NearLabel done;
+  NearLabel loop, done;
   bind(&loop);
   RECORD_LINE();
   // Load the type of the current stack handler.
@@ -1247,7 +1245,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
 void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
                                             Register scratch,
                                             Label* miss) {
-  Label same_contexts;
+  NearLabel same_contexts;
 
   ASSERT(!holder_reg.is(scratch));
   ASSERT(!holder_reg.is(ip));
@@ -1503,7 +1501,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
   RECORD_LINE();
   if (emit_debug_code()) {
     ASSERT(!elements.is(sh4_ip));
-    Label ok;
+    NearLabel ok;
     RECORD_LINE();
     push(elements);
     ldr(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
@@ -1524,7 +1522,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
 
 
 void MacroAssembler::Check(Condition cond, const char* msg) {
-  Label L;
+  NearLabel L;
   RECORD_LINE();
   b(cond, &L);
   Abort(msg);
@@ -1954,7 +1952,7 @@ void MacroAssembler::CopyBytes(Register src,
                                Register dst,
                                Register length,
                                Register scratch) {
-  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
+  NearLabel align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
 
   // Align src before copying in word size chunks.
   bind(&align_loop);
@@ -2026,8 +2024,7 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   ASSERT(!zeros.is(sh4_rtmp));
   RECORD_LINE();
 
-  NearLabel l0, l1, l2, l3, l4;
-  Label l5;
+  NearLabel l0, l1, l2, l3, l4, l5;
   cmpeq(source, Immediate(0));
   bf(&l0);
   mov(zeros, Immediate(32));
@@ -2467,7 +2464,8 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   // Load the initial map. The global functions all have initial maps.
   ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
-    Label ok, fail;
+    NearLabel ok;
+    Label fail;
     CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
     b(&ok);
     bind(&fail);
