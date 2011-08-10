@@ -937,6 +937,7 @@ void Assembler::branch(NearLabel* L, branch_type type) {
     case branch_unconditional:
       bra_(offset);
       nop_();
+      break;
     default:
       UNREACHABLE();
     }

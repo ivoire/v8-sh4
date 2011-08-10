@@ -1948,7 +1948,7 @@ void TypeRecordingBinaryOpStub::GenerateSmiCode(MacroAssembler* masm,
     Label* use_runtime,
     Label* gc_required,
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
-  NearLabel not_smis;
+  Label not_smis;
 
   Register left = r1;
   Register right = r0;
