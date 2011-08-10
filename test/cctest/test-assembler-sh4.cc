@@ -1405,7 +1405,7 @@ TEST(27) {
 TEST(28) {
   BEGIN();
 
-  Label l1, l2, l3, l4;
+  NearLabel l1, l2, l3, l4;
 
   PROLOGUE();
 
