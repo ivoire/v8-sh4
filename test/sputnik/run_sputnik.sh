@@ -1,15 +1,23 @@
 #!/bin/sh
 
 SPUTNIK_ZIP='/home/compwork/duraffort/pub/sputniktests-v1.zip'
-SHELL='shell_g'
-SHELL_ENV='/home/compwork/projects/proot/release/v0.6/x86_64/proot -W -Q /home/compwork/projects/qemu/release/r0/x86_64/qemu-sh4 /home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target/'
+
+QEMU=${QEMU-/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4}
+TIMEOUT=${TIMEOUT-"/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout 600"}
+TARGET_ROOT=${TARGET_ROOT-/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target}
+RUN_PREFIX=${RUN_PREFIX-"env QEMU_ASSUME_KERNEL=2.6.30 $TIMEOUT $QEMU -distro -L $TARGET_ROOT -x $PWD -cwd $PWD"}
+
+SHELL="$RUN_PREFIX ./shell_g"
 
 # Get the test suite
+echo "=== Fetching an inflating the test suite ==="
 rm -rf AUTHORS lib LICENSE tests tools
-unzip $SPUTNIK_ZIP
+unzip -q $SPUTNIK_ZIP
 
 # Copy the shell to run
-cp -f ../../$SHELL ./
+echo "=== Copying the shell ==="
+cp -f ../../shell_g ./
 
 # Run the test suite
-python tools/sputnik.py --command "$SHELL_ENV ./$SHELL"
+echo "=== Running the test suite ==="
+python tools/sputnik.py --command "$SHELL"
