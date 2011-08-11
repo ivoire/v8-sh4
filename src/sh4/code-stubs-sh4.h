@@ -337,7 +337,7 @@ class NumberToStringStub: public CodeStub {
 // moved by GC
 class DirectCEntryStub: public CodeStub {
  public:
-  DirectCEntryStub() {}
+  DirectCEntryStub(Register scratch = sh4_ip) : scratch_(scratch) {}
   void Generate(MacroAssembler* masm);
   void GenerateCall(MacroAssembler* masm, ExternalReference function);
   void GenerateCall(MacroAssembler* masm, Register target);
@@ -345,6 +345,7 @@ class DirectCEntryStub: public CodeStub {
  private:
   Major MajorKey() { return DirectCEntry; }
   int MinorKey() { return 0; }
+  Register scratch_;
 
   bool NeedsImmovableCode() { return true; }
 

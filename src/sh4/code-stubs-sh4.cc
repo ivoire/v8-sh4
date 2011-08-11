@@ -4893,22 +4893,22 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  __ ldr(ip, MemOperand(sp, 0));
-  __ jmp(ip);
+  __ ldr(scratch_, MemOperand(sp, 0), scratch_);
+  __ jmp(scratch_);
 }
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ExternalReference function) {
-  __ mov(ip, Immediate(reinterpret_cast<intptr_t>(GetCode().location()),
-                       RelocInfo::CODE_TARGET));
-  __ push(ip);  // save pr ont he stask before the call to addpc that change
+  __ mov(scratch_, Immediate(reinterpret_cast<intptr_t>(GetCode().location()),
+                   RelocInfo::CODE_TARGET));
+  __ push(scratch_);  // save pr ont he stask before the call to addpc that change
   __ mov(r2, Immediate(function));
   // Push return address (accessible to GC through exit frame pc).
-  __ addpc(ip, 4 * Assembler::kInstrSize);
+  __ addpc(scratch_, 4 * Assembler::kInstrSize, scratch_);
   // restaure the right pr (pointing to DirectCEntryStub::Generate)
   __ pop(pr);
-  __ str(ip, MemOperand(sp, 0));
+  __ str(scratch_, MemOperand(sp, 0), scratch_);
   __ jmp(r2);   // Call the api function.
 }
 

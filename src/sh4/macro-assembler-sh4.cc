@@ -141,18 +141,24 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
       next_address);
 
   // Allocate HandleScope in callee-save registers.
-  mov(r7, Immediate(next_address));
-  ldr(r4, MemOperand(r7, kNextOffset));
-  ldr(r5, MemOperand(r7, kLimitOffset));
-  ldr(r6, MemOperand(r7, kLevelOffset));
-  add(r6, r6, Immediate(1));
-  str(r6, MemOperand(r7, kLevelOffset));
+  mov(r11, Immediate(next_address));
+  ldr(r8, MemOperand(r11, kNextOffset), r0);
+  ldr(r9, MemOperand(r11, kLimitOffset), r0);
+  ldr(r10, MemOperand(r11, kLevelOffset), r0);
+  add(r10, r10, Immediate(1), r0);
+  str(r10, MemOperand(r11, kLevelOffset), r0);
 
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub;
+  DirectCEntryStub stub(r0);
   stub.GenerateCall(this, function);
+
+  // Move back the registers [r8, r11] => [r4, r7]
+  mov(r4, r8);
+  mov(r5, r9);
+  mov(r6, r10);
+  mov(r7, r11);
 
   NearLabel promote_scheduled_exception;
   NearLabel delete_allocated_handles;
