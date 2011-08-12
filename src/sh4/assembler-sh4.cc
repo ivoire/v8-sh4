@@ -985,7 +985,8 @@ void Assembler::mov(Register Rd, const Immediate& imm) {
       // Verify that target_address_address_at() is actually returning
       // the address where the target address for the instruction is stored.
       ASSERT(target_address ==
-             target_address_address_at((byte*)(buffer_ + instr_address)));
+             target_address_address_at(
+                reinterpret_cast<byte*>(buffer_ + instr_address)));
     }
 #endif
     *reinterpret_cast<uint32_t*>(pc_) = imm.x_;

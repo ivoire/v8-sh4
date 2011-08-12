@@ -337,7 +337,7 @@ class NumberToStringStub: public CodeStub {
 // moved by GC
 class DirectCEntryStub: public CodeStub {
  public:
-  DirectCEntryStub(Register scratch = sh4_ip) : scratch_(scratch) {}
+  explicit DirectCEntryStub(Register scratch = sh4_ip) : scratch_(scratch) {}
   void Generate(MacroAssembler* masm);
   void GenerateCall(MacroAssembler* masm, ExternalReference function);
   void GenerateCall(MacroAssembler* masm, Register target);

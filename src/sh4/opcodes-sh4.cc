@@ -49,21 +49,24 @@ void Assembler::add_imm_(int imm, Register Rd) {
 
 void Assembler::add_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xC << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xC << 0));
   asm_output("add R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::addc_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xE << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xE << 0));
   asm_output("addc R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::addv_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xF << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xF << 0));
   asm_output("addv R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -77,7 +80,8 @@ void Assembler::and_imm_R0_(int imm) {
 
 void Assembler::and_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x9 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x9 << 0));
   asm_output("and R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -158,35 +162,40 @@ void Assembler::cmpeq_imm_R0_(int imm) {
 
 void Assembler::cmpeq_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x0 << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x0 << 0));
   asm_output("cmpeq R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::cmpge_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x3 << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x3 << 0));
   asm_output("cmpge R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::cmpgt_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x7 << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x7 << 0));
   asm_output("cmpgt R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::cmphi_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x6 << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x6 << 0));
   asm_output("cmphi R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::cmphs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x2 << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x2 << 0));
   asm_output("cmphs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -207,14 +216,16 @@ void Assembler::cmppz_(Register Rd) {
 
 void Assembler::cmpstr_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xC << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xC << 0));
   asm_output("cmpstr R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::div0s_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x7 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x7 << 0));
   asm_output("div0s R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -227,35 +238,40 @@ void Assembler::div0u_() {
 
 void Assembler::div1_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x4 << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x4 << 0));
   asm_output("div1 R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::extsb_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xE << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xE << 0));
   asm_output("extsb R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::extsw_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xF << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xF << 0));
   asm_output("extsw R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::extub_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xC << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xC << 0));
   asm_output("extub R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::extuw_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xD << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xD << 0));
   asm_output("extuw R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -332,7 +348,8 @@ void Assembler::ldc_DBR_(Register Rd) {
 
 void Assembler::ldc_bank_(Register Rd, int imm) {
   ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_ldc_bank(imm));
-  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((imm & 0x7) << 4) | (0xE << 0));
+  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((imm & 0x7) << 4) |
+       (0xE << 0));
   asm_output("ldc_bank R%d, %d", REGNUM(Rd), imm);
 }
 
@@ -388,7 +405,8 @@ void Assembler::ldcl_incRd_DBR_(Register Rd) {
 
 void Assembler::ldcl_incRd_bank_(Register Rd, int imm) {
   ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_ldcl_incRd_bank(imm));
-  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((imm & 0x7) << 4) | (0x7 << 0));
+  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((imm & 0x7) << 4) |
+       (0x7 << 0));
   asm_output("ldcl_incRd_bank R%d, %d", REGNUM(Rd), imm);
 }
 
@@ -471,7 +489,8 @@ void Assembler::ldtlb_() {
 
 void Assembler::macw_incRs_incRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xF << 0));
+  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xF << 0));
   asm_output("macw_incRs_incRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -485,35 +504,40 @@ void Assembler::mov_imm_(int imm, Register Rd) {
 
 void Assembler::mov_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x3 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x3 << 0));
   asm_output("mov R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movb_dispR0Rd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x4 << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x4 << 0));
   asm_output("movb_dispR0Rd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movb_decRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x4 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x4 << 0));
   asm_output("movb_decRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movb_indRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x0 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x0 << 0));
   asm_output("movb_indRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movb_dispRs_R0_(int imm, Register Rs) {
   ASSERT(REGNUM(Rs) <= 15 && SH4_CHECK_RANGE_movb_dispRs_R0(imm));
-  emit((0x8 << 12) | (0x4 << 8) | ((REGNUM(Rs) & 0xF) << 4) | ((imm & 0xF) << 0));
+  emit((0x8 << 12) | (0x4 << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       ((imm & 0xF) << 0));
   asm_output("movb_dispRs_R0 %d, R%d", imm, REGNUM(Rs));
 }
 
@@ -527,28 +551,32 @@ void Assembler::movb_dispGBR_R0_(int imm) {
 
 void Assembler::movb_dispR0Rs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xC << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xC << 0));
   asm_output("movb_dispR0Rs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movb_incRs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x4 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x4 << 0));
   asm_output("movb_incRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movb_indRs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x0 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x0 << 0));
   asm_output("movb_indRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movb_R0_dispRd_(int imm, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_movb_R0_dispRd(imm));
-  emit((0x8 << 12) | (0x0 << 8) | ((REGNUM(Rd) & 0xF) << 4) | ((imm & 0xF) << 0));
+  emit((0x8 << 12) | (0x0 << 8) | ((REGNUM(Rd) & 0xF) << 4) |
+       ((imm & 0xF) << 0));
   asm_output("movb_R0_dispRd %d, R%d", imm, REGNUM(Rd));
 }
 
@@ -561,49 +589,58 @@ void Assembler::movb_R0_dispGBR_(int imm) {
 
 
 void Assembler::movl_dispRd_(Register Rs, int imm, Register Rd) {
-  ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15 && SH4_CHECK_RANGE_movl_dispRd(imm) && SH4_CHECK_ALIGN_movl_dispRd(imm));
-  emit((0x1 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (((imm & 0x3C) >> 2) << 0));
+  ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15 &&
+         SH4_CHECK_RANGE_movl_dispRd(imm) && SH4_CHECK_ALIGN_movl_dispRd(imm));
+  emit((0x1 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (((imm & 0x3C) >> 2) << 0));
   asm_output("movl_dispRd R%d, %d, R%d", REGNUM(Rs), imm, REGNUM(Rd));
 }
 
 
 void Assembler::movl_dispR0Rd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x6 << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x6 << 0));
   asm_output("movl_dispR0Rd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movl_decRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x6 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x6 << 0));
   asm_output("movl_decRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movl_indRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x2 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x2 << 0));
   asm_output("movl_indRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movl_dispRs_(int imm, Register Rs, Register Rd) {
-  ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15 && SH4_CHECK_RANGE_movl_dispRs(imm) && SH4_CHECK_ALIGN_movl_dispRs(imm));
-  emit((0x5 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (((imm & 0x3C) >> 2) << 0));
+  ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15 &&
+         SH4_CHECK_RANGE_movl_dispRs(imm) && SH4_CHECK_ALIGN_movl_dispRs(imm));
+  emit((0x5 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (((imm & 0x3C) >> 2) << 0));
   asm_output("movl_dispRs %d, R%d, R%d", imm, REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movl_dispGBR_R0_(int imm) {
-  ASSERT(SH4_CHECK_RANGE_movl_dispGBR_R0(imm) && SH4_CHECK_ALIGN_movl_dispGBR_R0(imm));
+  ASSERT(SH4_CHECK_RANGE_movl_dispGBR_R0(imm) &&
+         SH4_CHECK_ALIGN_movl_dispGBR_R0(imm));
   emit((0xC << 12) | (0x6 << 8) | (((imm & 0x3FC) >> 2) << 0));
   asm_output("movl_dispGBR_R0 %d", imm);
 }
 
 
 void Assembler::movl_dispPC_(int imm, Register Rd) {
-  ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_movl_dispPC(imm) && SH4_CHECK_ALIGN_movl_dispPC(imm));
+  ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_movl_dispPC(imm) &&
+         SH4_CHECK_ALIGN_movl_dispPC(imm));
   emit((0xD << 12) | ((REGNUM(Rd) & 0xF) << 8) | (((imm & 0x3FC) >> 2) << 0));
   asm_output("movl_dispPC %d, R%d", imm, REGNUM(Rd));
 }
@@ -611,27 +648,31 @@ void Assembler::movl_dispPC_(int imm, Register Rd) {
 
 void Assembler::movl_dispR0Rs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xE << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xE << 0));
   asm_output("movl_dispR0Rs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movl_incRs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x6 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x6 << 0));
   asm_output("movl_incRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movl_indRs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x2 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x2 << 0));
   asm_output("movl_indRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movl_R0_dispGBR_(int imm) {
-  ASSERT(SH4_CHECK_RANGE_movl_R0_dispGBR(imm) && SH4_CHECK_ALIGN_movl_R0_dispGBR(imm));
+  ASSERT(SH4_CHECK_RANGE_movl_R0_dispGBR(imm) &&
+         SH4_CHECK_ALIGN_movl_R0_dispGBR(imm));
   emit((0xC << 12) | (0x2 << 8) | (((imm & 0x3FC) >> 2) << 0));
   asm_output("movl_R0_dispGBR %d", imm);
 }
@@ -639,41 +680,48 @@ void Assembler::movl_R0_dispGBR_(int imm) {
 
 void Assembler::movw_dispR0Rd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x5 << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x5 << 0));
   asm_output("movw_dispR0Rd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movw_decRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x5 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x5 << 0));
   asm_output("movw_decRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movw_indRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x1 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x1 << 0));
   asm_output("movw_indRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movw_dispRs_R0_(int imm, Register Rs) {
-  ASSERT(REGNUM(Rs) <= 15 && SH4_CHECK_RANGE_movw_dispRs_R0(imm) && SH4_CHECK_ALIGN_movw_dispRs_R0(imm));
-  emit((0x8 << 12) | (0x5 << 8) | ((REGNUM(Rs) & 0xF) << 4) | (((imm & 0x1E) >> 1) << 0));
+  ASSERT(REGNUM(Rs) <= 15 && SH4_CHECK_RANGE_movw_dispRs_R0(imm) &&
+         SH4_CHECK_ALIGN_movw_dispRs_R0(imm));
+  emit((0x8 << 12) | (0x5 << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (((imm & 0x1E) >> 1) << 0));
   asm_output("movw_dispRs_R0 %d, R%d", imm, REGNUM(Rs));
 }
 
 
 void Assembler::movw_dispGBR_R0_(int imm) {
-  ASSERT(SH4_CHECK_RANGE_movw_dispGBR_R0(imm) && SH4_CHECK_ALIGN_movw_dispGBR_R0(imm));
+  ASSERT(SH4_CHECK_RANGE_movw_dispGBR_R0(imm) &&
+         SH4_CHECK_ALIGN_movw_dispGBR_R0(imm));
   emit((0xC << 12) | (0x5 << 8) | (((imm & 0x1FE) >> 1) << 0));
   asm_output("movw_dispGBR_R0 %d", imm);
 }
 
 
 void Assembler::movw_dispPC_(int imm, Register Rd) {
-  ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_movw_dispPC(imm) && SH4_CHECK_ALIGN_movw_dispPC(imm));
+  ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_movw_dispPC(imm) &&
+         SH4_CHECK_ALIGN_movw_dispPC(imm));
   emit((0x9 << 12) | ((REGNUM(Rd) & 0xF) << 8) | (((imm & 0x1FE) >> 1) << 0));
   asm_output("movw_dispPC %d, R%d", imm, REGNUM(Rd));
 }
@@ -681,41 +729,48 @@ void Assembler::movw_dispPC_(int imm, Register Rd) {
 
 void Assembler::movw_dispR0Rs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xD << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xD << 0));
   asm_output("movw_dispR0Rs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movw_incRs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x5 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x5 << 0));
   asm_output("movw_incRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movw_indRs_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x1 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x1 << 0));
   asm_output("movw_indRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::movw_R0_dispRd_(int imm, Register Rd) {
-  ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_movw_R0_dispRd(imm) && SH4_CHECK_ALIGN_movw_R0_dispRd(imm));
-  emit((0x8 << 12) | (0x1 << 8) | ((REGNUM(Rd) & 0xF) << 4) | (((imm & 0x1E) >> 1) << 0));
+  ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_movw_R0_dispRd(imm) &&
+         SH4_CHECK_ALIGN_movw_R0_dispRd(imm));
+  emit((0x8 << 12) | (0x1 << 8) | ((REGNUM(Rd) & 0xF) << 4) |
+       (((imm & 0x1E) >> 1) << 0));
   asm_output("movw_R0_dispRd %d, R%d", imm, REGNUM(Rd));
 }
 
 
 void Assembler::movw_R0_dispGBR_(int imm) {
-  ASSERT(SH4_CHECK_RANGE_movw_R0_dispGBR(imm) && SH4_CHECK_ALIGN_movw_R0_dispGBR(imm));
+  ASSERT(SH4_CHECK_RANGE_movw_R0_dispGBR(imm) &&
+         SH4_CHECK_ALIGN_movw_R0_dispGBR(imm));
   emit((0xC << 12) | (0x1 << 8) | (((imm & 0x1FE) >> 1) << 0));
   asm_output("movw_R0_dispGBR %d", imm);
 }
 
 
 void Assembler::mova_dispPC_R0_(int imm) {
-  ASSERT(SH4_CHECK_RANGE_mova_dispPC_R0(imm) && SH4_CHECK_ALIGN_mova_dispPC_R0(imm));
+  ASSERT(SH4_CHECK_RANGE_mova_dispPC_R0(imm) &&
+         SH4_CHECK_ALIGN_mova_dispPC_R0(imm));
   emit((0xC << 12) | (0x7 << 8) | (((imm & 0x3FC) >> 2) << 0));
   asm_output("mova_dispPC_R0 %d", imm);
 }
@@ -765,49 +820,56 @@ void Assembler::movual_incRs_R0_(Register Rs) {
 
 void Assembler::mulsw_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xF << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xF << 0));
   asm_output("mulsw R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::muls_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xF << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xF << 0));
   asm_output("muls R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::mull_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x7 << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x7 << 0));
   asm_output("mull R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::muluw_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xE << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xE << 0));
   asm_output("muluw R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::mulu_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xE << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xE << 0));
   asm_output("mulu R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::neg_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xB << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xB << 0));
   asm_output("neg R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::negc_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xA << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xA << 0));
   asm_output("negc R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -820,7 +882,8 @@ void Assembler::nop_() {
 
 void Assembler::not_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x7 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x7 << 0));
   asm_output("not R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -855,7 +918,8 @@ void Assembler::or_imm_R0_(int imm) {
 
 void Assembler::or_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xB << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xB << 0));
   asm_output("or R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -935,14 +999,16 @@ void Assembler::sett_() {
 
 void Assembler::shad_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xC << 0));
+  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xC << 0));
   asm_output("shad R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::shld_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xD << 0));
+  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xD << 0));
   asm_output("shld R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1074,7 +1140,8 @@ void Assembler::stc_DBR_(Register Rd) {
 
 void Assembler::stc_bank_(int imm, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_stc_bank(imm));
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((imm & 0x7) << 4) | (0x2 << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((imm & 0x7) << 4) |
+       (0x2 << 0));
   asm_output("stc_bank %d, R%d", imm, REGNUM(Rd));
 }
 
@@ -1130,7 +1197,8 @@ void Assembler::stcl_DBR_decRd_(Register Rd) {
 
 void Assembler::stcl_bank_decRd_(int imm, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && SH4_CHECK_RANGE_stcl_bank_decRd(imm));
-  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((imm & 0x7) << 4) | (0x3 << 0));
+  emit((0x4 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((imm & 0x7) << 4) |
+       (0x3 << 0));
   asm_output("stcl_bank_decRd %d, R%d", imm, REGNUM(Rd));
 }
 
@@ -1207,35 +1275,40 @@ void Assembler::stsl_FPSCR_decRd_(Register Rd) {
 
 void Assembler::sub_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x8 << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x8 << 0));
   asm_output("sub R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::subc_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xA << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xA << 0));
   asm_output("subc R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::subv_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xB << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xB << 0));
   asm_output("subv R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::swapb_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x8 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x8 << 0));
   asm_output("swapb R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::swapw_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x9 << 0));
+  emit((0x6 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x9 << 0));
   asm_output("swapw R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1269,7 +1342,8 @@ void Assembler::tst_imm_R0_(int imm) {
 
 void Assembler::tst_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x8 << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x8 << 0));
   asm_output("tst R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1290,7 +1364,8 @@ void Assembler::xor_imm_R0_(int imm) {
 
 void Assembler::xor_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xA << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xA << 0));
   asm_output("xor R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1304,7 +1379,8 @@ void Assembler::xorb_imm_dispR0GBR_(int imm) {
 
 void Assembler::xtrct_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xD << 0));
+  emit((0x2 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xD << 0));
   asm_output("xtrct R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1318,21 +1394,24 @@ void Assembler::dt_(Register Rd) {
 
 void Assembler::dmulsl_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xD << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xD << 0));
   asm_output("dmulsl R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::dmulul_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x5 << 0));
+  emit((0x3 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x5 << 0));
   asm_output("dmulul R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::macl_incRs_incRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xF << 0));
+  emit((0x0 << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xF << 0));
   asm_output("macl_incRs_incRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1367,42 +1446,51 @@ void Assembler::fabs_double_(DwVfpRegister Rd) {
 
 void Assembler::fadd_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x0 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x0 << 0));
   asm_output("fadd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fadd_double_(DwVfpRegister Rs, DwVfpRegister Rd) {
-  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) && (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x0 << 0));
+  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) &&
+         (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) |
+       (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x0 << 0));
   asm_output("fadd_double R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fcmpeq_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x4 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x4 << 0));
   asm_output("fcmpeq R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fcmpeq_double_(DwVfpRegister Rs, DwVfpRegister Rd) {
-  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) && (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x4 << 0));
+  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) &&
+         (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) |
+       (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x4 << 0));
   asm_output("fcmpeq_double R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fcmpgt_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x5 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x5 << 0));
   asm_output("fcmpgt R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fcmpgt_double_(DwVfpRegister Rs, DwVfpRegister Rd) {
-  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) && (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x5 << 0));
+  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) &&
+         (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) |
+       (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x5 << 0));
   asm_output("fcmpgt_double R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1423,21 +1511,25 @@ void Assembler::fcnvsd_FPUL_double_(DwVfpRegister Rd) {
 
 void Assembler::fdiv_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x3 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x3 << 0));
   asm_output("fdiv R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fdiv_double_(DwVfpRegister Rs, DwVfpRegister Rd) {
-  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) && (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x3 << 0));
+  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) &&
+         (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) |
+       (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x3 << 0));
   asm_output("fdiv_double R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fipr_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(!((REGNUM(Rd) & 0x3) || (REGNUM(Rs) & 0x3)));
-  emit((0xF << 12) | ((((REGNUM(Rd) & 0xF) << 2) | ((REGNUM(Rs) & 0xF) >> 2)) << 8) | (0xE << 4) | (0xD << 0));
+  emit((0xF << 12) | ((((REGNUM(Rd) & 0xF) << 2) |
+       ((REGNUM(Rs) & 0xF) >> 2)) << 8) | (0xE << 4) | (0xD << 0));
   asm_output("fipr R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1479,189 +1571,217 @@ void Assembler::float_FPUL_double_(DwVfpRegister Rd) {
 
 void Assembler::fmac_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xE << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xE << 0));
   asm_output("fmac R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xC << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xC << 0));
   asm_output("fmov R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_Xdouble_Xdouble_(DwVfpRegister Rs, DwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xC << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xC << 0));
   asm_output("fmov_Xdouble_Xdouble R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_indRs_(Register Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x8 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x8 << 0));
   asm_output("fmov_indRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_indRs_Xdouble_(Register Rs, DwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x8 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x8 << 0));
   asm_output("fmov_indRs_Xdouble R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_indRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xA << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xA << 0));
   asm_output("fmov_indRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_Xdouble_indRd_(DwVfpRegister Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xA << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xA << 0));
   asm_output("fmov_Xdouble_indRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_incRs_(Register Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x9 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x9 << 0));
   asm_output("fmov_incRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_decRd_(SwVfpRegister Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xB << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xB << 0));
   asm_output("fmov_decRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_dispR0Rs_(Register Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x6 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x6 << 0));
   asm_output("fmov_dispR0Rs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_dispR0Rs_Xdouble_(Register Rs, DwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x6 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x6 << 0));
   asm_output("fmov_dispR0Rs_Xdouble R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_dispR0Rd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x7 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x7 << 0));
   asm_output("fmov_dispR0Rd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmov_Xdouble_dispR0Rd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x7 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x7 << 0));
   asm_output("fmov_Xdouble_dispR0Rd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovd_indRs_Xdouble_(Register Rs, DwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x8 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x8 << 0));
   asm_output("fmovd_indRs_Xdouble R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovd_Xdouble_indRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xA << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xA << 0));
   asm_output("fmovd_Xdouble_indRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovd_incRs_Xdouble_(Register Rs, DwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x9 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x9 << 0));
   asm_output("fmovd_incRs_Xdouble R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovd_Xdouble_decRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xB << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xB << 0));
   asm_output("fmovd_Xdouble_decRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovd_dispR0Rs_Xdouble_(Register Rs, DwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x6 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x6 << 0));
   asm_output("fmovd_dispR0Rs_Xdouble R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovd_Xdouble_dispR0Rd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x7 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x7 << 0));
   asm_output("fmovd_Xdouble_dispR0Rd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovs_indRs_(Register Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x8 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x8 << 0));
   asm_output("fmovs_indRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovs_indRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xA << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xA << 0));
   asm_output("fmovs_indRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovs_incRs_(Register Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x9 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x9 << 0));
   asm_output("fmovs_incRs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovs_decRd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0xB << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0xB << 0));
   asm_output("fmovs_decRd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovs_dispR0Rs_(Register Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x6 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x6 << 0));
   asm_output("fmovs_dispR0Rs R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmovs_dispR0Rd_(Register Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x7 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x7 << 0));
   asm_output("fmovs_dispR0Rd R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmul_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x2 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x2 << 0));
   asm_output("fmul R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fmul_double_(DwVfpRegister Rs, DwVfpRegister Rd) {
-  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) && (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x2 << 0));
+  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) &&
+         (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) |
+       (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x2 << 0));
   asm_output("fmul_double R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1694,7 +1814,8 @@ void Assembler::frchg_() {
 
 void Assembler::fsca_FPUL_double_(DwVfpRegister Rd) {
   ASSERT(!((REGNUM(Rd) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (0xF << 4) | (0xD << 0));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (0xF << 4) |
+       (0xD << 0));
   asm_output("fsca_FPUL_double R%d", REGNUM(Rd));
 }
 
@@ -1714,7 +1835,8 @@ void Assembler::fsqrt_(SwVfpRegister Rd) {
 
 void Assembler::fsqrt_double_(DwVfpRegister Rd) {
   ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (0x6 << 4) | (0xD << 0));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (0x6 << 4) |
+       (0xD << 0));
   asm_output("fsqrt_double R%d", REGNUM(Rd));
 }
 
@@ -1735,14 +1857,17 @@ void Assembler::fsts_FPUL_(SwVfpRegister Rd) {
 
 void Assembler::fsub_(SwVfpRegister Rs, SwVfpRegister Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
-  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) | (0x1 << 0));
+  emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
+       (0x1 << 0));
   asm_output("fsub R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
 
 void Assembler::fsub_double_(DwVfpRegister Rs, DwVfpRegister Rd) {
-  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) && (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x1 << 0));
+  ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1) &&
+         (REGNUM(Rs) * 2) <= 15 && !((REGNUM(Rs) * 2) & 0x1));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) |
+       (((REGNUM(Rs) * 2) & 0xF) << 4) | (0x1 << 0));
   asm_output("fsub_double R%d, R%d", REGNUM(Rs), REGNUM(Rd));
 }
 
@@ -1756,14 +1881,16 @@ void Assembler::ftrc_FPUL_(SwVfpRegister Rd) {
 
 void Assembler::ftrc_double_FPUL_(DwVfpRegister Rd) {
   ASSERT((REGNUM(Rd) * 2) <= 15 && !((REGNUM(Rd) * 2) & 0x1));
-  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (0x3 << 4) | (0xD << 0));
+  emit((0xF << 12) | (((REGNUM(Rd) * 2) & 0xF) << 8) | (0x3 << 4) |
+       (0xD << 0));
   asm_output("ftrc_double_FPUL R%d", REGNUM(Rd));
 }
 
 
 void Assembler::ftrv_(Register Rd) {
   ASSERT(!(REGNUM(Rd) & 0x3));
-  emit((0xF << 12) | ((((REGNUM(Rd) & 0xF) << 2) | 0x1) << 8) | (0xF << 4) | (0xD << 0));
+  emit((0xF << 12) | ((((REGNUM(Rd) & 0xF) << 2) | 0x1) << 8) | (0xF << 4) |
+       (0xD << 0));
   asm_output("ftrv R%d", REGNUM(Rd));
 }
 

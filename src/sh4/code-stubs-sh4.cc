@@ -4902,7 +4902,8 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ExternalReference function) {
   __ mov(scratch_, Immediate(reinterpret_cast<intptr_t>(GetCode().location()),
                    RelocInfo::CODE_TARGET));
-  __ push(scratch_);  // save pr ont he stask before the call to addpc that change
+  // save pr ont he stask before the call to addpc that change it
+  __ push(scratch_);
   __ mov(r2, Immediate(function));
   // Push return address (accessible to GC through exit frame pc).
   __ addpc(scratch_, 4 * Assembler::kInstrSize, scratch_);

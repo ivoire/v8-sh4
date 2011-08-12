@@ -54,7 +54,7 @@ namespace internal {
 // more informative description.
 class Decoder {
  public:
-  Decoder(Vector<char> out_buffer)
+  explicit Decoder(Vector<char> out_buffer)
     : out_buffer_(out_buffer),
       out_buffer_pos_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
@@ -641,7 +641,7 @@ namespace internal {
 
 class Decoder {
  public:
-  Decoder(Vector<char> out_buffer)
+  explicit Decoder(Vector<char> out_buffer)
     : out_buffer_(out_buffer),
       out_buffer_pos_(0),
       last_pool_offset_(0),
@@ -765,7 +765,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 //------------------------------------------------------------------------------
 
 class DisassemblerSH4: public DisassemblerInterface {
-public:
+ public:
   explicit DisassemblerSH4() : start_pc_(0) {
     memset(pools_locs_, 9, sizeof(pools_locs_));
   }
@@ -777,7 +777,7 @@ public:
 
   virtual int ConstantPoolSizeAt(byte* instruction);
 
-private:
+ private:
   // Management of pool references.
   void SetPoolAt(int offset, int size);
   void ClearPoolAt(int offset, int size);
