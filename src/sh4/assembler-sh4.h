@@ -417,13 +417,17 @@ enum ScaleFactor {
 
 class Operand BASE_EMBEDDED {
  public:
-  INLINE(explicit Operand(int32_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE));
-  INLINE(explicit Operand(const ExternalReference& f));
+  inline explicit Operand(int32_t immediate,
+                          RelocInfo::Mode rmode = RelocInfo::NONE);
+  inline explicit Operand(const ExternalReference& f);
+  inline explicit Operand(Smi* value);
   explicit Operand(Handle<Object> handle);
 
+  bool is_int8() const {
+    return -128 <= imm32_ && imm32_ < 128 && rmode_ == RelocInfo::NONE;
+  }
+
  private:
-  Register rx_;
   int32_t imm32_;
   RelocInfo::Mode rmode_;
 
@@ -660,7 +664,10 @@ class Assembler : public AssemblerBase {
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
   void add(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void add(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp);
   void add(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
+  void add(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
   void add(Register Rd, Register Rs, Register Rt);
 
@@ -723,13 +730,31 @@ class Assembler : public AssemblerBase {
   inline void cmpgeu(Register Rd, const Immediate& imm,
                      Register rtmp = sh4_rtmp);
 
+  inline void  cmpeq(Register Rd, const Operand& imm,
+                     Register rtmp = sh4_rtmp);
+  inline void  cmpgt(Register Rd, const Operand& imm,
+                     Register rtmp = sh4_rtmp);
+  inline void  cmpge(Register Rd, const Operand& imm,
+                     Register rtmp = sh4_rtmp);
+  inline void cmpgtu(Register Rd, const Operand& imm,
+                     Register rtmp = sh4_rtmp);
+  inline void cmpgeu(Register Rd, const Operand& imm,
+                     Register rtmp = sh4_rtmp);
+
   // ALiases for cmpeq
   void cmp(Register Rd, Register Rs) { cmpeq(Rd, Rs); }
   void cmp(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp)
         { cmpeq(Rd, imm, rtmp); }
+  void cmp(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp)
+        { cmpeq(Rd, imm, rtmp); }
 
   inline void cmp(Condition& cond, Register Rd, Register Rs);
   void cmp(Condition& cond, Register Rd, const Immediate& imm,
+           Register rtmp = sh4_rtmp) {
+    mov(rtmp, imm);
+    return cmp(cond, Rd, rtmp);
+  }
+  void cmp(Condition& cond, Register Rd, const Operand& imm,
            Register rtmp = sh4_rtmp) {
     mov(rtmp, imm);
     return cmp(cond, Rd, rtmp);
@@ -739,10 +764,14 @@ class Assembler : public AssemblerBase {
   void cmphs(Register Rd, Register Rs) { cmpgeu(Rd, Rs); }
   void cmphs(Register Rd, const Immediate& imm,
              Register rtmp = sh4_rtmp) { cmpgeu(Rd, imm, rtmp); }
+  void cmphs(Register Rd, const Operand& imm,
+             Register rtmp = sh4_rtmp) { cmpgeu(Rd, imm, rtmp); }
 
   // Aliases for cmpgtu
   void cmphi(Register Rd, Register Rs) { cmpgtu(Rd, Rs); }
   void cmphi(Register Rd, const Immediate& imm,
+             Register rtmp = sh4_rtmp) { cmpgtu(Rd, imm, rtmp); }
+  void cmphi(Register Rd, const Operand& imm,
              Register rtmp = sh4_rtmp) { cmpgtu(Rd, imm, rtmp); }
 
   void cmpeq_r0_raw_immediate(int raw_immediate) {
@@ -767,18 +796,26 @@ class Assembler : public AssemblerBase {
 
   void sub(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp);
+  void sub(Register Rd, Register Rs, const Operand& imm,
+           Register rtmp = sh4_rtmp);
   void sub(Register Rd, Register Rs, Register Rt);
 
   // Reverse sub: imm - Rs
   inline void rsb(Register Rd, Register Rs, const Immediate& imm,
                   Register rtmp = sh4_rtmp);
+  inline void rsb(Register Rd, Register Rs, const Operand& imm,
+                  Register rtmp = sh4_rtmp);
   // Reverse sub: Rt - Rs
   inline void rsb(Register Rd, Register Rs, Register Rt);
   inline void rsb(Register Rd, Register Rs, const Immediate& imm,
                   Condition cond, Register rtmp = sh4_rtmp);
+  inline void rsb(Register Rd, Register Rs, const Operand& imm,
+                  Condition cond, Register rtmp = sh4_rtmp);
 
   void addv(Register Rd, Register Rs, Register Rt);
   void addv(Register Rd, Register Rs, const Immediate& imm,
+            Register rtmp = sh4_rtmp);
+  void addv(Register Rd, Register Rs, const Operand& imm,
             Register rtmp = sh4_rtmp);
   void subv(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
@@ -789,18 +826,28 @@ class Assembler : public AssemblerBase {
   void asr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
   void asr(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp);
+  void asr(Register Rd, Register Rs, const Operand& imm,
+           Register rtmp = sh4_rtmp);
   // arithmetic shift left
   void asl(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
+  void asl(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
 
   void lsl(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp);
+  void lsl(Register Rd, Register Rs, const Operand& imm,
+           Register rtmp = sh4_rtmp);
   void lsl(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
   void lsr(Register Rd, Register Rs, const Immediate& imm,
+           Register rtmp = sh4_rtmp);
+  void lsr(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
   void lsr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
   void land(Register Rd, Register Rs, const Immediate& imm,
+            Register rtmp = sh4_rtmp);
+  void land(Register Rd, Register Rs, const Operand& imm,
             Register rtmp = sh4_rtmp);
   void land(Register Rd, Register Rs, Register Rt);
 
@@ -808,6 +855,9 @@ class Assembler : public AssemblerBase {
   void bic(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp)
         { land(Rd, Rs, Immediate(~imm.x_), rtmp); }
+  void bic(Register Rd, Register Rs, const Operand& imm,
+           Register rtmp = sh4_rtmp)
+        { land(Rd, Rs, Immediate(~imm.imm32_), rtmp); }
   void bic(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp) {
     lnot(rtmp, Rt);
     land(Rd, Rs, rtmp);
@@ -818,25 +868,38 @@ class Assembler : public AssemblerBase {
 
   void lor(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp);
+  void lor(Register Rd, Register Rs, const Operand& imm,
+           Register rtmp = sh4_rtmp);
   void lor(Register Rd, Register Rs, Register Rt);
   void lor(Register Rd, Register Rs, const Immediate& imm, Condition cond,
+           Register rtmp = sh4_rtmp);
+  void lor(Register Rd, Register Rs, const Operand& imm, Condition cond,
            Register rtmp = sh4_rtmp);
   void lor(Register Rd, Register Rs, Register Rt, Condition cond);
 
   void lxor(Register Rd, Register Rs, const Immediate& imm,
+            Register rtmp = sh4_rtmp);
+  void lxor(Register Rd, Register Rs, const Operand& imm,
             Register rtmp = sh4_rtmp);
   void lxor(Register Rd, Register Rs, Register Rt);
 
   // Aliases for lxor
   void eor(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp) { lxor(Rd, Rs, imm, rtmp); }
+  void eor(Register Rd, Register Rs, const Operand& imm,
+           Register rtmp = sh4_rtmp) { lxor(Rd, Rs, imm, rtmp); }
   void eor(Register Rd, Register Rs, Register Rt)  { lxor(Rd, Rs, Rt); }
 
   // Aliases for lor
   void orr(Register Rd, Register Rs, const Immediate& imm,
            Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, rtmp); }
+  void orr(Register Rd, Register Rs, const Operand& imm,
+           Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, rtmp); }
   void orr(Register Rd, Register Rs, Register Rt)  { lor(Rd, Rs, Rt); }
   void orr(Register Rd, Register Rs, const Immediate& imm,
+           Condition cond, Register rtmp = sh4_rtmp)
+        { lor(Rd, Rs, imm, cond, rtmp); }
+  void orr(Register Rd, Register Rs, const Operand& imm,
            Condition cond, Register rtmp = sh4_rtmp)
         { lor(Rd, Rs, imm, cond, rtmp); }
   void orr(Register Rd, Register Rs, Register Rt, Condition cond)
@@ -844,10 +907,12 @@ class Assembler : public AssemblerBase {
 
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); }
   void tst(Register Rd, const Immediate& imm, Register rtmp = sh4_rtmp);
+  void tst(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp);
 
   // Conditional move
   void mov(Register Rd, Register Rs, Condition cond);
   void mov(Register Rd, const Immediate& imm, Condition cond);
+  void mov(Register Rd, const Operand& imm, Condition cond);
 
   void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }
   void mov(Register Rd, const Immediate& imm);

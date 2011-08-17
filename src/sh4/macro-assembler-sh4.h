@@ -136,7 +136,7 @@ class MacroAssembler: public Assembler {
   // Mark the register as dead. Put the pattern 0xFFFFFFDE into the register.
   void Dead(Register dead) {
     // Fit in a single SH4 mov_imm_ instruction
-    mov(dead, Immediate(static_cast<int>(0xFFFFFFDE)));
+    mov(dead, Operand(static_cast<int>(0xFFFFFFDE)));
   }
 
   // Mark up to four registers dead at a time.
@@ -268,7 +268,7 @@ class MacroAssembler: public Assembler {
   // Store the value in register/immediate src in the safepoint
   // register stack slot for register dst.
   void StoreToSafepointRegisterSlot(Register dst, Register src);
-  void StoreToSafepointRegisterSlot(Register dst, Immediate src);
+  void StoreToSafepointRegisterSlot(Register dst, Operand src);
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // ---------------------------------------------------------------------------
@@ -311,8 +311,8 @@ class MacroAssembler: public Assembler {
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
   // Expression support
-  void Set(Register dst, const Immediate& x);
-  void Set(const Operand& dst, const Immediate& x);
+  void Set(Register dst, const Operand& x);
+  void Set(const Operand& dst, const Operand& x);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
@@ -368,12 +368,12 @@ class MacroAssembler: public Assembler {
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
-    tst(value, Immediate(kSmiTagMask));
+    tst(value, Operand(kSmiTagMask));
     bt(smi_label);
   }
   // Jump if the register contains a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
-    tst(value, Immediate(kSmiTagMask));
+    tst(value, Operand(kSmiTagMask));
     bf(not_smi_label);
   }
 
@@ -659,7 +659,7 @@ class MacroAssembler: public Assembler {
                                Register type) {
     ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset));
     ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
-    tst(type, Immediate(kIsNotStringMask));
+    tst(type, Operand(kIsNotStringMask));
     ASSERT_EQ(0, kStringTag);
     return eq;
   }
@@ -908,10 +908,10 @@ class MacroAssembler: public Assembler {
   }
 
   void SmiUntag(Register reg) {
-    asr(reg, reg, Immediate(kSmiTagSize));
+    asr(reg, reg, Operand(kSmiTagSize));
   }
   void SmiUntag(Register dst, Register src) {
-    asr(dst, src, Immediate(kSmiTagSize));
+    asr(dst, src, Operand(kSmiTagSize));
   }
 
 

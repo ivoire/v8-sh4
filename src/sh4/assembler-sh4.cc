@@ -64,7 +64,6 @@ void CpuFeatures::Probe() {
 // See assembler-sh4-inl.h for inlined constructors
 
 Operand::Operand(Handle<Object> handle) {
-  rx_ = no_reg;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   ASSERT(!HEAP->InNewSpace(obj));
@@ -246,7 +245,28 @@ void Assembler::add(Register Rd, const Immediate& imm, Register rtmp) {
 }
 
 
+void Assembler::add(Register Rd, const Operand& imm, Register rtmp) {
+  if (imm.is_int8()) {
+    add_imm_(imm.imm32_, Rd);
+  } else {
+    ASSERT(!Rd.is(rtmp));
+    mov(rtmp, imm);
+    add_(rtmp, Rd);
+  }
+}
+
 void Assembler::add(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
+  if (Rs.code() != Rd.code()) {
+    mov(Rd, imm);
+    add_(Rs, Rd);
+  } else {
+    add(Rd, imm, rtmp);
+  }
+}
+
+
+void Assembler::add(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
   if (Rs.code() != Rd.code()) {
     mov(Rd, imm);
@@ -271,6 +291,18 @@ void Assembler::add(Register Rd, Register Rs, Register Rt) {
 
 
 void Assembler::sub(Register Rd, Register Rs, const Immediate& imm,
+                    Register rtmp) {
+  mov(rtmp, imm);
+  if (Rs.code() == Rd.code()) {
+    sub_(rtmp, Rd);
+  } else {
+    mov_(Rs, Rd);
+    sub_(rtmp, Rd);
+  }
+}
+
+
+void Assembler::sub(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
   mov(rtmp, imm);
   if (Rs.code() == Rd.code()) {
@@ -316,6 +348,12 @@ void Assembler::addv(Register Rd, Register Rs, const Immediate& imm,
   addv(Rd, Rs, rtmp);
 }
 
+
+void Assembler::addv(Register Rd, Register Rs, const Operand& imm,
+                     Register rtmp) {
+  mov(rtmp, imm);
+  addv(Rd, Rs, rtmp);
+}
 
 void Assembler::addc(Register Rd, Register Rs, Register Rt) {
   // Clear T bit before using addc
@@ -405,6 +443,19 @@ void Assembler::asr(Register Rd, Register Rs, const Immediate& imm,
   }
 }
 
+void Assembler::asr(Register Rd, Register Rs, const Operand& imm,
+                    Register rtmp) {
+  ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
+  if (Rs.code() != Rd.code())
+    mov_(Rs, Rd);
+  if (imm.imm32_ == 1) {
+    shar_(Rd);
+  } else {
+    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
+    mov_imm_(-imm.imm32_, rtmp);
+    shad_(rtmp, Rd);
+  }
+}
 
 void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm,
                     Register rtmp) {
@@ -422,6 +473,22 @@ void Assembler::lsl(Register Rd, Register Rs, const Immediate& imm,
   }
 }
 
+
+void Assembler::lsl(Register Rd, Register Rs, const Operand& imm,
+                    Register rtmp) {
+  ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
+  if (Rs.code() != Rd.code())
+    mov_(Rs, Rd);
+  if (imm.imm32_ == 1) {
+    shll_(Rd);
+  } else if (imm.imm32_ == 2) {
+    shll2_(Rd);
+  } else {
+    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
+    mov_imm_(imm.imm32_, rtmp);
+    shld_(rtmp, Rd);
+  }
+}
 
 void Assembler::lsl(Register Rd, Register Rs, Register Rt, Register rtmp) {
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
@@ -453,6 +520,21 @@ void Assembler::lsr(Register Rd, Register Rs, const Immediate& imm,
   }
 }
 
+void Assembler::lsr(Register Rd, Register Rs, const Operand& imm,
+                    Register rtmp) {
+  ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
+  if (Rs.code() != Rd.code())
+    mov_(Rs, Rd);
+  if (imm.imm32_ == 1) {
+    shlr_(Rd);
+  } else if (imm.imm32_ == 2) {
+    shlr2_(Rd);
+  } else {
+    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
+    mov_imm_(-imm.imm32_, rtmp);
+    shld_(rtmp, Rd);
+  }
+}
 
 void Assembler::lsr(Register Rd, Register Rs, Register Rt, Register rtmp) {
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
@@ -475,6 +557,19 @@ void Assembler::land(Register Rd, Register Rs, const Immediate& imm,
   }
 }
 
+
+void Assembler::land(Register Rd, Register Rs, const Operand& imm,
+                     Register rtmp) {
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_and_imm_R0(imm.imm32_)) {
+    and_imm_R0_(imm.imm32_);
+  } else {
+    ASSERT(!Rs.is(rtmp));
+    mov(rtmp, imm);
+    land(Rd, Rs, rtmp);
+  }
+}
+
+
 void Assembler::land(Register Rd, Register Rs, Register Rt) {
   if (Rs.code() == Rd.code())
     and_(Rt, Rd);
@@ -491,6 +586,17 @@ void Assembler::lor(Register Rd, Register Rs, const Immediate& imm,
                     Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_or_imm_R0(imm.x_)) {
     or_imm_R0_(imm.x_);
+  } else {
+    ASSERT(!Rs.is(rtmp));
+    mov(rtmp, imm);
+    lor(Rd, Rs, rtmp);
+  }
+}
+
+void Assembler::lor(Register Rd, Register Rs, const Operand& imm,
+                    Register rtmp) {
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_or_imm_R0(imm.imm32_)) {
+    or_imm_R0_(imm.imm32_);
   } else {
     ASSERT(!Rs.is(rtmp));
     mov(rtmp, imm);
@@ -534,10 +640,34 @@ void Assembler::lor(Register Rd, Register Rs, const Immediate& imm,
 }
 
 
+void Assembler::lor(Register Rd, Register Rs, const Operand& imm,
+                    Condition cond, Register rtmp) {
+  ASSERT(cond == ne || cond == eq);
+  NearLabel end;
+  if (cond == eq)
+    bf(&end);   // Jump after sequence if T bit is false
+  else
+    bt(&end);   // Jump after sequence if T bit is true
+  lor(Rd, Rs, imm, rtmp);
+  bind(&end);
+}
+
+
 void Assembler::lxor(Register Rd, Register Rs, const Immediate& imm,
                      Register rtmp) {
   if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(imm.x_)) {
     xor_imm_R0_(imm.x_);
+  } else {
+    ASSERT(!Rs.is(rtmp));
+    mov(rtmp, imm);
+    lxor(Rd, Rs, rtmp);
+  }
+}
+
+void Assembler::lxor(Register Rd, Register Rs, const Operand& imm,
+                     Register rtmp) {
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(imm.imm32_)) {
+    xor_imm_R0_(imm.imm32_);
   } else {
     ASSERT(!Rs.is(rtmp));
     mov(rtmp, imm);
@@ -558,6 +688,12 @@ void Assembler::lxor(Register Rd, Register Rs, Register Rt) {
 }
 
 void Assembler::tst(Register Rd, const Immediate& imm, Register rtmp) {
+  ASSERT(!Rd.is(rtmp));
+  mov(rtmp, imm);
+  tst_(Rd, rtmp);
+}
+
+void Assembler::tst(Register Rd, const Operand& imm, Register rtmp) {
   ASSERT(!Rd.is(rtmp));
   mov(rtmp, imm);
   tst_(Rd, rtmp);
@@ -1039,11 +1175,29 @@ void Assembler::mov(Register Rd, const Immediate& imm, Condition cond) {
 }
 
 
+void Assembler::mov(Register Rd, const Operand& imm, Condition cond) {
+  ASSERT(cond == ne || cond == eq);
+  if (FITS_SH4_mov_imm(imm.imm32_)) {
+    // If cond is eq, we move Rs into Rd, otherwise, nop
+    if (cond == eq)
+      bf_(0);           // Jump after sequence if T bit is false
+    else
+      bt_(0);           // Jump after sequence if T bit is true
+    mov_imm_(imm.imm32_, Rd);
+  } else {
+    NearLabel skip;
+    if (cond == eq)
+      bf(&skip);
+    else
+      bt(&skip);
+    mov(Rd, imm);
+    bind(&skip);
+  }
+}
+
+
 void Assembler::mov(Register Rd, const Operand& src) {
-  if (src.rx_.is_valid())
-    mov_(src.rx_, Rd);
-  else
-    mov(Rd, Immediate(src.imm32_, src.rmode_));
+  mov(Rd, Immediate(src.imm32_, src.rmode_));
 }
 
 

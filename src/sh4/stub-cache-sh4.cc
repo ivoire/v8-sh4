@@ -66,30 +66,30 @@ static void ProbeTable(Isolate* isolate,
   Register offsets_base_addr = scratch;
 
   // Check that the key in the entry matches the name.
-  __ mov(offsets_base_addr, Immediate(key_offset));
-  __ lsl(ip, offset, Immediate(1));
+  __ mov(offsets_base_addr, Operand(key_offset));
+  __ lsl(ip, offset, Operand(1));
   __ ldr(ip, MemOperand(offsets_base_addr, ip));
   __ cmpeq(name, ip);
   __ bf(&miss);
 
   // Get the code entry from the cache.
   __ add(offsets_base_addr, offsets_base_addr,
-         Immediate(value_off_addr - key_off_addr));
-  __ lsl(ip, offset, Immediate(1));
+         Operand(value_off_addr - key_off_addr));
+  __ lsl(ip, offset, Operand(1));
   __ ldr(scratch2, MemOperand(offsets_base_addr, ip));
 
   // Check that the flags match what we're looking for.
   __ ldr(scratch2, FieldMemOperand(scratch2, Code::kFlagsOffset));
-  __ bic(scratch2, scratch2, Immediate(Code::kFlagsNotUsedInLookup));
-  __ cmpeq(scratch2, Immediate(flags));
+  __ bic(scratch2, scratch2, Operand(Code::kFlagsNotUsedInLookup));
+  __ cmpeq(scratch2, Operand(flags));
   __ bf(&miss);
 
   // Re-load code entry from cache.
-  __ lsl(ip, offset, Immediate(1));
+  __ lsl(ip, offset, Operand(1));
   __ ldr(offset, MemOperand(offsets_base_addr, ip));
 
   // Jump to the first instruction in the code stub.
-  __ add(offset, offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ add(offset, offset, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(offset);
 
   // Miss: fall through.
@@ -123,12 +123,12 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   Register map = scratch1;
   __ ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ ldrb(scratch0, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ tst(scratch0, Immediate(kInterceptorOrAccessCheckNeededMask));
+  __ tst(scratch0, Operand(kInterceptorOrAccessCheckNeededMask));
   __ b(ne, miss_label);
 
   // Check that receiver is a JSObject.
   __ ldrb(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ cmpge(scratch0, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ cmpge(scratch0, Operand(FIRST_JS_OBJECT_TYPE));
   __ bf(miss_label);
 
   // Load properties array.
@@ -167,20 +167,20 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
     Register index = scratch1;
     // Capacity is smi 2^n.
     __ ldr(index, FieldMemOperand(properties, kCapacityOffset));
-    __ sub(index, index, Immediate(1));
-    __ land(index, index, Immediate(
+    __ sub(index, index, Operand(1));
+    __ land(index, index, Operand(
         Smi::FromInt(name->Hash() + StringDictionary::GetProbeOffset(i))));
 
     // Scale the index by multiplying by the entry size.
     ASSERT(StringDictionary::kEntrySize == 3);
-    __ lsl(ip, index, Immediate(1));
+    __ lsl(ip, index, Operand(1));
     __ add(index, index, ip);  // index *= 3.
 
     Register entity_name = scratch1;
     // Having undefined at this place means the name is not contained.
     ASSERT_EQ(kSmiTagSize, 1);
     Register tmp = properties;
-    __ lsl(ip, index, Immediate(1));
+    __ lsl(ip, index, Operand(1));
     __ add(tmp, properties, ip);
     __ ldr(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
 
@@ -191,14 +191,14 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
       __ b(eq, &done);
 
       // Stop if found the property.
-      __ cmp(entity_name, Immediate(Handle<String>(name)));
+      __ cmp(entity_name, Operand(Handle<String>(name)));
       __ b(eq, miss_label);
 
       // Check if the entry name is not a symbol.
       __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
       __ ldrb(entity_name,
               FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ tst(entity_name, Immediate(kIsSymbolMask));
+      __ tst(entity_name, Operand(kIsSymbolMask));
       __ b(eq, miss_label);
 
       // Restore the properties.
@@ -252,25 +252,25 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
          !extra.is(ip) && !extra2.is(ip));
 
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Immediate(kSmiTagMask));
+  __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Get the map of the receiver and compute the hash.
   __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
   __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, ip);
-  __ lxor(scratch, scratch, Immediate(flags));
+  __ lxor(scratch, scratch, Operand(flags));
   __ land(scratch, scratch,
-          Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+          Operand((kPrimaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the primary table.
   ProbeTable(isolate, masm, flags, kPrimary, name, scratch, extra, extra2);
 
   // Primary miss: Compute hash for secondary probe.
   __ sub(scratch, scratch, name);
-  __ add(scratch, scratch, Immediate(flags));
+  __ add(scratch, scratch, Operand(flags));
   __ land(scratch, scratch,
-          Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
+          Operand((kSecondaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the secondary table.
   ProbeTable(isolate, masm, flags, kSecondary, name, scratch, extra, extra2);
@@ -304,14 +304,14 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
   Isolate* isolate = masm->isolate();
   // Check we're still in the same context.
   __ ldr(prototype, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(ip, Immediate(isolate->global()));
+  __ mov(ip, Operand(isolate->global()));
   __ cmp(prototype, ip);
   __ b(ne, miss);
   // Get the global function with the given index.
   JSFunction* function =
       JSFunction::cast(isolate->global_context()->get(index));
   // Load its initial map. The global functions all have initial maps.
-  __ mov(prototype, Immediate(Handle<Map>(function->initial_map())));
+  __ mov(prototype, Operand(Handle<Map>(function->initial_map())));
   // Load the prototype from the initial map.
   __ ldr(prototype, FieldMemOperand(prototype, Map::kPrototypeOffset));
 }
@@ -343,7 +343,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Register scratch,
                                            Label* miss_label) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Immediate(kSmiTagMask));
+  __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, miss_label);
 
   // Check that the object is a JS array.
@@ -368,15 +368,15 @@ static void GenerateStringCheck(MacroAssembler* masm,
   ASSERT(!receiver.is(ip) && !scratch1.is(ip) && !scratch2.is(ip));
 
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Immediate(kSmiTagMask));
+  __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, smi);
 
   // Check that the object is a string.
   __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-  __ land(scratch2, scratch1, Immediate(kIsNotStringMask));
+  __ land(scratch2, scratch1, Operand(kIsNotStringMask));
   // The cast is to resolve the overload for the argument of 0x0.
-  __ cmp(scratch2, Immediate(static_cast<int32_t>(kStringTag)));
+  __ cmp(scratch2, Operand(static_cast<int32_t>(kStringTag)));
   __ b(ne, non_string_object);
 }
 
@@ -406,7 +406,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   if (support_wrappers) {
     // Check if the object is a JSValue wrapper.
     __ bind(&check_wrapper);
-    __ cmp(scratch1, Immediate(JS_VALUE_TYPE));
+    __ cmp(scratch1, Operand(JS_VALUE_TYPE));
     __ b(ne, miss);
 
     // Unwrap the value and check if the wrapped value is a string.
@@ -445,12 +445,12 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   Label exit;
 
   // Check that the receiver isn't a smi.
-  __ tst(receiver_reg, Immediate(kSmiTagMask));
+  __ tst(receiver_reg, Operand(kSmiTagMask));
   __ b(eq, miss_label);
 
   // Check that the map of the receiver hasn't changed.
   __ ldr(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
-  __ cmp(scratch, Immediate(Handle<Map>(object->map())));
+  __ cmp(scratch, Operand(Handle<Map>(object->map())));
   __ b(ne, miss_label);
 
   // Perform global security token check if needed.
@@ -495,7 +495,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ str(r0, FieldMemOperand(receiver_reg, offset));
 
     // Skip updating write barrier if storing a smi.
-    __ tst(r0, Immediate(kSmiTagMask));
+    __ tst(r0, Operand(kSmiTagMask));
     __ b(eq, &exit);
 
     // Update the write barrier for the array address.
@@ -509,7 +509,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ str(r0, FieldMemOperand(scratch, offset));
 
     // Skip updating write barrier if storing a smi.
-    __ tst(r0, Immediate(kSmiTagMask));
+    __ tst(r0, Operand(kSmiTagMask));
     __ b(eq, &exit);
 
     // Update the write barrier for the array address.
@@ -591,7 +591,7 @@ static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
                         masm->isolate());
-  __ mov(r0, Immediate(5));
+  __ mov(r0, Operand(5));
   __ mov(r1, Operand(ref));
 
   CEntryStub stub(1);
@@ -606,7 +606,7 @@ static const int kFastApiCallArguments = 3;
 // These arguments are set by CheckPrototypes and GenerateFastApiDirectCall.
 static void ReserveSpaceForFastApiCall(MacroAssembler* masm,
                                        Register scratch) {
-  __ mov(scratch, Immediate(Smi::FromInt(0)));
+  __ mov(scratch, Operand(Smi::FromInt(0)));
   for (int i = 0; i < kFastApiCallArguments; i++) {
     __ push(scratch);
   }
@@ -633,7 +633,7 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
   // -----------------------------------
   // Get the function and setup the context.
   JSFunction* function = optimization.constant_function();
-  __ mov(r5, Immediate(Handle<JSFunction>(function)));
+  __ mov(r5, Operand(Handle<JSFunction>(function)));
   __ ldr(cp, FieldMemOperand(r5, JSFunction::kContextOffset));
 
   // Pass the additional arguments FastHandleApiCall expects.
@@ -651,7 +651,7 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
 
   // r2 points to call data as expected by Arguments
   // (refer to layout above).
-  __ add(r2, sp, Immediate(2 * kPointerSize));
+  __ add(r2, sp, Operand(2 * kPointerSize));
 
   Object* callback = optimization.api_call_info()->callback();
   Address api_function_address = v8::ToCData<Address>(callback);
@@ -662,17 +662,17 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
 
   // r0 = v8::Arguments&
   // Arguments is after the return address.
-  __ add(r0, sp, Immediate(1 * kPointerSize));
+  __ add(r0, sp, Operand(1 * kPointerSize));
   // v8::Arguments::implicit_args = data
   __ str(r2, MemOperand(r0, 0 * kPointerSize));
   // v8::Arguments::values = last argument
-  __ add(ip, r2, Immediate(argc * kPointerSize));
+  __ add(ip, r2, Operand(argc * kPointerSize));
   __ str(ip, MemOperand(r0, 1 * kPointerSize));
   // v8::Arguments::length_ = argc
-  __ mov(ip, Immediate(argc));
+  __ mov(ip, Operand(argc));
   __ str(ip, MemOperand(r0, 2 * kPointerSize));
   // v8::Arguments::is_construct_call = 0
-  __ mov(ip, Immediate(0));
+  __ mov(ip, Operand(0));
   __ str(ip, MemOperand(r0, 3 * kPointerSize));
 
   // Emitting a stub call may try to allocate (if the code is not
@@ -980,24 +980,24 @@ static void StoreIntAsFloat(MacroAssembler* masm,
     // as the 2's complement sign bit in a Smi.
     ASSERT(kBinary32SignMask == 0x80000000u);
 
-    __ land(fval, ival, Immediate(kBinary32SignMask));
-    __ cmp(fval, Immediate(0));
+    __ land(fval, ival, Operand(kBinary32SignMask));
+    __ cmp(fval, Operand(0));
     // Negate value if it is negative.
-    __ rsb(ip, ival, Immediate(0));
+    __ rsb(ip, ival, Operand(0));
     __ mov(ival, ip, ne);
 
     // We have -1, 0 or 1, which we treat specially. Register ival contains
     // absolute value: it is either equal to 1 (special case of -1 and 1),
     // greater than 1 (not a special case) or less than 1 (special case of 0).
-    __ cmpgt(ival, Immediate(1));
+    __ cmpgt(ival, Operand(1));
     __ b(t, &not_special);
 
     // For 1 or -1 we need to or in the 0 exponent (biased).
     static const uint32_t exponent_word_for_1 =
         kBinary32ExponentBias << kBinary32ExponentShift;
 
-    __ cmp(ival, Immediate(1));
-    __ orr(ip, fval, Immediate(exponent_word_for_1));
+    __ cmp(ival, Operand(1));
+    __ orr(ip, fval, Operand(exponent_word_for_1));
     __ mov(fval, ip, eq);
     __ b(&done);
 
@@ -1010,25 +1010,25 @@ static void StoreIntAsFloat(MacroAssembler* masm,
     // Compute exponent and or it into the exponent register.
     __ rsb(scratch1,
            zeros,
-           Immediate((kBitsPerInt - 1) + kBinary32ExponentBias));
+           Operand((kBitsPerInt - 1) + kBinary32ExponentBias));
 
-    __ lsl(ip, scratch1, Immediate(kBinary32ExponentShift));
+    __ lsl(ip, scratch1, Operand(kBinary32ExponentShift));
     __ orr(fval,
            fval,
            ip);
 
     // Shift up the source chopping the top bit off.
-    __ add(zeros, zeros, Immediate(1));
+    __ add(zeros, zeros, Operand(1));
     // This wouldn't work for 1 and -1 as the shift would be 32 which means 0.
     __ lsl(ival, ival, zeros);
     // And the top (top 20 bits).
-    __ lsr(ip, ival, Immediate(kBitsPerInt - kBinary32MantissaBits));
+    __ lsr(ip, ival, Operand(kBitsPerInt - kBinary32MantissaBits));
     __ orr(fval,
            fval,
            ip);
 
     __ bind(&done);
-    __ lsl(ip, wordoffset, Immediate(2));
+    __ lsl(ip, wordoffset, Operand(2));
     __ str(fval, MemOperand(dst, ip));
   }
 }
@@ -1053,21 +1053,21 @@ static void GenerateUInt2Double(MacroAssembler* masm,
   const int mantissa_shift_for_lo_word =
       kBitsPerInt - mantissa_shift_for_hi_word;
 
-  __ mov(scratch, Immediate(biased_exponent << HeapNumber::kExponentShift));
+  __ mov(scratch, Operand(biased_exponent << HeapNumber::kExponentShift));
   if (mantissa_shift_for_hi_word > 0) {
-    __ lsl(loword, hiword, Immediate(mantissa_shift_for_lo_word));
-    __ lsr(hiword, hiword, Immediate(mantissa_shift_for_hi_word));
+    __ lsl(loword, hiword, Operand(mantissa_shift_for_lo_word));
+    __ lsr(hiword, hiword, Operand(mantissa_shift_for_hi_word));
     __ orr(hiword, scratch, hiword);
   } else {
-    __ mov(loword, Immediate(0));
-    __ lsl(hiword, hiword, Immediate(mantissa_shift_for_hi_word));
+    __ mov(loword, Operand(0));
+    __ lsl(hiword, hiword, Operand(mantissa_shift_for_hi_word));
     __ orr(hiword, scratch, hiword);
   }
 
   // If least significant bit of biased exponent was not 1 it was corrupted
   // by most significant bit of mantissa so we should fix that.
   if (!(biased_exponent & 1)) {
-    __ bic(hiword, hiword, Immediate(1 << HeapNumber::kExponentShift));
+    __ bic(hiword, hiword, Operand(1 << HeapNumber::kExponentShift));
   }
 }
 
@@ -1136,7 +1136,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
     } else if (heap()->InNewSpace(prototype)) {
       // Get the map of the current object.
       __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
-      __ cmp(scratch1, Immediate(Handle<Map>(current->map())));
+      __ cmp(scratch1, Operand(Handle<Map>(current->map())));
 
       // Branch on the result of the map check.
       __ b(ne, miss);
@@ -1159,7 +1159,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
     } else {
       // Check the map of the current object.
       __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
-      __ cmp(scratch1, Immediate(Handle<Map>(current->map())));
+      __ cmp(scratch1, Operand(Handle<Map>(current->map())));
       // Branch on the result of the map check.
       __ b(ne, miss);
       // Check access rights to the global object.  This has to happen
@@ -1170,7 +1170,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       }
       // The prototype is in old space; load it directly.
       reg = holder_reg;  // from now the object is in holder_reg
-      __ mov(reg, Immediate(Handle<JSObject>(prototype)));
+      __ mov(reg, Operand(Handle<JSObject>(prototype)));
     }
 
     if (save_at_depth == depth) {
@@ -1183,7 +1183,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
 
   // Check the holder map.
   __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
-  __ cmp(scratch1, Immediate(Handle<Map>(current->map())));
+  __ cmp(scratch1, Operand(Handle<Map>(current->map())));
   __ b(ne, miss);
 
   // Log the check depth.
@@ -1221,7 +1221,7 @@ void StubCompiler::GenerateLoadField(JSObject* object,
                                      String* name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Immediate(kSmiTagMask));
+  __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, miss);
 
   // Check that the maps haven't changed.
@@ -1243,7 +1243,7 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
                                         String* name,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Immediate(kSmiTagMask));
+  __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, miss);
 
   // Check that the maps haven't changed.
@@ -1252,7 +1252,7 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
                       scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
-  __ mov(r0, Immediate(Handle<Object>(value)));
+  __ mov(r0, Operand(Handle<Object>(value)));
   __ Ret();
 }
 
@@ -1268,7 +1268,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
                                                 String* name,
                                                 Label* miss) {
   // Check that the receiver isn't a smi.
-  __ tst(receiver, Immediate(kSmiTagMask));
+  __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, miss);
 
   // Check that the maps haven't changed.
@@ -1298,7 +1298,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object **args_) as the data.
   __ str(scratch2, MemOperand(sp, 1 * kPointerSize));
-  __ add(r1, sp, Immediate(1 * kPointerSize));  // r1 = AccessorInfo&
+  __ add(r1, sp, Operand(1 * kPointerSize));  // r1 = AccessorInfo&
 
   // Emitting a stub call may try to allocate (if the code is not
   // already generated).  Do not allow the assembler to perform a
@@ -1460,7 +1460,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
 void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
-    __ cmp(r2, Immediate(Handle<String>(name)));
+    __ cmp(r2, Operand(Handle<String>(name)));
     __ b(ne, miss);
   }
 }
@@ -1482,7 +1482,7 @@ void CallStubCompiler::GenerateGlobalReceiverCheck(JSObject* object,
   // object which can only happen for contextual calls. In this case,
   // the receiver cannot be a smi.
   if (object != holder) {
-    __ tst(r0, Immediate(kSmiTagMask));
+    __ tst(r0, Operand(kSmiTagMask));
     __ b(eq, miss);
   }
 
@@ -1505,7 +1505,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
     // the nice side effect that multiple closures based on the same
     // function can all use this call IC. Before we load through the
     // function, we have to verify that it still is a function.
-    __ tst(r1, Immediate(kSmiTagMask));
+    __ tst(r1, Operand(kSmiTagMask));
     __ b(eq, miss);
     __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq);
     __ b(ne, miss);
@@ -1516,7 +1516,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
     __ cmp(r4, r3);
     __ b(ne, miss);
   } else {
-    __ cmp(r1, Immediate(Handle<JSFunction>(function)));
+    __ cmp(r1, Operand(Handle<JSFunction>(function)));
     __ b(ne, miss);
   }
 }
@@ -1549,7 +1549,7 @@ MaybeObject* CallStubCompiler::CompileCallField(JSObject* object,
   // Get the receiver of the function from the stack into r0.
   __ ldr(r0, MemOperand(sp, argc * kPointerSize));
   // Check that the receiver isn't a smi.
-  __ tst(r0, Immediate(kSmiTagMask));
+  __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Do the right check and compute the holder register.
@@ -1626,7 +1626,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
       STATIC_ASSERT(kSmiTagSize == 1);
       STATIC_ASSERT(kSmiTag == 0);
-      __ add(r0, r0, Immediate(Smi::FromInt(argc)));
+      __ add(r0, r0, Operand(Smi::FromInt(argc)));
 
       // Get the element's length.
       __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
@@ -1642,11 +1642,11 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
       // We may need a register containing the address end_elements below,
       // so write back the value in end_elements.
-      __ lsl(ip, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
+      __ lsl(ip, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
       __ add(end_elements, elements, ip);
       const int kEndElementsOffset =
           FixedArray::kHeaderSize - kHeapObjectTag - argc * kPointerSize;
-      __ add(end_elements, end_elements, Immediate(kEndElementsOffset));
+      __ add(end_elements, end_elements, Operand(kEndElementsOffset));
       __ str(r4, MemOperand(end_elements));
 
       // Check for a smi.
@@ -1677,17 +1677,17 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       const int kAllocationDelta = 4;
       // Load top and check if it is the end of elements.
-      __ lsl(r7, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
+      __ lsl(r7, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
       __ add(end_elements, elements, r7);
-      __ add(end_elements, end_elements, Immediate(kEndElementsOffset));
-      __ mov(r7, Immediate(new_space_allocation_top));
+      __ add(end_elements, end_elements, Operand(kEndElementsOffset));
+      __ mov(r7, Operand(new_space_allocation_top));
       __ ldr(r6, MemOperand(r7));
       __ cmp(end_elements, r6);
       __ b(ne, &call_builtin);
 
-      __ mov(r9, Immediate(new_space_allocation_limit));
+      __ mov(r9, Operand(new_space_allocation_limit));
       __ ldr(r9, MemOperand(r9));
-      __ add(r6, r6, Immediate(kAllocationDelta * kPointerSize));
+      __ add(r6, r6, Operand(kAllocationDelta * kPointerSize));
       __ cmphi(r6, r9);
       __ bt(&call_builtin);
 
@@ -1705,7 +1705,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // Update elements' and array's sizes.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
-      __ add(r4, r4, Immediate(Smi::FromInt(kAllocationDelta)));
+      __ add(r4, r4, Operand(Smi::FromInt(kAllocationDelta)));
       __ str(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
 
       // Elements are in new space, so write barrier is not required.
@@ -1837,7 +1837,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
   Label miss;
 
   // Check the key is the cached one.
-  __ cmp(r0, Immediate(Handle<String>(name)));
+  __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
   GenerateLoadField(receiver, holder, r1, r2, r3, r4, index, name, &miss);
@@ -1864,7 +1864,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // object which can only happen for contextual calls. In this case,
   // the receiver cannot be a smi.
   if (object != holder) {
-    __ tst(r0, Immediate(kSmiTagMask));
+    __ tst(r0, Operand(kSmiTagMask));
     __ b(eq, &miss);
   }
 
@@ -1940,7 +1940,7 @@ MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
   Label miss;
 
   // Check that receiver is not a smi.
-  __ tst(r0, Immediate(kSmiTagMask));
+  __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Check the maps of the full prototype chain.
@@ -2012,7 +2012,7 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   Label miss;
 
   // Check that the object isn't a smi.
-  __ tst(r1, Immediate(kSmiTagMask));
+  __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Check that the map of the object hasn't changed.
@@ -2063,7 +2063,7 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
 
   // Check that the map of the global has not changed.
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r3, Immediate(Handle<Map>(object->map())));
+  __ cmp(r3, Operand(Handle<Map>(object->map())));
   __ b(ne, &miss);
 
   // Check that the value in the cell is not the hole. If it is, this
@@ -2105,12 +2105,12 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   Label miss;
 
   // Check that the object isn't a smi.
-  __ tst(r1, Immediate(kSmiTagMask));
+  __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Check that the map of the object hasn't changed.
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r3, Immediate(Handle<Map>(receiver->map())));
+  __ cmp(r3, Operand(Handle<Map>(receiver->map())));
   __ b(ne, &miss);
 
   // Perform global security token check if needed.
@@ -2124,7 +2124,7 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   __ Push(r1, r2, r0);  // Receiver, name, value.
 
-  __ mov(r0, Immediate(Smi::FromInt(strict_mode_)));
+  __ mov(r0, Operand(Smi::FromInt(strict_mode_)));
   __ push(r0);  // strict mode
 
   // Do tail-call to the runtime system.
@@ -2212,8 +2212,8 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // Get the array's length into r4 and calculate new length.
   __ ldr(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
-  __ sub(r4, r4, Immediate(Smi::FromInt(1)));
-  __ cmpge(r4, Immediate(0));
+  __ sub(r4, r4, Operand(Smi::FromInt(1)));
+  __ cmpge(r4, Operand(0));
   __ bf(&return_undefined);
 
   // Get the last element.
@@ -2222,7 +2222,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   STATIC_ASSERT(kSmiTag == 0);
   // We can't address the last element in one operation. Compute the more
   // expensive shift first, and use an offset later on.
-  __ lsl(ip, r4, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ lsl(ip, r4, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ add(elements, elements, ip);
   __ ldr(r0, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
   __ cmp(r0, r6);
@@ -2285,7 +2285,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
 
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
-    __ tst(r1, Immediate(kSmiTagMask));
+    __ tst(r1, Operand(kSmiTagMask));
     __ b(eq, &miss);
   }
 
@@ -2336,7 +2336,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       } else {
         NearLabel fast;
         // Check that the object is a smi or a heap number.
-        __ tst(r1, Immediate(kSmiTagMask));
+        __ tst(r1, Operand(kSmiTagMask));
         __ b(eq, &fast);
         __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE, eq);
         __ b(ne, &miss);
@@ -2538,7 +2538,7 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ tst(r1, Immediate(kSmiTagMask));
+  __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss_before_stack_reserved);
 
   __ IncrementCounter(counters->call_const(), 1, r0, r3);
@@ -2591,7 +2591,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
 
     STATIC_ASSERT(kSmiTag == 0);
-    __ tst(r1, Immediate(kSmiTagMask));
+    __ tst(r1, Operand(kSmiTagMask));
     __ b(eq, &miss);
 
     CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
@@ -2612,13 +2612,13 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
 
   // Do bitwise not or do nothing depending on the sign of the
   // argument.
-  __ asr(r1, r0, Immediate(kBitsPerInt - 1));
+  __ asr(r1, r0, Operand(kBitsPerInt - 1));
   __ eor(r1, r0, r1);
 
   // Add 1 or do nothing depending on the sign of the argument.
-  __ asr(r0, r0, Immediate(kBitsPerInt - 1));
+  __ asr(r0, r0, Operand(kBitsPerInt - 1));
   __ sub(r0, r1, r0);
-  __ cmpge(r0, Immediate(0));
+  __ cmpge(r0, Operand(0));
 
   // If the result is still negative, go to the slow case.
   // This only happens for the most negative smi.
@@ -2638,7 +2638,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // Check the sign of the argument. If the argument is positive,
   // just return it.
   NearLabel negative_sign;
-  __ tst(r1, Immediate(HeapNumber::kSignMask));
+  __ tst(r1, Operand(HeapNumber::kSignMask));
   __ b(ne, &negative_sign);
   __ Drop(argc + 1);
   __ Ret();
@@ -2646,7 +2646,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // If the argument is negative, clear the sign, and return a new
   // number.
   __ bind(&negative_sign);
-  __ eor(r1, r1, Immediate(HeapNumber::kSignMask));
+  __ eor(r1, r1, Operand(HeapNumber::kSignMask));
   __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
   __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
   __ AllocateHeapNumber(r0, r4, r5, r6, &slow);
@@ -2885,7 +2885,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
 
     STATIC_ASSERT(kSmiTag == 0);
-    __ tst(r1, Immediate(kSmiTagMask));
+    __ tst(r1, Operand(kSmiTagMask));
     __ b(eq, &miss);
 
     CheckPrototypes(JSObject::cast(object), r1, holder, r0, r3, r4, name,
@@ -2903,11 +2903,11 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   // Check the code is a smi.
   Label slow;
   STATIC_ASSERT(kSmiTag == 0);
-  __ tst(code, Immediate(kSmiTagMask));
+  __ tst(code, Operand(kSmiTagMask));
   __ b(ne, &slow);
 
   // Convert the smi code to uint16.
-  __ land(code, code, Immediate(Smi::FromInt(0xffff)));
+  __ land(code, code, Operand(Smi::FromInt(0xffff)));
 
   StringCharFromCodeGenerator char_from_code_generator(code, r0);
   char_from_code_generator.GenerateFast(masm());
@@ -2975,7 +2975,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   Label miss;
 
   // Check the key is the cached one.
-  __ cmp(r0, Immediate(Handle<String>(name)));
+  __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
   GenerateLoadConstant(receiver, holder, r1, r2, r3, r4, value, name, &miss);
@@ -3021,16 +3021,16 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
   NearLabel miss;
 
   // Check that the receiver isn't a smi.
-  __ tst(r1, Immediate(kSmiTagMask));
+  __ tst(r1, Operand(kSmiTagMask));
   __ bt(&miss);
 
   // Check that the map matches.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmpeq(r2, Immediate(Handle<Map>(receiver->map())));
+  __ cmpeq(r2, Operand(Handle<Map>(receiver->map())));
   __ bf(&miss);
 
   // Check that the key is a smi.
-  __ tst(r0, Immediate(kSmiTagMask));
+  __ tst(r0, Operand(kSmiTagMask));
   __ bf(&miss);
 
   // Get the elements array.
@@ -3043,9 +3043,9 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadSpecialized(JSObject* receiver) {
   __ bt(&miss);
 
   // Load the result and make sure it's not the hole.
-  __ add(r3, r2, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(r3, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ lsl(ip, r0, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ lsl(ip, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ ldr(r4, MemOperand(r3, ip));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
   __ cmpeq(r4, ip);
@@ -3113,7 +3113,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // r1: constructor function
   // r7: undefined
   __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
-  __ tst(r2, Immediate(kSmiTagMask));
+  __ tst(r2, Operand(kSmiTagMask));
   __ b(eq, &generic_stub_call);
   __ CompareObjectType(r2, r3, r4, MAP_TYPE, eq);
   __ b(f, &generic_stub_call);
@@ -3153,17 +3153,17 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   __ mov(r5, r4);
   ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
   __ str(r2, MemOperand(r5));
-  __ add(r5, r5, Immediate(kPointerSize));
+  __ add(r5, r5, Operand(kPointerSize));
   ASSERT_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
   __ str(r6, MemOperand(r5));
-  __ add(r5, r5, Immediate(kPointerSize));
+  __ add(r5, r5, Operand(kPointerSize));
   ASSERT_EQ(2 * kPointerSize, JSObject::kElementsOffset);
   __ str(r6, MemOperand(r5));
-  __ add(r5, r5, Immediate(kPointerSize));
+  __ add(r5, r5, Operand(kPointerSize));
 
   // Calculate the location of the first argument. The stack contains only the
   // argc arguments.
-  __ lsl(ip, r0, Immediate(kPointerSizeLog2));
+  __ lsl(ip, r0, Operand(kPointerSizeLog2));
   __ add(r1, sp, ip);
 
   // Fill all the in-object properties with undefined.
@@ -3181,24 +3181,24 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
       NearLabel not_passed, next;
       // Check if the argument assigned to the property is actually passed.
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
-      __ cmpgt(r0, Immediate(arg_number));
+      __ cmpgt(r0, Operand(arg_number));
       __ b(f, &not_passed);
       // Argument passed - find it on the stack.
       __ ldr(r2, MemOperand(r1, (arg_number + 1) * -kPointerSize));
       __ str(r2, MemOperand(r5));
-      __ add(r5, r5, Immediate(kPointerSize));
+      __ add(r5, r5, Operand(kPointerSize));
       __ b(&next);
       __ bind(&not_passed);
       // Set the property to undefined.
       __ str(r7, MemOperand(r5));
-      __ add(r5, r5, Immediate(kPointerSize));
+      __ add(r5, r5, Operand(kPointerSize));
       __ bind(&next);
     } else {
       // Set the property to the constant value.
       Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i));
       __ mov(r2, Operand(constant));
       __ str(r2, MemOperand(r5));
-      __ add(r5, r5, Immediate(kPointerSize));
+      __ add(r5, r5, Operand(kPointerSize));
     }
   }
 
@@ -3208,7 +3208,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
        i < function->initial_map()->inobject_properties();
        i++) {
       __ str(r7, MemOperand(r5));
-      __ add(r5, r5, Immediate(kPointerSize));
+      __ add(r5, r5, Operand(kPointerSize));
   }
 
   // r0: argc
@@ -3216,14 +3216,14 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // Move argc to r1 and the JSObject to return to r0 and tag it.
   __ mov(r1, r0);
   __ mov(r0, r4);
-  __ orr(r0, r0, Immediate(kHeapObjectTag));
+  __ orr(r0, r0, Operand(kHeapObjectTag));
 
   // r0: JSObject
   // r1: argc
   // Remove caller arguments and receiver from the stack and return.
-  __ lsl(ip, r1, Immediate(kPointerSizeLog2));
+  __ lsl(ip, r1, Operand(kPointerSizeLog2));
   __ add(sp, sp, ip);
-  __ add(sp, sp, Immediate(kPointerSize));
+  __ add(sp, sp, Operand(kPointerSize));
   Counters* counters = masm()->isolate()->counters();
   __ IncrementCounter(counters->constructed_objects(), 1, r1, r2);
   __ IncrementCounter(counters->constructed_objects_stub(), 1, r1, r2);
@@ -3290,7 +3290,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
 
   // Check that the index is in range.
   __ ldr(ip, FieldMemOperand(r3, ExternalArray::kLengthOffset));
-  __ asr(r2, key, Immediate(kSmiTagSize));
+  __ asr(r2, key, Operand(kSmiTagSize));
   __ cmphs(ip, r2);     // FIXME: shouldn-t it be cmphi (i.e. length > key)
   // Unsigned comparison catches both negative and too-large values.
   __ bf(&slow);
@@ -3305,12 +3305,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
   Register value = r2;
   switch (array_type) {
     case kExternalByteArray:
-      __ lsr(ip, key, Immediate(1));
+      __ lsr(ip, key, Operand(1));
       __ ldrsb(value, MemOperand(r3, ip));
       break;
     case kExternalPixelArray:
     case kExternalUnsignedByteArray:
-      __ lsr(ip, key, Immediate(1));
+      __ lsr(ip, key, Operand(1));
       __ ldrb(value, MemOperand(r3, ip));
       break;
     case kExternalShortArray:
@@ -3321,7 +3321,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       break;
     case kExternalIntArray:
     case kExternalUnsignedIntArray:
-      __ lsr(ip, key, Immediate(1));
+      __ lsr(ip, key, Operand(1));
       __ ldr(value, MemOperand(r3, ip));
       break;
     case kExternalFloatArray:
@@ -3329,7 +3329,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       // if (CpuFeatures::IsSupported(VFP3)) {
       // } else
       {
-        __ lsr(ip, key, Immediate(1));
+        __ lsr(ip, key, Operand(1));
         __ ldr(value, MemOperand(r3, ip));
       }
       break;
@@ -3338,7 +3338,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       // if (CpuFeatures::IsSupported(VFP3)) {
       // } else
       {
-        __ lsr(ip, key, Immediate(2));
+        __ lsr(ip, key, Operand(2));
         __ add(r4, r3, ip);
         // r4: pointer to the beginning of the double we want to load.
         __ ldr(r2, MemOperand(r4, 0));
@@ -3365,11 +3365,11 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
     // it to a HeapNumber.
     NearLabel box_int;
     // FIXME: check if equivalent to TrySmiTag
-    __ sub(ip, value, Immediate(0xC0000000));
-    __ cmpge(ip, Immediate(0));
+    __ sub(ip, value, Operand(0xC0000000));
+    __ cmpge(ip, Operand(0));
     __ bf(&box_int);
     // Tag integer as smi and return it.
-    __ lsl(r0, value, Immediate(kSmiTagSize));
+    __ lsl(r0, value, Operand(kSmiTagSize));
     __ Ret();
 
     __ bind(&box_int);
@@ -3399,12 +3399,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       // Check whether unsigned integer fits into smi.
       NearLabel box_int_0;
       Label box_int_1, done;
-      __ tst(value, Immediate(0x80000000u));
+      __ tst(value, Operand(0x80000000u));
       __ b(ne, &box_int_0);
-      __ tst(value, Immediate(0x40000000));
+      __ tst(value, Operand(0x40000000));
       __ b(ne, &box_int_1);
       // Tag integer as smi and return it.
-      __ lsl(r0, value, Immediate(kSmiTagSize));
+      __ lsl(r0, value, Operand(kSmiTagSize));
       __ Ret();
 
       Register hiword = value;  // r2.
@@ -3453,31 +3453,31 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
 
       // Extract mantissa to r0. OK to clobber r0 now as there are no jumps to
       // the slow case from here.
-      __ land(r0, value, Immediate(kBinary32MantissaMask));
+      __ land(r0, value, Operand(kBinary32MantissaMask));
 
       // Extract exponent to r1. OK to clobber r1 now as there are no jumps to
       // the slow case from here.
-      __ lsr(r1, value, Immediate(kBinary32MantissaBits));
+      __ lsr(r1, value, Operand(kBinary32MantissaBits));
       __ land(r1, r1,
-              Immediate(kBinary32ExponentMask >> kBinary32MantissaBits));
+              Operand(kBinary32ExponentMask >> kBinary32MantissaBits));
 
       NearLabel exponent_rebiased;
-      __ cmp(r1, Immediate(0x00));
+      __ cmp(r1, Operand(0x00));
       __ b(eq, &exponent_rebiased);
 
-      __ cmp(r1, Immediate(0xff));
-      __ mov(r1, Immediate(0x7ff), eq);
+      __ cmp(r1, Operand(0xff));
+      __ mov(r1, Operand(0x7ff), eq);
       __ b(eq, &exponent_rebiased);
 
       // Rebias exponent.
       __ add(r1,
              r1,
-             Immediate(-kBinary32ExponentBias + HeapNumber::kExponentBias));
+             Operand(-kBinary32ExponentBias + HeapNumber::kExponentBias));
 
       __ bind(&exponent_rebiased);
-      __ land(r2, value, Immediate(kBinary32SignMask));
+      __ land(r2, value, Operand(kBinary32SignMask));
       value = no_reg;
-      __ lsl(ip, r1, Immediate(HeapNumber::kMantissaBitsInTopWord));
+      __ lsl(ip, r1, Operand(HeapNumber::kMantissaBitsInTopWord));
       __ orr(r2, r2, ip);
 
       // Shift mantissa.
@@ -3487,9 +3487,9 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       static const int kMantissaShiftForLoWord =
         kBitsPerInt - kMantissaShiftForHiWord;
 
-      __ lsr(ip, r0, Immediate(kMantissaShiftForHiWord));
+      __ lsr(ip, r0, Operand(kMantissaShiftForHiWord));
       __ orr(r2, r2, ip);
-      __ lsl(r0, r0, Immediate(kMantissaShiftForLoWord));
+      __ lsl(r0, r0, Operand(kMantissaShiftForLoWord));
 
       __ str(r2, FieldMemOperand(r3, HeapNumber::kExponentOffset));
       __ str(r0, FieldMemOperand(r3, HeapNumber::kMantissaOffset));
@@ -3515,7 +3515,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedLoadStub(
       }
   } else {
     // Tag integer as smi and return it.
-    __ lsl(r0, value, Immediate(kSmiTagSize));
+    __ lsl(r0, value, Operand(kSmiTagSize));
     __ Ret();
   }
 
@@ -3606,12 +3606,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       break;
     case kExternalShortArray:
     case kExternalUnsignedShortArray:
-      __ lsl(ip, r4, Immediate(1));
+      __ lsl(ip, r4, Operand(1));
       __ strh(r5, MemOperand(r3, ip));
       break;
     case kExternalIntArray:
     case kExternalUnsignedIntArray:
-      __ lsl(ip, r4, Immediate(2));
+      __ lsl(ip, r4, Operand(2));
       __ str(r5, MemOperand(r3, ip));
       break;
     case kExternalFloatArray:
@@ -3619,7 +3619,7 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
       StoreIntAsFloat(masm(), r3, r4, r5, r6, r7, r9);
       break;
     case kExternalDoubleArray:
-      __ lsl(ip, r4, Immediate(3));
+      __ lsl(ip, r4, Operand(3));
       __ add(r3, r3, ip);
       // r3: effective address of the double element
       FloatingPointHelper::Destination destination;
@@ -3682,63 +3682,63 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
 
         // Test for all special exponent values: zeros, subnormal numbers, NaNs
         // and infinities. All these should be converted to 0.
-        __ mov(r7, Immediate(HeapNumber::kExponentMask));
+        __ mov(r7, Operand(HeapNumber::kExponentMask));
         __ land(r9, r5, r7);
-        __ cmp(r9, Immediate(0));
+        __ cmp(r9, Operand(0));
         __ b(eq, &nan_or_infinity_or_zero);
 
         __ cmp(r9, r7);
-        __ mov(r9, Immediate(kBinary32ExponentMask), eq);
+        __ mov(r9, Operand(kBinary32ExponentMask), eq);
         __ b(eq, &nan_or_infinity_or_zero);
 
         // Rebias exponent.
-        __ lsr(r9, r9, Immediate(HeapNumber::kExponentShift));
+        __ lsr(r9, r9, Operand(HeapNumber::kExponentShift));
         __ add(r9,
                r9,
-               Immediate(kBinary32ExponentBias - HeapNumber::kExponentBias));
+               Operand(kBinary32ExponentBias - HeapNumber::kExponentBias));
 
         NearLabel skip1;
-        __ cmpgt(r9, Immediate(kBinary32MaxExponent));
+        __ cmpgt(r9, Operand(kBinary32MaxExponent));
         __ bf(&skip1);
-        __ land(r5, r5, Immediate(HeapNumber::kSignMask));
-        __ orr(r5, r5, Immediate(kBinary32ExponentMask));
+        __ land(r5, r5, Operand(HeapNumber::kSignMask));
+        __ orr(r5, r5, Operand(kBinary32ExponentMask));
         __ b(&done);
         __ bind(&skip1);
 
         NearLabel skip2;
-        __ cmpge(r9, Immediate(kBinary32MinExponent));
+        __ cmpge(r9, Operand(kBinary32MinExponent));
         __ bt(&skip2);
-        __ land(r5, r5, Immediate(HeapNumber::kSignMask));
+        __ land(r5, r5, Operand(HeapNumber::kSignMask));
         __ b(&done);
         __ bind(&skip2);
 
-        __ land(r7, r5, Immediate(HeapNumber::kSignMask));
-        __ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
-        __ lsl(ip, r5, Immediate(kMantissaInHiWordShift));
+        __ land(r7, r5, Operand(HeapNumber::kSignMask));
+        __ land(r5, r5, Operand(HeapNumber::kMantissaMask));
+        __ lsl(ip, r5, Operand(kMantissaInHiWordShift));
         __ orr(r7, r7, ip);
-        __ lsr(ip, r6, Immediate(kMantissaInLoWordShift));
+        __ lsr(ip, r6, Operand(kMantissaInLoWordShift));
         __ orr(r7, r7, ip);
-        __ lsl(ip, r9, Immediate(kBinary32ExponentShift));
+        __ lsl(ip, r9, Operand(kBinary32ExponentShift));
         __ orr(r5, r7, ip);
 
         __ bind(&done);
-        __ lsl(ip, r4, Immediate(2));
+        __ lsl(ip, r4, Operand(2));
         __ str(r5, MemOperand(r3, ip));
         // Entry registers are intact, r0 holds the value which is the return
         // value.
         __ Ret();
 
         __ bind(&nan_or_infinity_or_zero);
-        __ land(r7, r5, Immediate(HeapNumber::kSignMask));
-        __ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
+        __ land(r7, r5, Operand(HeapNumber::kSignMask));
+        __ land(r5, r5, Operand(HeapNumber::kMantissaMask));
         __ orr(r9, r9, r7);
-        __ lsl(ip, r5, Immediate(kMantissaInHiWordShift));
+        __ lsl(ip, r5, Operand(kMantissaInHiWordShift));
         __ orr(r9, r9, ip);
-        __ lsr(ip, r6, Immediate(kMantissaInLoWordShift));
+        __ lsr(ip, r6, Operand(kMantissaInLoWordShift));
         __ orr(r5, r9, ip);
         __ b(&done);
       } else if (array_type == kExternalDoubleArray) {
-        __ lsl(ip, r4, Immediate(3));
+        __ lsl(ip, r4, Operand(3));
         __ add(r7, r3, ip);
         // r7: effective address of destination element.
         __ str(r6, MemOperand(r7, 0));
@@ -3753,48 +3753,48 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
 
         // Test for all special exponent values: zeros, subnormal numbers, NaNs
         // and infinities. All these should be converted to 0.
-        __ mov(r7, Immediate(HeapNumber::kExponentMask));
+        __ mov(r7, Operand(HeapNumber::kExponentMask));
         __ land(r9, r5, r7);
-        __ cmp(r9, Immediate(0));
-        __ mov(r5, Immediate(0), eq);
+        __ cmp(r9, Operand(0));
+        __ mov(r5, Operand(0), eq);
         __ b(eq, &done);
 
         __ cmp(r9, r7);
-        __ mov(r5, Immediate(0), eq);
+        __ mov(r5, Operand(0), eq);
         __ b(eq, &done);
 
         // Unbias exponent.
-        __ lsr(r9, r9, Immediate(HeapNumber::kExponentShift));
-        __ sub(r9, r9, Immediate(HeapNumber::kExponentBias));
+        __ lsr(r9, r9, Operand(HeapNumber::kExponentShift));
+        __ sub(r9, r9, Operand(HeapNumber::kExponentBias));
         // If exponent is negative then result is 0.
-        __ cmpge(r9, Immediate(0));
-        __ mov(r5, Immediate(0), f);
+        __ cmpge(r9, Operand(0));
+        __ mov(r5, Operand(0), f);
         __ b(f, &done);
 
         // If exponent is too big then result is minimal value.
-        __ cmpge(r9, Immediate(meaningfull_bits - 1));
-        __ mov(r5, Immediate(min_value), t);
+        __ cmpge(r9, Operand(meaningfull_bits - 1));
+        __ mov(r5, Operand(min_value), t);
         __ b(t, &done);
 
-        __ land(r7, r5, Immediate(HeapNumber::kSignMask));
-        __ land(r5, r5, Immediate(HeapNumber::kMantissaMask));
-        __ orr(r5, r5, Immediate(1u << HeapNumber::kMantissaBitsInTopWord));
+        __ land(r7, r5, Operand(HeapNumber::kSignMask));
+        __ land(r5, r5, Operand(HeapNumber::kMantissaMask));
+        __ orr(r5, r5, Operand(1u << HeapNumber::kMantissaBitsInTopWord));
 
-        __ rsb(r9, r9, Immediate(HeapNumber::kMantissaBitsInTopWord));
-        __ cmpge(r9, Immediate(0));
+        __ rsb(r9, r9, Operand(HeapNumber::kMantissaBitsInTopWord));
+        __ cmpge(r9, Operand(0));
         __ lsr(ip, r5, r9);
         __ mov(r5, ip, t);
         __ b(t, &sign);
 
-        __ rsb(r9, r9, Immediate(0));
+        __ rsb(r9, r9, Operand(0));
         __ lsl(r5, r5, r9);
-        __ rsb(r9, r9, Immediate(meaningfull_bits));
+        __ rsb(r9, r9, Operand(meaningfull_bits));
         __ lsr(ip, r6, r9);
         __ orr(r5, r5, ip);
 
         __ bind(&sign);
-        __ cmp(r7, Immediate(0));
-        __ rsb(ip, r5, Immediate(0));
+        __ cmp(r7, Operand(0));
+        __ rsb(ip, r5, Operand(0));
         __ mov(r5, ip, ne);
 
         __ bind(&done);
@@ -3805,12 +3805,12 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
           break;
         case kExternalShortArray:
         case kExternalUnsignedShortArray:
-          __ lsl(ip, r4, Immediate(1));
+          __ lsl(ip, r4, Operand(1));
           __ strh(r5, MemOperand(r3, ip));
           break;
         case kExternalIntArray:
         case kExternalUnsignedIntArray:
-          __ lsl(ip, r4, Immediate(2));
+          __ lsl(ip, r4, Operand(2));
           __ str(r5, MemOperand(r3, ip));
           break;
         default:
@@ -3835,8 +3835,8 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   // Push receiver, key and value for runtime call.
   __ Push(r2, r1, r0);
 
-  __ mov(r1, Immediate(Smi::FromInt(NONE)));  // PropertyAttributes
-  __ mov(r0, Immediate(Smi::FromInt(
+  __ mov(r1, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
+  __ mov(r0, Operand(Smi::FromInt(
       Code::ExtractExtraICStateFromFlags(flags) & kStrictMode)));
   __ Push(r1, r0);
 
@@ -3865,23 +3865,23 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   Register elements_reg = r4;
 
   // Check that the receiver isn't a smi.
-  __ tst(receiver_reg, Immediate(kSmiTagMask));
+  __ tst(receiver_reg, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Check that the map matches.
   __ ldr(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
-  __ cmp(scratch, Immediate(Handle<Map>(receiver->map())));
+  __ cmp(scratch, Operand(Handle<Map>(receiver->map())));
   __ b(ne, &miss);
 
   // Check that the key is a smi.
-  __ tst(key_reg, Immediate(kSmiTagMask));
+  __ tst(key_reg, Operand(kSmiTagMask));
   __ b(ne, &miss);
 
   // Get the elements array and make sure it is a fast element array, not 'cow'.
   __ ldr(elements_reg,
          FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
   __ ldr(scratch, FieldMemOperand(elements_reg, HeapObject::kMapOffset));
-  __ cmp(scratch, Immediate(Handle<Map>(factory()->fixed_array_map())));
+  __ cmp(scratch, Operand(Handle<Map>(factory()->fixed_array_map())));
   __ b(ne, &miss);
 
   // Check that the key is within bounds.
@@ -3895,9 +3895,9 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreSpecialized(
   __ b(t, &miss);
 
   __ add(scratch,
-         elements_reg, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+         elements_reg, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ lsl(ip, key_reg, Immediate(kPointerSizeLog2 - kSmiTagSize));
+  __ lsl(ip, key_reg, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ str(value_reg, MemOperand(scratch, ip));
   __ sub(ip, ip, scratch);
   __ RecordWrite(scratch, ip, receiver_reg , elements_reg);
