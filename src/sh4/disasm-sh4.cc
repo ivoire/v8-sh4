@@ -699,7 +699,7 @@ void Decoder::Format(const char *format, ...) {
 
 int Decoder::InstructionDecode(byte* instr_ptr) {
   uint16_t bits = *reinterpret_cast<const uint16_t *>(instr_ptr);
-  unsigned long pc = (unsigned long)(instr_ptr);
+  uint32_t pc = (uint32_t)(instr_ptr);
   // Print raw instruction bytes.
   out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                   "%02x %02x     ",
