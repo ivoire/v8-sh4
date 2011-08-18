@@ -329,7 +329,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
 
   // Check for array construction with zero arguments or one.
   __ cmp(r0, Operand(0));
-  __ bf(&argc_one_or_more);
+  __ b(ne, &argc_one_or_more);
 
   // Handle construction of an empty array.
   AllocateEmptyJSArray(masm,
@@ -631,17 +631,17 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments
   //  -- r1     : constructor function
-  //  -- pr     : return address
+  //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
   NearLabel non_function_call;
 
   // Check that the function is not a smi.
   __ tst(r1, Operand(kSmiTagMask));
-  __ bt(&non_function_call);
+  __ b(eq, &non_function_call);
   // Check that the function is a JSFunction.
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
-  __ bf(&non_function_call);
+  __ b(ne, &non_function_call);
 
   // Jump to the function-specific construct stub.
   __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
@@ -652,7 +652,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // r0: number of arguments
   // r1: called object
   __ bind(&non_function_call);
-  // r2: expected number of arguments to zero (not changing r0).
+  // Set expected number of arguments to zero (not changing r0).
   __ mov(r2, Operand(0));
   // r3: builtin entry
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
@@ -705,7 +705,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r1: constructor function
     // r2: initial map
     __ CompareInstanceType(r2, r3, JS_FUNCTION_TYPE, eq);
-    __ bt(&rt_call);
+    __ b(eq, &rt_call);
 
     if (count_constructions) {
       NearLabel allocate;
@@ -1059,16 +1059,15 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ lsl(r5, r3, Operand(kPointerSizeLog2));
   __ add(r2, r4, r5);
   // r2 points past last arg.
-  __ jmp(&entry);
+  __ b(&entry);
   __ bind(&loop);
-    __ ldr(r0, MemOperand(r4));     // read next parameter
-    // mov the r4 pointer onto the next parameter
-    __ add(r4, r4, Operand(kPointerSize));
-    __ ldr(r0, MemOperand(r0));  // dereference handle
-    __ push(r0);  // push parameter
+  __ ldr(r0, MemOperand(r4));     // read next parameter
+  __ add(r4, r4, Operand(kPointerSize));
+  __ ldr(r0, MemOperand(r0));  // dereference handle
+  __ push(r0);  // push parameter
   __ bind(&entry);
-    __ cmpeq(r4, r2);
-  __ bf(&loop);
+  __ cmp(r4, r2);
+  __ b(ne, &loop);
 
   // Initialize all JavaScript callee-saved registers, since they will be seen
   // by the garbage collector as part of handlers.
@@ -1159,17 +1158,17 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ SmiUntag(r6);
   // Switch on the state.
   NearLabel with_tos_register, unknown_state;
-  __ cmpeq(r6, Operand(FullCodeGenerator::NO_REGISTERS));
-  __ bf(&with_tos_register);
+  __ cmp(r6, Operand(FullCodeGenerator::NO_REGISTERS));
+  __ b(ne, &with_tos_register);
   __ add(sp, sp, Operand(1 * kPointerSize));  // Remove state.
-  __ rts();
+  __ Ret();
 
   __ bind(&with_tos_register);
   __ ldr(r0, MemOperand(sp, 1 * kPointerSize));
-  __ cmpeq(r6, Operand(FullCodeGenerator::TOS_REG));
-  __ bf(&unknown_state);
+  __ cmp(r6, Operand(FullCodeGenerator::TOS_REG));
+  __ b(ne, &unknown_state);
   __ add(sp, sp, Operand(2 * kPointerSize));  // Remove state.
-  __ rts();
+  __ Ret();
 
   __ bind(&unknown_state);
   __ stop("no cases left");
@@ -1198,7 +1197,7 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
   __ LeaveInternalFrame();
   __ popm(kJSCallerSaved | kCalleeSaved);
   __ Pop(pr, fp);
-  __ rts();
+  __ Ret();
 }
 
 
@@ -1212,7 +1211,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r0: actual number of arguments
   { NearLabel done;
     __ tst(r0, r0);
-    __ bf(&done);
+    __ b(ne, &done);
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ push(r2);
     __ add(r0, r0, Operand(1));
@@ -1226,9 +1225,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ lsl(ip, r0, Operand(kPointerSizeLog2));
   __ mov(r1, MemOperand(sp, ip));
   __ tst(r1, Operand(kSmiTagMask));
-  __ bt(&non_function);
+  __ b(eq, &non_function);
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
-  __ bf(&non_function);
+  __ b(ne, &non_function);
 
   // 3a. Patch the first argument if necessary when calling a function.
   // r0: actual number of arguments
@@ -1242,8 +1241,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
     __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
     __ tst(r2, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
-                               kSmiTagSize)));
-    __ bf(&shift_arguments);
+                             kSmiTagSize)));
+    __ b(ne, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
     __ lsl(ip, r0, Operand(kPointerSizeLog2));
@@ -1253,14 +1252,14 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // r1: function
     // r2: first argument
     __ tst(r2, Operand(kSmiTagMask));
-    __ bt(&convert_to_object);
+    __ b(eq, &convert_to_object);
 
     __ LoadRoot(r3, Heap::kNullValueRootIndex);
-    __ cmpeq(r2, r3);
-    __ bt(&use_global_receiver);
+    __ cmp(r2, r3);
+    __ b(eq, &use_global_receiver);
     __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
-    __ cmpeq(r2, r3);
-    __ bt(&use_global_receiver);
+    __ cmp(r2, r3);
+    __ b(eq, &use_global_receiver);
 
     __ CompareObjectType(r2, r3, r3, FIRST_JS_OBJECT_TYPE, ge);
     __ bf(&convert_to_object);
@@ -1330,13 +1329,12 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ ldr(ip, MemOperand(r2, -kPointerSize));
     __ str(ip, MemOperand(r2));
     __ sub(r2, r2, Operand(kPointerSize));
-    __ cmpeq(r2, sp);
-    __ bf(&loop);
+    __ cmp(r2, sp);
+    __ b(ne, &loop);
     // Adjust the actual number of arguments and remove the top element
     // (which is a copy of the last argument).
     __ sub(r0, r0, Operand(1));
-    // Pop one pointer without saving it
-    __ add(sp, sp, Operand(kPointerSize));
+    __ pop();
   }
 
   // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin.
@@ -1344,7 +1342,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r1: function
   { NearLabel function;
     __ tst(r1, r1);
-    __ bf(&function);
+    __ b(ne, &function);
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
     __ mov(r2, Operand(0));
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
@@ -1364,7 +1362,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
   __ asr(r2, r2, Operand(kSmiTagSize));
   __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
-  __ cmpeq(r2, r0);  // Check formal and actual parameter counts.
+  __ cmp(r2, r0);  // Check formal and actual parameter counts.
   __ bt(&end);
   __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
@@ -1428,18 +1426,18 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Do not transform the receiver for strict mode functions.
   __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCompilerHintsOffset));
   __ tst(r1, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
-                             kSmiTagSize)));
-  __ bf(&push_receiver);
+                           kSmiTagSize)));
+  __ b(ne, &push_receiver);
 
   // Compute the receiver in non-strict mode.
   __ tst(r0, Operand(kSmiTagMask));
-  __ bt(&call_to_object);
+  __ b(eq, &call_to_object);
   __ LoadRoot(r1, Heap::kNullValueRootIndex);
-  __ cmpeq(r0, r1);
-  __ bt(&use_global_receiver);
+  __ cmp(r0, r1);
+  __ b(eq, &use_global_receiver);
   __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
-  __ cmpeq(r0, r1);
-  __ bt(&use_global_receiver);
+  __ cmp(r0, r1);
+  __ b(eq, &use_global_receiver);
 
   // Check if the receiver is already a JavaScript object.
   // r0: receiver
@@ -1495,8 +1493,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // arguments object.
   __ bind(&entry);
   __ ldr(r1, MemOperand(fp, kLimitOffset));
-  __ cmpeq(r0, r1);
-  __ bf(&loop);
+  __ cmp(r0, r1);
+  __ b(ne, &loop);
 
   // Invoke the function.
   ParameterCount actual(r0);
@@ -1577,9 +1575,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&copy);
     __ ldr(ip, MemOperand(r0, 0));
     __ push(ip);
-    __ cmpeq(r0, r2);  // Compare before moving to next argument.
+    __ cmp(r0, r2);  // Compare before moving to next argument.
     __ sub(r0, r0, Operand(kPointerSize));
-    __ bf(&copy);
+    __ b(ne, &copy);
 
     __ b(&invoke);
   }
@@ -1606,9 +1604,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // Adjust load for return address and receiver.
     __ ldr(ip, MemOperand(r0, 2 * kPointerSize));
     __ push(ip);
-    __ cmpeq(r0, fp);  // Compare before moving to next argument.
+    __ cmp(r0, fp);  // Compare before moving to next argument.
     __ sub(r0, r0, Operand(kPointerSize));
-    __ bf(&copy);
+    __ b(ne, &copy);
 
     // Fill the remaining expected arguments with undefined.
     // r1: function
@@ -1622,8 +1620,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     NearLabel fill;
     __ bind(&fill);
     __ push(r4);        // kept from the previous load
-    __ cmpeq(sp, r2);
-    __ bf(&fill);
+    __ cmp(sp, r2);
+    __ b(ne, &fill);
   }
 
   // Call the entry point.

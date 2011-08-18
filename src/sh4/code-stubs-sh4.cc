@@ -78,14 +78,14 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 #endif
   NearLabel check_heap_number, call_builtin;
   __ tst(r0, Operand(kSmiTagMask));
-  __ bf(&check_heap_number);
+  __ b(ne, &check_heap_number);
   __ Ret();
 
   __ bind(&check_heap_number);
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-  __ cmpeq(r1, ip);
-  __ bf(&call_builtin);
+  __ cmp(r1, ip);
+  __ b(ne, &call_builtin);
   __ Ret();
 
   __ bind(&call_builtin);
@@ -923,7 +923,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
       __ bt(slow);
     } else {
       __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE, eq);
-      __ bt(&heap_number);
+      __ b(eq, &heap_number);
       // Comparing JS objects with <=, >= is complicated.
       if (cond != eq) {
         __ cmpge(r4, Operand(FIRST_JS_OBJECT_TYPE));
@@ -1220,15 +1220,15 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
 
     __ bind(&first_non_object);
     // Check for oddballs: true, false, null, undefined.
-    __ cmpeq(r2, Operand(ODDBALL_TYPE));
-    __ bt(&return_not_equal);
+    __ cmp(r2, Operand(ODDBALL_TYPE));
+    __ b(eq, &return_not_equal);
 
     __ CompareObjectType(lhs, r3, r3, FIRST_JS_OBJECT_TYPE, ge);
     __ bt(&return_not_equal);
 
     // Check for oddballs: true, false, null, undefined.
-    __ cmpeq(r3, Operand(ODDBALL_TYPE));
-    __ bt(&return_not_equal);
+    __ cmp(r3, Operand(ODDBALL_TYPE));
+    __ b(eq, &return_not_equal);
 
     // Now that we have the types we might as well check for symbol-symbol.
     // Ensure that no non-strings have the symbol bit set.
@@ -1236,7 +1236,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     STATIC_ASSERT(kSymbolTag != 0);
     __ land(r2, r2, r3);
     __ tst(r2, Operand(kIsSymbolMask));
-    __ bf(&return_not_equal);
+    __ b(ne, &return_not_equal);
 }
 
 
@@ -1413,7 +1413,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     NearLabel not_two_smis, smi_done;
     __ orr(r2, r1, r0);
     __ tst(r2, Operand(kSmiTagMask));
-    __ bf(&not_two_smis);
+    __ b(ne, &not_two_smis);
     __ asr(r1, r1, Operand(1));
     __ asr(r0, r0, Operand(1));
     __ sub(r0, r1, r0);
@@ -1913,7 +1913,7 @@ void TypeRecordingBinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
             result, scratch1, scratch2, heap_number_map, gc_required);
       } else {
         GenerateHeapResultAllocation(
-          masm, result, heap_number_map, scratch1, scratch2, gc_required);
+            masm, result, heap_number_map, scratch1, scratch2, gc_required);
       }
 
       // r2: Answer as signed int32.
@@ -2264,7 +2264,7 @@ void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
   // Convert oddball arguments to numbers.
   NearLabel check, done;
   __ CompareRoot(r1, Heap::kUndefinedValueRootIndex);
-  __ bf(&check);
+  __ b(ne, &check);
   if (Token::IsBitOp(op_)) {
     __ mov(r1, Operand(Smi::FromInt(0)));
   } else {
@@ -2488,7 +2488,7 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       // Check whether the value is a smi.
       NearLabel try_float;
       __ tst(r0, Operand(kSmiTagMask));
-      __ bf(&try_float);
+      __ b(ne, &try_float);
 
       // Go slow case if the value of the expression is zero
       // to make sure that we switch between 0 and -0.
@@ -2671,7 +2671,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
       NearLabel alignment_as_expected;
       ASSERT(IsPowerOf2(frame_alignment));
       __ tst(sp, Operand(frame_alignment_mask));
-      __ bt(&alignment_as_expected);
+      __ b(eq, &alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
       __ stop("Unexpected alignment");
       __ bind(&alignment_as_expected);
@@ -2718,7 +2718,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Lower 2 bits of r2 are 0 if r0 has failure tag.
   __ add(r2, r0, Operand(1));
   __ tst(r2, Operand(kFailureTagMask));
-  __ bt(&failure_returned);
+  __ b(eq, &failure_returned);
 
   // Exit C frame and return.
   // r0:r1: result
@@ -2733,7 +2733,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ bind(&failure_returned);
   STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ tst(r0, Operand(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ bt(&retry);
+  __ b(eq, &retry);
 
   // Special handling of out of memory exceptions.
   Failure* out_of_memory = Failure::OutOfMemoryException();
@@ -2752,7 +2752,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // by javascript code.
   __ mov(r3, Operand(isolate->factory()->termination_exception()));
   __ cmpeq(r0, r3);
-  __ bt(throw_termination_exception);
+  __ b(eq, throw_termination_exception);
 
   // Handle normal exception.
   __ jmp(throw_normal_exception);
@@ -2905,10 +2905,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
   __ mov(ip, Operand(ExternalReference(Isolate::k_pending_exception_address,
-                                        isolate)));
+                                       isolate)));
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
-  __ jmp(&exit);
+  __ b(&exit);
 
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
@@ -2968,7 +2968,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   NearLabel skip_out;
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ ldr(r6, MemOperand(r5));
-  __ cmpeq(fp, r6);
+  __ cmp(fp, r6);
   __ bf(&skip_out);
   __ mov(r6, Operand(0));
   __ str(r6, MemOperand(r5));
@@ -3004,7 +3004,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 // In this case the offset to the inline site to patch is passed on the stack,
 // in the safepoint slot for register r4.
 // (See LCodeGen::DoInstanceOfKnownGlobal)
-
 void InstanceofStub::Generate(MacroAssembler* masm) {
   // Call site inlining and patching implies arguments in registers.
   ASSERT(HasArgsInRegisters() || !HasCallSiteInlineCheck());
@@ -3037,11 +3036,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   if (!HasCallSiteInlineCheck()) {
     NearLabel miss;
     __ LoadRoot(ip, Heap::kInstanceofCacheFunctionRootIndex);
-    __ cmpeq(function, ip);
-    __ bf(&miss);
+    __ cmp(function, ip);
+    __ b(ne, &miss);
     __ LoadRoot(ip, Heap::kInstanceofCacheMapRootIndex);
-    __ cmpeq(map, ip);
-    __ bf(&miss);
+    __ cmp(map, ip);
+    __ b(ne, &miss);
     __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
     __ Ret(HasArgsInRegisters() ? 0 : 2);
 
@@ -3203,8 +3202,8 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   NearLabel adaptor;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmpeq(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ bt(&adaptor);
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(eq, &adaptor);
 
   // Check index against formal parameters count limit passed in
   // through register r0. Use unsigned comparison to get negative
@@ -3252,8 +3251,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   Label runtime;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmpeq(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ bt(&adaptor_frame);
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(eq, &adaptor_frame);
 
   // Get the length from the frame.
   __ ldr(r1, MemOperand(sp, 0));
@@ -3272,8 +3271,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // of the arguments object and the elements array in words.
   NearLabel add_arguments_object;
   __ bind(&try_allocate);
-  __ cmpeq(r1, Operand(0));
-  __ bt(&add_arguments_object);
+  __ cmp(r1, Operand(0));
+  __ b(eq, &add_arguments_object);
   __ lsr(r1, r1, Operand(kSmiTagSize));
   __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
   __ bind(&add_arguments_object);
@@ -3314,8 +3313,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // If there are no actual arguments, we're done.
   NearLabel done;
-  __ cmpeq(r1, Operand(0));
-  __ bt(&done);
+  __ cmp(r1, Operand(0));
+  __ b(eq, &done);
 
   // Get the parameters pointer from the stack.
   __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
@@ -3342,8 +3341,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ str(r3, MemOperand(r4, 0));
   __ add(r4, r4, Operand(kPointerSize));
   __ sub(r1, r1, Operand(1));
-  __ cmpeq(r1, Operand(0));
-  __ bf(&loop);
+  __ cmp(r1, Operand(0));
+  __ b(ne, &loop);
 
   // Return and remove the on-stack parameters.
   __ bind(&done);
@@ -3500,7 +3499,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(r1, &slow);
   // Get the map of the function object.
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
-  __ bf(&slow);
+  __ b(ne, &slow);
 
   // Fast-case: Invoke the function now.
   // r1: pushed function
@@ -3594,97 +3593,12 @@ int CompareStub::MinorKey() {
 }
 
 
-// -------------------------------------------------------------------------
-// StringCharAtGenerator
-
-void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
-  char_code_at_generator_.GenerateFast(masm);
-  char_from_code_generator_.GenerateFast(masm);
-}
-
-
-void StringCharAtGenerator::GenerateSlow(
-    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
-  char_code_at_generator_.GenerateSlow(masm, call_helper);
-  char_from_code_generator_.GenerateSlow(masm, call_helper);
-}
-
-
-class StringHelper : public AllStatic {
- public:
-  // Generate code for copying characters using a simple loop. This should only
-  // be used in places where the number of characters is small and the
-  // additional setup and checking in GenerateCopyCharactersLong adds too much
-  // overhead. Copying of overlapping regions is not supported.
-  // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharacters(MacroAssembler* masm,
-                                     Register dest,
-                                     Register src,
-                                     Register count,
-                                     Register scratch,
-                                     bool ascii);
-
-  // Generate code for copying a large number of characters. This function
-  // is allowed to spend extra time setting up conditions to make copying
-  // faster. Copying of overlapping regions is not supported.
-  // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharactersLong(MacroAssembler* masm,
-                                         Register dest,
-                                         Register src,
-                                         Register count,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Register scratch3,
-                                         Register scratch4,
-                                         Register scratch5,
-                                         int flags);
-
-
-  // Probe the symbol table for a two character string. If the string is
-  // not found by probing a jump to the label not_found is performed. This jump
-  // does not guarantee that the string is not in the symbol table. If the
-  // string is found the code falls through with the string in register r0.
-  // Contents of both c1 and c2 registers are modified. At the exit c1 is
-  // guaranteed to contain halfword with low and high bytes equal to
-  // initial contents of c1 and c2 respectively.
-  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
-                                                   Register c1,
-                                                   Register c2,
-                                                   Register scratch1,
-                                                   Register scratch2,
-                                                   Register scratch3,
-                                                   Register scratch4,
-                                                   Register scratch5,
-                                                   Label* not_found);
-
-  // Generate string hash.
-  // Added a scratch parameter for the SH4 implementation compared to ARM.
-  static void GenerateHashInit(MacroAssembler* masm,
-                               Register hash,
-                               Register character,
-                               Register scratch);
-
-  static void GenerateHashAddCharacter(MacroAssembler* masm,
-                                       Register hash,
-                                       Register character,
-                                       Register scratch);
-
-  static void GenerateHashGetHash(MacroAssembler* masm,
-                                  Register hash,
-                                  Register scratch);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
-// -------------------------------------------------------------------------
 // StringCharFromCodeGenerator
-
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   Label flat_string;
   Label ascii_string;
   Label got_char_code;
+
 
   // If the receiver is a smi trigger the non-string case.
   __ JumpIfSmi(object_, receiver_not_string_);
@@ -3837,7 +3751,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   __ add(result_, result_, ip);
   __ mov(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmpeq(result_, ip);
+  __ cmp(result_, ip);
   __ b(eq, &slow_case_);
   __ bind(&exit_);
 }
@@ -3859,6 +3773,90 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
+// -------------------------------------------------------------------------
+// StringCharAtGenerator
+
+void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
+  char_code_at_generator_.GenerateFast(masm);
+  char_from_code_generator_.GenerateFast(masm);
+}
+
+
+void StringCharAtGenerator::GenerateSlow(
+    MacroAssembler* masm, const RuntimeCallHelper& call_helper) {
+  char_code_at_generator_.GenerateSlow(masm, call_helper);
+  char_from_code_generator_.GenerateSlow(masm, call_helper);
+}
+
+
+class StringHelper : public AllStatic {
+ public:
+  // Generate code for copying characters using a simple loop. This should only
+  // be used in places where the number of characters is small and the
+  // additional setup and checking in GenerateCopyCharactersLong adds too much
+  // overhead. Copying of overlapping regions is not supported.
+  // Dest register ends at the position after the last character written.
+  static void GenerateCopyCharacters(MacroAssembler* masm,
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     Register scratch,
+                                     bool ascii);
+
+  // Generate code for copying a large number of characters. This function
+  // is allowed to spend extra time setting up conditions to make copying
+  // faster. Copying of overlapping regions is not supported.
+  // Dest register ends at the position after the last character written.
+  static void GenerateCopyCharactersLong(MacroAssembler* masm,
+                                         Register dest,
+                                         Register src,
+                                         Register count,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Register scratch3,
+                                         Register scratch4,
+                                         Register scratch5,
+                                         int flags);
+
+
+  // Probe the symbol table for a two character string. If the string is
+  // not found by probing a jump to the label not_found is performed. This jump
+  // does not guarantee that the string is not in the symbol table. If the
+  // string is found the code falls through with the string in register r0.
+  // Contents of both c1 and c2 registers are modified. At the exit c1 is
+  // guaranteed to contain halfword with low and high bytes equal to
+  // initial contents of c1 and c2 respectively.
+  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                   Register c1,
+                                                   Register c2,
+                                                   Register scratch1,
+                                                   Register scratch2,
+                                                   Register scratch3,
+                                                   Register scratch4,
+                                                   Register scratch5,
+                                                   Label* not_found);
+
+  // Generate string hash.
+  // Added a scratch parameter for the SH4 implementation compared to ARM.
+  static void GenerateHashInit(MacroAssembler* masm,
+                               Register hash,
+                               Register character,
+                               Register scratch);
+
+  static void GenerateHashAddCharacter(MacroAssembler* masm,
+                                       Register hash,
+                                       Register character,
+                                       Register scratch);
+
+  static void GenerateHashGetHash(MacroAssembler* masm,
+                                  Register hash,
+                                  Register scratch);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
+};
+
+
 void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
                                           Register dest,
                                           Register src,
@@ -3871,8 +3869,8 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
   if (!ascii) {
     __ add(count, count, count);
   }
-  __ cmpeq(count, Operand(0));
-  __ bt(&done);
+  __ cmp(count, Operand(0));
+  __ b(eq, &done);
 
   __ bind(&loop);
   __ ldrb(scratch, MemOperand(src));
@@ -4047,7 +4045,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     // If entry is undefined no string with this hash can be found.
     NearLabel is_string;
     __ CompareObjectType(candidate, scratch, scratch, ODDBALL_TYPE, eq);
-    __ bf(&is_string);
+    __ b(ne, &is_string);
 
     __ cmp(undefined, candidate);
     __ b(eq, not_found);
@@ -4358,7 +4356,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   Register min_length = scratch1;
   STATIC_ASSERT(kSmiTag == 0);
   __ tst(min_length, min_length);
-  __ bt(&compare_lengths);
+  __ b(eq, &compare_lengths);
 
   // Untag smi.
   __ asr(min_length, min_length, Operand(kSmiTagSize));
@@ -4418,8 +4416,8 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ Ldrd(r0 , r1, MemOperand(sp));  // Load right in r0, left in r1.
 
   NearLabel not_same;
-  __ cmpeq(r0, r1);
-  __ bf(&not_same);
+  __ cmp(r0, r1);
+  __ b(ne, &not_same);
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
   __ mov(r0, Operand(Smi::FromInt(EQUAL)));
@@ -4499,13 +4497,13 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ ldr(r2, FieldMemOperand(r0, String::kLengthOffset));
     __ ldr(r3, FieldMemOperand(r1, String::kLengthOffset));
     STATIC_ASSERT(kSmiTag == 0);
-    __ cmpeq(r2, Operand(Smi::FromInt(0)));  // Test if first string is empty.
+    __ cmp(r2, Operand(Smi::FromInt(0)));  // Test if first string is empty.
     __ mov(r0, r1, eq);  // If first is empty, return second.
     __ bt(&string_return);
     STATIC_ASSERT(kSmiTag == 0);
      // Else test if second string is empty.
-    __ cmpeq(r3, Operand(Smi::FromInt(0)));
-    __ bf(&strings_not_empty);  // If either string was empty, return r0.
+    __ cmp(r3, Operand(Smi::FromInt(0)));
+    __ b(ne, &strings_not_empty);  // If either string was empty, return r0.
 
     __ bind(&string_return);
     __ IncrementCounter(counters->string_add_native(), 1, r2, r3);
@@ -4595,7 +4593,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ tst(r4, Operand(kStringEncodingMask));
   __ bt(&non_ascii);
   __ tst(r5, Operand(kStringEncodingMask));
-  __ bt(&non_ascii);
+  __ b(eq, &non_ascii);
 
   // Allocate an ASCII cons string.
   __ bind(&ascii_data);
@@ -4780,7 +4778,7 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   __ JumpIfSmi(arg, slow);
   __ CompareObjectType(
         arg, scratch1, scratch2, JS_VALUE_TYPE, eq);  // map -> scratch1.
-  __ bf(slow);
+  __ b(ne, slow);
   __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitField2Offset));
   __ land(scratch2,
           scratch2, Operand(1 << Map::kStringWrapperSafeForDefaultValueOf));
