@@ -1000,17 +1000,17 @@ TEST(20) {
 
   PROLOGUE();
   cond = eq;
-  __ cmp(cond, r4, Operand(0), r0);
+  __ cmp(&cond, r4, Operand(0), r0);
   CHECK_EQ(eq, cond);
   B_LINE(cond, &error);
 
   cond = ge;
-  __ cmp(cond, r4, Operand(0), r0);
+  __ cmp(&cond, r4, Operand(0), r0);
   CHECK_EQ(eq, cond);
   B_LINE(f, &error);
 
   cond = lt;
-  __ cmp(cond, r4, Operand(654), r0);
+  __ cmp(&cond, r4, Operand(654), r0);
   CHECK_EQ(ne, cond);
   B_LINE(t, &error);
 

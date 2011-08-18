@@ -306,9 +306,9 @@ int Assembler::align() {
 }
 
 
-void Assembler::cmp(Condition &cond, Register Rd, Register Rs) {
+void Assembler::cmp(Condition *cond, Register Rd, Register Rs) {
   Condition cond_to_test = eq;
-  switch (cond) {
+  switch (*cond) {
   case ne:
     cond_to_test = ne;
   case eq:
@@ -322,7 +322,7 @@ void Assembler::cmp(Condition &cond, Register Rd, Register Rs) {
   default:
     UNIMPLEMENTED();
   }
-  cond = cond_to_test;
+  *cond = cond_to_test;
 }
 
 

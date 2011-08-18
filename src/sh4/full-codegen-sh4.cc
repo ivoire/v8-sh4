@@ -4116,7 +4116,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         __ lor(r2, r0, r1);
         patch_site.EmitJumpIfNotSmi(r2, &slow_case);
         Condition tmp_cond = cond;
-        __ cmp(tmp_cond, r1, r0);
+        __ cmp(&tmp_cond, r1, r0);
         Split(tmp_cond, if_true, if_false, NULL);
         __ bind(&slow_case);
       }
@@ -4126,7 +4126,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Handle<Code> ic = CompareIC::GetUninitialized(op);
       EmitCallIC(ic, &patch_site);
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-      __ cmp(cond, r0, Operand(0));
+      __ cmp(&cond, r0, Operand(0));
       Split(cond, if_true, if_false, fall_through);
     }
   }

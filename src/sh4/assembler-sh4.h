@@ -699,11 +699,11 @@ class Assembler : public AssemblerBase {
   void cmp(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp)
         { cmpeq(Rd, imm, rtmp); }
 
-  inline void cmp(Condition& cond, Register Rd, Register Rs);
-  void cmp(Condition& cond, Register Rd, const Operand& imm,
+  inline void cmp(Condition *cond, Register Rd, Register Rs);
+  void cmp(Condition *cond, Register Rd, const Operand& imm,
            Register rtmp = sh4_rtmp) {
     mov(rtmp, imm);
-    return cmp(cond, Rd, rtmp);
+    cmp(cond, Rd, rtmp);
   }
 
   // Aliases for cmpgeu
