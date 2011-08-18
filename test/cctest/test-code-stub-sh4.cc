@@ -111,7 +111,7 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 // At the error label r10 can be moved to r0 such that return code of the
 // function if not 0 indicates an error at the line of the branch.
 #define B_LINE(cond, target) do { \
-    __ mov(r10, Immediate(__LINE__)); \
+    __ mov(r10, Operand(__LINE__)); \
     if (cond == al) { \
       __ b(target);  \
     } else { \
@@ -167,7 +167,7 @@ TEST(sh4_cs_1) {
   __ Dead(r4, r5, r6, r7);
   __ Dead(r8, r9, r10, r11);
 
-  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::FromInt(0)));
   __ rts();
 
   JIT();
@@ -231,7 +231,7 @@ TEST(sh4_cs_2) {
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ CompareInstanceType(r1, r2/*type*/ , JS_GLOBAL_OBJECT_TYPE, eq);
   B_LINE(f, &error);
-  __ cmp(r2, Immediate(JS_GLOBAL_OBJECT_TYPE));
+  __ cmp(r2, Operand(JS_GLOBAL_OBJECT_TYPE));
   B_LINE(f, &error);
   CMT("Check CompareInstanceType(GLOBAL_PTR()) != JS_VALUE_TYPE");
   __ CompareInstanceType(r1, r2/*type*/ , JS_VALUE_TYPE, eq);
@@ -254,7 +254,7 @@ TEST(sh4_cs_2) {
   __ cmp(r2, r4);       // check that type matches
 
   // All ok.
-  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::FromInt(0)));
   __ rts();
 
   __ bind(&error);
@@ -327,7 +327,7 @@ TEST(sh4_cs_3) {
 
   Label miss1, miss2, miss3, miss4, skip_proto4;
   CMT("Check TryGetFunctionPrototype: Smi");
-  __ mov(r0, Immediate(Smi::FromInt(1)));
+  __ mov(r0, Operand(Smi::FromInt(1)));
   __ TryGetFunctionPrototype(r0, r1 /*proto*/, r2 /*scratch*/, &miss1);
   B_LINE(al, &error);
   __ bind(&miss1);
@@ -360,7 +360,7 @@ TEST(sh4_cs_3) {
   B_LINE(ne, &error);
 
   // All ok.
-  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::FromInt(0)));
   __ rts();
 
   __ bind(&error);
@@ -398,7 +398,7 @@ TEST(sh4_cs_4) {
                                 isolate->global_context()->closure()->code());
   CMT("Check GetBuiltinFunction(Builtins::MUL)");
   __ GetBuiltinFunction(r0, Builtins::MUL);
-  __ mov(r1, Immediate((intptr_t)isolate->global()->builtins()->
+  __ mov(r1, Operand((intptr_t)isolate->global()->builtins()->
                        javascript_builtin(Builtins::MUL),
                        RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
@@ -406,14 +406,14 @@ TEST(sh4_cs_4) {
 
   CMT("Check GetBuiltinEntry(Builtins::MUL)");
   __ GetBuiltinEntry(r0, Builtins::MUL);
-  __ mov(r1, Immediate((intptr_t)isolate->global()->builtins()->
+  __ mov(r1, Operand((intptr_t)isolate->global()->builtins()->
                        javascript_builtin_code(Builtins::MUL)->entry(),
                        RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
   // All ok.
-  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::FromInt(0)));
   __ rts();
 
   __ bind(&error);
@@ -452,7 +452,7 @@ TEST(sh4_cs_5) {
   {
     BEGIN();
     CMT("Check TailCallRuntime: NumberToJSint32(13)");
-    __ mov(r0, Immediate(Smi::FromInt(13)));
+    __ mov(r0, Operand(Smi::FromInt(13)));
     __ push(r0);
     __ TailCallRuntime(Runtime::kNumberToJSInt32, 1, 1);
 
@@ -466,8 +466,8 @@ TEST(sh4_cs_5) {
     BEGIN();
     CMT("Check CallRuntime: NumberAdd(7, 27)");
     __ EnterInternalFrame();
-    __ mov(r0, Immediate(Smi::FromInt(7)));
-    __ mov(r1, Immediate(Smi::FromInt(27)));
+    __ mov(r0, Operand(Smi::FromInt(7)));
+    __ mov(r1, Operand(Smi::FromInt(27)));
     __ Push(r0, r1);
     __ CallRuntime(Runtime::kNumberAdd, 2);
     __ LeaveInternalFrame();
@@ -482,7 +482,7 @@ TEST(sh4_cs_5) {
     BEGIN();
     CMT("Check CallRuntime: NumberToString(1234)");
     __ EnterInternalFrame();
-    __ mov(r0, Immediate(Smi::FromInt(1234)));
+    __ mov(r0, Operand(Smi::FromInt(1234)));
     __ push(r0);
     __ CallRuntime(Runtime::kNumberToString, 1);
     CMT("Check CallRuntime: GlobalPrint(\"1234\")");
@@ -532,7 +532,7 @@ TEST(sh4_cs_6) {
   {
     BEGIN();
 
-    __ mov(r0, Immediate(0));
+    __ mov(r0, Operand(0));
     GenerateNumberFromReg(&assm, r0, r0);
     __ Ret();
 
@@ -545,7 +545,7 @@ TEST(sh4_cs_6) {
   {
       BEGIN();
 
-    __ mov(r0, Immediate(1234));
+    __ mov(r0, Operand(1234));
     GenerateNumberFromReg(&assm, r0, r0);
     __ Ret();
 
@@ -558,7 +558,7 @@ TEST(sh4_cs_6) {
   {
       BEGIN();
 
-    __ mov(r0, Immediate(0x7fffffff));
+    __ mov(r0, Operand(0x7fffffff));
     GenerateNumberFromReg(&assm, r0, r0);
     __ Ret();
 
@@ -571,7 +571,7 @@ TEST(sh4_cs_6) {
   {
       BEGIN();
 
-    __ mov(r0, Immediate(0x80000000u));
+    __ mov(r0, Operand(0x80000000u));
     GenerateNumberFromReg(&assm, r0, r0);
     __ Ret();
 
@@ -621,14 +621,14 @@ GeneratePrintReg(MacroAssembler *assm, Register reg) {
 TEST(sh4_cs_7) {
   BEGIN();
 
-  __ mov(r0, Immediate(1234));
+  __ mov(r0, Operand(1234));
   GeneratePrintReg(&assm, r0);
-  __ mov(r0, Immediate(0x7fffffff));
+  __ mov(r0, Operand(0x7fffffff));
   GeneratePrintReg(&assm, r0);
-  __ mov(r0, Immediate(0x80000000));
+  __ mov(r0, Operand(0x80000000));
   GeneratePrintReg(&assm, r0);
   __ PrintRegisterValue(r0);
-  __ mov(r0, Immediate(0));
+  __ mov(r0, Operand(0));
   __ Ret();
 
   JIT();
@@ -654,43 +654,43 @@ TEST(sh4_cs_8) {
 #endif
 
   CMT("Check CompareStub(0, 0) == 0");
-  __ mov(r0, Immediate(Smi::FromInt(0)));
-  __ mov(r1, Immediate(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ mov(r1, Operand(Smi::FromInt(0)));
   __ CallStub(&stub);
-  __ cmp(r0, Immediate(0));
+  __ cmp(r0, Operand(0));
   B_LINE(ne, &error);
 
   CMT("Check CompareStub(1, 1) == 0");
-  __ mov(r0, Immediate(Smi::FromInt(1)));
-  __ mov(r1, Immediate(Smi::FromInt(1)));
+  __ mov(r0, Operand(Smi::FromInt(1)));
+  __ mov(r1, Operand(Smi::FromInt(1)));
   __ CallStub(&stub);
-  __ cmp(r0, Immediate(0));
+  __ cmp(r0, Operand(0));
   B_LINE(ne, &error);
 
   CMT("Check CompareStub(0, 1) > 0");
-  __ mov(r0, Immediate(Smi::FromInt(0)));
-  __ mov(r1, Immediate(Smi::FromInt(1)));
+  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ mov(r1, Operand(Smi::FromInt(1)));
   __ CallStub(&stub);
-  __ cmpgt(r0, Immediate(0));
+  __ cmpgt(r0, Operand(0));
   B_LINE(ne, &error);
 
   CMT("Check CompareStub(-1, 2) > 0");
-  __ mov(r0, Immediate(Smi::FromInt(-1)));
-  __ mov(r1, Immediate(Smi::FromInt(2)));
+  __ mov(r0, Operand(Smi::FromInt(-1)));
+  __ mov(r1, Operand(Smi::FromInt(2)));
   __ CallStub(&stub);
-  __ cmp(r0, Immediate(0));
+  __ cmp(r0, Operand(0));
   B_LINE(eq, &error);
 
   // CMT("Check CompareStub(0, heap(0)) == 0");
-  // __ mov(r0, Immediate(Smi::FromInt(0)));
-  // __ mov(r1, Immediate(0));
+  // __ mov(r0, Operand(Smi::FromInt(0)));
+  // __ mov(r1, Operand(0));
   // GenerateNumberFromReg(&assm, r1, r1);
   // __ CallStub(&stub);
-  // __ cmp(r0, Immediate(0));
+  // __ cmp(r0, Operand(0));
   // B_LINE(ne, &error);
 
   // All ok.
-  __ mov(r0, Immediate(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::FromInt(0)));
   __ LeaveInternalFrame();
   __ rts();
 

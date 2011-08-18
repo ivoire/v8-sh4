@@ -231,48 +231,35 @@ void RelocInfo::Visit(Heap* heap) {
 }
 
 
-Immediate::Immediate(int x, RelocInfo::Mode rmode)  {
-  x_ = x;
+Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) {
+  imm32_ = immediate;
   rmode_ = rmode;
 }
 
 
-Immediate::Immediate(const ExternalReference& ext) {
-  x_ = reinterpret_cast<int32_t>(ext.address());
+Operand::Operand(const ExternalReference& f) {
+  imm32_ = reinterpret_cast<int32_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 
-Immediate::Immediate(Label* internal_offset) {
-  x_ = reinterpret_cast<int32_t>(internal_offset);
-  rmode_ = RelocInfo::INTERNAL_REFERENCE;
-}
-
-
-Immediate::Immediate(Handle<Object> handle) {
-  // Verify all Objects referred by code are NOT in new space.
-  Object* obj = *handle;
-  ASSERT(!HEAP->InNewSpace(obj));
-  if (obj->IsHeapObject()) {
-    x_ = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = RelocInfo::EMBEDDED_OBJECT;
-  } else {
-    // no relocation needed
-    x_ =  reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE;
-  }
-}
-
-
-Immediate::Immediate(Smi* value) {
-  x_ = reinterpret_cast<intptr_t>(value);
+Operand::Operand(Smi* value) {
+  imm32_ = reinterpret_cast<intptr_t>(value);
   rmode_ = RelocInfo::NONE;
 }
 
 
-Immediate::Immediate(Address addr) {
-  x_ = reinterpret_cast<int32_t>(addr);
-  rmode_ = RelocInfo::NONE;
+MemOperand::MemOperand(Register Rx, int32_t offset) {
+  rm_ = Rx;
+  rn_ = no_reg;
+  offset_ = offset;
+}
+
+
+MemOperand::MemOperand(Register Rd, Register offset) {
+  rm_ = Rd;
+  rn_ = offset;
+  offset_ = 0;
 }
 
 
@@ -339,35 +326,6 @@ void Assembler::cmp(Condition &cond, Register Rd, Register Rs) {
 }
 
 
-void Assembler::cmpeq(Register Rd, const Immediate& imm, Register rtmp) {
-  mov(rtmp, imm);
-  cmpeq_(rtmp, Rd);
-}
-
-
-void Assembler::cmpgt(Register Rd, const Immediate& imm, Register rtmp) {
-  mov(rtmp, imm);
-  cmpgt_(rtmp, Rd);
-}
-
-
-void Assembler::cmpge(Register Rd, const Immediate& imm, Register rtmp) {
-  mov(rtmp, imm);
-  cmpge_(rtmp, Rd);
-}
-
-
-void Assembler::cmpgtu(Register Rd, const Immediate& imm, Register rtmp) {
-  mov(rtmp, imm);
-  cmphi_(rtmp, Rd);
-}
-
-
-void Assembler::cmpgeu(Register Rd, const Immediate& imm, Register rtmp) {
-  mov(rtmp, imm);
-  cmphs_(rtmp, Rd);
-}
-
 void Assembler::cmpeq(Register Rd, const Operand& imm, Register rtmp) {
   mov(rtmp, imm);
   cmpeq_(rtmp, Rd);
@@ -405,12 +363,6 @@ void Assembler::emit(Instr x) {
 }
 
 
-void Assembler::rsb(Register Rd, Register Rs, const Immediate& imm,
-                    Register rtmp) {
-  mov(rtmp, imm);
-  rsb(Rd, Rs, rtmp);
-}
-
 void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
   mov(rtmp, imm);
@@ -419,20 +371,6 @@ void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
 
 void Assembler::rsb(Register Rd, Register Rs, Register Rt) {
   sub(Rd, Rt, Rs);
-}
-
-
-void Assembler::rsb(Register Rd, Register Rs, const Immediate& imm,
-                    Condition cond, Register rtmp) {
-  ASSERT(cond == ne || cond == eq);
-  NearLabel end;
-  if (cond == eq)
-    bf(&end);           // Jump after sequence if T bit is false
-  else
-    bt(&end);           // Jump after sequence if T bit is true
-
-  rsb(Rd, Rs, imm, rtmp);
-  bind(&end);
 }
 
 
@@ -453,38 +391,6 @@ void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
 void Assembler::rts() {
   rts_();
   nop_();
-}
-
-
-Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) {
-  imm32_ = immediate;
-  rmode_ = rmode;
-}
-
-
-Operand::Operand(const ExternalReference& f) {
-  imm32_ = reinterpret_cast<int32_t>(f.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
-}
-
-
-Operand::Operand(Smi* value) {
-  imm32_ = reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE;
-}
-
-
-MemOperand::MemOperand(Register Rx, int32_t offset) {
-  rm_ = Rx;
-  rn_ = no_reg;
-  offset_ = offset;
-}
-
-
-MemOperand::MemOperand(Register Rd, Register offset) {
-  rm_ = Rd;
-  rn_ = offset;
-  offset_ = 0;
 }
 
 
