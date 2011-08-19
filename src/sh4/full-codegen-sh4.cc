@@ -3254,7 +3254,43 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
-  __ UNIMPLEMENTED_BREAK();
+  ASSERT_EQ(2, args->length());
+
+  Register right = r0;
+  Register left = r1;
+  Register tmp = r2;
+  Register tmp2 = r3;
+
+  VisitForStackValue(args->at(0));
+  VisitForAccumulatorValue(args->at(1));
+  __ pop(left);
+
+  Label done, fail, ok;
+  __ cmp(left, right);
+  __ b(eq, &ok);
+  // Fail if either is a non-HeapObject.
+  __ land(tmp, left, right);
+  __ tst(tmp, Operand(kSmiTagMask));
+  __ b(eq, &fail);
+  __ ldr(tmp, FieldMemOperand(left, HeapObject::kMapOffset));
+  __ ldrb(tmp2, FieldMemOperand(tmp, Map::kInstanceTypeOffset));
+  __ cmp(tmp2, Operand(JS_REGEXP_TYPE));
+  __ b(ne, &fail);
+  __ ldr(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
+  __ cmp(tmp, tmp2);
+  __ b(ne, &fail);
+  __ ldr(tmp, FieldMemOperand(left, JSRegExp::kDataOffset));
+  __ ldr(tmp2, FieldMemOperand(right, JSRegExp::kDataOffset));
+  __ cmp(tmp, tmp2);
+  __ b(eq, &ok);
+  __ bind(&fail);
+  __ LoadRoot(r0, Heap::kFalseValueRootIndex);
+  __ jmp(&done);
+  __ bind(&ok);
+  __ LoadRoot(r0, Heap::kTrueValueRootIndex);
+  __ bind(&done);
+
+  context()->Plug(r0);
 }
 
 
