@@ -8110,22 +8110,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   // If the function is not optimizable or debugger is active continue using the
   // code from the full compiler.
-  if (!function->shared()->code()->optimizable() ||
-#ifdef ENABLE_DEBUGGER_SUPPORT
-      isolate->DebuggerHasBreakPoints()
-#else
-      0
-#endif
-      ) {
+  if (!function->shared()->code()->optimizable() || isolate->DebuggerHasBreakPoints()) {
     if (FLAG_trace_opt) {
       PrintF("[failed to optimize ");
       function->PrintName();
-#ifdef ENABLE_DEBUGGER_SUPPORT
-      const char *has_break_points = isolate->debug()->has_break_points() ?
-                                     "T" : "F";
-#else
-      const char *has_break_points = "F";
-#endif
       PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
           function->shared()->code()->optimizable() ? "T" : "F",
           isolate->DebuggerHasBreakPoints() ? "T" : "F");

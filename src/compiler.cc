@@ -660,13 +660,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
           // If we're asked to always optimize, we compile the optimized
           // version of the function right away - unless the debugger is
           // active as it makes no sense to compile optimized code then.
-          if (FLAG_always_opt &&
-#ifndef ENABLE_DEBUGGER_SUPPORT
-              0
-#else
-              !Isolate::Current()->DebuggerHasBreakPoints()
-#endif
-             ) {
+          if (FLAG_always_opt && !Isolate::Current()->DebuggerHasBreakPoints()) {
             CompilationInfo optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);
