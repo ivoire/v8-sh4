@@ -909,8 +909,10 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     return;
   }
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
+#endif
 
   TickSample sample_obj;
   TickSample* sample = CpuProfiler::TickSampleEvent(isolate);
@@ -947,8 +949,10 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   UNIMPLEMENTED();
   (void)mcontext;
 #endif
+#ifdef ENABLE_LOGGING_AND_PROFILING
   sampler->SampleStack(sample);
   sampler->Tick(sample);
+#endif
 #endif
 }
 
