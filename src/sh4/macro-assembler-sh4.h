@@ -29,14 +29,10 @@
 #define V8_SH4_MACRO_ASSEMBLER_SH4_H_
 
 #include "assembler.h"
-#include "type-info.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declaration.
-class CallWrapper;
-class PostCallGenerator;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -45,23 +41,6 @@ class PostCallGenerator;
 static inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
-
-
-static inline MemOperand ContextOperand(Register context, int index) {
-  return MemOperand(context, Context::SlotOffset(index));
-}
-
-
-static inline MemOperand GlobalObjectOperand()  {
-  return ContextOperand(cp, Context::GLOBAL_INDEX);
-}
-
-
-enum InvokeJSFlags {
-  CALL_JS,
-  JUMP_JS
-};
-
 
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
@@ -78,10 +57,24 @@ enum AllocationFlags {
 };
 
 
+// Flags used for the ObjectToDoubleVFPRegister function.
+enum ObjectToDoubleFlags {
+  // No special flags.
+  NO_OBJECT_TO_DOUBLE_FLAGS = 0,
+  // Object is known to be a non smi.
+  OBJECT_NOT_SMI = 1 << 0,
+  // Don't load NaNs or infinities, branch to the non number case instead.
+  AVOID_NANS_AND_INFINITIES = 1 << 1
+};
+
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
  public:
+  // The isolate parameter can be NULL if the macro assembler should
+  // not use isolate-dependent functionality. In this case, it's the
+  // responsibility of the caller to never invoke such function on the
+  // macro assembler.
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
   // Load an object from the root table.
@@ -116,7 +109,7 @@ class MacroAssembler: public Assembler {
   // operation, as well as the ip register. RecordWrite updates the
   // write barrier even when storing smis.
   void RecordWrite(Register object,
-                   int offset,
+                   Operand offset,
                    Register scratch0,
                    Register scratch1);
 
@@ -147,6 +140,8 @@ class MacroAssembler: public Assembler {
     if (d3.is_valid()) Dead(d3);
     if (d4.is_valid()) Dead(d4);
   }
+
+  void Push(Handle<Object> handle);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -274,35 +269,44 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
+  // Setup call kind marking in ecx. The method takes ecx as an
+  // explicit first parameter to make the code more readable at the
+  // call sites.
+  void SetCallKind(Register dst, CallKind kind);
+
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  CallWrapper* call_wrapper = NULL);
+                  const CallWrapper& call_wrapper,
+                  CallKind call_kind);
 
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   RelocInfo::Mode rmode,
-                  InvokeFlag flag);
+                  InvokeFlag flag,
+                  CallKind call_kind);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      CallWrapper* call_wrapper = NULL);
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
-                      InvokeFlag flag);
+                      InvokeFlag flag,
+                      CallKind call_kind);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeJSFlags flag,
-                     CallWrapper* call_wrapper = NULL);
+                     InvokeFlag flag,
+                     const CallWrapper& call_wrapper = NullCallWrapper());
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, Builtins::JavaScript id);
@@ -336,6 +340,15 @@ class MacroAssembler: public Assembler {
                 Heap::RootListIndex index,
                 Label* fail,
                 bool is_heap_object);
+
+  // Check if the map of an object is equal to a specified map and branch to a
+  // specified target if equal. Skip the smi check if not required (object is
+  // known to be a heap object)
+  void DispatchMap(Register obj,
+                   Register scratch,
+                   Handle<Map> map,
+                   Handle<Code> success,
+                   SmiCheckType smi_check_type);
 
   // Compare the object in a register to a value from the root list.
   // Uses the ip register as scratch.
@@ -416,9 +429,6 @@ class MacroAssembler: public Assembler {
                                               Register scratch,
                                               Label* failure);
 
-  // Assumes input is a heap object.
-  void JumpIfNotNumber(Register reg, TypeInfo info, Label* on_not_number);
-
   // Convert the HeapNumber pointed to by source to a 32bits signed integer
   // dest. If the HeapNumber does not fit into a 32bits signed integer branch
   // to not_int32 label. If VFP3 is available double_scratch is used but not
@@ -469,6 +479,8 @@ class MacroAssembler: public Assembler {
   void GetRelocatedValueLocation(Register ldr_location,
                                  Register result);
 
+  void LoadInstanceDescriptors(Register map, Register descriptors);
+
 
   // ---------------------------------------------------------------------------
   // HeapNumber utilities
@@ -504,6 +516,14 @@ class MacroAssembler: public Assembler {
                               Register scratch,
                               Label* miss);
 
+
+  void LoadFromNumberDictionary(Label* miss,
+                                Register elements,
+                                Register key,
+                                Register result,
+                                Register t0,
+                                Register t1,
+                                Register t2);
 
   // ---------------------------------------------------------------------------
   // Allocation support
@@ -591,6 +611,16 @@ class MacroAssembler: public Assembler {
                                Register scratch1,
                                Register scratch2,
                                Label* gc_required);
+  void AllocateTwoByteSlicedString(Register result,
+                                   Register length,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Label* gc_required);
+  void AllocateAsciiSlicedString(Register result,
+                                 Register length,
+                                 Register scratch1,
+                                 Register scratch2,
+                                 Label* gc_required);
 
   // Copies a fixed number of fields of heap objects from src to dst.
   void CopyFields(Register dst, Register src, RegList temps, int field_count);
@@ -628,6 +658,12 @@ class MacroAssembler: public Assembler {
                            Register type_reg,
                            InstanceType type,
                            Condition cond);
+
+  // Check if a map for a JSObject indicates that the object has fast elements.
+  // Jump to the specified label if it does not.
+  void CheckFastElements(Register map,
+                         Register scratch,
+                         Label* fail);
 
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
@@ -760,14 +796,20 @@ class MacroAssembler: public Assembler {
   // C++ code.
   // Needs a scratch register to do some arithmetic. This register will be
   // trashed.
-  void PrepareCallCFunction(int num_arguments, Register scratch);
+  void PrepareCallCFunction(int num_reg_arguments,
+                            int num_double_arguments,
+                            Register scratch);
+  void PrepareCallCFunction(int num_reg_arguments,
+                            Register scratch) {
+    PrepareCallCFunction(num_reg_arguments, 0, scratch);
+  }
 
   // Calls a C function and cleans up the space for arguments allocated
   // by PrepareCallCFunction. The called function is not allowed to trigger a
   // garbage collection, since that might move the code and invalidate the
   // return address (unless this is somehow accounted for by the called
   // function).
-  void CallCFunction(ExternalReference function, int num_arguments);
+  void CallCFunction(ExternalReference function, int num_reg_arguments, int num_double_arguments = 0);
   void CallCFunction(Register function, int num_arguments);
 
   // Prepares stack to put arguments (aligns and so on). Reserves
@@ -801,8 +843,8 @@ class MacroAssembler: public Assembler {
   void Jump(intptr_t target, RelocInfo::Mode rmode);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode);
   void Call(Label* target) { call(target); }
-  void Call(Handle<Code> code, RelocInfo::Mode rmode);
-  void Call(intptr_t target, RelocInfo::Mode rmode);
+  void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET, unsigned ast_id = kNoASTId);
+  void Call(Address target, RelocInfo::Mode rmode);
 
   // Emit call to the code we are currently generating.
   void CallSelf() {
@@ -919,7 +961,8 @@ class MacroAssembler: public Assembler {
   void CallCFunctionHelper(Register function,
                            ExternalReference function_reference,
                            Register scratch,
-                           int num_arguments);
+                           int num_reg_arguments,
+                           int num_double_arguments);
 
   bool generating_stub_;
   bool allow_stub_calls_;
@@ -933,7 +976,8 @@ class MacroAssembler: public Assembler {
                       Register code_reg,
                       Label* done,
                       InvokeFlag flag,
-                      CallWrapper* call_wrapper = NULL);
+                      const CallWrapper& call_wrapper,
+                      CallKind call_kind);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -996,19 +1040,17 @@ class CodePatcher {
 };
 
 
-// Helper class for generating code or data associated with the code
-// right after a call instruction. As an example this can be used to
-// generate safepoint data after calls for crankshaft.
-class CallWrapper {
- public:
-  CallWrapper() { }
-  virtual ~CallWrapper() { }
-  // Called just before emitting a call. Argument is the size of the generated
-  // call code.
-  virtual void BeforeCall(int call_size) = 0;
-  // Called just after emitting a call, i.e., at the return site for the call.
-  virtual void AfterCall() = 0;
-};
+// -----------------------------------------------------------------------------
+// Static helper functions.
+
+static MemOperand ContextOperand(Register context, int index) {
+  return MemOperand(context, Context::SlotOffset(index));
+}
+
+
+static inline MemOperand GlobalObjectOperand()  {
+  return ContextOperand(cp, Context::GLOBAL_INDEX);
+}
 
 
 #ifdef DEBUG

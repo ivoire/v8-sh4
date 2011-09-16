@@ -31,8 +31,6 @@
 #ifndef V8_ATOMICOPS_INTERNALS_SH4_GCC_H_
 #define V8_ATOMICOPS_INTERNALS_SH4_GCC_H_
 
-#include "v8.h"
-
 namespace v8 {
 namespace internal {
 

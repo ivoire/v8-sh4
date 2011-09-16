@@ -61,7 +61,6 @@ CreateJSFunctionFromCode(const char *name, Code *code, Isolate* isolate) {
 
 #define BEGIN() \
   FLAG_disable_native_files = true; \
-  FLAG_full_compiler = false; \
   FLAG_code_comments = true; \
   v8::HandleScope scope; \
   Isolate* isolate = Isolate::Current(); \
@@ -236,14 +235,14 @@ TEST(sh4_cs_2) {
   CMT("Check CompareInstanceType(GLOBAL_PTR()) != JS_VALUE_TYPE");
   __ CompareInstanceType(r1, r2/*type*/ , JS_VALUE_TYPE, eq);
   B_LINE(t, &error);
-  CMT("Check CompareInstanceType(GLOBAL_PTR()) >= (ge) FIRST_JS_OBJECT_TYPE");
-  __ CompareInstanceType(r1, r2/*type*/ , FIRST_JS_OBJECT_TYPE, hs);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) >= (ge) FIRST_SPEC_OBJECT_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , FIRST_SPEC_OBJECT_TYPE, hs);
   B_LINE(f, &error);
-  CMT("Check CompareInstanceType(GLOBAL_PTR()) >= (hs) FIRST_JS_OBJECT_TYPE");
-  __ CompareInstanceType(r1, r2/*type*/ , FIRST_JS_OBJECT_TYPE, ge);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) >= (hs) FIRST_SPEC_OBJECT_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , FIRST_SPEC_OBJECT_TYPE, ge);
   B_LINE(f, &error);
-  CMT("Check CompareInstanceType(GLOBAL_PTR()) ! >= FIRST_FUNCTION_CLASS_TYPE");
-  __ CompareInstanceType(r1, r2/*type*/ , FIRST_FUNCTION_CLASS_TYPE, ge);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) ! >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, ge);
   B_LINE(t, &error);
 
   CMT("Check CompareObjectType(GLOBAL_PTR()) == JS_GLOBAL_OBJECT_TYPE");
@@ -282,7 +281,7 @@ TEST(sh4_cs_3) {
 
   // Check LoadContext()
   __ LoadContext(r0, 0);
-  __ mov(r1, Operand(ExternalReference(Isolate::k_context_address, isolate)));
+  __ mov(r1, Operand(ExternalReference(Isolate::kContextAddress, isolate)));
   __ ldr(r1, MemOperand(r1));
   __ cmp(r0, r1);
   B_LINE(ne, &error);

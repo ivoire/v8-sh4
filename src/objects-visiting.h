@@ -42,6 +42,9 @@
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/assembler-mips.h"
 #include "mips/assembler-mips-inl.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/assembler-sh4.h"
+#include "sh4/assembler-sh4-inl.h"
 #else
 #error Unsupported target architecture.
 #endif

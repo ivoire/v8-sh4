@@ -36,6 +36,10 @@
 namespace v8 {
 namespace internal {
 
+// TODO(stm): this is a temporary hack for nearlabels
+typedef Label NearLabel;
+
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -60,6 +64,7 @@ namespace internal {
 struct Register {
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 8;
+  static const int kSizeInBytes = 4;
 
   static int ToAllocationIndex(Register reg) {
     ASSERT(reg.code() < kNumAllocatableRegisters);
@@ -558,7 +563,8 @@ class Assembler : public AssemblerBase {
 
   // binds an unbound label L to the current code position
   void bind(Label* L);
-  void bind(NearLabel* L);
+
+//  void bind(NearLabel* L);
 
 
   // Return the address in the constant pool of the code target address used by
@@ -668,14 +674,14 @@ class Assembler : public AssemblerBase {
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
 
-  void bt(NearLabel* L)         { branch(L, branch_true); }
-  void bf(NearLabel* L)         { branch(L, branch_false); }
-  void jmp(NearLabel* L)        { branch(L, branch_unconditional); }
-  void b(NearLabel* L)          { jmp(L); }
-  void b(Condition cond, NearLabel* L) {
-    ASSERT(cond == ne || cond == eq);
-    branch(L, cond == eq ? branch_true : branch_false);
-  }
+//  void bt(NearLabel* L)         { branch(L, branch_true); }
+//  void bf(NearLabel* L)         { branch(L, branch_false); }
+//  void jmp(NearLabel* L)        { branch(L, branch_unconditional); }
+//  void b(NearLabel* L)          { jmp(L); }
+//  void b(Condition cond, NearLabel* L) {
+//    ASSERT(cond == ne || cond == eq);
+//    branch(L, cond == eq ? branch_true : branch_false);
+//  }
 
   void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
   void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }     // is Rd > Rs ?
@@ -816,6 +822,15 @@ class Assembler : public AssemblerBase {
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); }
   void tst(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp);
 
+  void teq(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp) {
+    lxor(rtmp, Rd, imm);
+    tst(rtmp, rtmp);
+  }
+  void teq(Register Rd, Register Rs, Register rtmp = sh4_rtmp) {
+    lxor(rtmp, Rd, Rs);
+    tst(rtmp, rtmp);
+  }
+
   // Conditional move
   void mov(Register Rd, Register Rs, Condition cond);
   void mov(Register Rd, const Operand& imm, Condition cond);
@@ -896,6 +911,20 @@ class Assembler : public AssemblerBase {
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
 
+  // Record the AST id of the CallIC being compiled, so that it can be placed
+  // in the relocation information.
+  void SetRecordedAstId(unsigned ast_id) {
+    ASSERT(recorded_ast_id_ == kNoASTId);
+    recorded_ast_id_ = ast_id;
+  }
+
+  unsigned RecordedAstId() {
+    ASSERT(recorded_ast_id_ != kNoASTId);
+    return recorded_ast_id_;
+  }
+
+  void ClearRecordedAstId() { recorded_ast_id_ = kNoASTId; }
+
   // Use -code_comments to enable, or provide "force = true" flag to always
   // write a comment.
   void RecordComment(const char* msg, bool force = false);
@@ -924,6 +953,11 @@ class Assembler : public AssemblerBase {
 
 
  protected:
+  // Relocation for a type-recording IC has the AST id added to it.  This
+  // member variable is a way to pass the information from the call site to
+  // the relocation info.
+  unsigned recorded_ast_id_;
+
   bool emit_debug_code() const { return emit_debug_code_; }
 
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
@@ -938,7 +972,7 @@ class Assembler : public AssemblerBase {
   void jmp(int offset, Register rtmp, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
 
-  void branch(NearLabel* L, branch_type type);
+//  void branch(NearLabel* L, branch_type type);
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos);

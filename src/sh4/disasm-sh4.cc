@@ -54,8 +54,10 @@ namespace internal {
 // more informative description.
 class Decoder {
  public:
-  explicit Decoder(Vector<char> out_buffer)
-    : out_buffer_(out_buffer),
+  Decoder(const disasm::NameConverter& converter,
+          Vector<char> out_buffer)
+    : converter_(converter),
+      out_buffer_(out_buffer),
       out_buffer_pos_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
   }
@@ -65,6 +67,9 @@ class Decoder {
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(byte* instruction);
+
+  static bool IsConstantPoolAt(byte* instr_ptr);
+  static int ConstantPoolSizeAt(byte* instr_ptr);
 
  private:
   // Bottleneck functions to print into the out_buffer.
@@ -83,6 +88,7 @@ class Decoder {
   // Decode instructions from Table 39, p.150
   int DecodeTable39(Instruction* instr);
 
+  const disasm::NameConverter& converter_;
   Vector<char> out_buffer_;
   int out_buffer_pos_;
 
@@ -607,6 +613,23 @@ void Decoder::Format(const char *format, ...) {
   out_buffer_pos_ += OS::VSNPrintF(out_buffer_ + out_buffer_pos_, format, args);
   va_end(args);
 }
+
+
+bool Decoder::IsConstantPoolAt(byte* instr_ptr) {
+  int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
+  return (instruction_bits & kConstantPoolMarkerMask) == kConstantPoolMarker;
+}
+
+
+int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
+  if (IsConstantPoolAt(instr_ptr)) {
+    int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
+    return instruction_bits & kConstantPoolLengthMask;
+  } else {
+    return -1;
+  }
+}
+
 
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);

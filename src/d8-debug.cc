@@ -72,6 +72,7 @@ void HandleDebugEvent(DebugEvent event,
     return;
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Print the event details.
   Handle<Object> details =
       Shell::DebugMessageDetails(Handle<String>::Cast(event_json));
@@ -85,6 +86,7 @@ void HandleDebugEvent(DebugEvent event,
     return;
   }
   printf("%s\n", *str);
+#endif
 
   // Get the debug command processor.
   Local<String> fun_name = String::New("debugCommandProcessor");
@@ -109,6 +111,7 @@ void HandleDebugEvent(DebugEvent event,
 
     TryCatch try_catch;
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
     // Convert the debugger command to a JSON debugger request.
     Handle<Value> request =
         Shell::DebugCommandToJSONRequest(String::New(command));
@@ -154,6 +157,7 @@ void HandleDebugEvent(DebugEvent event,
     }
     running =
         response_details->Get(String::New("running"))->ToBoolean()->Value();
+#endif
   }
 }
 
@@ -275,6 +279,7 @@ void RemoteDebugger::HandleMessageReceived(char* message) {
   Locker lock;
   HandleScope scope;
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Print the event details.
   TryCatch try_catch;
   Handle<Object> details =
@@ -297,6 +302,7 @@ void RemoteDebugger::HandleMessageReceived(char* message) {
 
   bool is_running = details->Get(String::New("running"))->ToBoolean()->Value();
   PrintPrompt(is_running);
+#endif
 }
 
 
@@ -304,6 +310,7 @@ void RemoteDebugger::HandleKeyboardCommand(char* command) {
   Locker lock;
   HandleScope scope;
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Convert the debugger command to a JSON debugger request.
   TryCatch try_catch;
   Handle<Value> request =
@@ -325,10 +332,12 @@ void RemoteDebugger::HandleKeyboardCommand(char* command) {
 
   // Send the JSON debugger request.
   i::DebuggerAgentUtil::SendMessage(conn_, Handle<String>::Cast(request));
+#endif
 }
 
 
 void ReceiverThread::Run() {
+  #ifdef ENABLE_DEBUGGER_SUPPORT
   // Receive the connect message (with empty body).
   i::SmartArrayPointer<char> message =
       i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
@@ -346,6 +355,7 @@ void ReceiverThread::Run() {
     // Pass the message to the main thread.
     remote_debugger_->MessageReceived(message);
   }
+#endif
 }
 
 

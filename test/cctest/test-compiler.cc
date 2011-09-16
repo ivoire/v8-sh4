@@ -352,6 +352,7 @@ TEST(GetScriptLineNumber) {
 }
 
 
+#if 0
 #ifdef ENABLE_DISASSEMBLER
 static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
                                  const char* property_name) {
@@ -402,4 +403,5 @@ TEST(SplitConstantsInFullCompiler) {
   CompileRun("function f(x) { var arguments = 1; x = 12345678}; f(1);");
   CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));
 }
+#endif
 #endif

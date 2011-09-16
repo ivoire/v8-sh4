@@ -54,17 +54,17 @@ void LOsrEntry::MarkSpilledRegister(int allocation_index,
 }
 
 
-void LOsrEntry::MarkSpilledDoubleRegister(int allocation_index,
-                                          LOperand* spill_operand) {
-  UNIMPLEMENTED();
-}
-
-
 #ifdef DEBUG
 void LInstruction::VerifyCall() {
   UNIMPLEMENTED();
 }
 #endif
+
+
+void LOsrEntry::MarkSpilledDoubleRegister(int allocation_index,
+                                          LOperand* spill_operand) {
+  UNIMPLEMENTED();
+}
 
 
 void LInstruction::PrintTo(StringStream* stream) {
@@ -84,12 +84,6 @@ void LTemplateInstruction<R, I, T>::PrintOutputOperandTo(StringStream* stream) {
 }
 
 
-template<typename T, int N>
-void OperandContainer<T, N>::PrintOperandsTo(StringStream* stream) {
-  UNIMPLEMENTED();
-}
-
-
 void LLabel::PrintDataTo(StringStream* stream) {
   UNIMPLEMENTED();
 }
@@ -100,7 +94,7 @@ bool LGap::IsRedundant() const {
 }
 
 
-void LGap::PrintDataTo(StringStream* stream) const {
+void LGap::PrintDataTo(StringStream* stream) {
   UNIMPLEMENTED();
 }
 
@@ -157,6 +151,11 @@ void LIsSmiAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void LIsUndetectableAndBranch::PrintDataTo(StringStream* stream) {
+  UNIMPLEMENTED();
+}
+
+
 void LHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if has_instance_type(");
   InputAt(0)->PrintTo(stream);
@@ -178,12 +177,6 @@ void LClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
               *hydrogen()->class_name(),
               true_block_id(),
               false_block_id());
-}
-
-
-void LTypeofIs::PrintDataTo(StringStream* stream) {
-  InputAt(0)->PrintTo(stream);
-  stream->Add(" == \"%s\"", *hydrogen()->type_literal()->ToCString());
 }
 
 
@@ -228,18 +221,18 @@ void LInvokeFunction::PrintDataTo(StringStream* stream) {
 
 
 void LCallKeyed::PrintDataTo(StringStream* stream) {
-  stream->Add("[ecx] #%d / ", arity());
+  stream->Add("[r2] #%d / ", arity());
 }
 
 
 void LCallNamed::PrintDataTo(StringStream* stream) {
-  SmartPointer<char> name_string = name()->ToCString();
+  SmartArrayPointer<char> name_string = name()->ToCString();
   stream->Add("%s #%d / ", *name_string, arity());
 }
 
 
 void LCallGlobal::PrintDataTo(StringStream* stream) {
-  SmartPointer<char> name_string = name()->ToCString();
+  SmartArrayPointer<char> name_string = name()->ToCString();
   stream->Add("%s #%d / ", *name_string, arity());
 }
 
@@ -256,13 +249,6 @@ void LCallNew::PrintDataTo(StringStream* stream) {
 }
 
 
-void LClassOfTest::PrintDataTo(StringStream* stream) {
-  stream->Add("= class_of_test(");
-  InputAt(0)->PrintTo(stream);
-  stream->Add(", \"%o\")", *hydrogen()->class_name());
-}
-
-
 void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
   arguments()->PrintTo(stream);
 
@@ -271,23 +257,6 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
   stream->Add(" index ");
   index()->PrintTo(stream);
-}
-
-
-int LChunk::GetNextSpillIndex(bool is_double) {
-  // Skip a slot if for a double-width slot.
-  if (is_double) spill_slot_count_++;
-  return spill_slot_count_++;
-}
-
-
-LOperand* LChunk::GetNextSpillSlot(bool is_double) {
-  UNIMPLEMENTED();
-}
-
-
-void LChunk::MarkEmptyBlocks() {
-  UNIMPLEMENTED();
 }
 
 
@@ -318,6 +287,15 @@ void LStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
 }
 
 
+void LStoreKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
+  elements()->PrintTo(stream);
+  stream->Add("[");
+  key()->PrintTo(stream);
+  stream->Add("] <- ");
+  value()->PrintTo(stream);
+}
+
+
 void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add("[");
@@ -327,7 +305,71 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
+LChunk::LChunk(CompilationInfo* info, HGraph* graph)
+    : spill_slot_count_(0),
+      info_(info),
+      graph_(graph),
+      instructions_(32),
+      pointer_maps_(8),
+      inlined_closures_(1) {
+}
+
+
+int LChunk::GetNextSpillIndex(bool is_double) {
+  // Skip a slot if for a double-width slot.
+  if (is_double) spill_slot_count_++;
+  return spill_slot_count_++;
+}
+
+
+LOperand* LChunk::GetNextSpillSlot(bool is_double)  {
+  int index = GetNextSpillIndex(is_double);
+  if (is_double) {
+    return LDoubleStackSlot::Create(index);
+  } else {
+    return LStackSlot::Create(index);
+  }
+}
+
+
+void LChunk::MarkEmptyBlocks() {
+  HPhase phase("Mark empty blocks", this);
+  for (int i = 0; i < graph()->blocks()->length(); ++i) {
+    HBasicBlock* block = graph()->blocks()->at(i);
+    int first = block->first_instruction_index();
+    int last = block->last_instruction_index();
+    LInstruction* first_instr = instructions()->at(first);
+    LInstruction* last_instr = instructions()->at(last);
+
+    LLabel* label = LLabel::cast(first_instr);
+    if (last_instr->IsGoto()) {
+      LGoto* goto_instr = LGoto::cast(last_instr);
+      if (label->IsRedundant() &&
+          !label->is_loop_header()) {
+        bool can_eliminate = true;
+        for (int i = first + 1; i < last && can_eliminate; ++i) {
+          LInstruction* cur = instructions()->at(i);
+          if (cur->IsGap()) {
+            LGap* gap = LGap::cast(cur);
+            if (!gap->IsRedundant()) {
+              can_eliminate = false;
+            }
+          } else {
+            can_eliminate = false;
+          }
+        }
+
+        if (can_eliminate) {
+          label->set_replacement(GetLabel(goto_instr->block_id()));
+        }
+      }
+    }
+  }
+}
+
+
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
+  UNIMPLEMENTED();
 }
 
 
@@ -489,8 +531,7 @@ LInstruction* LChunkBuilder::DefineAsRegister(
 
 template<int I, int T>
 LInstruction* LChunkBuilder::DefineAsSpilled(
-    LTemplateInstruction<1, I, T>* instr,
-    int index) {
+    LTemplateInstruction<1, I, T>* instr, int index) {
   UNIMPLEMENTED();
 }
 
@@ -503,16 +544,15 @@ LInstruction* LChunkBuilder::DefineSameAsFirst(
 
 
 template<int I, int T>
-LInstruction* LChunkBuilder::DefineFixed(LTemplateInstruction<1, I, T>* instr,
-                                         Register reg) {
+LInstruction* LChunkBuilder::DefineFixed(
+    LTemplateInstruction<1, I, T>* instr, Register reg) {
   UNIMPLEMENTED();
 }
 
 
 template<int I, int T>
 LInstruction* LChunkBuilder::DefineFixedDouble(
-    LTemplateInstruction<1, I, T>* instr,
-    DoubleRegister reg) {
+    LTemplateInstruction<1, I, T>* instr, DoubleRegister reg) {
   UNIMPLEMENTED();
 }
 
@@ -520,6 +560,7 @@ LInstruction* LChunkBuilder::DefineFixedDouble(
 LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
   HEnvironment* hydrogen_env = current_block_->last_environment();
   instr->set_environment(CreateEnvironment(hydrogen_env));
+  return instr;
 }
 
 
@@ -571,6 +612,10 @@ LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
+  UNIMPLEMENTED();
+}
+
 LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
   UNIMPLEMENTED();
 }
@@ -619,7 +664,7 @@ LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoTest(HTest* instr) {
+LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
   UNIMPLEMENTED();
 }
 
@@ -656,6 +701,11 @@ LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
 
 
 LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
   UNIMPLEMENTED();
 }
 
@@ -796,33 +846,52 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompare(HCompare* instr) {
+LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoCompareJSObjectEq(
-    HCompareJSObjectEq* instr) {
+LInstruction* LChunkBuilder::DoCompareIDAndBranch(
+    HCompareIDAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoIsNull(HIsNull* instr) {
+LInstruction* LChunkBuilder::DoCompareObjectEqAndBranch(
+    HCompareObjectEqAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoIsObject(HIsObject* instr) {
+LInstruction* LChunkBuilder::DoCompareConstantEqAndBranch(
+    HCompareConstantEqAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoIsSmi(HIsSmi* instr) {
+LInstruction* LChunkBuilder::DoIsNullAndBranch(HIsNullAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoHasInstanceType(HHasInstanceType* instr) {
+LInstruction* LChunkBuilder::DoIsObjectAndBranch(HIsObjectAndBranch* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoIsSmiAndBranch(HIsSmiAndBranch* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoIsUndetectableAndBranch(
+    HIsUndetectableAndBranch* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoHasInstanceTypeAndBranch(
+    HHasInstanceTypeAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
@@ -833,13 +902,14 @@ LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
 }
 
 
-LInstruction* LChunkBuilder::DoHasCachedArrayIndex(
-    HHasCachedArrayIndex* instr) {
+LInstruction* LChunkBuilder::DoHasCachedArrayIndexAndBranch(
+    HHasCachedArrayIndexAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoClassOfTest(HClassOfTest* instr) {
+LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
+    HClassOfTestAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
@@ -849,13 +919,13 @@ LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoFixedArrayLength(HFixedArrayLength* instr) {
+LInstruction* LChunkBuilder::DoFixedArrayBaseLength(
+    HFixedArrayBaseLength* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoExternalArrayLength(
-    HExternalArrayLength* instr) {
+LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
   UNIMPLEMENTED();
 }
 
@@ -876,6 +946,16 @@ LInstruction* LChunkBuilder::DoAbnormalExit(HAbnormalExit* instr) {
 
 
 LInstruction* LChunkBuilder::DoThrow(HThrow* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoUseConst(HUseConst* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoForceRepresentation(HForceRepresentation* bad) {
   UNIMPLEMENTED();
 }
 
@@ -915,17 +995,22 @@ LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
+  UNIMPLEMENTED();
+}
+
+
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
   UNIMPLEMENTED();
 }
 
 
 LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
-  UNIMPLEMENTED();
-}
-
-
-LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
   UNIMPLEMENTED();
 }
 
@@ -941,6 +1026,11 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
   UNIMPLEMENTED();
 }
 
@@ -994,6 +1084,12 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 }
 
 
+LInstruction* LChunkBuilder::DoLoadKeyedFastDoubleElement(
+    HLoadKeyedFastDoubleElement* instr) {
+  UNIMPLEMENTED();
+}
+
+
 LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
     HLoadKeyedSpecializedArrayElement* instr) {
   UNIMPLEMENTED();
@@ -1007,6 +1103,12 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
     HStoreKeyedFastElement* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoStoreKeyedFastDoubleElement(
+    HStoreKeyedFastDoubleElement* instr) {
   UNIMPLEMENTED();
 }
 
@@ -1117,12 +1219,13 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoTypeofIs(HTypeofIs* instr) {
+LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
 
-LInstruction* LChunkBuilder::DoIsConstructCall(HIsConstructCall* instr) {
+LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
+    HIsConstructCallAndBranch* instr) {
   UNIMPLEMENTED();
 }
 
@@ -1143,6 +1246,11 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
 
 
 LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
+  UNIMPLEMENTED();
+}
+
+
+LInstruction* LChunkBuilder::DoIn(HIn* instr) {
   UNIMPLEMENTED();
 }
 

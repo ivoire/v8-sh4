@@ -37,27 +37,20 @@
 namespace v8 {
 namespace internal {
 
+const int Deoptimizer::table_entry_size_ = 16;
 
-int Deoptimizer::table_entry_size_ = 10;
+
+int Deoptimizer::patch_size() {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
+  UNIMPLEMENTED();
+}
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
-                                 int frame_index) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DoComputeOsrOutputFrame() {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::EntryGenerator::Generate() {
   UNIMPLEMENTED();
 }
 
@@ -76,7 +69,27 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
 }
 
 
-int Deoptimizer::patch_size() {
+void Deoptimizer::DoComputeOsrOutputFrame() {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
+                                 int frame_index) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
+  UNIMPLEMENTED();
+}
+
+
+#define __ masm()->
+
+// This code tries to be close to ia32 code so that any changes can be
+// easily ported.
+void Deoptimizer::EntryGenerator::Generate() {
   UNIMPLEMENTED();
 }
 

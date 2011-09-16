@@ -56,7 +56,6 @@ static void InitializeVM() {
 #define BEGIN()                                         \
   /* Disable compilation of natives. */                 \
   i::FLAG_disable_native_files = true;                  \
-  i::FLAG_full_compiler = false;                        \
                                                         \
   InitializeVM();                                       \
   v8::HandleScope scope;                                \

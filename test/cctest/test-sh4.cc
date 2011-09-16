@@ -38,7 +38,6 @@ using namespace v8::internal;
 TEST(sh4) {
   // Disable compilation of natives.
   i::FLAG_disable_native_files = true;
-  i::FLAG_full_compiler = false;
 
   v8::HandleScope scope;
   LocalContext env;  // from cctest.h
@@ -52,7 +51,6 @@ TEST(sh4) {
 TEST(sh4_1) {
   // Disable compilation of natives.
   i::FLAG_disable_native_files = true;
-  i::FLAG_full_compiler = false;
 
   v8::HandleScope scope;
   LocalContext env;  // from cctest.h
@@ -66,7 +64,6 @@ TEST(sh4_1) {
 TEST(sh4_2) {
   // Disable compilation of natives.
   i::FLAG_disable_native_files = true;
-  i::FLAG_full_compiler = false;
 
   v8::HandleScope scope;
   LocalContext env;  // from cctest.h
@@ -80,7 +77,6 @@ TEST(sh4_2) {
 TEST(sh4_3) {
   // Disable compilation of natives.
   i::FLAG_disable_native_files = false;
-  i::FLAG_full_compiler = false;
 
   v8::HandleScope scope;
   LocalContext env;  // from cctest.h
@@ -94,7 +90,6 @@ TEST(sh4_3) {
 TEST(sh4_4) {
   // Disable compilation of natives.
   i::FLAG_disable_native_files = true;
-  i::FLAG_full_compiler = false;
 
   v8::HandleScope scope;
   LocalContext env;  // from cctest.h
@@ -108,7 +103,6 @@ TEST(sh4_4) {
 TEST(sh4_5) {
   // Disable compilation of natives.
   i::FLAG_disable_native_files = true;
-  i::FLAG_full_compiler = false;
 
   v8::HandleScope scope;
   LocalContext env;  // from cctest.h
