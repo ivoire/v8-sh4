@@ -10,8 +10,8 @@ TIMEOUT=${TIMEOUT-"/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout 600"}
 TARGET_ROOT=${TARGET_ROOT-/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target}
 RUN_PREFIX=${RUN_PREFIX-"env QEMU_ASSUME_KERNEL=2.6.30 $TIMEOUT $QEMU -distro -L $TARGET_ROOT -x $PWD -cwd $PWD"}
 
-
-SHELL="$RUN_PREFIX ./shell_g"
+V8_SHELL=${V8_SHELL-"./shell_g"}
+V8_SHELL="$RUN_PREFIX $V8_SHELL"
 
 total=0
 failed=0
@@ -30,7 +30,7 @@ do
   if [ $need_debug = 0 ]
   then
     echo "=== $file ===" | tee -a run_mjsunit.log
-    $SHELL $flags test/mjsunit/mjsunit.js $file >>run_mjsunit.log 2>&1 || res=1
+    $V8_SHELL $flags test/mjsunit/mjsunit.js $file >>run_mjsunit.log 2>&1 || res=1
     if [ $res != 0 ]
     then
       echo "...FAILED" | tee -a run_mjsunit.log
