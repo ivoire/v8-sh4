@@ -414,7 +414,7 @@ void OS::Sleep(int milliseconds) {
 
 void OS::Abort() {
   // Redirect to std abort to signal abnormal program termination.
-  asm("ldtlb");
+  abort();
 }
 
 
