@@ -2084,9 +2084,9 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                        Label* gc_required) {
   Register left = r1;
   Register right = r0;
-  Register scratch1 = sh4_r8;
+  Register scratch1 = r4;
   Register scratch2 = r9;
-  Register scratch3 = r4;
+  Register scratch3 = sh4_rtmp;
 
   ASSERT(smi_operands || (not_numbers != NULL));
   if (smi_operands && FLAG_debug_code) {
@@ -2138,7 +2138,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         FloatingPointHelper::CallCCodeForDoubleOperation(masm,
                                                          op_,
                                                          result,
-                                                         scratch1);
+                                                         scratch3);
         if (FLAG_debug_code) {
           __ stop("Unreachable code.");
         }
