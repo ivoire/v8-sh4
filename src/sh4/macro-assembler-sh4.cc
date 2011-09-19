@@ -1022,17 +1022,6 @@ void MacroAssembler::Bfi(Register dst,
 }
 
 
-void MacroAssembler::PopTryHandler() {
-  RECORD_LINE();
-  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
-  pop(r1);
-  mov(sh4_ip,
-      Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
-  add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
-  str(r1, MemOperand(sh4_ip));
-}
-
-
 static const int kRegisterPassedArguments = 4;
 
 void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -1166,47 +1155,59 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 }
 
 
+void MacroAssembler::PopTryHandler() {
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  RECORD_LINE();
+  pop(r1);
+  mov(sh4_ip, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
+  add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
+  str(r1, MemOperand(sh4_ip));
+}
+
+
 void MacroAssembler::Throw(Register value) {
   ASSERT(!value.is(sh4_ip));
+
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+
   // r0 is expected to hold the exception.
   if (!value.is(r0)) {
     RECORD_LINE();
     mov(r0, value);
   }
 
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-
   RECORD_LINE();
   // Drop the sp to the top of the handler.
   mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   ldr(sp, MemOperand(r3));
 
-  // Restore the next handler and frame pointer, discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  // Restore the next handler.
+  RECORD_LINE();
   pop(r2);
   str(r2, MemOperand(r3));
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
-  pop(r3);
-  pop(fp);
+  Pop(fp, pr, r3);
 
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  NearLabel restore, restore_end;
-  cmpeq(fp, Operand(0));
-  bf(&restore);
+  // If the handler is a JS frame, restore the context to the frame.
+  // (r3 == ENTRY) == (fp == 0) == (cp == 0), so we could test any
+  // of them.
   RECORD_LINE();
-  // Set cp to NULL if fp is NULL.
-  mov(cp, Operand(0));
-  jmp(&restore_end);
-  bind(&restore);
-  RECORD_LINE();
-  // Restore cp otherwise.
-  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  bind(&restore_end);
-  RECORD_LINE();
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  Label skip;
+  cmp(r3, Operand(StackHandler::ENTRY));
+  bt(&skip);
+  str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  bind(&skip);
+
+#ifdef DEBUG
+  if (emit_debug_code()) {
+//    mov(lr, Operand(pc));
+  }
+#endif
   pop(pr);
   rts();
 }
@@ -1214,10 +1215,14 @@ void MacroAssembler::Throw(Register value) {
 
 void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
                                       Register value) {
+  ASSERT(!value.is(sh4_ip));
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
-  ASSERT(!value.is(sh4_ip));
-
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
   // r0 is expected to hold the exception.
   if (!value.is(r0)) {
     RECORD_LINE();
@@ -1236,19 +1241,17 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   // Load the type of the current stack handler.
   const int kStateOffset = StackHandlerConstants::kStateOffset;
   ldr(r2, MemOperand(sp, kStateOffset));
-  mov(r3, Operand(StackHandler::ENTRY));
-  cmpeq(r2, r3);
+  cmpeq(r2, Operand(StackHandler::ENTRY), r3);
   bt(&done);
   RECORD_LINE();
   // Fetch the next handler in the list.
   const int kNextOffset = StackHandlerConstants::kNextOffset;
-  mov(sp, MemOperand(sp, kNextOffset));
+  ldr(sp, MemOperand(sp, kNextOffset));
   jmp(&loop);
   bind(&done);
   RECORD_LINE();
 
   // Set the top handler address to next handler past the current ENTRY handler.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(r2);
   mov(r3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   str(r2, MemOperand(r3));
@@ -1258,7 +1261,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     ExternalReference external_caught(
         Isolate::kExternalCaughtExceptionAddress, isolate());
     RECORD_LINE();
-    mov(r0, Operand(false));
+    mov(r0, Operand(false, RelocInfo::NONE));
     mov(r2, Operand(external_caught));
     str(r0, MemOperand(r2));
 
@@ -1272,34 +1275,22 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
 
   // Stack layout at this point. See also StackHandlerConstants.
   // sp ->   state (ENTRY)
+  //         cp
   //         fp
   //         pr
 
   RECORD_LINE();
-  // Discard handler state (r3 is not used) and restore frame pointer.
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
-  pop(r2);
-  pop(fp);
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  Label restore, restore_end;
-  cmpeq(fp, Operand(0));
-  bf(&restore);
-  RECORD_LINE();
-  // Set cp to NULL if fp is NULL.
-  mov(cp, Operand(0));
-  jmp(&restore_end);
-  bind(&restore);
-  RECORD_LINE();
-  // Restore cp otherwise.
-  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  bind(&restore_end);
-  RECORD_LINE();
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+  // Restore context and frame pointer, discard state (r2).
+  Pop(fp, cp, r2);
+#ifdef DEBUG
+  if (emit_debug_code()) {
+//    mov(lr, Operand(pc));
+  }
+#endif
   pop(pr);
   rts();
 }
+
 
 #include "map-sh4.h"    // Define register map
 void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
@@ -1315,7 +1306,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   ldr(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
-  cmp(scratch, Operand(0));
+  cmp(scratch, Operand(0, RelocInfo::NONE));
   Check(ne, "we should not have an empty lexical context");
 #endif
 

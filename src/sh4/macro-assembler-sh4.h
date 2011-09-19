@@ -182,6 +182,16 @@ class MacroAssembler: public Assembler {
     pop(src1);
   }
 
+  // Pop three registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Register src3) {
+    ASSERT(!src1.is(src2));
+    ASSERT(!src2.is(src3));
+    ASSERT(!src1.is(src3));
+    pop(src3);
+    pop(src2);
+    pop(src1);
+  }
+
   // Pop four registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3, Register src4) {
     ASSERT(!src1.is(src2));
