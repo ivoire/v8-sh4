@@ -1376,6 +1376,109 @@ TEST(27) {
   __ cmpeq(r0, Operand(0xfffffff7));
   B_LINE(f, &error);
 
+
+  // Test ldr/str with Pre/post Index
+  __ mov(r1, Operand(3));
+  __ str(r1, MemOperand(sp, 0));
+  __ mov(r1, Operand(7));
+  __ str(r1, MemOperand(sp, 4));
+  __ mov(r1, Operand(9));
+  __ str(r1, MemOperand(sp, 8));
+
+  __ mov(r2, sp);
+  __ ldr(r0, MemOperand(r2, 0, PostIndex));
+  __ cmpeq(r0, Operand(3));
+  B_LINE(f, &error);
+  __ cmpeq(r2, sp);
+  B_LINE(f, &error);
+
+  __ ldr(r0, MemOperand(r2, 4, PostIndex));
+  __ cmpeq(r0, Operand(3));
+  B_LINE(f, &error);
+  __ add(r1, sp, Operand(4));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+  __ ldr(r0, MemOperand(r2, 4, PostIndex));
+  __ cmpeq(r0, Operand(7));
+  B_LINE(f, &error);
+  __ add(r1, sp, Operand(8));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+  __ ldr(r0, MemOperand(r2, 4, PostIndex));
+  __ cmpeq(r0, Operand(9));
+  B_LINE(f, &error);
+  __ add(r1, sp, Operand(12));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+  __ sub(r2, sp, Operand(4));
+  __ ldr(r0, MemOperand(r2, 4, PreIndex));
+  __ cmpeq(r0, Operand(3));
+  B_LINE(f, &error);
+  __ cmpeq(sp, r2);
+  B_LINE(f, &error);
+
+  __ ldr(r0, MemOperand(r2, 4, PreIndex));
+  __ cmpeq(r0, Operand(7));
+  B_LINE(f, &error);
+  __ add(r1, sp, Operand(4));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+  __ ldr(r0, MemOperand(r2, 4, PreIndex));
+  __ cmpeq(r0, Operand(9));
+  B_LINE(f, &error);
+  __ add(r1, sp, Operand(8));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+
+  __ mov(r2, sp);
+  __ mov(r1, Operand(4212));
+  __ str(r1, MemOperand(r2, 4, PostIndex));
+  __ mov(r1, Operand(1234));
+  __ str(r1, MemOperand(r2, 4, PostIndex));
+  __ add(r1, sp, Operand(8));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+  __ mov(r2, sp);
+  __ ldr(r1, MemOperand(r2, 4, PostIndex));
+  __ cmpeq(r1, Operand(4212));
+  B_LINE(f, &error);
+  __ ldr(r1, MemOperand(r2, 4, PostIndex));
+  __ cmpeq(r1, Operand(1234));
+  B_LINE(f, &error);
+  __ add(r1, sp, Operand(8));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+  __ mov(r2, sp);
+  __ mov(r1, Operand(98765));
+  __ str(r1, MemOperand(r2, 4, PreIndex));
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(r2, 4, PreIndex));
+  __ add(r1, sp, Operand(8));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+  __ mov(r2, sp);
+  __ ldr(r1, MemOperand(r2));
+  __ cmpeq(r1, Operand(4212));
+  B_LINE(f, &error);
+  __ ldr(r1, MemOperand(r2, 4, PreIndex));
+  __ cmpeq(r1, Operand(98765));
+  B_LINE(f, &error);
+  __ ldr(r1, MemOperand(r2, 4, PreIndex));
+  __ cmpeq(r1, Operand(0));
+  B_LINE(f, &error);
+  __ add(r1, sp, Operand(8));
+  __ cmpeq(r1, r2);
+  B_LINE(f, &error);
+
+
   // All ok.
   __ mov(sp, r3);
   __ mov(r0, Operand(0));

@@ -249,10 +249,11 @@ Operand::Operand(Smi* value) {
 }
 
 
-MemOperand::MemOperand(Register Rx, int32_t offset) {
+MemOperand::MemOperand(Register Rx, int32_t offset, AddrMode mode) {
   rm_ = Rx;
   rn_ = no_reg;
   offset_ = offset;
+  mode_ = mode;
 }
 
 
@@ -260,6 +261,7 @@ MemOperand::MemOperand(Register Rd, Register offset) {
   rm_ = Rd;
   rn_ = offset;
   offset_ = 0;
+  mode_ = Offset;
 }
 
 
@@ -391,6 +393,40 @@ void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
 void Assembler::rts() {
   rts_();
   nop_();
+}
+
+
+void Assembler::ldr(Register Rd, const MemOperand& src, Register rtmp) {
+  switch(src.mode_) {
+  case PreIndex:
+    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
+    mov(Rd, MemOperand(src.rm_, 0), rtmp);
+    break;
+  case PostIndex:
+    mov(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    break;
+  case Offset:
+    mov(Rd, src, rtmp);
+    break;
+  }
+}
+
+
+void Assembler::str(Register Rs, const MemOperand& dst, Register rtmp) {
+  switch(dst.mode_) {
+  case PreIndex:
+    add(dst.rm_ , dst.rm_, Operand(dst.offset()), rtmp);
+    mov(MemOperand(dst.rm_, 0), Rs, rtmp);
+    break;
+  case PostIndex:
+    mov(MemOperand(dst.rm_, 0), Rs, rtmp);
+    add(dst.rm_, dst.rm_, Operand(dst.offset()), rtmp);
+    break;
+  case Offset:
+    mov(dst, Rs, rtmp);
+    break;
+  }
 }
 
 

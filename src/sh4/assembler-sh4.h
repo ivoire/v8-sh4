@@ -312,6 +312,12 @@ enum Condition {
   cc = f         // carry clear: if SH4 addc/subc clears the T bit, vc == f
 };
 
+enum AddrMode {
+  PreIndex,
+  PostIndex,
+  Offset
+};
+
 
 // Returns the equivalent of !cc.
 // Negation of the default no_condition (-1) results in a non-default
@@ -409,7 +415,7 @@ class Operand BASE_EMBEDDED {
 
 class MemOperand BASE_EMBEDDED {
  public:
-  INLINE(explicit MemOperand(Register Rd, int32_t offset = 0));
+  INLINE(explicit MemOperand(Register Rd, int32_t offset = 0, AddrMode mode = Offset));
   INLINE(explicit MemOperand(Register Rd, Register offset));
 
   void set_offset(int32_t offset) {
@@ -429,6 +435,7 @@ class MemOperand BASE_EMBEDDED {
   Register rm_;
   Register rn_;
   int32_t offset_;
+  AddrMode mode_;
 
   friend class Assembler;
 };
@@ -854,8 +861,8 @@ class Assembler : public AssemblerBase {
   void movd(DwVfpRegister Dd, Register Rs1, Register Rs2);
   void movd(Register Rd1, Register Rd2, DwVfpRegister Ds);
 
-  void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
-        { mov(Rd, src, rtmp); }
+  inline void ldr(Register Rd, const MemOperand& src,
+                  Register rtmp = sh4_rtmp);
   void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
         { movb(Rd, src, rtmp); }
   void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
@@ -864,8 +871,9 @@ class Assembler : public AssemblerBase {
   void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   // signed 16 bit load op.
   void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
-  void str(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)
-        { mov(dst, Rs, rtmp); }
+
+  inline void str(Register Rs, const MemOperand& dst,
+                  Register rtmp = sh4_rtmp);
   void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)
         { movw(dst, Rs, rtmp); }
   void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)
