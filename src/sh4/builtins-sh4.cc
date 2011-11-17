@@ -152,20 +152,17 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch2: start of next object
   __ LoadRoot(scratch3, Heap::kFixedArrayMapRootIndex);
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
-  __ str(scratch3, MemOperand(scratch1));
-  __ add(scratch1, scratch1, Operand(kPointerSize));
+  __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
   __ mov(scratch3,  Operand(Smi::FromInt(initial_capacity)));
   ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
-  __ str(scratch3, MemOperand(scratch1));
-  __ add(scratch1, scratch1, Operand(kPointerSize));
+  __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
 
   // Fill the FixedArray with the hole value.
   ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
   ASSERT(initial_capacity <= kLoopUnfoldLimit);
   __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
   for (int i = 0; i < initial_capacity; i++) {
-    __ str(scratch3, MemOperand(scratch1));
-    __ add(scratch1, scratch1, Operand(kPointerSize));
+    __ str(scratch3, MemOperand(scratch1, kPointerSize, PostIndex));
   }
 }
 
@@ -262,9 +259,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // array_size: size of array (smi)
   __ LoadRoot(scratch1, Heap::kFixedArrayMapRootIndex);
   ASSERT_EQ(0 * kPointerSize, FixedArray::kMapOffset);
-  __ str(scratch1, MemOperand(elements_array_storage));
-  __ add(elements_array_storage, elements_array_storage,
-         Operand(kPointerSize));
+  __ str(scratch1, MemOperand(elements_array_storage, kPointerSize, PostIndex));
   STATIC_ASSERT(kSmiTag == 0);
   __ tst(array_size, array_size);
   // Length of the FixedArray is the number of pre-allocated elements if
@@ -275,9 +270,7 @@ static void AllocateJSArray(MacroAssembler* masm,
          eq);
   ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
   __ str(array_size,
-         MemOperand(elements_array_storage));
-  __ add(elements_array_storage, elements_array_storage,
-         Operand(kPointerSize));
+         MemOperand(elements_array_storage, kPointerSize, PostIndex));
 
   // Calculate elements array and elements array end.
   // result: JSObject
@@ -299,9 +292,7 @@ static void AllocateJSArray(MacroAssembler* masm,
     __ jmp(&entry);
     __ bind(&loop);
     __ str(scratch1,
-           MemOperand(elements_array_storage));
-    __ add(elements_array_storage, elements_array_storage,
-           Operand(kPointerSize));
+           MemOperand(elements_array_storage, kPointerSize, PostIndex));
     __ bind(&entry);
     __ cmpge(elements_array_storage, elements_array_end);
     __ bf(&loop);
@@ -415,10 +406,8 @@ static void ArrayNativeCode(MacroAssembler* masm,
   NearLabel loop, entry;
   __ jmp(&entry);
   __ bind(&loop);
-  __ ldr(r2, MemOperand(sp));
-  __ add(sp, sp, Operand(kPointerSize));
-  __ sub(r5, r5, Operand(kPointerSize));
-  __ str(r2, MemOperand(r5));
+  __ ldr(r2, MemOperand(sp, kPointerSize, PostIndex));
+  __ str(r2, MemOperand(r5, -kPointerSize, PreIndex));
   __ bind(&entry);
   __ cmpge(r4, r5);
   __ bf(&loop);
@@ -564,7 +553,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
     __ cmp(r4, Operand(JSValue::kSize >> kPointerSizeLog2));
     __ Assert(eq, "Unexpected string wrapper instance size");
     __ ldrb(r4, FieldMemOperand(map, Map::kUnusedPropertyFieldsOffset));
-    __ cmp(r4, Operand(0));
+    __ cmp(r4, Operand(0, RelocInfo::NONE));
     __ Assert(eq, "Unexpected unused properties of string wrapper");
   }
   __ str(map, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -745,14 +734,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
     __ mov(r5, r4);
     ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
-    __ str(r2, MemOperand(r5));
-    __ add(r5, r5, Operand(kPointerSize));
+    __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
     ASSERT_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
-    __ str(r6, MemOperand(r5));
-    __ add(r5, r5, Operand(kPointerSize));
+    __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
     ASSERT_EQ(2 * kPointerSize, JSObject::kElementsOffset);
-    __ str(r6, MemOperand(r5));
-    __ add(r5, r5, Operand(kPointerSize));
+    __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
 
     // Fill all the in-object properties with the appropriate filler.
     // r1: constructor function
@@ -772,8 +758,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
       __ b(&entry);
       __ bind(&loop);
-      __ str(r7, MemOperand(r5));
-      __ add(r5, r5, Operand(kPointerSize));
+      __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
       __ bind(&entry);
       __ cmpge(r5, r6);
       __ bf(&loop);
@@ -828,12 +813,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ LoadRoot(r6, Heap::kFixedArrayMapRootIndex);
     __ mov(r2, r5);
     ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
-    __ str(r6, MemOperand(r2));
-    __ add(r2, r2, Operand(kPointerSize));
+    __ str(r6, MemOperand(r2, kPointerSize, PostIndex));
     ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
     __ lsl(r0, r3, Operand(kSmiTagSize));
-    __ str(r0, MemOperand(r2));
-    __ add(r2, r2, Operand(kPointerSize));
+    __ str(r0, MemOperand(r2, kPointerSize, PostIndex));
 
     // Initialize the fields to undefined.
     // r1: constructor function
@@ -854,8 +837,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       }
       __ b(&entry);
       __ bind(&loop);
-      __ str(r7, MemOperand(r2));
-      __ add(r2, r2, Operand(kPointerSize));
+      __ str(r7, MemOperand(r2, kPointerSize, PostIndex));
       __ bind(&entry);
       __ cmpge(r2, r6);
       __ bf(&loop);
@@ -1060,8 +1042,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r2 points past last arg.
   __ b(&entry);
   __ bind(&loop);
-  __ ldr(r0, MemOperand(r4));     // read next parameter
-  __ add(r4, r4, Operand(kPointerSize));
+  __ ldr(r0, MemOperand(r4, kPointerSize, PostIndex));  // read next parameter
   __ ldr(r0, MemOperand(r0));  // dereference handle
   __ push(r0);  // push parameter
   __ bind(&entry);

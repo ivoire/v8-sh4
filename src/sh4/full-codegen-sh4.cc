@@ -3390,8 +3390,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
     __ Assert(eq, "No empty arrays here in EmitFastAsciiArrayJoin");
   }
   __ bind(&loop);
-  __ ldr(string, MemOperand(element));
-  __ add(element, element, Operand(kPointerSize));
+  __ ldr(string, MemOperand(element, kPointerSize, PostIndex));
   __ JumpIfSmi(string, &bailout);
   __ ldr(scratch1, FieldMemOperand(string, HeapObject::kMapOffset));
   __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
@@ -3481,8 +3480,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   //   elements_end: Array end.
 
   // Copy next array element to the result.
-  __ ldr(string, MemOperand(element));
-  __ add(element, element, Operand(kPointerSize));
+  __ ldr(string, MemOperand(element, kPointerSize, PostIndex));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
   __ add(string, string, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
@@ -3513,8 +3511,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
 
   // Copy next array element to the result.
   __ bind(&one_char_separator_loop_entry);
-  __ ldr(string, MemOperand(element));
-  __ add(element, element, Operand(kPointerSize));
+  __ ldr(string, MemOperand(element, kPointerSize, PostIndex));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
   __ add(string, string,
@@ -3543,8 +3540,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ CopyBytes(string, result_pos, string_length, scratch1);
 
   __ bind(&long_separator);
-  __ ldr(string, MemOperand(element));
-  __ add(element, element, Operand(kPointerSize));
+  __ ldr(string, MemOperand(element, kPointerSize, PostIndex));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
   __ add(string, string, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));

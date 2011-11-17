@@ -1073,8 +1073,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(r4, Operand(cache_keys));
   __ lsl(r5, r3, Operand(kPointerSizeLog2 + 1));
   __ add(r4, r4, r5);
-  __ ldr(r5, MemOperand(r4));  // Move r4 to symbol.
-  __ add(r4, r4, Operand(kPointerSize));
+  __ ldr(r5, MemOperand(r4, kPointerSize, PostIndex));  // Move r4 to symbol.
   __ cmpeq(r2, r5);
   __ bf(&slow);
   __ ldr(r5, MemOperand(r4));

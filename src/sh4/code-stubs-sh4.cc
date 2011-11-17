@@ -3786,8 +3786,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ sub(r2, r2, Operand(kPointerSize));
   __ ldr(r3, MemOperand(r2));
   // Post-increment r4 with kPointerSize on each iteration.
-  __ str(r3, MemOperand(r4, 0));
-  __ add(r4, r4, Operand(kPointerSize));
+  __ str(r3, MemOperand(r4, kPointerSize, PostIndex));
   __ sub(r1, r1, Operand(1));
   __ cmp(r1, Operand(0, RelocInfo::NONE));
   __ b(ne, &loop);

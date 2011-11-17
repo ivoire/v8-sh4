@@ -1604,8 +1604,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ add(end_elements, elements, ip);
       const int kEndElementsOffset =
           FixedArray::kHeaderSize - kHeapObjectTag - argc * kPointerSize;
-      __ add(end_elements, end_elements, Operand(kEndElementsOffset));
-      __ str(r4, MemOperand(end_elements));
+      __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
 
       // Check for a smi.
       __ JumpIfNotSmi(r4, &with_write_barrier);
@@ -3213,14 +3212,11 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
   __ mov(r5, r4);
   ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
-  __ str(r2, MemOperand(r5));
-  __ add(r5, r5, Operand(kPointerSize));
+  __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
   ASSERT_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
-  __ str(r6, MemOperand(r5));
-  __ add(r5, r5, Operand(kPointerSize));
+  __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
   ASSERT_EQ(2 * kPointerSize, JSObject::kElementsOffset);
-  __ str(r6, MemOperand(r5));
-  __ add(r5, r5, Operand(kPointerSize));
+  __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
 
   // Calculate the location of the first argument. The stack contains only the
   // argc arguments.
@@ -3246,20 +3242,17 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
       __ b(f, &not_passed);
       // Argument passed - find it on the stack.
       __ ldr(r2, MemOperand(r1, (arg_number + 1) * -kPointerSize));
-      __ str(r2, MemOperand(r5));
-      __ add(r5, r5, Operand(kPointerSize));
+      __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
       __ b(&next);
       __ bind(&not_passed);
       // Set the property to undefined.
-      __ str(r7, MemOperand(r5));
-      __ add(r5, r5, Operand(kPointerSize));
+      __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
       __ bind(&next);
     } else {
       // Set the property to the constant value.
       Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i));
       __ mov(r2, Operand(constant));
-      __ str(r2, MemOperand(r5));
-      __ add(r5, r5, Operand(kPointerSize));
+      __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
     }
   }
 
@@ -3268,8 +3261,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   for (int i = shared->this_property_assignments_count();
        i < function->initial_map()->inobject_properties();
        i++) {
-      __ str(r7, MemOperand(r5));
-      __ add(r5, r5, Operand(kPointerSize));
+      __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
   }
 
   // r0: argc
