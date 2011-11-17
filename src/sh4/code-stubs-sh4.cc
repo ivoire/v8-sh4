@@ -5637,9 +5637,10 @@ MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
   }
 
   const int spill_mask =
-      (lr.bit() | r6.bit() | r5.bit() | r4.bit() | r3.bit() |
+      (r6.bit() | r5.bit() | r4.bit() | r3.bit() |
        r2.bit() | r1.bit() | r0.bit());
 
+  __ push(pr);
   __ pushm(spill_mask);
   __ ldr(r0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ mov(r1, Operand(Handle<String>(name)));
@@ -5648,6 +5649,7 @@ MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
   if (result->IsFailure()) return result;
   __ tst(r0, r0);
   __ popm(spill_mask);
+  __ pop(pr);
 
   __ b(eq, done);
   __ b(ne, miss);
