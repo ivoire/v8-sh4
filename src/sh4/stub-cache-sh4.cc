@@ -3735,9 +3735,11 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       __ add(r3, r3, r4);
       // r3: effective address of the double element
       FloatingPointHelper::Destination destination;
-      if (CpuFeatures::IsSupported(VFP3)) {
-        destination = FloatingPointHelper::kVFPRegisters;
-      } else {
+      // TODO(stm): FPU
+      //if (CpuFeatures::IsSupported(VFP3)) {
+      //  destination = FloatingPointHelper::kVFPRegisters;
+      //} else
+      {
         destination = FloatingPointHelper::kCoreRegisters;
       }
       FloatingPointHelper::ConvertIntToDouble(
@@ -3883,7 +3885,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
         // If exponent is too big then result is minimal value.
         __ cmpge(r9, Operand(meaningfull_bits - 1));
-        __ mov(r5, Operand(min_value),ge);
+        __ mov(r5, Operand(min_value), eq);
         __ bt(&done);
 
         __ land(r7, r5, Operand(HeapNumber::kSignMask));
