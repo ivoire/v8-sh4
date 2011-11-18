@@ -158,6 +158,9 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
       ExternalReference::handle_scope_level_address(),
       next_address);
 
+  mov(r4, r0);
+  mov(r5, r1);
+
   // Allocate HandleScope in callee-save registers.
   mov(r11, Operand(next_address));
   ldr(r8, MemOperand(r11, kNextOffset), r0);
@@ -233,11 +236,13 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
+  mov(r8, r0);
   str(r5, MemOperand(r7, kLimitOffset));
   PrepareCallCFunction(1, r1);
   mov(r4, Operand(ExternalReference::isolate_address()));
   CallCFunction(
       ExternalReference::delete_handle_scope_extensions(isolate()), 1);
+  mov(r0, r8);
   jmp(&leave_exit_frame);
 
   return result;
