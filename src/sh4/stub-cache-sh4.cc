@@ -4239,9 +4239,12 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // scratch is now effective address of the double element
 
   FloatingPointHelper::Destination destination;
-  if (CpuFeatures::IsSupported(VFP3)) {
-    UNIMPLEMENTED();
-  } else {
+
+  // TODO(stm): FPU
+  // if (CpuFeatures::IsSupported(VFP3)) {
+  //  UNIMPLEMENTED();
+  // } else {
+  {
     destination = FloatingPointHelper::kCoreRegisters;
   }
 
