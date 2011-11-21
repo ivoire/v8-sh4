@@ -236,13 +236,11 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
-  mov(r8, r0);
-  str(r5, MemOperand(r7, kLimitOffset));
-  PrepareCallCFunction(1, r1);
+  str(r9, MemOperand(r7, kLimitOffset));
+  PrepareCallCFunction(1, r9);
   mov(r4, Operand(ExternalReference::isolate_address()));
   CallCFunction(
       ExternalReference::delete_handle_scope_extensions(isolate()), 1);
-  mov(r0, r8);
   jmp(&leave_exit_frame);
 
   return result;
