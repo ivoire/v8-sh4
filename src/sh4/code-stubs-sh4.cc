@@ -2446,7 +2446,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
         // Call the C function to handle the double operation.
         FloatingPointHelper::CallCCodeForDoubleOperation(
-            masm, op_, heap_number_result, scratch1);
+            masm, op_, heap_number_result, scratch2);
         if (FLAG_debug_code) {
           __ stop("Unreachable code.");
         }
