@@ -3434,7 +3434,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // } else
       {
         __ lsl(value, key, Operand(1));
-        __ ldr(value, MemOperand(r3, key));
+        __ ldr(value, MemOperand(r3, value));
       }
       break;
     case EXTERNAL_DOUBLE_ELEMENTS:
