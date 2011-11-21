@@ -3418,15 +3418,17 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ ldrb(value, MemOperand(r3, value));
       break;
     case EXTERNAL_SHORT_ELEMENTS:
-      __ ldrsh(value, MemOperand(r3, key));
+      __ lsl(value, key, Operand(0));
+      __ ldrsh(value, MemOperand(r3, value));
       break;
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      __ ldrh(value, MemOperand(r3, key));
+      __ lsl(value, key, Operand(0));
+      __ ldrh(value, MemOperand(r3, value));
       break;
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       __ lsl(value, key, Operand(1));
-      __ ldr(value, MemOperand(r3, key));
+      __ ldr(value, MemOperand(r3, value));
       break;
     case EXTERNAL_FLOAT_ELEMENTS:
       // TODO(stm): FPU
