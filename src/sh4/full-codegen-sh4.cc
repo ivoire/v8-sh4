@@ -1042,8 +1042,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Get the current entry of the array into register r3.
   __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ lsl(ip, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ ldr(r3, MemOperand(r2, ip));
+  __ lsl(r3, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r3, MemOperand(r2, r3));
 
   // Get the expected map from the stack or a zero map in the
   // permanent slow case into register r2.
@@ -3156,8 +3156,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ bf(&slow_case);
 
   // Bring the address of the elements into index1 and index2.
-  __ add(scratch1, elements,
-         Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ lsl(index1, index1, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ add(index1, scratch1, index1);
   __ lsl(index2, index2, Operand(kPointerSizeLog2 - kSmiTagSize));
@@ -3513,8 +3512,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ ldr(string, MemOperand(element, kPointerSize, PostIndex));
   __ ldr(string_length, FieldMemOperand(string, String::kLengthOffset));
   __ SmiUntag(string_length);
-  __ add(string, string,
-         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(string, string, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   __ CopyBytes(string, result_pos, string_length, scratch1);
   __ cmpge(element, elements_end);
   __ bf(&one_char_separator_loop);  // End while (element < elements_end).
