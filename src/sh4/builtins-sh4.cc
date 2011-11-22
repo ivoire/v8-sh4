@@ -1249,7 +1249,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
     __ CompareObjectType(r2, r3, r3, FIRST_SPEC_OBJECT_TYPE, ge);
-    __ bf(&convert_to_object);
+    __ bt(&shift_arguments);
 
     __ bind(&convert_to_object);
     __ EnterInternalFrame();  // In order to preserve argument count.
