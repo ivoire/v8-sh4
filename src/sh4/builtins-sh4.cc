@@ -1604,14 +1604,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r1: function
     // r2: expected number of arguments
     // r3: code entry to call
-    __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
     __ lsl(r2, r2, Operand(kPointerSizeLog2));
     __ sub(r2, fp, r2);
     __ sub(r2, r2, Operand(4 * kPointerSize));  // Adjust for frame.
 
     NearLabel fill;
     __ bind(&fill);
-    __ push(r4);        // kept from the previous load
+    __ push(ip);
     __ cmp(sp, r2);
     __ b(ne, &fill);
   }
