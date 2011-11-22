@@ -277,10 +277,10 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_storage: elements array element storage
   // array_size: smi-tagged size of elements array
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ lsl(scratch1, array_size, Operand(kPointerSizeLog2 - kSmiTagSize));
+  __ lsl(elements_array_end, array_size, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ add(elements_array_end,
          elements_array_storage,
-         scratch1);
+         elements_array_end);
 
   // Fill the allocated FixedArray with the hole value if requested.
   // result: JSObject
@@ -824,8 +824,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r3: number of elements in properties array
     // r4: JSObject
     // r5: FixedArray (not tagged)
-    __ lsl(ip, r3, Operand(kPointerSizeLog2));
-    __ add(r6, r2, ip);  // End of object.
+    __ lsl(r6, r3, Operand(kPointerSizeLog2));
+    __ add(r6, r2, r6);  // End of object.
     ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
     { NearLabel loop, entry;
       if (count_constructions) {
@@ -1037,8 +1037,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r3: argc
   // r4: argv, i.e. points to first arg
   NearLabel loop, entry;
-  __ lsl(r5, r3, Operand(kPointerSizeLog2));
-  __ add(r2, r4, r5);
+  __ lsl(r2, r3, Operand(kPointerSizeLog2));
+  __ add(r2, r4, r2);
   // r2 points past last arg.
   __ b(&entry);
   __ bind(&loop);
@@ -1206,8 +1206,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //    if it is a function.
   // r0: actual number of arguments
   Label non_function;
-  __ lsl(ip, r0, Operand(kPointerSizeLog2));
-  __ mov(r1, MemOperand(sp, ip));
+  __ lsl(r1, r0, Operand(kPointerSizeLog2));
+  __ ldr(r1, MemOperand(sp, r1));
   __ JumpIfSmi(r1, &non_function);
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
   __ b(ne, &non_function);
@@ -1232,8 +1232,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ b(ne, &shift_arguments);
 
     // Compute the receiver in non-strict mode.
-    __ lsl(ip, r0, Operand(kPointerSizeLog2));
-    __ add(r2, sp, ip);
+    __ lsl(r2, r0, Operand(kPointerSizeLog2));
+    __ add(r2, sp, r2);
     __ ldr(r2, MemOperand(r2, -kPointerSize));
     // r0: actual number of arguments
     // r1: function
