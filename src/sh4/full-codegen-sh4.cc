@@ -263,10 +263,8 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     ArgumentsAccessStub stub(type);
     __ CallStub(&stub);
 
-
     SetVar(arguments, r0, r1, r2);
   }
-
 
   if (FLAG_trace) {
     __ CallRuntime(Runtime::kTraceEnter, 0);
@@ -936,7 +934,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label convert;
   NearLabel done_convert;
   __ JumpIfSmi(r0, &convert);
-  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, hs);
+  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge);
   __ bt(&done_convert);
   __ bind(&convert);
   __ push(r0);
@@ -2457,6 +2455,7 @@ void FullCodeGenerator::EmitIsUndetectableObject(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
     ZoneList<Expression*>* args) {
+
   ASSERT(args->length() == 1);
 
   VisitForAccumulatorValue(args->at(0));
@@ -3992,9 +3991,9 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
       __ b(eq, if_true);
     }
     // Check for JS objects => true.
-    __ CompareObjectType(r0, r0, r1, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, hs);
+    __ CompareObjectType(r0, r0, r1, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, ge);
     __ bf(if_false);
-    __ CompareInstanceType(r0, r1, LAST_NONCALLABLE_SPEC_OBJECT_TYPE, hs);
+    __ CompareInstanceType(r0, r1, LAST_NONCALLABLE_SPEC_OBJECT_TYPE, gt);
     __ bt(if_false);
     // Check for undetectable objects => false.
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
