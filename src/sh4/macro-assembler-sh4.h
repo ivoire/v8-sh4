@@ -901,7 +901,8 @@ class MacroAssembler: public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cond, const char* msg);
 
-  void AssertRegisterIsRoot(Register reg, Heap::RootListIndex index);
+  void AssertRegisterIsRoot(Register reg, Register scratch,
+                            Heap::RootListIndex index);
   void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.

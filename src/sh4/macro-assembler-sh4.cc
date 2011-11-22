@@ -1643,12 +1643,12 @@ void MacroAssembler::Assert(Condition cond, const char* msg) {
 }
 
 
-void MacroAssembler::AssertRegisterIsRoot(Register reg,
+void MacroAssembler::AssertRegisterIsRoot(Register reg, Register scratch,
                                           Heap::RootListIndex index) {
-  ASSERT(!reg.is(r3));
+  ASSERT(!reg.is(scratch));
   if (emit_debug_code()) {
-    LoadRoot(r3, index);
-    cmp(reg, r3);
+    LoadRoot(scratch, index);
+    cmp(reg, scratch);
     Check(eq, "Register did not match expected root");
   }
 }
@@ -2099,7 +2099,7 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 
   // Store heap number map in the allocated object.
   RECORD_LINE();
-  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  AssertRegisterIsRoot(heap_number_map, scratch1, Heap::kHeapNumberMapRootIndex);
   RECORD_LINE();
   str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
 }
@@ -2756,8 +2756,8 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
                                          Register scratch,
                                          Label* on_not_heap_number) {
   RECORD_LINE();
+  AssertRegisterIsRoot(heap_number_map, scratch, Heap::kHeapNumberMapRootIndex);
   ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   cmp(scratch, heap_number_map);
   b(ne, on_not_heap_number);
 }
