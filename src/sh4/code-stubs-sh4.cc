@@ -5609,8 +5609,8 @@ MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
     // Having undefined at this place means the name is not contained.
     ASSERT_EQ(kSmiTagSize, 1);
     Register tmp = properties;
-    __ lsl(tmp, index, Operand(1));
-    __ add(tmp, properties, tmp);
+    __ lsl(entity_name, index, Operand(1)); /* use entity_name as scratch (defined just after) */
+    __ add(tmp, properties, entity_name);
     __ ldr(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
 
     ASSERT(!tmp.is(entity_name));
