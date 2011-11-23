@@ -195,6 +195,14 @@ void V8::InitializeOncePerProcess() {
   if (init_once_called) return;
   init_once_called = true;
 
+#ifdef DEBUG
+  // Get flags from environment.
+  const char *flags = getenv("V8_FLAGS");
+  if (flags != NULL) {
+    FlagList::SetFlagsFromString(flags, strlen(flags));
+  }
+#endif
+
   // Setup the platform OS support.
   OS::Setup();
 
