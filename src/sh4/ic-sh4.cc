@@ -1101,8 +1101,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ sub(r1, r1, Operand(kHeapObjectTag));  // Remove the heap tag.
   __ lsl(r0, r6, Operand(kPointerSizeLog2));
   __ ldr(r0, MemOperand(r1, r0));
-  __ lsl(r6, r6, Operand(kPointerSizeLog2));
-  __ ldr(r0, MemOperand(r1, r6));
   __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(),
                       1, r2, r3);
   __ Ret();
@@ -1111,8 +1109,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&property_array_property);
   __ ldr(r1, FieldMemOperand(r1, JSObject::kPropertiesOffset));
   __ add(r1, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ lsl(r5, r5, Operand(kPointerSizeLog2));
-  __ ldr(r0, MemOperand(r1, r5));
+  __ lsl(r0, r5, Operand(kPointerSizeLog2));
+  __ ldr(r0, MemOperand(r1, r0));
   __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(),
                       1, r2, r3);
   __ Ret();
@@ -1296,8 +1294,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ldr(r4, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
-  __ ldrb(r5, FieldMemOperand(r4, Map::kBitFieldOffset));
-  __ tst(r5, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ ldrb(ip, FieldMemOperand(r4, Map::kBitFieldOffset));
+  __ tst(ip, Operand(1 << Map::kIsAccessCheckNeeded));
   __ bf(&slow);
   // Check if the object is a JS array or not.
   __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
@@ -1322,7 +1320,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ cmphs(key, ip);
   __ bf(&fast);
-
 
   // Slow case, handle jump to runtime.
   __ bind(&slow);
