@@ -102,18 +102,18 @@ static void TraceInterpreter(const byte* code_base,
            printable ? current_char : '.',
            bytecode_name);
     for (int i = 0; i < bytecode_length; i++) {
-      printf(", %02x", pc[i]);
+      PrintF(", %02x", pc[i]);
     }
-    printf(" ");
+    PrintF(" ");
     for (int i = 1; i < bytecode_length; i++) {
       unsigned char b = pc[i];
       if (b < 127 && b >= 32) {
-        printf("%c", b);
+        PrintF("%c", b);
       } else {
-        printf(".");
+        PrintF(".");
       }
     }
-    printf("\n");
+    PrintF("\n");
   }
 }
 

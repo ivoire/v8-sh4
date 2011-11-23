@@ -883,9 +883,9 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d->InstructionDecode(buffer, pc);
-    fprintf(f, "%p    %02x %02x      %s\n",
-            prev_pc, *reinterpret_cast<const uint8_t*>(prev_pc),
-            *reinterpret_cast<const uint8_t*>(prev_pc+1), buffer.start());
+    v8::internal::OS::FPrint(f, "%p    %02x %02x      %s\n",
+           prev_pc, *reinterpret_cast<const uint8_t*>(prev_pc),
+           *reinterpret_cast<const uint8_t*>(prev_pc+1), buffer.start());
   }
   delete d;
 }
