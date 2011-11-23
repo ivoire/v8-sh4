@@ -58,6 +58,54 @@
 namespace v8 {
 namespace internal {
 
+#ifdef DEBUG
+class OutStream {
+public:
+  OutStream(const char *envname, FILE* fstream);
+  ~OutStream();
+  operator FILE* () { return out; }
+private:
+  FILE* out;
+  FILE* defstream;
+};
+
+OutStream::OutStream(const char *envname, FILE* defstream) {
+  const char *v8log = getenv(envname);
+  const char *mode = "w";
+  this->defstream = defstream;
+  if (v8log) {
+    if (v8log[0] == '+') {
+      mode = "a";
+      v8log++;
+    }
+    if (strcmp(v8log, "stdout") == 0) {
+      out = stdout;
+    } else if (strcmp(v8log, "stderr") == 0) {
+      out = stderr;
+    } else {
+      out = fopen(v8log, mode);
+    }
+  } else {
+    out = defstream;
+  }
+}
+OutStream::~OutStream() {
+  if (out != stdout && out != stderr && out != defstream) fclose(out);
+}
+
+OutStream stdoutstream("V8_OUT", stdout);
+OutStream stderrstream("V8_ERR", stderr);
+
+static FILE* mapstream(FILE* stream) {
+  if (stream == stdout) {
+    return stdoutstream;
+  } else if (stream == stderr) {
+    return stderrstream;
+  }
+}
+#else /* !DEBUG */
+#define mapstream(stream) (stream)
+#endif
 
 // Maximum size of the virtual memory.  0 means there is no artificial
 // limit.
@@ -173,7 +221,7 @@ const char* const OS::LogFileOpenMode = "w";
 
 
 void OS::Flush(FILE* out) {
-  fflush(out);
+  fflush(mapstream(out));
 }
 
 void OS::Print(const char* format, ...) {
@@ -188,7 +236,7 @@ void OS::VPrint(const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   LOG_PRI_VA(ANDROID_LOG_INFO, LOG_TAG, format, args);
 #else
-  vprintf(format, args);
+  vfprintf(mapstream(stdout), format, args);
 #endif
 }
 
@@ -205,7 +253,7 @@ void OS::VFPrint(FILE* out, const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   LOG_PRI_VA(ANDROID_LOG_INFO, LOG_TAG, format, args);
 #else
-  vfprintf(out, format, args);
+  vfprintf(mapstream(out), format, args);
 #endif
 }
 
@@ -222,7 +270,7 @@ void OS::VPrintError(const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
   LOG_PRI_VA(ANDROID_LOG_ERROR, LOG_TAG, format, args);
 #else
-  vfprintf(stderr, format, args);
+  vfprintf(mapstream(stderr), format, args);
 #endif
 }
 
