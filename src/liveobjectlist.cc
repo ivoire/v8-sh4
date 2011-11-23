@@ -2538,7 +2538,7 @@ void LiveObjectList::Verify(bool match_heap_exactly) {
     // Show some sign of life.
     if (number_of_heap_objects % 1000 == 0) {
       OS::Print(".");
-      fflush(stdout);
+      OS::Flush(stdout);
     }
   }
   OS::Print("\n");

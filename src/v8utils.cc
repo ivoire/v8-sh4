@@ -54,7 +54,7 @@ void PrintF(FILE* out, const char* format, ...) {
 
 
 void Flush(FILE* out) {
-  fflush(out);
+  OS::Flush(out);
 }
 
 

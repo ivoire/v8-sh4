@@ -694,6 +694,11 @@ FILE* OS::OpenTemporaryFile() {
 const char* const OS::LogFileOpenMode = "wb";
 
 
+void OS::Flush(FILE* out) {
+  fflush(out);
+}
+
+
 // Print (debug) message to console.
 void OS::Print(const char* format, ...) {
   va_list args;

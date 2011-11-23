@@ -115,6 +115,12 @@ double OS::LocalTimeOffset() {
 }
 
 
+// Flush the out stream.
+void OS::Flush(FILE* out) {
+  UNIMPLEMENTED();
+}
+
+
 // Print (debug) message to console.
 void OS::Print(const char* format, ...) {
   UNIMPLEMENTED();

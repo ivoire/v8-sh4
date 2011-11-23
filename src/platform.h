@@ -148,6 +148,9 @@ class OS {
   // Log file open mode is platform-dependent due to line ends issues.
   static const char* const LogFileOpenMode;
 
+  // Flush output streams.
+  static void Flush(FILE* out);
+
   // Print output to console. This is mostly used for debugging output.
   // On platforms that has standard terminal output, the output
   // should go to stdout.

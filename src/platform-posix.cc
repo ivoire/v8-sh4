@@ -172,6 +172,10 @@ FILE* OS::OpenTemporaryFile() {
 const char* const OS::LogFileOpenMode = "w";
 
 
+void OS::Flush(FILE* out) {
+  fflush(out);
+}
+
 void OS::Print(const char* format, ...) {
   va_list args;
   va_start(args, format);
