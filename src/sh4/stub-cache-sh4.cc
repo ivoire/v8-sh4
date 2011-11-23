@@ -1634,8 +1634,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       const int kAllocationDelta = 4;
       // Load top and check if it is the end of elements.
-      __ lsl(r7, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
-      __ add(end_elements, elements, r7);
+      __ lsl(end_elements, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
+      __ add(end_elements, elements, end_elements);
       __ add(end_elements, end_elements, Operand(kEndElementsOffset));
       __ mov(r7, Operand(new_space_allocation_top));
       __ ldr(r6, MemOperand(r7));
@@ -3310,8 +3310,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   Register receiver = r1;
 
   __ JumpIfNotSmi(key, &miss_force_generic);
-  __ asr(r4, key, Operand(kSmiTagSize));
-  __ mov(r2, r4);
+  __ asr(r2, key, Operand(kSmiTagSize));
   __ ldr(r4, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ LoadFromNumberDictionary(&slow, r4, key, r0, r2, r3, r5);
   __ Ret();
@@ -3846,14 +3845,14 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ land(r7, r5, Operand(HeapNumber::kSignMask));
         __ land(r5, r5, Operand(HeapNumber::kMantissaMask));
         __ orr(r9, r9, r7);
-        __ lsl(ip, r5, Operand(kMantissaInHiWordShift));
-        __ orr(r9, r9, ip);
-        __ lsr(ip, r6, Operand(kMantissaInLoWordShift));
-        __ orr(r5, r9, ip);
+        __ lsl(r5, r5, Operand(kMantissaInHiWordShift));
+        __ orr(r9, r9, r5);
+        __ lsr(r5, r6, Operand(kMantissaInLoWordShift));
+        __ orr(r5, r9, r5);
         __ b(&done);
       } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-        __ lsl(ip, key, Operand(2));
-        __ add(r7, r3, ip);
+        __ lsl(r7, key, Operand(2));
+        __ add(r7, r3, r7);
         // r7: effective address of destination element.
         __ str(r6, MemOperand(r7, 0));
         __ str(r5, MemOperand(r7, Register::kSizeInBytes));
@@ -3998,8 +3997,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // Load the result and make sure it's not the hole.
   __ add(r3, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ lsl(ip, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ ldr(r4, MemOperand(r3, ip));
+  __ lsl(r4, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r4, MemOperand(r3, r4));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
   __ cmp(r4, ip);
   __ b(eq, &miss_force_generic);
@@ -4281,4 +4280,4 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_SH4
