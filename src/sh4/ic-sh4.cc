@@ -339,7 +339,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   // Fast case: Do the load.
   __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   // The key is a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   __ lsl(scratch2, key, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ ldr(scratch2, MemOperand(scratch1, scratch2));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
@@ -1334,6 +1334,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // element to the array by writing to array[array.length].
   __ bind(&extra);
   // Condition code from comparing key and array length is still available.
+  __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ cmpeq(key, ip);
   __ bf(&slow);  // Only support writing to writing to array[array.length].
   // Check for room in the elements backing store.
   // Both the key and the length of FixedArray are smis.
