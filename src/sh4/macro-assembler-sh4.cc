@@ -49,6 +49,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register scratch,
                                              Label* miss) {
   ASSERT(!function.is(sh4_ip) && !result.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!function.is(sh4_rtmp) && !result.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
 
   RECORD_LINE();
   // Check that the receiver isn't a smi.
@@ -267,6 +268,8 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     Label *not_int32) {
   ASSERT(!source.is(sh4_ip) && !dest.is(sh4_ip) && !scratch.is(sh4_ip) &&
          !scratch2.is(sh4_ip));
+  ASSERT(!source.is(sh4_rtmp) && !dest.is(sh4_rtmp) && !scratch.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
   ASSERT(!source.is(dest));
 
   // TODO(stm): FPU
@@ -437,6 +440,7 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   // the low kHashShift bits.
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT(!hash.is(sh4_ip) && !index.is(sh4_ip));
+  ASSERT(!hash.is(sh4_rtmp) && !index.is(sh4_rtmp));
   RECORD_LINE();
   Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
   lsl(index, hash, Operand(kSmiTagSize));
@@ -518,6 +522,7 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
   ASSERT(!dst.is(sh4_ip) && !src.is(sh4_ip));
+  ASSERT(!dst.is(sh4_rtmp) && !src.is(sh4_rtmp));
   Ubfx(dst, src, kSmiTagSize, num_least_bits);
 }
 
@@ -526,6 +531,7 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst,
                                            Register src,
                                            int num_least_bits) {
   ASSERT(!dst.is(sh4_ip) && !src.is(sh4_ip));
+  ASSERT(!dst.is(sh4_rtmp) && !src.is(sh4_rtmp));
   land(dst, src, Operand((1 << num_least_bits) - 1));
 }
 
@@ -571,6 +577,7 @@ void MacroAssembler::IsObjectJSStringType(Register object,
                                           Label* fail) {
   ASSERT(kNotStringTag != 0);
   ASSERT(!object.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!object.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
 
   ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
   ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
@@ -700,6 +707,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space, Register
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
   ASSERT(!argument_count.is(sh4_ip));
+  ASSERT(!argument_count.is(sh4_rtmp));
   // input: argument_count
   // r0, r1: results must be preserved
   // sp: stack pointer
@@ -758,6 +766,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
   ASSERT(!code_reg.is(sh4_ip));
+  ASSERT(!code_reg.is(sh4_rtmp));
   bool definitely_matches = false;
   NearLabel regular_invoke;
 
@@ -839,6 +848,7 @@ void MacroAssembler::InvokeCode(Register code,
   // actual: must be r0 if register
   ASSERT(actual.is_immediate() || actual.reg().is(r0));
   ASSERT(!code.is(sh4_ip));
+  ASSERT(!code.is(sh4_rtmp));
 
   RECORD_LINE();
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
@@ -1029,6 +1039,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           int num_double_arguments,
                                           Register scratch) {
   ASSERT(!scratch.is(sh4_ip));
+  ASSERT(!scratch.is(sh4_rtmp));
   ASSERT(!scratch.is(r4) && !scratch.is(r5) && !scratch.is(r6) &&
          !scratch.is(r7));
   int frame_alignment = OS::ActivationFrameAlignment();
@@ -1066,6 +1077,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
   ASSERT(!function.is(sh4_ip));
+  ASSERT(!function.is(sh4_rtmp));
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
@@ -1168,6 +1180,7 @@ void MacroAssembler::PopTryHandler() {
 
 void MacroAssembler::Throw(Register value) {
   ASSERT(!value.is(sh4_ip));
+  ASSERT(!value.is(sh4_rtmp));
 
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
@@ -1217,6 +1230,7 @@ void MacroAssembler::Throw(Register value) {
 void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
                                       Register value) {
   ASSERT(!value.is(sh4_ip));
+  ASSERT(!value.is(sh4_rtmp));
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
@@ -1497,6 +1511,7 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
   ASSERT_EQ(0, dst1.code() % 2);
   ASSERT_EQ(dst1.code() + 1, dst2.code());
   ASSERT(!dst1.is(sh4_ip) && !dst2.is(sh4_ip));
+  ASSERT(!dst1.is(sh4_rtmp) && !dst2.is(sh4_rtmp));
 
   // Generate two ldr instructions if ldrd is not available.
   //  if (CpuFeatures::IsSupported(ARMv7)) {
@@ -1523,6 +1538,7 @@ void MacroAssembler::Strd(Register src1, Register src2,
   ASSERT_EQ(0, src1.code() % 2);
   ASSERT_EQ(src1.code() + 1, src2.code());
   ASSERT(!src1.is(sh4_ip) && !src2.is(sh4_ip));
+  ASSERT(!src1.is(sh4_rtmp) && !src2.is(sh4_rtmp));
 
   // Generate two str instructions if strd is not available.
   //  if (CpuFeatures::IsSupported(ARMv7)) {
@@ -1570,6 +1586,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
 void MacroAssembler::GetBuiltinFunction(Register target,
                                         Builtins::JavaScript id) {
   ASSERT(!target.is(sh4_ip));
+  ASSERT(!target.is(sh4_rtmp));
   RECORD_LINE();
   // Load the builtins object into target register.
   ldr(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
@@ -1582,7 +1599,9 @@ void MacroAssembler::GetBuiltinFunction(Register target,
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   // FIXME(stm): why r1 ??
-  ASSERT(!target.is(r1) && !target.is(sh4_ip));
+  ASSERT(!target.is(r1));
+  ASSERT(!target.is(sh4_rtmp));
+  ASSERT(!target.is(sh4_ip));
   RECORD_LINE();
   GetBuiltinFunction(r1, id);
   RECORD_LINE();
@@ -1594,8 +1613,9 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
   RECORD_LINE();
-  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) &&
-         !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(scratch2));
+  ASSERT(!scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
     mov(scratch1, Operand(value));
@@ -1608,8 +1628,9 @@ void MacroAssembler::SetCounter(StatsCounter* counter, int value,
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value > 0);
-  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) &&
-         !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(scratch2));
+  ASSERT(!scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
@@ -1624,8 +1645,10 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
 void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   ASSERT(value > 0);
-  ASSERT(!scratch1.is(scratch2) && !scratch1.is(sh4_rtmp) &&
-         !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(scratch2));
+  ASSERT(!scratch1.is(sh4_rtmp) && !scratch2.is(sh4_rtmp));
+  ASSERT(!scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
+
   RECORD_LINE();
   if (FLAG_native_code_counters && counter->Enabled()) {
     RECORD_LINE();
@@ -1657,6 +1680,7 @@ void MacroAssembler::AssertRegisterIsRoot(Register reg, Register scratch,
 void MacroAssembler::AssertFastElements(Register elements) {
   RECORD_LINE();
   if (emit_debug_code()) {
+    ASSERT(!elements.is(sh4_rtmp));
     ASSERT(!elements.is(sh4_ip));
     NearLabel ok;
     RECORD_LINE();
@@ -1745,7 +1769,8 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // them are ip. ip is used explicitly in the code generated below.
   ASSERT(!result.is(scratch1) && !result.is(scratch2) &&
          !scratch1.is(scratch2));
-  ASSERT(!result.is(sh4_ip) && !scratch1.is(sh4_ip) && !scratch2.is(sh4_ip));
+  ASSERT(!result.is(sh4_ip) && !scratch1.is(sh4_ip) &&
+	 !scratch2.is(sh4_ip));
   ASSERT(!result.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
          !scratch2.is(sh4_rtmp));
 
@@ -1844,12 +1869,16 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
 
   // Assert that the register arguments are different and that none of
   // them are ip. ip is used explicitly in the code generated below.
+  // Also assert that rtmp is not used as it is used in assembler-sh4.cc.
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
   ASSERT(!result.is(sh4_ip));
   ASSERT(!scratch1.is(sh4_ip));
   ASSERT(!scratch2.is(sh4_ip));
+  ASSERT(!result.is(sh4_rtmp));
+  ASSERT(!scratch1.is(sh4_rtmp));
+  ASSERT(!scratch2.is(sh4_rtmp));
 
   // Check relative positions of allocation top and limit addresses.
   // The values must be adjacent in memory to allow the use of LDM.
@@ -2179,6 +2208,9 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   ASSERT(!scratch.is(sh4_rtmp));
   ASSERT(!source.is(sh4_rtmp));
   ASSERT(!zeros.is(sh4_rtmp));
+  ASSERT(!scratch.is(sh4_ip));
+  ASSERT(!source.is(sh4_ip));
+  ASSERT(!zeros.is(sh4_ip));
   RECORD_LINE();
 
   NearLabel l0, l1, l2, l3, l4, l5;
@@ -2360,6 +2392,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 
 
 void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
+  ASSERT(!dst.is(sh4_rtmp) && !src.is(sh4_rtmp));
   ASSERT(!dst.is(sh4_ip) && !src.is(sh4_ip));
   ASSERT(lsb >= 0 && lsb < 32);
   ASSERT(width > 0 && width <= 32);
@@ -2377,6 +2410,7 @@ void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
 
 
 void MacroAssembler::Bfc(Register dst, int lsb, int width) {
+  ASSERT(!dst.is(sh4_rtmp));
   ASSERT(!dst.is(sh4_ip));
   ASSERT(lsb >= 0 && lsb < 32);
   ASSERT(width > 0 && width <= 32);
@@ -2408,6 +2442,7 @@ void MacroAssembler::InNewSpace(Register object,
                                 Condition cond,
                                 Label* branch) {
   ASSERT(!object.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!object.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   ASSERT(cond == eq || cond == ne);
   RECORD_LINE();
   land(scratch, object,
@@ -2422,6 +2457,7 @@ void MacroAssembler::RecordWriteHelper(Register object,
                                        Register address,
                                        Register scratch) {
   ASSERT(!object.is(sh4_ip) && !address.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!object.is(sh4_rtmp) && !address.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   RECORD_LINE();
   if (emit_debug_code()) {
     // Check that the object is not in new space.
@@ -2460,7 +2496,9 @@ void MacroAssembler::RecordWrite(Register object,
   // context register, so we check that none of the clobbered
   // registers are cp.
   ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
-  // Also check that the scratch are not sh4_ip (super scratch).
+  // Also check that the scratch are not sh4_rtmp (super scratch).
+  ASSERT(!object.is(sh4_rtmp) && !scratch0.is(sh4_rtmp) && !scratch1.is(sh4_rtmp));
+  // Also check that the scratch are not sh4_ip (used in macro-assembler-sh4.cc).
   ASSERT(!object.is(sh4_ip) && !scratch0.is(sh4_ip) && !scratch1.is(sh4_ip));
 
   Label done;
@@ -2501,7 +2539,9 @@ void MacroAssembler::RecordWrite(Register object,
   // context register, so we check that none of the clobbered
   // registers are cp.
   ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
-  // Also check that the scratch are not sh4_ip (super scratch).
+  // Also check that the scratch are not sh4_rtmp (super scratch).
+  ASSERT(!object.is(sh4_rtmp) && !scratch0.is(sh4_rtmp) && !scratch1.is(sh4_rtmp));
+  // Also check that the scratch are not sh4_ip (used in macro-assembler-sh4.cc).
   ASSERT(!object.is(sh4_ip) && !scratch0.is(sh4_ip) && !scratch1.is(sh4_ip));
 
   Label done;
@@ -2538,7 +2578,9 @@ void MacroAssembler::RecordWrite(Register object,
   // context register, so we check that none of the clobbered
   // registers are cp.
   ASSERT(!object.is(cp) && !address.is(cp) && !scratch.is(cp));
-  // Also check that the scratch are not sh4_ip (super scratch).
+  // Also check that the scratch are not sh4_rtmp (super scratch).
+  ASSERT(!object.is(sh4_rtmp) && !address.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
+  // Also check that the scratch are not sh4_ip (used in macro-assembler-sh4.cc).
   ASSERT(!object.is(sh4_ip) && !address.is(sh4_ip) && !scratch.is(sh4_ip));
 
   Label done;
@@ -2565,10 +2607,11 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-// Clobbers: sh4_ip, dst
+// Clobbers: sh4_rtmp, dst
 // live-in: cp
 // live-out: cp, dst
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
+  ASSERT(!dst.is(sh4_rtmp));
   ASSERT(!dst.is(sh4_ip));
   RECORD_LINE();
   if (context_chain_length > 0) {
@@ -2603,6 +2646,8 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
 void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
                                                   Register map,
                                                   Register scratch) {
+  ASSERT(!scratch.is(sh4_ip));
+  ASSERT(!scratch.is(sh4_rtmp));
   // Load the initial map. The global functions all have initial maps.
   ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
@@ -2622,6 +2667,7 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
     Register scratch,
     Label* not_power_of_two_or_zero) {
   ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!reg.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   RECORD_LINE();
   // Note: actually the case 0x80000000 is considered a power of two
   // (not a neg value)
@@ -2639,6 +2685,7 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
     Label* zero_and_neg,
     Label* not_power_of_two) {
   ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!reg.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   RECORD_LINE();
   // Note: actually the case 0x80000000 is considered a pozer of two
   // (not a neg value)
@@ -2654,6 +2701,7 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi) {
   ASSERT(!reg1.is(sh4_ip) && !reg2.is(sh4_ip));
+  ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
   STATIC_ASSERT(kSmiTag == 0);
   RECORD_LINE();
   tst(reg1, Operand(kSmiTagMask));
@@ -2667,6 +2715,7 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
                                      Register reg2,
                                      Label* on_either_smi) {
   ASSERT(!reg1.is(sh4_ip) && !reg2.is(sh4_ip));
+  ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
   STATIC_ASSERT(kSmiTag == 0);
   RECORD_LINE();
   tst(reg1, Operand(kSmiTagMask));
@@ -2679,6 +2728,7 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 void MacroAssembler::AbortIfSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT(!object.is(sh4_ip));
+  ASSERT(!object.is(sh4_rtmp));
 
   tst(object, Operand(kSmiTagMask));
   Assert(ne, "Operand is a smi");
@@ -2688,6 +2738,7 @@ void MacroAssembler::AbortIfSmi(Register object) {
 void MacroAssembler::AbortIfNotSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT(!object.is(sh4_ip));
+  ASSERT(!object.is(sh4_rtmp));
 
   tst(object, Operand(kSmiTagMask));
   Assert(eq, "Operand is not smi");
@@ -2697,6 +2748,7 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
 void MacroAssembler::AbortIfNotString(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT(!object.is(sh4_ip));
+  ASSERT(!object.is(sh4_rtmp));
 
   tst(object, Operand(kSmiTagMask));
   Assert(ne, "Operand is not a string");
@@ -2712,6 +2764,8 @@ void MacroAssembler::AbortIfNotString(Register object) {
 void MacroAssembler::AbortIfNotRootValue(Register src,
                                          Heap::RootListIndex root_value_index,
                                          const char* message) {
+  ASSERT(!src.is(sh4_ip));
+  ASSERT(!src.is(sh4_rtmp));
   CompareRoot(src, root_value_index);
   Assert(eq, message);
 }
@@ -2719,6 +2773,7 @@ void MacroAssembler::AbortIfNotRootValue(Register src,
 
 void MacroAssembler::PrintRegisterValue(Register reg) {
   ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
+  ASSERT(!reg.is(sh4_rtmp));
   Label gc_required, skip, not_smi;
   RECORD_LINE();
   EnterInternalFrame();
@@ -2756,6 +2811,8 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
                                          Register scratch,
                                          Label* on_not_heap_number) {
   RECORD_LINE();
+  ASSERT(!scratch.is(sh4_ip));
+  ASSERT(!scratch.is(sh4_rtmp));
   AssertRegisterIsRoot(heap_number_map, scratch, Heap::kHeapNumberMapRootIndex);
   ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
   cmp(scratch, heap_number_map);
@@ -2772,6 +2829,8 @@ void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
 
   ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
          !scratch2.is(sh4_ip));
+  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
   RECORD_LINE();
   // Test that both first and second are sequential ASCII strings.
   // Assume that they are non-smis.
@@ -2795,6 +2854,8 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                                          Label* failure) {
   ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
          !scratch2.is(sh4_ip));
+  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
   RECORD_LINE();
   // Check that neither is a smi.
   STATIC_ASSERT(kSmiTag == 0);
@@ -2817,6 +2878,8 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
     Label* failure) {
   ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
          !scratch2.is(sh4_ip));
+  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
 
   int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
@@ -2836,6 +2899,7 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
                                                             Register scratch,
                                                             Label* failure) {
   ASSERT(!type.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!type.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
 
   int kFlatAsciiStringMask =
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
@@ -2893,6 +2957,7 @@ void MacroAssembler::CompareObjectType(Register object,
                                        InstanceType type,
                                        Condition cond) {
   ASSERT(!object.is(sh4_ip) && !map.is(sh4_ip) && !type_reg.is(sh4_ip));
+  ASSERT(!object.is(sh4_rtmp) && !map.is(sh4_rtmp) && !type_reg.is(sh4_rtmp));
 
   RECORD_LINE();
   ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
@@ -2905,6 +2970,7 @@ void MacroAssembler::CompareInstanceType(Register map,
                                          InstanceType type,
                                          Condition cond) {
   ASSERT(!map.is(sh4_ip) && !type_reg.is(sh4_ip));
+  ASSERT(!map.is(sh4_rtmp) && !type_reg.is(sh4_rtmp));
 
   RECORD_LINE();
   ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
@@ -2934,6 +3000,7 @@ void MacroAssembler::CompareInstanceType(Register map,
 void MacroAssembler::CompareRoot(Register obj,
                                  Heap::RootListIndex index) {
   ASSERT(!obj.is(sh4_ip));
+  ASSERT(!obj.is(sh4_rtmp));
   RECORD_LINE();
   LoadRoot(sh4_ip, index);
   cmpeq(obj, sh4_ip);
@@ -2956,6 +3023,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Label* fail,
                               bool is_heap_object) {
   ASSERT(!obj.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!obj.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   RECORD_LINE();
   if (!is_heap_object) {
     RECORD_LINE();
@@ -2975,6 +3043,7 @@ void MacroAssembler::CheckMap(Register obj,
                               Label* fail,
                               bool is_heap_object) {
   ASSERT(!obj.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!obj.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   RECORD_LINE();
   if (!is_heap_object) {
     RECORD_LINE();
