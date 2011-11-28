@@ -1250,7 +1250,8 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
   ApiFunction fun(getter_address);
 
   const int kApiStackSpace = 1;
-  __ EnterExitFrame(false, kApiStackSpace);
+  ASSERT(!receiver.is(ip) && !name_reg.is(ip) && !scratch2.is(ip));
+  __ EnterExitFrame(false, kApiStackSpace, ip);
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object **args_) as the data.
   __ str(scratch2, MemOperand(sp, 1 * kPointerSize));

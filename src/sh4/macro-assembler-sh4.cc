@@ -705,7 +705,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   // sp: stack pointer
   // fp: frame pointer
 
-  // Actual clobbers: r2, r3
+  // Actual clobbers: r3 and ip
 
   RECORD_LINE();
   if (save_doubles) {
@@ -714,23 +714,23 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   }
 
   // Clear top frame.
-  mov(r2, Operand(0));
-  mov(r3, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
-  str(r2, MemOperand(r3));
+  mov(r3, Operand(0, RelocInfo::NONE));
+  mov(sh4_ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  str(r3, MemOperand(sh4_ip));
 
   // Restore current context from top and clear it in debug mode.
-  mov(r2, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
-  ldr(cp, MemOperand(r2));
+  mov(sh4_ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  ldr(cp, MemOperand(sh4_ip));
 
   // Tear down the exit frame, pop the arguments, and return.
   mov(sp, fp);
 
   Pop(pr, fp);
   if (argument_count.is_valid()) {
-    ASSERT(!argument_count.is(r2));
     ASSERT(!argument_count.is(r3));
-    lsl(r2, argument_count, Operand(kPointerSizeLog2));
-    add(sp, sp, r2);
+    ASSERT(!argument_count.is(sh4_ip));
+    lsl(r3, argument_count, Operand(kPointerSizeLog2));
+    add(sp, sp, r3);
   }
 }
 
