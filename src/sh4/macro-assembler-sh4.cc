@@ -640,13 +640,13 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space, Register scratch) {
   // Parameters are on stack as if calling JS function
   // ARM -> ST40 mapping: ip -> r2
 
   // r0, r1, cp: must be preserved
   // sp, fp: input/output
-  // Actual clobbers: r2
+  // Actual clobbers: scratch (r2 by default)
 
   // Setup the frame structure on the stack
   ASSERT_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
@@ -662,18 +662,18 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Reserve room for saved entry sp and code object
   sub(sp, sp, Operand(2*kPointerSize));
   if (emit_debug_code()) {
-    mov(r2, Operand(0));
-    mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r2);
+    mov(scratch, Operand(0));
+    mov(MemOperand(fp, ExitFrameConstants::kSPOffset), scratch);
   }
 
-  mov(r2, Operand(CodeObject()));
-  mov(MemOperand(fp, ExitFrameConstants::kCodeOffset), r2);
+  mov(scratch, Operand(CodeObject()));
+  mov(MemOperand(fp, ExitFrameConstants::kCodeOffset), scratch);
 
   // Save the frame pointer and the context in top.
-  mov(r2, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
-  mov(MemOperand(r2), fp);
-  mov(r2, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
-  mov(MemOperand(r2), cp);
+  mov(scratch, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  mov(MemOperand(scratch), fp);
+  mov(scratch, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+  mov(MemOperand(scratch), cp);
 
   // Optionally save all double registers.
   if (save_doubles) {
@@ -692,8 +692,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Set the exit frame sp value to point just before the return address
   // location.
-  add(r2, sp, Operand(kPointerSize));
-  mov(MemOperand(fp, ExitFrameConstants::kSPOffset), r2);
+  add(scratch, sp, Operand(kPointerSize));
+  mov(MemOperand(fp, ExitFrameConstants::kSPOffset), scratch);
 }
 
 

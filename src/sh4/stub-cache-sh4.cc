@@ -607,7 +607,7 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
   ApiFunction fun(api_function_address);
 
   const int kApiStackSpace = 4;
-  __ EnterExitFrame(false, kApiStackSpace);
+  __ EnterExitFrame(false, kApiStackSpace, r0);
 
   // r0 = v8::Arguments&
   // Arguments is after the return address.
