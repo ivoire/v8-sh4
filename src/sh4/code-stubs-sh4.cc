@@ -822,8 +822,9 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // r3: Right value (sign, exponent, top of mantissa).
 
   // Assert that heap_number_result is callee-saved.
-  // We currently always use r8 to pass it.
-  ASSERT(heap_number_result.is(sh4_r8));
+  // We currently always use r5 to pass it.
+  // Note: as r5 is not callee-saved on SH$, we push/pop it below
+  ASSERT(heap_number_result.is(r5));
 
   // Calling C function (using double registers): move r0..r3 to fr4..fr7
   __ movd(dr4, r0, r1);
@@ -832,7 +833,8 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // Push the current return address before the C call. Return will be
   // through pop(pc) below.
   __ push(lr);
-  __ PrepareCallCFunction(0, 2, scratch);
+  __ push(heap_number_result); // sh4 specific
+  __ PrepareCallCFunction(0, 2, r0); /* Use r0 as scratch: PrepareCallCFunction() disallow use of r4-r7 on sh4. */
   // Call C routine that may not cause GC or other trouble.
   __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
                    0, 2);
@@ -842,6 +844,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   __ Strd(r0, r1, FieldMemOperand(heap_number_result,
                                   HeapNumber::kValueOffset));
   // Place heap_number_result in r0 and return to the pushed return address.
+  __ pop(heap_number_result); // sh4 specific
   __ mov(r0, heap_number_result);
   __ pop(lr);
   __ rts();
@@ -2084,9 +2087,9 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                        Label* gc_required) {
   Register left = r1;
   Register right = r0;
-  Register scratch1 = r4;
+  Register scratch1 = r7;
   Register scratch2 = r9;
-  Register scratch3 = sh4_rtmp;
+  Register scratch3 = r4;
 
   ASSERT(smi_operands || (not_numbers != NULL));
   if (smi_operands && FLAG_debug_code) {
@@ -2113,7 +2116,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
           FloatingPointHelper::kCoreRegisters;
 
       // Allocate new heap number for result.
-      Register result = sh4_r8;
+      Register result = r5;
       GenerateHeapResultAllocation(
           masm, result, heap_number_map, scratch1, scratch2, gc_required);
 
@@ -2226,7 +2229,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
 
       // Allocate new heap number for result.
       __ bind(&result_not_a_smi);
-      Register result = sh4_r8;
+      Register result = r5;
       if (smi_operands) {
         __ AllocateHeapNumber(
             result, scratch1, scratch2, heap_number_map, gc_required);
@@ -2240,7 +2243,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
 
       // Nothing can go wrong now, so move the heap number to r0, which is the
       // result.
-      __ mov(r0, sh4_r8);       //TODO(stm): look at this: it should be better
+      __ mov(r0, r5);       //TODO(stm): look at this: it should be better
 
       // TODO(stm): FPU
       // if (CpuFeatures::IsSupported(VFP3)) {
@@ -2433,7 +2436,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         Label pop_and_call_runtime;
 
         // Allocate a heap number to store the result.
-        heap_number_result = sh4_r8;
+        heap_number_result = r5;
         GenerateHeapResultAllocation(masm,
                                      heap_number_result,
                                      heap_number_map,
