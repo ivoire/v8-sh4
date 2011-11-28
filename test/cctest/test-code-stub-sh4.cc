@@ -236,13 +236,13 @@ TEST(sh4_cs_2) {
   __ CompareInstanceType(r1, r2/*type*/ , JS_VALUE_TYPE, eq);
   B_LINE(t, &error);
   CMT("Check CompareInstanceType(GLOBAL_PTR()) >= (ge) FIRST_SPEC_OBJECT_TYPE");
-  __ CompareInstanceType(r1, r2/*type*/ , FIRST_SPEC_OBJECT_TYPE, hs);
-  B_LINE(f, &error);
-  CMT("Check CompareInstanceType(GLOBAL_PTR()) >= (hs) FIRST_SPEC_OBJECT_TYPE");
   __ CompareInstanceType(r1, r2/*type*/ , FIRST_SPEC_OBJECT_TYPE, ge);
   B_LINE(f, &error);
-  CMT("Check CompareInstanceType(GLOBAL_PTR()) ! >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE");
-  __ CompareInstanceType(r1, r2/*type*/ , FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, ge);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) > (hs) FIRST_SPEC_OBJECT_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , FIRST_SPEC_OBJECT_TYPE, hs);
+  B_LINE(f, &error);
+  CMT("Check CompareInstanceType(GLOBAL_PTR()) ! >= FIRST_CALLABLE_SPEC_OBJECT_TYPE");
+  __ CompareInstanceType(r1, r2/*type*/ , FIRST_CALLABLE_SPEC_OBJECT_TYPE, ge);
   B_LINE(t, &error);
 
   CMT("Check CompareObjectType(GLOBAL_PTR()) == JS_GLOBAL_OBJECT_TYPE");
@@ -279,37 +279,47 @@ TEST(sh4_cs_3) {
 
   Label error;
 
-  // Check LoadContext()
+  CMT("Check LoadContext() == @(isolate+kContextAddress)");
   __ LoadContext(r0, 0);
   __ mov(r1, Operand(ExternalReference(Isolate::kContextAddress, isolate)));
   __ ldr(r1, MemOperand(r1));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
-  // Get cp from isolate directly
+
+  CMT("Check LoadContext() == isolate->context()");
   __ mov(r1, Operand((intptr_t)isolate->context(),
                      RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
-  // Check LoadContext with context level 1 and 2.
-  // As we are in global context, it alwasy returns the global context
-  // TODO(stm): force a deeper context when initalizing the VM
-  __ LoadContext(r1, 1);
+  CMT("Check LoadContext() == isolate->global_context()");
+  __ mov(r1, Operand((intptr_t)GLOBAL_CONTEXT_PTR(),
+                     RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
-  __ LoadContext(r1, 2);
+
+  CMT("Check LoadContext() == LoadContext()->global_object->global_context");
+  __ ldr(r1, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalContextOffset));
+  __ cmp(r0, r1);
+  B_LINE(ne, &error);
+
+  CMT("Check LoadContext(level 1) == NULL");
+  __ LoadContext(r0, 1);
+  __ mov(r1, Operand(0));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
 
-  // Check LoadGlobalFunction()
+  CMT("Check LoadGlobalFunction() == Global Closure");
+  // Check 
   __ LoadGlobalFunction(Context::CLOSURE_INDEX, r0/* Resulting closure*/);
   __ mov(r1, Operand((intptr_t)GLOBAL_CLOSURE_PTR(),
                      RelocInfo::EXTERNAL_REFERENCE));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
 
-  // Check LoadGlobalFunctionInitialMap() on global object function
+  CMT("Check LoadGlobalFunctionInitialMap() == Global Object Function->initial_map()");
   __ LoadGlobalFunction(Context::OBJECT_FUNCTION_INDEX,
                         r0/* Resulting closure*/);
   __ mov(r1, Operand((intptr_t)GLOBAL_OBJECT_FUNCTION_PTR(),
