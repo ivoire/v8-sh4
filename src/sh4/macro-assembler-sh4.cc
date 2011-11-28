@@ -1205,7 +1205,7 @@ void MacroAssembler::Throw(Register value) {
   RECORD_LINE();
   pop(r2);
   str(r2, MemOperand(r3));
-  Pop(fp, pr, r3);
+  Pop(fp, cp, r3);
 
   // If the handler is a JS frame, restore the context to the frame.
   // (r3 == ENTRY) == (fp == 0) == (cp == 0), so we could test any
