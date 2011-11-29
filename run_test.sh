@@ -19,15 +19,16 @@ trap "cleanup" 0
 
 tmpfile=`mktemp /tmp/cctestXXXXXX`
 QEMU=${QEMU-/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4}
-TIMEOUT=${TIMEOUT-"/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout 600"}
+RUN_TIMEOUT=${RUN_TIMEOUT:-1200}
+TIMEOUT=${TIMEOUT-"/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout $RUN_TIMEOUT"}
 TARGET_ROOT=${TARGET_ROOT-/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target}
 RUN_PREFIX=${RUN_PREFIX-"env QEMU_ASSUME_KERNEL=2.6.30 $TIMEOUT $QEMU -distro -L $TARGET_ROOT -x $PWD -cwd $PWD"}
 
 # Clean profiling files if present
 find . -name '*.gcda' -exec rm {} \;
 
-CCTEST="$RUN_PREFIX ./obj/test/debug/cctest"
-$CCTEST --list >$tmpfile || error "cannot list the tests: cctest --list failed"
+CCTEST=${CCTEST:-./obj/test/debug/cctest}
+$RUN_PREFIX $CCTEST --list >$tmpfile || error "cannot list the tests: cctest --list failed"
 CCTEST_OPTS=${CCTEST_OPTS-"-debug_code"}
 
 echo "Listing the available tests..."
@@ -50,7 +51,7 @@ for name in $tests
 do
   echo "=== $name ===" | tee -a run_test.log
   res=0
-  $CCTEST $CCTEST_OPTS $name >>run_test.log 2>&1 || res=1
+  $RUN_PREFIX $CCTEST $CCTEST_OPTS $name >>run_test.log 2>&1 || res=1
   if [ $res != 0 ]
   then
     echo "...FAILED" | tee -a run_test.log
