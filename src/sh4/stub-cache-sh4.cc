@@ -607,7 +607,7 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
   ApiFunction fun(api_function_address);
 
   const int kApiStackSpace = 4;
-  __ EnterExitFrame(false, kApiStackSpace, r0);
+  __ EnterExitFrame(false, kApiStackSpace);
 
   // r0 = v8::Arguments&
   // Arguments is after the return address.
@@ -1251,7 +1251,7 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
 
   const int kApiStackSpace = 1;
   ASSERT(!receiver.is(ip) && !name_reg.is(ip) && !scratch2.is(ip));
-  __ EnterExitFrame(false, kApiStackSpace, ip);
+  __ EnterExitFrame(false, kApiStackSpace);
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object **args_) as the data.
   __ str(scratch2, MemOperand(sp, 1 * kPointerSize));

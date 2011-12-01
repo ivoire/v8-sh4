@@ -163,6 +163,8 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   mov(r5, r1);
 
   // Allocate HandleScope in callee-save registers.
+  // TODO(stm): use of r10 and r11 is dangerous here (ip and rtmp)
+  // We must be sure to not have them clobbered until the actual call.
   mov(r11, Operand(next_address));
   ldr(r8, MemOperand(r11, kNextOffset), r0);
   ldr(r9, MemOperand(r11, kLimitOffset), r0);
@@ -237,11 +239,13 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
-  str(r9, MemOperand(r7, kLimitOffset));
+  str(r9, MemOperand(r7, kLimitOffset)); // use r9 instead of r5 for making PrepareCallCFunction() happy
+  mov(r8, r0); // preserve in calle-saved the result (r0)
   PrepareCallCFunction(1, r9);
-  mov(r4, Operand(ExternalReference::isolate_address()));
+  mov(r4, Operand(ExternalReference::isolate_address())); // C-ABI paramater
   CallCFunction(
       ExternalReference::delete_handle_scope_extensions(isolate()), 1);
+  mov(r0, r8);  // restore result (r0)
   jmp(&leave_exit_frame);
 
   return result;
@@ -649,7 +653,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space, Register scratch) {
   // Parameters are on stack as if calling JS function
-  // ARM -> ST40 mapping: ip -> r2
+  // ARM -> ST40 mapping: ip -> scratch (defaults sh4_ip)
 
   // r0, r1, cp: must be preserved
   // sp, fp: input/output
@@ -729,6 +733,9 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   // Restore current context from top and clear it in debug mode.
   mov(sh4_ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
   ldr(cp, MemOperand(sh4_ip));
+#ifdef DEBUG
+  str(r3, MemOperand(sh4_ip));
+#endif
 
   // Tear down the exit frame, pop the arguments, and return.
   mov(sp, fp);
