@@ -24,7 +24,7 @@ class Worker(threading.Thread):
 
             # Run the test
             fout = open('results/' + item.replace('/', '_'), 'w')
-            ret = subprocess.call(['/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout', '600',
+            ret = subprocess.call(['/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout', '-s', 'KILL', '1800',
                                    '/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4',
                                    '-distro',
                                    '-L', '/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target',
@@ -56,17 +56,19 @@ def main():
     if len(sys.argv) == 3:
         workers = int(sys.argv[1])
         result_dir = sys.argv[2]
+    elif len(sys.argv) == 2:
+        workers = int(sys.argv[1])
 
     shutil.rmtree(result_dir)
     os.mkdir(result_dir)
 
     # launch the workers
     for i in range(workers):
-         w = Worker(queue, success, failure)
-         w.start()
+        w = Worker(queue, success, failure)
+        w.start()
 
     # List the test and add them to the list of task
-    list_tests = subprocess.Popen(['/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout', '600',
+    list_tests = subprocess.Popen(['/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout', '-s', 'KILL', '1800',
                                    '/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4',
                                    '-distro',
                                    '-L', '/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target',
