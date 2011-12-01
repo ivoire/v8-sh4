@@ -2866,13 +2866,18 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               bool always_allocate) {
   // WARNING: this function use the SH4 ABI !!
 
+  // Input
   // r0: result parameter for PerformGC, if any
   // sh4_r8: number of arguments including receiver  (C callee-saved)
+  //         Used later by LeaveExitFrame()
   // sh4_r9: pointer to builtin function  (C callee-saved)
   // sh4_r10: pointer to the first argument (C callee-saved)
+  // TODO(stm): use of r10 is dangerous (ip)
+  // sh4: moved callee-saved to stack localtion (see ::Generate())
   Isolate* isolate = masm->isolate();
-  ASSERT(!r0.is(sh4_rtmp) && !sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) &&
-         !sh4_r10.is(sh4_rtmp));
+  ASSERT(!r0.is(sh4_rtmp));
+  ASSERT(!r0.is(sh4_ip));
+  //ASSERT(!sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) && !sh4_r10.is(sh4_rtmp));
 
   if (do_gc) {
     // Passing r0.
@@ -2893,8 +2898,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Call C built-in.
   // r4 = argc, r5 = argv, r6 = isolate
-  __ mov(r4, sh4_r8);
-  __ mov(r5, sh4_r10);
+  //__ mov(r4, sh4_r8);
+  //__ mov(r5, sh4_r10);
+  // sh4: ref to ::Generate that stored into the stack
+  __ ldr(r4, MemOperand(sp, (1+0)*kPointerSize));
+  __ ldr(r5, MemOperand(sp, (1+2)*kPointerSize));
 
 #if defined(V8_HOST_ARCH_SH4)
   int frame_alignment = OS::ActivationFrameAlignment();
@@ -2914,6 +2922,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   __ mov(r6, Operand(ExternalReference::isolate_address()));
 
+  // sh4: ref to ::Generate() that stored the builtin into the stack
+  __ ldr(r2, MemOperand(sp, (1+1)*kPointerSize));
+
   // To let the GC traverse the return address of the exit frames, we need to
   // know where the return address is. The CEntryStub is unmovable, so
   // we can store the address on the stack to be able to find it again and
@@ -2931,7 +2942,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   int old_pc = masm->pc_offset();
 #endif
   __ str(r3, MemOperand(sp, 0));
-  __ jsr(sh4_r9);
+  __ jsr(r2);
+  //  __ jsr(sh4_r9);
 #ifdef DEBUG
   ASSERT(masm->pc_offset() - old_pc == 3 * Assembler::kInstrSize);
 #endif
@@ -2958,7 +2970,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // sp: stack pointer
   // fp: frame pointer
   //  Callee-saved register sh4_r8 still holds argc.
-  __ LeaveExitFrame(save_doubles_, sh4_r8);
+  // sh4: stored on stack into ::Generate()
+  __ ldr(r2, MemOperand(sp, (1+0)*kPointerSize));
+  __ LeaveExitFrame(save_doubles_, r2);
+  //  __ LeaveExitFrame(save_doubles_, sh4_r8);
   __ rts();
 
   // check if we should retry or throw exception
@@ -3002,6 +3017,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // sp: stack pointer  (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
 
+  // sh4: clobbers r3
   // Result returned in r0 or r0+r1 by default.
 
   // NOTE: Invocations of builtins may return failure objects
@@ -3010,21 +3026,30 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // builtin once.
 
   // Compute the argv pointer in a callee-saved register.
-  __ lsl(sh4_r10, r0, Operand(kPointerSizeLog2));
-  __ add(sh4_r10, sp, sh4_r10);
-  __ sub(sh4_r10, sh4_r10, Operand(kPointerSize));
+  // sh4: will be saved on stack
+  // __ lsl(sh4_r10, r0, Operand(kPointerSizeLog2));
+  // __ add(sh4_r10, sp, sh4_r10);
+  // __ sub(sh4_r10, sh4_r10, Operand(kPointerSize));
+  __ lsl(r3, r0, Operand(kPointerSizeLog2));
+  __ add(r3, sp, r3);
+  __ sub(r3, r3, Operand(kPointerSize));
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(save_doubles_);
+  __ EnterExitFrame(save_doubles_, 3); // SH4: Reserve space for 3 stack locations
 
   // Setup argc and the builtin function in callee-saved registers.
-  __ mov(sh4_r8, r0);
-  __ mov(sh4_r9, r1);
-
+  // sh4: save on stack instead of keep in callee-saved
+  // sh4: sp contains: sp[0] == lr; sp[1] == argc; sp[2] == builtin; sp[3] = argv
+  // __ mov(sh4_r8, r0);
+  // __ mov(sh4_r9, r1);
+  __ str(r0, MemOperand(sp, (1+0)*kPointerSize)); // skip lr location at sp[1]
+  __ str(r1, MemOperand(sp, (1+1)*kPointerSize));
+  __ str(r3, MemOperand(sp, (1+2)*kPointerSize));
+  
   // sh4_r8: number of arguments (C callee-saved)
   // sh4_r9: pointer to builtin function (C callee-saved)
   // sh4_r10: pointer to first argument (C callee-saved)
-  ASSERT(!sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) && !sh4_r10.is(sh4_rtmp));
+  //ASSERT(!sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) && !sh4_r10.is(sh4_rtmp));
 
   Label throw_normal_exception;
   Label throw_termination_exception;
