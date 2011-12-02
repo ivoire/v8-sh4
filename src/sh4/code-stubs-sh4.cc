@@ -841,10 +841,10 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   __ movd(r0, r1, dr0);
   // Store answer in the overwritable heap number. Double returned in
   // registers r0 and r1 or in d0.
+  __ pop(heap_number_result); // sh4 specific
   __ Strd(r0, r1, FieldMemOperand(heap_number_result,
                                   HeapNumber::kValueOffset));
   // Place heap_number_result in r0 and return to the pushed return address.
-  __ pop(heap_number_result); // sh4 specific
   __ mov(r0, heap_number_result);
   __ pop(lr);
   __ rts();
