@@ -1002,11 +1002,11 @@ void Assembler::mov(Register Rd, const Operand& imm) {
 }
 
 
-void Assembler::addpc(Register Rd, int offset, Register rtmp) {
+void Assembler::addpc(Register Rd, int offset, Register Pr) {
   // We compute a pc+offset value where the pc
   // is the pc after this code sequence.
   // In order to do this, we do a bsr and get the link register.
-  // rtmp is not used
+  ASSERT(Pr.is(pr));
   bsr_(0);
   nop_();
   sts_PR_(Rd);
@@ -1048,6 +1048,7 @@ void Assembler::mov(Register Rd, const Operand& imm, Condition cond) {
 
 void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
   if (src.rn_.is_valid()) {
+    ASSERT(rtmp.is_valid());
     add(rtmp, src.rm_, src.rn_);
     movl_indRs_(rtmp, Rd);
   } else {
@@ -1056,6 +1057,7 @@ void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
     } else if (FITS_SH4_movl_dispRs(src.offset_)) {
       movl_dispRs_(src.offset_, src.rm_, Rd);
     } else {
+      ASSERT(rtmp.is_valid());
       add(rtmp, src.rm_, Operand(src.offset_));
       movl_indRs_(rtmp, Rd);
     }
