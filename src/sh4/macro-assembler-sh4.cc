@@ -696,7 +696,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space, Register
   // preparing for calling the runtime function.
   const int frame_alignment = OS::ActivationFrameAlignment();
   sub(sp, sp, Operand((stack_space + 1) * kPointerSize));
-  if (frame_alignment) {
+  if (frame_alignment > kPointerSize) {
     ASSERT(IsPowerOf2(frame_alignment));
     land(sp, sp, Operand(-frame_alignment));
   }
