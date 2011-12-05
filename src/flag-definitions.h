@@ -262,11 +262,7 @@ DEFINE_bool(flush_code, true,
 DEFINE_bool(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
 // ic.cc
-#ifdef V8_TARGET_ARCH_SH4
-DEFINE_bool(use_ic, false, "use inline caching") // sh4: temporary until implemented
-#else
 DEFINE_bool(use_ic, true, "use inline caching")
-#endif
 
 #ifdef LIVE_OBJECT_LIST
 // liveobjectlist.cc
