@@ -392,10 +392,10 @@ class RegExpCEntryStub: public CodeStub {
 // moved by GC
 class DirectCEntryStub: public CodeStub {
  public:
-  DirectCEntryStub(Register scratch = sh4_ip) : scratch_(scratch) {}
+ DirectCEntryStub(Register scratch) : scratch_(scratch) {}
   void Generate(MacroAssembler* masm);
-  void GenerateCall(MacroAssembler* masm, ExternalReference function);
-  void GenerateCall(MacroAssembler* masm, Register target);
+  void GenerateCall(MacroAssembler* masm, ExternalReference function, Register scratch1, Register scratch2);
+  void GenerateCall(MacroAssembler* masm, Register target, Register scratch1);
 
  private:
   Major MajorKey() { return DirectCEntry; }

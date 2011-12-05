@@ -175,8 +175,8 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(r0);
-  stub.GenerateCall(this, function);
+  DirectCEntryStub stub(r2); // This scratch register must not be the return value
+  stub.GenerateCall(this, function, r0, r1);
 
   // Move back the registers [r8, r11] => [r4, r7]
   mov(r4, r8);
@@ -696,7 +696,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space, Register
   // preparing for calling the runtime function.
   const int frame_alignment = OS::ActivationFrameAlignment();
   sub(sp, sp, Operand((stack_space + 1) * kPointerSize));
-  if (frame_alignment) {
+  if (frame_alignment > kPointerSize) {
     ASSERT(IsPowerOf2(frame_alignment));
     land(sp, sp, Operand(-frame_alignment));
   }

@@ -59,6 +59,7 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
     if (i::FLAG_stack_trace_on_abort) {
       // Call this one twice on double fault
       i::Isolate::Current()->PrintStack();
+      i::OS::Backtrace(stdout);
     }
   }
   if (++fatal_count >= fatal_count_max)

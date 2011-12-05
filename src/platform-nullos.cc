@@ -434,6 +434,9 @@ Semaphore* OS::CreateSemaphore(int count) {
   return new NullSemaphore(count);
 }
 
+void OS::Backtrace(void) {
+  // Unimplemented but safe
+}
 
 class ProfileSampler::PlatformData  : public Malloced {
  public:

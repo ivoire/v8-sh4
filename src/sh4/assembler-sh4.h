@@ -664,9 +664,15 @@ class Assembler : public AssemblerBase {
   void jsr(Label* L, Register rtmp = sh4_rtmp)
         { branch(L, rtmp, branch_subroutine); }
 
+
   // Check the code size generated from label to here.
-  int InstructionsGeneratedSince(Label* l) {
-    return (pc_offset() - l->pos()) / kInstrSize;
+  int SizeOfCodeGeneratedSince(Label* label) {
+    return pc_offset() - label->pos();
+  }
+
+  // Check the number of instructions generated from label to here.
+  int InstructionsGeneratedSince(Label* label) {
+    return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
   void jmp(Register Rd) {
@@ -838,12 +844,11 @@ class Assembler : public AssemblerBase {
     tst(rtmp, rtmp);
   }
 
-  // Conditional move
-  void mov(Register Rd, Register Rs, Condition cond);
-  void mov(Register Rd, const Operand& imm, Condition cond);
-
-  void mov(Register Rd, Register Rs) { mov_(Rs, Rd); }
+  // Moves and conditional moves.
+  // This one allows pr as src or dst.
+  void mov(Register Rd, Register Rs, Condition cond = al);
   void mov(Register Rd, const Operand& src);
+  void mov(Register Rd, const Operand& imm, Condition cond);
 
   // load op.
   void mov(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
@@ -947,7 +952,8 @@ class Assembler : public AssemblerBase {
 
   // Return in Rd the value of pc_after + offset.
   // Where pc_after is the pc after this operation.
-  void addpc(Register Rd, int offset, Register rtmp = sh4_rtmp);
+  // It clobbers pr which must be always passed in the Pr parameter
+  void addpc(Register Rd, int offset, Register Pr);
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting

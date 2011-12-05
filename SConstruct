@@ -108,6 +108,11 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections',
                        '-ffunction-sections'],
     },
+    'backtracesupport:on': {
+      'CPPDEFINES':   ['ENABLE_BACKTRACE'],
+      'CXXFLAGS':   ['-fexceptions'],
+      'LINKFLAGS':  ['-rdynamic'],
+    },
     'os:linux': {
       'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
       'library:shared': {
@@ -1138,6 +1143,11 @@ SIMPLE_OPTIONS = {
     'default': 'on',
     'help': 'use vfp3 instructions when building the snapshot [Arm only]'
   },
+  'backtracesupport': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable backtrace support for debug'
+  },
 
 }
 
@@ -1373,6 +1383,11 @@ def PostprocessOptions(options, os):
     options['debuggersupport'] = 'on'
     options['inspector'] = 'on'
     options['objectprint'] = 'on'
+  if options['backtracesupport'] == 'on':
+     if (options['mode'] == 'release'):
+      # Print a warning that backtrace is deactivated in non release mode
+      print "Warning: forcing backtracesupport off in release mode"
+      options['backtracesupport'] = 'off'
 
 
 def ParseEnvOverrides(arg, imports):

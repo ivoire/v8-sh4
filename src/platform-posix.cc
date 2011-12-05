@@ -43,6 +43,9 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#ifdef ENABLE_BACKTRACE
+#include <execinfo.h>
+#endif
 
 #undef MAP_TYPE
 
@@ -512,6 +515,16 @@ uint32_t Socket::NToH(uint32_t value) {
 
 Socket* OS::CreateSocket() {
   return new POSIXSocket();
+}
+
+
+void OS::Backtrace(FILE * out) {
+#ifdef ENABLE_BACKTRACE
+  void *bkt_buffer[32];
+  int nptrs =  backtrace(bkt_buffer, sizeof(bkt_buffer)/sizeof(*bkt_buffer));
+  backtrace_symbols_fd(bkt_buffer, nptrs, fileno(mapstream(out)));
+  fflush(mapstream(out));
+#endif
 }
 
 

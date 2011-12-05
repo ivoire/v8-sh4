@@ -2937,7 +2937,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // We use the addpc operation for this with an offset of 6.
   // We add 3 * kInstrSize to the pc after the addpc for the size of
   // the sequence: [str, jsr, nop(delay slot)].
-  __ addpc(r3, 3 * Assembler::kInstrSize);
+  __ addpc(r3, 3 * Assembler::kInstrSize, pr);
 #ifdef DEBUG
   int old_pc = masm->pc_offset();
 #endif
@@ -5589,18 +5589,35 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    ExternalReference function) {
-  __ mov(scratch_, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
+                                    ExternalReference function,
+				    Register scratch1,
+				    Register scratch2) {
+  __ mov(scratch1, Operand(function));
+  GenerateCall(masm, scratch1, scratch2);
+}
+  
+void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
+				    Register target,
+				    Register scratch1) {
+
+  ASSERT(!target.is(scratch_));
+  ASSERT(!target.is(scratch1));
+  ASSERT(!scratch1.is(scratch_));
+  // Get pr (pointing to DirectCEntryStub::Generate) into scratch1
+  // pr can't be used directly as it is clobbered by addpc later
+  __ mov(scratch1, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
                    RelocInfo::CODE_TARGET));
-  // save pr on the stask before the call to addpc that change it
-  __ push(scratch_);
-  __ mov(r6, Operand(function));
+  int return_address_offset = 4 * Assembler::kInstrSize;
+  Label start;
   // Push return address (accessible to GC through exit frame pc).
-  __ addpc(scratch_, 4 * Assembler::kInstrSize, scratch_);
-  // restaure the right pr (pointing to DirectCEntryStub::Generate)
-  __ pop(pr);
-  __ str(scratch_, MemOperand(sp, 0), r1);
-  __ jmp(r6);   // Call the api function.
+  __ addpc(scratch_, return_address_offset, pr);
+  __ bind(&start);
+  // restore the right pr (pointing to DirectCEntryStub::Generate)
+  __ mov(pr,scratch1);
+  __ str(scratch_, MemOperand(sp, 0), no_reg);
+  __ jmp(target);   // Call the api function.
+  ASSERT_EQ(return_address_offset,
+            masm->SizeOfCodeGeneratedSince(&start));
 }
 
 
