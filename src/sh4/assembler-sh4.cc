@@ -1015,13 +1015,24 @@ void Assembler::addpc(Register Rd, int offset, Register Pr) {
 
 
 void Assembler::mov(Register Rd, Register Rs, Condition cond) {
-  ASSERT(cond == ne || cond == eq);
+  ASSERT(cond == ne || cond == eq || cond == al);
   // If cond is eq, we move Rs into Rd, otherwise, nop
   if (cond == eq)
     bf_(0);     // Jump after sequence if T bit is false
-  else
+  else if (cond == ne)
     bt_(0);     // Jump after sequence if T bit is true
-  mov_(Rs, Rd);
+  if (Rs.is(pr)) {
+    ASSERT(Rd.is_valid());
+    sts_PR_(Rd);
+  } else if (Rd.is(pr)) {
+    ASSERT(Rs.is_valid());
+    lds_PR_(Rs);
+  } else {
+    ASSERT(Rs.is_valid());
+    ASSERT(Rd.is_valid());
+    mov_(Rs, Rd);
+  }
+
 }
 
 
