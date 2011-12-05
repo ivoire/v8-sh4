@@ -298,6 +298,9 @@ class OS {
   static const int kMinComplexMemCopy = 256;
 #endif  // V8_TARGET_ARCH_IA32
 
+  // Backtrace dump
+  static void Backtrace(FILE* out);
+
  private:
   static const int msPerSecond = 1000;
 

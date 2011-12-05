@@ -858,7 +858,6 @@ Semaphore* OS::CreateSemaphore(int count) {
   return new LinuxSemaphore(count);
 }
 
-
 #if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
 // Android runs a fairly new Linux kernel, so signal info is there,
 // but the C library doesn't have the structs defined.
