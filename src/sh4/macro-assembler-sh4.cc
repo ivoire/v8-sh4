@@ -175,8 +175,8 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(r0);
-  stub.GenerateCall(this, function, r1, r2);
+  DirectCEntryStub stub(r2); // This scratch register must not be the return value
+  stub.GenerateCall(this, function, r0, r1);
 
   // Move back the registers [r8, r11] => [r4, r7]
   mov(r4, r8);
