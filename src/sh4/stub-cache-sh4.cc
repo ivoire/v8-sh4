@@ -3473,7 +3473,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
     Label box_int;
-    __ cmpge(value, Operand(0xC0000000));
+    __ add(r3, value, Operand(0x40000000)); // Non-smi value gives neg result
+    __ cmpge(r3, Operand(0));
     __ bf(&box_int);
     // Tag integer as smi and return it.
     __ lsl(r0, value, Operand(kSmiTagSize));

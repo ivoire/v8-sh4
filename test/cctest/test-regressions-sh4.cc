@@ -54,8 +54,11 @@ static v8::Handle<Value> CallBack(Local<String> name,
 // The bug returns a:
 // Fatal error in src/objects.h, line 732
 // CHECK(!IsFailure()) failed
-// Note: 3 iterations of the loop are necessary to exhibit the issue
-THREADED_TEST(CallbackAccessor) {
+// The problem was in sh4 MacroAssembler::TryCallApiFunctionAndReturn()
+// that used r0 as scratch register for DirectCEntryStub().
+// This scratch must not be a return value register.
+// Note: 3 iterations of the loop are necessary to exhibit the issue.
+THREADED_TEST(IssueLoadCallback) {
   v8::HandleScope scope;
   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
   i::StringStream::ClearMentionedObjectCache();
@@ -69,4 +72,31 @@ THREADED_TEST(CallbackAccessor) {
       "for (var i = 0; i < 3; i++) {"
       "  foo();"
       "}"))->Run();
+}
+
+// Regression test for a defect in -use-ic mode.
+// Handling of non-smi value on sh4 was wrong in
+// KeyedLoadStubCompiler::GenerateLoadExternalArray().
+// Used to return -1 instead of INT_MAX.
+// Note: 3 iterations of the loop are necessary to exhibit the issue.
+THREADED_TEST(IssueKeyedLoadExtIntArray) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  int kElementCount = 1;
+  int32_t* array_data =
+    static_cast<int32_t*>(malloc(kElementCount * sizeof(int32_t)));
+  array_data[0] = 2147483647; // Initialize the first element with MAX_INT
+  obj->SetIndexedPropertiesToExternalArrayData(array_data,
+                                               v8::kExternalIntArray,
+                                               kElementCount);
+  context->Global()->Set(v8_str("ext_array"), obj);
+  const char* boundary_program =
+      "var res = 0;"
+      "for (var i = 0; i < 3; i++) {"
+      "  res = ext_array[0];" // Get the first element
+      "}"
+      "res;";
+  v8::Handle<v8::Value> result = CompileRun(boundary_program);
+  CHECK_EQ((int64_t)2147483647, result->IntegerValue());
 }
