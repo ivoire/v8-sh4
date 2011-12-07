@@ -2199,7 +2199,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
           // Use only the 5 least significant bits of the shift count.
           __ GetLeastBitsFromInt32(r2, r2, 5);
           __ lsr(r2, r3, r2);
-          __ cmpge(r2, Operand(0));
+          __ cmpge(r2, Operand(0)); // Check non-negative (see comment below).
           // SHR is special because it is required to produce a positive answer.
           // The code below for writing into heap numbers isn't capable of
           // writing the register as an unsigned int so we go to slow case if we

@@ -1750,7 +1750,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ SmiUntag(ip, right);
       __ dmuls(scratch1, scratch2, left, ip);
       __ asr(ip, scratch1, Operand(31));
-      __ cmpeq(ip, scratch2);
+      __ cmp(ip, scratch2);
       __ b(ne, &stub_call);
       __ tst(scratch1, scratch1);
       __ mov(right, scratch1, ne);
