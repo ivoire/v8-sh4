@@ -1434,7 +1434,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // r0: receiver
   STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
   __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge);
-  __ b(&push_receiver);
+  __ bt(&push_receiver);
 
   // Convert the receiver to a regular object.
   // r0: receiver
