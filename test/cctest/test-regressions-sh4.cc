@@ -100,3 +100,48 @@ THREADED_TEST(IssueKeyedLoadExtIntArray) {
   v8::Handle<v8::Value> result = CompileRun(boundary_program);
   CHECK_EQ((int64_t)2147483647, result->IntegerValue());
 }
+
+// Regression test for a defect in the actual number of argument count.
+// Handling of actual arguments was wrong when the arguments number
+// was greater than the formal arguments number in
+// Builtins::Generate_ArgumentsAdaptorTrampoline().
+// Used to return always 0 (formal arguments number of Foo)
+// in this test instead of the actual arguments number.
+THREADED_TEST(IssueActualArgumentsNum) {
+  v8::HandleScope scope;
+  LocalContext context;
+  CompileRun(
+    "function Foo() {"
+    "  return arguments.length;"
+    "}");
+  Local<Function> Foo =
+      Local<Function>::Cast(context->Global()->Get(v8_str("Foo")));
+
+  v8::Handle<Value>* args0 = NULL;
+  Local<v8::Integer> l0 = Local<v8::Integer>::Cast(Foo->Call(Foo, 0, args0));
+  CHECK_EQ((int64_t)0, l0->Value());
+
+  v8::Handle<Value> args1[] = { v8_num(1.1) };
+  Local<v8::Integer> l1 = Local<v8::Integer>::Cast(Foo->Call(Foo, 1, args1));
+  CHECK_EQ((int64_t)1, l1->Value());
+
+  v8::Handle<Value> args2[] = { v8_num(2.2),
+                                v8_num(3.3) };
+  Local<v8::Integer> l2 = Local<v8::Integer>::Cast(Foo->Call(Foo, 2, args2));
+  CHECK_EQ((int64_t)2, l2->Value());
+
+  v8::Handle<Value> args3[] = { v8_num(4.4),
+                                v8_num(5.5),
+                                v8_num(6.6) };
+  Local<v8::Integer> l3 = Local<v8::Integer>::Cast(Foo->Call(Foo, 3, args3));
+  CHECK_EQ((int64_t)3, l3->Value());
+
+  v8::Handle<Value> args4[] = { v8_num(7.7),
+                                v8_num(8.8),
+                                v8_num(9.9),
+                                v8_num(10.11) };
+  Local<v8::Integer> l4 = Local<v8::Integer>::Cast(Foo->Call(Foo, 4, args4));
+  CHECK_EQ((int64_t)4, l4->Value());
+}
+
+
