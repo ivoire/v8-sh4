@@ -1539,7 +1539,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ cmpge(r0, r2);
   __ bf(&too_few);
   __ cmp(r2, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
-  __ b(&dont_adapt_arguments);
+  __ b(eq, &dont_adapt_arguments);
 
   {  // Enough parameters: actual >= expected
     __ bind(&enough);
