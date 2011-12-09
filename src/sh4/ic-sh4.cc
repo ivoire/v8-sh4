@@ -820,7 +820,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // to the unmapped lookup with the parameter map in scratch1.
   __ ldr(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
   __ sub(scratch2, scratch2, Operand(Smi::FromInt(2)));
-  __ cmp(key, scratch2);
+  __ subc(scratch3, key, scratch2);
   __ b(cs, unmapped_case);
 
   // Load element index and check whether it is the hole.
@@ -863,7 +863,7 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   __ CheckMap(backing_store, scratch, fixed_array_map, slow_case,
               DONT_DO_SMI_CHECK);
   __ ldr(scratch, FieldMemOperand(backing_store, FixedArray::kLengthOffset));
-  __ cmp(key, scratch);
+  __ subc(scratch, key, scratch);
   __ b(cs, slow_case);
   __ mov(scratch, Operand(kPointerSize >> 1));
   __ mul(scratch, key, scratch);
