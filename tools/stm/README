@@ -1,0 +1,32 @@
+This directory contains STMicroelectronics build specific scripts.
+
+Usage:
+- build.sh : builds the v8 library, the sample shell and the cctests.
+  usage: build.sh
+  example: env arch=sh4 site=stgnb ./build.sh # builds for sh4 on STM GNB site.
+
+- run_cctest.sh : runs the cctest tests with an optional argument for filtering the tests to run.
+  usage: run_cctest.sh [test_regexp]
+  example: env arch=sh4 site=stgnb ./run_cctest.sh sh4 # runs the sh4 regression tests on STM GNB site.
+
+- source_site_<site>.sh : for each site a preconfiguration file loaded by build/run scripts.
+  example: source_site_default.sh # the default configuration for a standard Linux distribution
+  example: source_site_stgnb.sh # the configuration for the STM GNB site
+
+- source_<arch>.sh : for each architecture the preconfiguration script used by build/run scripts.
+  example: source_sh4.sh # the default configuration for a cross build/run for sh4
+
+- source_local.sh : this file does not exist by default but can be provided to preconfigure the build/run script.
+
+Notes:
+- the source scripts are loaded by the build/run script only if they exist and in the following order:
+  1. source_local.sh
+  2. source_site_<site>.sh
+  3. source_<arch>.sh
+
+- the parameters are passed through the environment, the available parameters are:
+  - arch=<arch> : specifies the target architecture (arm, sh4, ia32, x86_64,...). If unset, defaults to the host architecture.
+  - site=<site> : specifies the site (default, stgnb,...), default if unset. Can be any name as soon as the source_site_<site>.sh is provided.
+  - mode=<mode> : one of debug, release. Default is debug.
+  - other typical scons vars: debuggersupport (default on), profilingsupport (default off).
+ 
