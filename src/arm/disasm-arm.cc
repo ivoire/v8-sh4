@@ -1495,7 +1495,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    PrintF(f, "%p    %08x      %s\n",
+    v8::internal::OS::FPrint(f, "%p    %08x      %s\n",
            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }
@@ -1503,7 +1503,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
 
 /*static*/ DisassemblerInterface *
 DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
-  return new Disassembler::Disassembler(converter);
+  return new Disassembler(converter);
 }
 
 }  // namespace disasm

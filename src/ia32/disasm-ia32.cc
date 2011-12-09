@@ -1636,7 +1636,7 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
 
 /*static*/ DisassemblerInterface *
 DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
-  return new Disassembler::Disassembler(converter);
+  return new Disassembler(converter);
 }
 
 }  // namespace disasm
