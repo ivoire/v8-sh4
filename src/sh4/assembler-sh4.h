@@ -858,7 +858,7 @@ class Assembler : public AssemblerBase {
         { movb(Rd, src, rtmp); }
   void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
         { movw(Rd, src, rtmp); }
-  // unsigned 8 bit load op.
+  // signed 8 bit load op.
   void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   // signed 16 bit load op.
   void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
