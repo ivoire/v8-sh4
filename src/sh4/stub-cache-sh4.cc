@@ -1733,8 +1733,8 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // Get the array's length into r4 and calculate new length.
   __ ldr(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ cmpge(r4, Operand(Smi::FromInt(1))); // for branch below
   __ sub(r4, r4, Operand(Smi::FromInt(1)));
-  __ cmpge(r4, r4);
   __ bf(&return_undefined);
 
   // Get the last element.

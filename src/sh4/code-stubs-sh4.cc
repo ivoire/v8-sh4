@@ -4344,8 +4344,8 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
   __ add(src, src, Operand(1));
   // Perform sub between load and dependent store to get the load time to
   // complete.
+  __ cmpgt(count, Operand(1));
   __ sub(count, count, Operand(1));
-  __ cmpgt(count, Operand(0));
   __ strb(scratch, MemOperand(dest));
   __ add(dest, dest, Operand(1));
   // last iteration.
@@ -4934,10 +4934,10 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Find minimum length and length difference.
   __ ldr(scratch1, FieldMemOperand(left, String::kLengthOffset));
   __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
+  __ cmpgt(scratch1, scratch2); // for cond mov below
   __ sub(scratch3, scratch1, scratch2);
-  __ cmpge(scratch1, scratch2);
   Register length_delta = scratch3;
-  __ mov(scratch1, scratch2, eq);
+  __ mov(scratch1, scratch2, t);
   Register min_length = scratch1;
   STATIC_ASSERT(kSmiTag == 0);
   __ tst(min_length, min_length);

@@ -916,8 +916,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ ldr(ip, MemOperand(r2, ip));
   __ push(ip);
   __ bind(&entry);
+  __ cmpge(r3, Operand(2)); // for branch below
   __ sub(r3, r3, Operand(2));
-  __ cmpge(r3, Operand(0));
   __ bt(&loop);
 
   // Call the function.

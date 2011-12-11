@@ -320,8 +320,8 @@ void MacroAssembler::ConvertToInt32(Register source,
     // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
     // it rounds to zero.
     const uint32_t zero_exponent = HeapNumber::kExponentBias + 0;
+    cmpge(scratch2, Operand(zero_exponent - fudge_factor));  // for branch below
     sub(scratch2, scratch2, Operand(zero_exponent - fudge_factor));
-    cmpge(scratch2, Operand(0));
     // Dest already has a Smi zero.
     bf(&done);
 

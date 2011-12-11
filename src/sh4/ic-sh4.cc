@@ -820,7 +820,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // to the unmapped lookup with the parameter map in scratch1.
   __ ldr(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
   __ sub(scratch2, scratch2, Operand(Smi::FromInt(2)));
-  __ subc(scratch3, key, scratch2);
+  __ cmphs(key, scratch2);
   __ b(t, unmapped_case);
 
   // Load element index and check whether it is the hole.
@@ -863,7 +863,7 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   __ CheckMap(backing_store, scratch, fixed_array_map, slow_case,
               DONT_DO_SMI_CHECK);
   __ ldr(scratch, FieldMemOperand(backing_store, FixedArray::kLengthOffset));
-  __ subc(scratch, key, scratch);
+  __ cmphs(key, scratch);
   __ b(t, slow_case);
   __ mov(scratch, Operand(kPointerSize >> 1));
   __ mul(scratch, key, scratch);
@@ -1091,8 +1091,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ lsl(r6, r3, Operand(kPointerSizeLog2));
   __ ldr(r5, MemOperand(r4, r6));
   __ ldrb(r6, FieldMemOperand(r2, Map::kInObjectPropertiesOffset));
+  __ cmpge(r5, r6); // for branch below
   __ sub(r5, r5, r6);
-  __ cmpge(r5, Operand(0));
   __ bt(&property_array_property);
 
   // Load in-object property.
