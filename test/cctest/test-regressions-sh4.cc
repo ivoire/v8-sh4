@@ -144,4 +144,19 @@ THREADED_TEST(IssueActualArgumentsNum) {
   CHECK_EQ((int64_t)4, l4->Value());
 }
 
+// Extracted from test-api/CatchStackOverflow
+// Fails with a sigsegv on sh4.
+TEST(IssueCatchStackOverflow) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(
+    "function f() {"
+    "  return f();"
+    "}"
+    ""
+    "f();"));
+  v8::Handle<v8::Value> result = script->Run();
+  CHECK(result.IsEmpty());
+}
 
