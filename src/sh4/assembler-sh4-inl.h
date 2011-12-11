@@ -346,13 +346,13 @@ void Assembler::cmpge(Register Rd, const Operand& imm, Register rtmp) {
 }
 
 
-void Assembler::cmpgtu(Register Rd, const Operand& imm, Register rtmp) {
+void Assembler::cmphi(Register Rd, const Operand& imm, Register rtmp) {
   mov(rtmp, imm);
   cmphi_(rtmp, Rd);
 }
 
 
-void Assembler::cmpgeu(Register Rd, const Operand& imm, Register rtmp) {
+void Assembler::cmphs(Register Rd, const Operand& imm, Register rtmp) {
   mov(rtmp, imm);
   cmphs_(rtmp, Rd);
 }

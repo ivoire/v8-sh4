@@ -695,19 +695,19 @@ class Assembler : public AssemblerBase {
   void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
   void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }     // is Rd > Rs ?
   void cmpge(Register Rd, Register Rs) { cmpge_(Rs, Rd); }     // is Rd >= Rs ?
-  void cmpgtu(Register Rd, Register Rs) { cmphi_(Rs, Rd); }    // is Rd u> Rs ?
-  void cmpgeu(Register Rd, Register Rs) { cmphs_(Rs, Rd); }    // is Rd u>= Rs ?
+  void cmphi(Register Rd, Register Rs) { cmphi_(Rs, Rd); }    // is Rd u> Rs ?
+  void cmphs(Register Rd, Register Rs) { cmphs_(Rs, Rd); }    // is Rd u>= Rs ?
 
-  inline void  cmpeq(Register Rd, const Operand& imm,
+  inline void cmpeq(Register Rd, const Operand& imm,
+		    Register rtmp = sh4_rtmp);
+  inline void cmpgt(Register Rd, const Operand& imm,
+		    Register rtmp = sh4_rtmp);
+  inline void cmpge(Register Rd, const Operand& imm,
                      Register rtmp = sh4_rtmp);
-  inline void  cmpgt(Register Rd, const Operand& imm,
-                     Register rtmp = sh4_rtmp);
-  inline void  cmpge(Register Rd, const Operand& imm,
-                     Register rtmp = sh4_rtmp);
-  inline void cmpgtu(Register Rd, const Operand& imm,
-                     Register rtmp = sh4_rtmp);
-  inline void cmpgeu(Register Rd, const Operand& imm,
-                     Register rtmp = sh4_rtmp);
+  inline void cmphi(Register Rd, const Operand& imm,
+		    Register rtmp = sh4_rtmp);
+  inline void cmphs(Register Rd, const Operand& imm,
+		    Register rtmp = sh4_rtmp);
 
   // ALiases for cmpeq
   void cmp(Register Rd, Register Rs) { cmpeq(Rd, Rs); }
@@ -720,16 +720,6 @@ class Assembler : public AssemblerBase {
     mov(rtmp, imm);
     cmp(cond, Rd, rtmp);
   }
-
-  // Aliases for cmpgeu
-  void cmphs(Register Rd, Register Rs) { cmpgeu(Rd, Rs); }
-  void cmphs(Register Rd, const Operand& imm,
-             Register rtmp = sh4_rtmp) { cmpgeu(Rd, imm, rtmp); }
-
-  // Aliases for cmpgtu
-  void cmphi(Register Rd, Register Rs) { cmpgtu(Rd, Rs); }
-  void cmphi(Register Rd, const Operand& imm,
-             Register rtmp = sh4_rtmp) { cmpgtu(Rd, imm, rtmp); }
 
   void cmpeq_r0_raw_immediate(int raw_immediate) {
         cmpeq_imm_R0_((int8_t)raw_immediate); }

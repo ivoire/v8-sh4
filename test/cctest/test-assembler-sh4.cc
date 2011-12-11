@@ -338,10 +338,10 @@ TEST(11) {
   __ cmpgt(r5, Operand(545), r1);     // true
   __ bf(&error);
 
-  __ cmpgtu(r4, Operand(-27), r1);    // false
+  __ cmphi(r4, Operand(-27), r1);     // false
   __ bt(&error);
 
-  __ cmpgtu(r4, Operand(-28), r1);    // true
+  __ cmphi(r4, Operand(-28), r1);     // true
   __ bf(&error);
 
   __ cmpge(r5, Operand(546), r1);     // true
@@ -350,10 +350,10 @@ TEST(11) {
   __ cmpge(r5, Operand(545), r1);     // false
   __ bt(&error);
 
-  __ cmpgeu(r4, Operand(-27), r1);    // true
+  __ cmphs(r4, Operand(-27), r1);     // true
   __ bf(&error);
 
-  __ cmpgeu(r4, Operand(-26), r1);    // false
+  __ cmphs(r4, Operand(-26), r1);     // false
   __ bt(&error);
 
   __ mov(r0, Operand(1));

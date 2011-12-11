@@ -1840,7 +1840,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   b(t, gc_required);
 
   RECORD_LINE();
-  cmpgtu(scratch2, sh4_ip);
+  cmphi(scratch2, sh4_ip);
   bt(gc_required);
 
   RECORD_LINE();
@@ -1948,7 +1948,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   RECORD_LINE();
   b(t, gc_required);
   RECORD_LINE();
-  cmpgtu(scratch2, sh4_ip);
+  cmphi(scratch2, sh4_ip);
   bt(gc_required);
   RECORD_LINE();
 

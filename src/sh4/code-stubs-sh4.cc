@@ -3472,7 +3472,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // comparison to get negative check for free.
   __ bind(&adaptor);
   __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmpgeu(r1, r0);
+  __ cmphs(r1, r0);
   __ bt(&slow);
 
   // Read the argument from the adaptor frame and return it.
@@ -4434,7 +4434,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ cmphi(scratch, Operand(static_cast<int>('9' - '0')));
   __ bt(&not_array_index);
   __ sub(scratch, c2, Operand(static_cast<int>('0')));
-  __ cmpgtu(scratch, Operand(static_cast<int>('9' - '0')));
+  __ cmphi(scratch, Operand(static_cast<int>('9' - '0')));
 
   // If check failed combine both characters into single halfword.
   // This is required by the contract of the method: code at the

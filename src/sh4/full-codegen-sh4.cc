@@ -292,7 +292,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       PrepareForBailoutForId(AstNode::kDeclarationsId, NO_REGISTERS);
       NearLabel ok;
       __ LoadRoot(ip, Heap::kStackLimitRootIndex);
-      __ cmpgeu(sp, ip);
+      __ cmphs(sp, ip);
       __ bt(&ok);
       StackCheckStub stub;
       __ CallStub(&stub);
