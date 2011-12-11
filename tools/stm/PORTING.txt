@@ -1,0 +1,97 @@
+**** Converting ARM code generation to SH4 code generation:
+
+*** Specific patterns
+** hs/cs idioms
+On ARM the CS/CC conditions are mapped to the same bit as the HS/LO condition.
+Thus there are cases where b(cs) is used for b(hs) and b(cc is used for b(lo) when comparing unsigned integers.
+On SH4, never use cs for unsigned comparison, use cmphs which is not misleading.
+The common ARM pattern for unsigned comparison and branch if higher or same is thus:
+* Pattern ARM->SH4:
+cmp(r0, r1)
+b(cs,&label) or b(hs,&label) (equivalents)
+->
+cmphs(r0,r1)
+bt(&label)
+
+** sub(setcc) ge/lt/gt/le implicit compare idiom
+When performing a sub with SETCC on ARM for a compare operation, the condition flag is set at the same time the substraction is made.
+In general for SH4, the compare must be done before the sub, instead of comparing the result with zero because overflow can occur.
+* Pattern ARM->SH4:
+sub(r0, r0, r1, SetCC)
+b(ge, &label)
+->
+cmpge(r0, r1)
+sub(r0, r0, r1)
+bt(&label)
+This is NOT equivalent due to overflow to the following:
+sub(r0, r0, r1)
+cmpge(r0, 0)
+bt(&label)
+
+Note that when using pl/mi condition, it is actually the contrary, i.e. the overflow bit is ignored, hence a compare to zero must be done on the
+result:
+* Pattern ARM->SH4:
+sub(r0, r0, r1, SetCC)
+b(mi, &label)
+->
+sub(r0, r0, r1)
+cmpge(r0, 0)
+bf(&label)
+
+Note that when using eq/ne condition it is sufficient to tst the resulting value:
+* Pattern ARM->SH4:
+sub(r0, r0, r1, SetCC)
+b(eq, &label)
+->
+sub(r0, r0, r1)
+tst(r0, r0)
+bt(&label)
+
+** vs/vc overflow idiom
+On ARM the overflow bit condition is vs/vc (overflow set/clear).
+For SH4, use the addv/subv arithmetic followed by a T bit test.
+* Pattern ARM->SH4
+add(r0, r0, r1, SetCC)
+b(vs, &label)
+->
+addv(r0, r0, r1)
+b(t,&label)
+
+** sub & cs/cc idiom
+One must be careful with the semantic of the Carry and Borrow in ARM.
+In particular cmp/sbc/rsc operations set the C flag if NOT(borrow) occurs.
+This is the inverse of the SH4 subc semantic that set the T flag if borrow occurs.
+Prefer to not use the borrow condition on a sub or cmp. I.e. avoid SH4 subc when possible.
+* Pattern ARM -> SH4
+sub(r0, r0, r1, SetCC)
+b(cs, &label)  <== Warning: this is testing that NO borrow occurs
+->
+subc(r0, r0, r1)
+b(f, &label)   <== Warning: this is testing that NO borrow occurs
+
+For direct cmp, use the cs/hs idiom and replace the cs check by a cmphs:
+* Pattern ARM -> SH4
+cmp(r0, r1)
+b(cs, &label)  <== Warning: this is testing that NO borrow occurs
+->
+cmphs(r0, r0)
+b(t, &label)   <== Warning: this is testing that NO borrow occurs (see cs/hs idiom)
+
+* Pattern ARM -> SH4
+sub(r0, r0, r1, SetCC)
+b(cc, &label)  <== Warning: this is testing that borrow occurs
+->
+subc(r0, r0, r1)
+b(t, &label)   <== Warning: this is testing that borrow occurs
+
+* add & cs/cc idiom
+For addition, the ARM semantic is to set the C flag on carry, this is the same semantic
+as for the SH4 addc.
+* Pattern ARM -> SH4:
+add(r0, r0, r1, SetCC)
+b(cs, &label)
+->
+addc(r0, r0, r1)
+b(t,&label)
+ 
+TODO: check patterns with SetCC and cs/cc vs/vc, remove cs/cc from condition aliases
