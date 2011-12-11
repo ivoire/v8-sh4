@@ -5344,8 +5344,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   static const int kProbes = 4;
   Label found_in_symbol_table;
   Label next_probe[kProbes];
+  Register candidate = scratch5;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
-    Register candidate = scratch5;  // Scratch register contains candidate.
 
     // Calculate entry in symbol table.
     if (i > 0) {
@@ -5403,7 +5403,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ jmp(not_found);
 
   // Scratch register contains result when we fall through to here.
-  Register result = scratch;
+  Register result = candidate;
   __ bind(&found_in_symbol_table);
   __ Move(r0, result);
 }
@@ -5441,7 +5441,7 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   __ add(hash, hash, Operand(hash, LSL, 15), SetCC);
 
   // if (hash == 0) hash = 27;
-  __ mov(hash, Operand(27), LeaveCC, ne);
+  __ mov(hash, Operand(27), LeaveCC, eq);
 }
 
 
