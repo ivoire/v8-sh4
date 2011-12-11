@@ -956,7 +956,7 @@ class MacroAssembler: public Assembler {
   // sets flags.
   void TrySmiTag(Register reg, Label* not_a_smi, Register scratch) {
     addv(scratch, reg, reg);
-    b(vs, not_a_smi);
+    b(t, not_a_smi);
     mov(reg, scratch);
   }
 

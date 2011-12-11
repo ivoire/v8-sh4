@@ -1738,12 +1738,12 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
     }
     case Token::ADD:
       __ addv(scratch1, left, right);
-      __ b(vs, &stub_call);
+      __ b(t, &stub_call);
       __ mov(right, scratch1);
       break;
     case Token::SUB:
       __ subv(scratch1, left, right);
-      __ b(vs, &stub_call);
+      __ b(t, &stub_call);
       __ mov(right, scratch1);
       break;
     case Token::MUL: {
@@ -3395,7 +3395,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ JumpIfInstanceTypeIsNotSequentialAscii(scratch1, scratch2, &bailout);
   __ ldr(scratch1, FieldMemOperand(string, SeqAsciiString::kLengthOffset));
   __ addv(string_length, string_length, scratch1);
-  __ b(vs, &bailout);
+  __ b(t, &bailout);
   __ cmpge(element, elements_end);
   __ bf(&loop);
 
@@ -3432,7 +3432,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ tst(scratch2, Operand(0x80000000));
   __ b(ne, &bailout);
   __ addv(string_length, string_length, scratch2);
-  __ b(vs, &bailout);
+  __ b(t, &bailout);
   __ SmiUntag(string_length);
 
   // Get first element in the array to free up the elements register to be used
@@ -3819,7 +3819,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   int count_value = expr->op() == Token::INC ? 1 : -1;
   if (ShouldInlineSmiCase(expr->op())) {
     __ addv(r0, r0, Operand(Smi::FromInt(count_value)));
-    __ b(vs, &stub_call);
+    __ b(t, &stub_call);
     // We could eliminate this smi check if we split the code at
     // the first smi check before calling ToNumber.
     patch_site.EmitJumpIfSmi(r0, &done);

@@ -799,72 +799,72 @@ TEST(18) {
   __ mov(r0, Operand(0xFFFFFFFE));
   __ mov(r1, Operand(1));
   __ addc(r2, r0, r1);
-  B_LINE(cs, &error);  // check that carry is clear
+  B_LINE(t, &error);  // check that carry is clear
   __ cmpeq(r2, Operand(0xFFFFFFFF));
   B_LINE(f, &error);
 
   __ addc(r1, r1, r0);  // left auto-modified
-  B_LINE(cs, &error);
+  B_LINE(t, &error);
   __ cmpeq(r1, Operand(0xFFFFFFFF));
   B_LINE(f, &error);
 
   __ mov(r1, Operand(1));
   __ addc(r1, r0, r1);  // right auto-modified
-  B_LINE(cs, &error);
+  B_LINE(t, &error);
   __ cmpeq(r1, Operand(0xFFFFFFFF));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(0xFFFFFFFF));
   __ mov(r1, Operand(1));
   __ addc(r2, r0, r1);
-  B_LINE(cc, &error);  // check that carry is set
+  B_LINE(f, &error);  // check that carry is set
   __ cmpeq(r2, Operand(0));
   B_LINE(f, &error);
 
   __ addc(r1, r1, r0);  // left auto-modified
-  B_LINE(cc, &error);
+  B_LINE(f, &error);
   __ cmpeq(r1, Operand(0));
   B_LINE(f, &error);
 
   __ mov(r1, Operand(1));
   __ addc(r1, r0, r1);  // right auto-modified
-  B_LINE(cc, &error);
+  B_LINE(f, &error);
   __ cmpeq(r1, Operand(0));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(1));
   __ mov(r1, Operand(1));
   __ subc(r2, r0, r1);
-  B_LINE(cs, &error);  // check that carry is clear
+  B_LINE(t, &error);  // check that carry is clear
   __ cmpeq(r2, Operand(0));
   B_LINE(f, &error);
 
   __ subc(r0, r0, r1);  // left auto-modified
-  B_LINE(cs, &error);
+  B_LINE(t, &error);
   __ cmpeq(r0, Operand(0));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(1));
   __ subc(r1, r0, r1);  // right auto-modified
-  B_LINE(cs, &error);
+  B_LINE(t, &error);
   __ cmpeq(r1, Operand(0));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(0));
   __ mov(r1, Operand(1));
   __ subc(r2, r0, r1);
-  B_LINE(cc, &error);  // check that carry is set
+  B_LINE(f, &error);  // check that carry is set
   __ cmpeq(r2, Operand(-1));
   B_LINE(f, &error);
 
   __ subc(r0, r0, r1);  // left auto-modified
-  B_LINE(cc, &error);
+  B_LINE(f, &error);
   __ cmpeq(r0, Operand(-1));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(0));
   __ subc(r1, r0, r1);  // right auto-modified
-  B_LINE(cc, &error);
+  B_LINE(f, &error);
   __ cmpeq(r1, Operand(-1));
   B_LINE(f, &error);
 
@@ -900,72 +900,72 @@ TEST(19) {
   __ mov(r0, Operand(0x7FFFFFFE));
   __ mov(r1, Operand(1));
   __ addv(r2, r0, r1);
-  B_LINE(vs, &error);  // check that overflow is clear
+  B_LINE(t, &error);  // check that overflow is clear
   __ cmpeq(r2, Operand(0x7FFFFFFF));
   B_LINE(f, &error);
 
   __ addv(r1, r1, r0);  // left auto-modified
-  B_LINE(vs, &error);
+  B_LINE(t, &error);
   __ cmpeq(r1, Operand(0x7FFFFFFF));
   B_LINE(f, &error);
 
   __ mov(r1, Operand(1));
   __ addv(r1, r0, r1);  // right auto-modified
-  B_LINE(vs, &error);
+  B_LINE(t, &error);
   __ cmpeq(r1, Operand(0x7FFFFFFF));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(0x7FFFFFFF));
   __ mov(r1, Operand(1));
   __ addv(r2, r0, r1);
-  B_LINE(vc, &error);  // check that overflow is set
+  B_LINE(f, &error);  // check that overflow is set
   __ cmpeq(r2, Operand(0x80000000));
   B_LINE(f, &error);
 
   __ addv(r1, r1, r0);  // left auto-modified
-  B_LINE(vc, &error);
+  B_LINE(f, &error);
   __ cmpeq(r1, Operand(0x80000000));
   B_LINE(f, &error);
 
   __ mov(r1, Operand(1));
   __ addv(r1, r0, r1);  // right auto-modified
-  B_LINE(vc, &error);
+  B_LINE(f, &error);
   __ cmpeq(r1, Operand(0x80000000));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(0x80000001));
   __ mov(r1, Operand(1));
   __ subv(r2, r0, r1);
-  B_LINE(vs, &error);  // check that overflow is clear
+  B_LINE(t, &error);  // check that overflow is clear
   __ cmpeq(r2, Operand(0x80000000));
   B_LINE(f, &error);
 
   __ subv(r0, r0, r1);  // left auto-modified
-  B_LINE(vs, &error);
+  B_LINE(t, &error);
   __ cmpeq(r0, Operand(0x80000000));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(0x80000001));
   __ subv(r1, r0, r1);  // right auto-modified
-  B_LINE(vs, &error);
+  B_LINE(t, &error);
   __ cmpeq(r1, Operand(0x80000000));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(0x80000000));
   __ mov(r1, Operand(1));
   __ subv(r2, r0, r1);
-  B_LINE(cc, &error);  // check that carry is set
+  B_LINE(f, &error);  // check that carry is set
   __ cmpeq(r2, Operand(0x7FFFFFFF));
   B_LINE(f, &error);
 
   __ subv(r0, r0, r1);  // left auto-modified
-  B_LINE(cc, &error);
+  B_LINE(f, &error);
   __ cmpeq(r0, Operand(0x7FFFFFFF));
   B_LINE(f, &error);
 
   __ mov(r0, Operand(0x80000000));
   __ subv(r1, r0, r1);  // right auto-modified
-  B_LINE(cc, &error);
+  B_LINE(f, &error);
   __ cmpeq(r1, Operand(0x7FFFFFFF));
   B_LINE(f, &error);
 

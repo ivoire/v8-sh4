@@ -1837,7 +1837,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top.
   addc(scratch2, result, obj_size_reg);
-  b(cs, gc_required);
+  b(t, gc_required);
 
   RECORD_LINE();
   cmpgtu(scratch2, sh4_ip);
@@ -1946,7 +1946,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     addc(scratch2, result, object_size);
   }
   RECORD_LINE();
-  b(cs, gc_required);
+  b(t, gc_required);
   RECORD_LINE();
   cmpgtu(scratch2, sh4_ip);
   bt(gc_required);

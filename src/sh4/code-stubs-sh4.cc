@@ -1965,12 +1965,12 @@ void BinaryOpStub::GenerateSmiSmiOperation(MacroAssembler* masm) {
   switch (op_) {
     case Token::ADD:
       __ addv(right, left, right);        // Add optimistically.
-      __ Ret(vc);                        // Return if no overflow
+      __ Ret(f);                        // Return if no overflow
       __ sub(right, right, left);          // Revert optimistic add.
       break;
     case Token::SUB:
       __ subv(right, left, right);        // Subtract optimistically.
-      __ Ret(vc);                        // Return if no overflow
+      __ Ret(f);                        // Return if no overflow
       __ sub(right, left, right);        // Revert optimistic subtract.
       break;
     case Token::MUL:
@@ -4639,7 +4639,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ bf(&runtime);  // From is negative.
 
   // Both to and from are smis.
-
   __ sub(r2, r2, r3);
   __ cmpge(r2, Operand(0));
   __ bf(&runtime);  // Fail if from > to.

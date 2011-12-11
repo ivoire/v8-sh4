@@ -305,11 +305,7 @@ enum Condition {
 
   // Aliases
   t = eq,        // cmp eq; if SH4 cmpeq/cmp sets the T bit, t == eq
-  f = ne,        // cmp ne: if SH4 cmpeq/cmp clears the T bit, f == ne
-  vs = t,        // overflow set: if SH4 addv/subv sets the T bit, vs == t
-  vc = f,        // overflow clear: if SH4 addv/subv clears the T bit, vc == f
-  cs = t,        // carry set: if SH4 addc/subc sets the T bit, cs == t
-  cc = f         // carry clear: if SH4 addc/subc clears the T bit, vc == f
+  f = ne         // cmp ne: if SH4 cmpeq/cmp clears the T bit, f == ne
 };
 
 enum AddrMode {
