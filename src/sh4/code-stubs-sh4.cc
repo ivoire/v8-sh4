@@ -4440,8 +4440,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   // This is required by the contract of the method: code at the
   // not_found branch expects this combination in c1 register
   __ lsl(scratch1, c2, Operand(kBitsPerByte));
-  __ lor(c1, c1, scratch1, ne);
-  __ b(ne, not_found);
+  __ lor(c1, c1, scratch1, f);
+  __ b(f, not_found);
 
   __ bind(&not_array_index);
   // Calculate the two character string hash.
@@ -4490,8 +4490,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   static const int kProbes = 4;
   Label found_in_symbol_table;
   Label next_probe[kProbes];
+  Register candidate = scratch5;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
-    Register candidate = scratch5;  // Scratch register contains candidate.
 
     // Calculate entry in symbol table.
     if (i > 0) {
@@ -4547,7 +4547,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ jmp(not_found);
 
   // Scratch register contains result when we fall through to here.
-  Register result = scratch;
+  Register result = candidate;
   __ bind(&found_in_symbol_table);
   __ Move(r0, result);
 }
@@ -4598,8 +4598,9 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   __ add(hash, hash, scratch);
 
   // if (hash == 0) hash = 27;
-  __ cmp(hash, Operand(27));
-  __ mov(hash, Operand(27), ne);
+  // This code is in sync with StringHasher::GetHash() in objects-inl.h
+  __ cmpeq(hash, Operand(0));
+  __ mov(hash, Operand(27), t);
 }
 
 
