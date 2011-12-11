@@ -591,7 +591,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     __ lsl(scratch2, scratch2, dst1);
     __ bic(int_scratch, int_scratch, scratch2);
 
-    __ cmp(dst1, Operand(HeapNumber::kMantissaBitsInTopWord));
+    // __ cmp(dst1, Operand(HeapNumber::kMantissaBitsInTopWord)); // Present on ARM, but dead code.
     // Get the number of bits to set in the lower part of the mantissa.
     __ sub(scratch2, dst1, Operand(HeapNumber::kMantissaBitsInTopWord));
     __ cmpge(scratch2, Operand(0));
