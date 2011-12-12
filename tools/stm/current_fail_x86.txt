@@ -1,0 +1,14 @@
+test-api/Threading4
+test-api/Bug618
+test-api/RunDefaultAndAnotherIsolate
+test-api/RunTwoIsolatesOnSingleThread
+test-api/MultipleIsolatesOnIndividualThreads
+test-debug/DebugBreak
+test-lockers/MultithreadedParallelIsolates
+test-lockers/SeparateIsolatesLocksNonexclusive
+test-lockers/LockAndUnlockDifferentIsolates
+test-log/LogCallbacks
+test-log/LogAccessorCallbacks
+test-log/EquivalenceOfLoggingAndTraversal
+test-serialize/TestThatAlwaysFails
+test-weakmaps/Shrinking

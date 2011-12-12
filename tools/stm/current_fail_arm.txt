@@ -1,0 +1,12 @@
+test-api/Threading
+test-api/Threading1
+test-api/Threading2
+test-api/Threading4
+test-api/ApplyInterruption
+test-api/Bug618
+test-serialize/TestThatAlwaysFails
+test-debug/DebugBreak
+test-log/LogCallbacks
+test-log/LogAccessorCallbacks
+test-log/EquivalenceOfLoggingAndTraversal
+test-weakmaps/Shrinking
