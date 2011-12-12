@@ -47,7 +47,7 @@ find . -name '*.gcda' -exec rm {} \;
 
 CCTEST=${CCTEST:-./obj/test/${mode}/cctest}
 $RUN_PREFIX $CCTEST --list >$tmpfile || error "cannot list the tests: cctest --list failed"
-CCTEST_OPTS=${CCTEST_OPTS-"-debug_code"}
+CCTEST_OPTS=${CCTEST_OPTS-"-debug_code $XCCTEST_OPTS"}
 
 echo "Listing the available tests..."
 if [ $# != 0 ]; then
