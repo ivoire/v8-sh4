@@ -755,8 +755,21 @@ void Assembler::branch(Label* L, Register rtmp, branch_type type) {
 }
 
 
+void Assembler::jmp(Register Rd) {
+  positions_recorder()->WriteRecordedPositions(); // Record position of a jmp to code
+  jmp_indRd_(Rd);
+  nop_();
+}
+
+void Assembler::jsr(Register Rd) {
+  positions_recorder()->WriteRecordedPositions(); // Record position of a jmp to code
+  jsr_indRd_(Rd);
+  nop_();
+}
+
 void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
+  positions_recorder()->WriteRecordedPositions(); // Record position of a jmp to code
   // TODO(stm): make a faster sequence where the constant pool is
   // after the branch
   mov(rtmp, Operand(reinterpret_cast<intptr_t>(code.location()), rmode));
@@ -766,6 +779,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
 
 void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
+  positions_recorder()->WriteRecordedPositions(); // Record position of a jsr to code
   // TODO(stm): make a faster sequence where the constant pool is
   // after the branch
   mov(rtmp, Operand(reinterpret_cast<intptr_t>(code.location()), rmode));

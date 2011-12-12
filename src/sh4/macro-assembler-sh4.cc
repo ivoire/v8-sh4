@@ -478,12 +478,8 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
   int start_position = pc_offset();
 #endif
 
-  // TODO(stm): check whether this is necessary
-  // Statement positions are expected to be recorded when the target
-  // address is loaded. The mov method will automatically record
-  // positions when pc is the target, since this is not the case here
-  // we have to do it explicitly.
-  positions_recorder()->WriteRecordedPositions();
+  // No need to record position here for sh4. The jsr() does it.
+  // positions_recorder()->WriteRecordedPositions();
 
   mov(sh4_ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   jsr(sh4_ip);

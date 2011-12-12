@@ -145,7 +145,8 @@ THREADED_TEST(IssueActualArgumentsNum) {
 }
 
 // Extracted from test-api/CatchStackOverflow
-// Fails with a sigsegv on sh4.
+// Fails with a sigsegv on sh4 QEMU.
+// Reduce the stack size (in Kb) when running cctest, for instance: cctest -stack_size=256 ...
 TEST(IssueCatchStackOverflow) {
   v8::HandleScope scope;
   LocalContext context;
@@ -158,5 +159,23 @@ TEST(IssueCatchStackOverflow) {
     "f();"));
   v8::Handle<v8::Value> result = script->Run();
   CHECK(result.IsEmpty());
+}
+
+
+// Extracted from test-api/Regress528
+// Does not return the correct line source information in the exception.
+// Returns 0 as line number instead of 1.
+// The problem was in assembler-sh4 where one must call
+// positions_recorder()->WriteRecordedPositions() for all jsr/jmp
+TEST(IssueTryCatchSourceInfo) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  const char* source_exception = "function f(){throw 1;} f()";
+  CompileRun(source_exception);
+  CHECK(try_catch.HasCaught());
+  v8::Handle<v8::Message> message = try_catch.Message();
+  CHECK(!message.IsEmpty());
+  CHECK_EQ(1, message->GetLineNumber());
 }
 

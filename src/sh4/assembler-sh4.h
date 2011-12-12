@@ -671,15 +671,8 @@ class Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
-  void jmp(Register Rd) {
-    jmp_indRd_(Rd);
-    nop_();
-  }
-  void jsr(Register Rd) {
-    jsr_indRd_(Rd);
-    nop_();
-  }
-
+  void jmp(Register Rd);
+  void jsr(Register Rd);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
 
