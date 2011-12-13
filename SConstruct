@@ -156,6 +156,7 @@ LIBRARY_FLAGS = {
     },
     'arch:arm': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_ARM'],
+      'CCFLAGS':      [ '-fno-strict-aliasing'],
       'unalignedaccesses:on' : {
         'CPPDEFINES' : ['CAN_USE_UNALIGNED_ACCESSES=1']
       },
@@ -188,7 +189,7 @@ LIBRARY_FLAGS = {
       }
     },
     'simulator:arm': {
-      'CCFLAGS':      ['-m32', '-fno-strict-aliasing'],
+      'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32'],
     },
     'arch:sh4': {
