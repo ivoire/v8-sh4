@@ -3224,9 +3224,9 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   // r2 now holds finger offset as a smi.
   __ add(r3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   // r3 now points to the start of fixed array elements.
-  __ lsl(ip, r2, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r2, r2, ip);
-  __ ldr(r2, MemOperand(r3, r2));
+  __ lsl(r2, r2, Operand(kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, r3, r2);
+  __ ldr(r2, MemOperand(r3));
   // Note side effect of PreIndex: r3 now points to the key of the pair.
   __ cmp(key, r2);
   __ b(ne, &not_found);
