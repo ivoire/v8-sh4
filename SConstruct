@@ -188,11 +188,11 @@ LIBRARY_FLAGS = {
       }
     },
     'simulator:arm': {
-      'CCFLAGS':      ['-m32'],
+      'CCFLAGS':      ['-m32', '-fno-strict-aliasing'],
       'LINKFLAGS':    ['-m32'],
     },
     'arch:sh4': {
-      'CCFLAGS':      ['-mieee'],
+      'CCFLAGS':      ['-mieee', '-fno-strict-aliasing'],
       'CPPDEFINES':   ['V8_TARGET_ARCH_SH4']
     },
     'arch:mips': {
