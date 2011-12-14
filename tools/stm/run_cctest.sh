@@ -63,21 +63,21 @@ failed=0
 echo "Cleaning profiling files..."
 find . -name '*.gcda' -exec rm {} \;
 
-rm -f run_cctest.log
+rm -f run_cctest_${mode}.log
 echo "Running the tests..."
 for name in $tests
 do
-  echo "=== $name ===" | tee -a run_cctest.log
+  echo "=== $name ===" | tee -a run_cctest_${mode}.log
   res=0
-  $RUN_PREFIX $CCTEST $CCTEST_OPTS $name >>run_cctest.log 2>&1 || res=1
+  $RUN_PREFIX $CCTEST $CCTEST_OPTS $name >>run_cctest_${mode}.log 2>&1 || res=1
   if [ $res != 0 ]
   then
-    echo "...FAILED" | tee -a run_cctest.log
+    echo "...FAILED" | tee -a run_cctest_${mode}.log
     failed=$((failed+1))
   fi
   total=$((total+1))
 done
 
-echo "=========================" | tee -a run_cctest.log
-echo "Failed test: $failed/$total" | tee -a run_cctest.log
-echo "=========================" | tee -a run_cctest.log
+echo "=========================" | tee -a run_cctest_${mode}.log
+echo "Failed test: $failed/$total" | tee -a run_cctest_${mode}.log
+echo "=========================" | tee -a run_cctest_${mode}.log

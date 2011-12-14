@@ -37,11 +37,11 @@ CCTEST=${CCTEST:-./obj/test/${mode}/cctest}
 CCTEST_OPTS=${CCTEST_OPTS-"-debug_code $XCCTEST_OPTS"}
 CCTEST_LOG_OPTS=${CCTEST_LOG_OPTS-"-print_code -print_code_stubs -print_builtin_code -code_comments $XCCTEST_LOG_OPTS"}
 
-rm -f codegen.trace run_cctest_trace.log
+rm -f codegen_${mode}.trace run_cctest_trace_${mode}.log
 echo "Running the test..."
-echo "=== $@ ===" | tee -a run_cctest_trace.log
+echo "=== $@ ===" | tee -a run_cctest_trace_${mode}.log
 res=0
-$RUN_PREFIX $CCTEST $CCTEST_OPTS $CCTEST_LOG_OPTS $@ >codegen.trace 2>&1 || res=1
+$RUN_PREFIX $CCTEST $CCTEST_OPTS $CCTEST_LOG_OPTS $@ >codegen_${mode}.trace 2>&1 || res=1
 if [ $res != 0 ]; then
-    echo "...FAILED" | tee -a run_cctest_trace.log
+    echo "...FAILED" | tee -a run_cctest_trace_${mode}.log
 fi
