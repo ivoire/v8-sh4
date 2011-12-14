@@ -31,7 +31,7 @@ RUN_TIMEOUT=${RUN_TIMEOUT:-1200}
 TIMEOUT_OPTS=${TIMEOUT_OPTS:-"-s KILL $RUN_TIMEOUT"}
 if [ "$QEMU" != "" ]; then
     if [ "$PROOT" = "" ]; then
-	QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -cwd $PWD"
+	QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
 	RUN_PREFIX=${RUN_PREFIX:-"$TIMEOUT $TIMEOUT_OPTS $QEMU $QEMU_OPTS"}
     else
 	QEMU_PROOT_OPTS=`echo $QEMU | sed 's/ /,/g'`
