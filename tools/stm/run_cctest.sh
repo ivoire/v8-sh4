@@ -6,7 +6,7 @@ set -e
 pdir=`dirname $0`
 arch=${arch:-""} # if not defined, assume build in native mode
 site=${site:-default}
-mode=${mode:-debug}
+mode=${mode:-release}
 
 error() {
     echo "error: $*" >&2

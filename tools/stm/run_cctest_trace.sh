@@ -8,7 +8,7 @@ test=${1:?}
 pdir=`dirname $0`
 arch=${arch:-""} # if not defined, assume build in native mode
 site=${site:-default}
-mode=${mode:-debug}
+mode=${mode:-release}
 
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
