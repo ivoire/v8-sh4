@@ -23,4 +23,4 @@ jobs=${jobs:-4}
 
 scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} -j ${jobs}
 scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} -j ${jobs} sample=shell
-tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport}  -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -j 4 ${tests}
+tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport}  -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -j ${jobs} ${tests}
