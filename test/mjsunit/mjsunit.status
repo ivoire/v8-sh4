@@ -149,6 +149,12 @@ regress/regress-1257: SKIP
 regress/regress-91008: SKIP
 
 ##############################################################################
+[ $arch == sh4 ]
+
+# Skip all debug test as debugger support is no active
+debug-*: SKIP
+
+##############################################################################
 [ $isolates ]
 # d8-os writes temporary files that might interfer with each other when running
 # in multible threads. Skip this if running with isolates testing.
