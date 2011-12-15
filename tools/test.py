@@ -591,7 +591,7 @@ class TestConfiguration(object):
     pass
 
   def VariantFlags(self):
-    return VARIANT_FLAGS
+    return self.context.variant_flags
 
 
 
@@ -683,7 +683,7 @@ TIMEOUT_SCALEFACTOR = {
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs, store_unexpected_output, run_prefix, timeout_scale):
+  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs, store_unexpected_output, run_prefix, timeout_scale, variant_flags):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
@@ -694,6 +694,7 @@ class Context(object):
     self.store_unexpected_output = store_unexpected_output
     self.run_prefix = run_prefix
     self.timeout_scale = timeout_scale
+    self.variant_flags = variant_flags
 
   def GetVm(self, mode):
     name = self.vm_root + SUFFIX[mode]
@@ -1230,6 +1231,9 @@ def BuildOptions():
   result.add_option("--crankshaft",
                     help="Run with the --crankshaft flag",
                     default=False, action="store_true")
+  result.add_option("--nocrankshaft",
+                    help="Assume no crankshaft available",
+                    default=False, action="store_true")
   result.add_option("--shard-count",
                     help="Split testsuites into this number of shards",
                     default=1, type="int")
@@ -1282,6 +1286,8 @@ def ProcessOptions(options):
     VARIANT_FLAGS = [['--stress-opt', '--always-opt']]
   if options.nostress:
     VARIANT_FLAGS = [[],['--nocrankshaft']]
+  if options.nocrankshaft:
+    VARIANT_FLAGS = [['--nocrankshaft']]
   if options.crankshaft:
     if options.special_command:
       options.special_command += " --crankshaft"
@@ -1437,7 +1443,8 @@ def Main():
                     options.suppress_dialogs,
                     options.store_unexpected_output,
                     options.run_prefix,
-                    options.timeout_scale)
+                    options.timeout_scale,
+                    VARIANT_FLAGS)
   # First build the required targets
   if not options.no_build:
     reqs = [ ]
