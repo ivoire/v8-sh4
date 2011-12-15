@@ -931,15 +931,16 @@ TEST(sh4_ma_8) {
   __ cmpeq(r0, Operand(31));
   B_LINE(ne, &error);
 
-  __ mov(r0, Operand(0));
-  __ mov(r1, Operand(3));
-  __ CountLeadingZeros(r0, r1, r3);
+  // Test same register for input and output
+  __ mov(r0, Operand(3));
+  __ CountLeadingZeros(r0, r0, r3);
   __ cmpeq(r0, Operand(30));
   B_LINE(ne, &error);
 
+  // Test same register for input and scratch
   __ mov(r0, Operand(0));
   __ mov(r1, Operand(5));
-  __ CountLeadingZeros(r0, r1, r3);
+  __ CountLeadingZeros(r0, r1, r1);
   __ cmpeq(r0, Operand(29));
   B_LINE(ne, &error);
 

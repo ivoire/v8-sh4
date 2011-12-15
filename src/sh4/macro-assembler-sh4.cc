@@ -2223,8 +2223,9 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   jmp(&l5);
 
   bind(&l0);
-  mov(zeros, Operand(0));
+  // Be carefull to save source in scratch, source and zeros may be the same register
   mov(scratch, source);
+  mov(zeros, Operand(0));
   // Top 16.
   tst(scratch, Operand(0xffff0000));
   bf(&l1);
