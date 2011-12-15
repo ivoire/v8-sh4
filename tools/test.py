@@ -683,7 +683,7 @@ TIMEOUT_SCALEFACTOR = {
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs, store_unexpected_output):
+  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs, store_unexpected_output, run_prefix, timeout_scale):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
@@ -692,6 +692,8 @@ class Context(object):
     self.processor = processor
     self.suppress_dialogs = suppress_dialogs
     self.store_unexpected_output = store_unexpected_output
+    self.run_prefix = run_prefix
+    self.timeout_scale = timeout_scale
 
   def GetVm(self, mode):
     name = self.vm_root + SUFFIX[mode]
@@ -700,7 +702,7 @@ class Context(object):
     return name
 
   def GetVmCommand(self, testcase, mode):
-    return [self.GetVm(mode)] + self.GetVmFlags(testcase, mode)
+    return self.run_prefix.split() + [self.GetVm(mode)] + self.GetVmFlags(testcase, mode)
 
   def GetVmFlags(self, testcase, mode):
     flags = testcase.GetCustomFlags(mode)
@@ -709,7 +711,7 @@ class Context(object):
     return testcase.variant_flags + flags
 
   def GetTimeout(self, testcase, mode):
-    result = self.timeout * TIMEOUT_SCALEFACTOR[mode]
+    result = self.timeout * TIMEOUT_SCALEFACTOR[mode] * self.timeout_scale
     if '--stress-opt' in self.GetVmFlags(testcase, mode):
       return result * 2
     else:
@@ -1236,6 +1238,10 @@ def BuildOptions():
                     default=1, type="int")
   result.add_option("--noprof", help="Disable profiling support",
                     default=False)
+  result.add_option("--run-prefix", help="Run prefix for the shell executable",
+                    default="")
+  result.add_option("--timeout-scale", help="Scale factor for timeout",
+                    default=1, type="int")
   return result
 
 
@@ -1265,7 +1271,7 @@ def ProcessOptions(options):
     options.scons_flags.append("arch=" + options.arch)
   # Simulators are slow, therefore allow a longer default timeout.
   if options.timeout == -1:
-    if options.arch == 'arm' or options.arch == 'mips':
+    if options.arch == 'arm' or options.arch == 'mips' or options.arch == 'sh4':
       options.timeout = 2 * TIMEOUT_DEFAULT;
     else:
       options.timeout = TIMEOUT_DEFAULT;
@@ -1429,7 +1435,9 @@ def Main():
                     options.timeout,
                     GetSpecialCommandProcessor(options.special_command),
                     options.suppress_dialogs,
-                    options.store_unexpected_output)
+                    options.store_unexpected_output,
+                    options.run_prefix,
+                    options.timeout_scale)
   # First build the required targets
   if not options.no_build:
     reqs = [ ]
