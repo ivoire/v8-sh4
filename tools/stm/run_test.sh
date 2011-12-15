@@ -30,5 +30,5 @@ fi
 find . -name '*.gcda' -exec rm {} \;
 
 rm -f run_test_${mode}.log
-tools/test.py --no-build --arch ${arch} --mode ${mode} --nostress --run-prefix "${RUN_PREFIX}" -j ${jobs} --report --progress mono ${1+"$@"} 2>&1 | tee run_test_${mode}.log
+tools/test.py --no-build --arch ${arch} --mode ${mode} --nocrankshaft --run-prefix "${RUN_PREFIX}" -j ${jobs} --report --progress mono ${1+"$@"} 2>&1 | tee run_test_${mode}.log
 exit ${PIPESTATUS[0]}
