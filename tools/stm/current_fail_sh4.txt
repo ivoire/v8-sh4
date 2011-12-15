@@ -1,7 +1,5 @@
 test-weakmaps/Shrinking
-test-threads/ThreadIdValidation
 test-serialize/TestThatAlwaysFails
-#Fixed test-mark-compact/NoPromotion
 test-log/LogCallbacks
 test-log/LogAccessorCallbacks
 test-log/EquivalenceOfLoggingAndTraversal
@@ -12,13 +10,6 @@ test-lockers/LockerUnlocker
 test-lockers/LockTwiceAndUnlock
 test-lockers/LockUnlockLockMultithreaded
 test-lockers/LockUnlockLockDefaultIsolateMultithreaded
-#test-api/APIStackOverflowAndVerboseTryCatch
 test-api/Threading
-#Fixed test-api/CatchStackOverflow
-#Fixed test-api/TryCatchSourceInfo
-#Still -> test-api/ApplyInterruption
-#Fixed test-api/CaptureStackTraceForUncaughtException
+#Still -> test-api/ApplyInterruption # timeout
 test-api/Bug618
-#Fixed test-api/Regress528 # no line info
-??test-api/AddToJSFunctionResultCache
-??test-api/RoundRobinGetFromCache

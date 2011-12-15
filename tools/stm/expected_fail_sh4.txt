@@ -1,26 +1,18 @@
 test-api/Threading # Fails on arm,sh4
-test-api/Threading2 # Fails on arm,sh4
-test-api/Threading3 # Fails on arm,sh4
-test-api/Threading4 # Fails on arm,sh4,x86
 test-api/ApplyInterruption # Fails on arm, sh4
 test-api/Bug618 # Fails on arm,sh4,x86
-test-api/RunDefaultAndAnotherIsolate # Fails on arm,sh4,x86
-test-api/RunTwoIsolatesOnSingleThread # Fails on arm,sh4,x86
-test-api/MultipleIsolatesOnIndividualThreads # Fails on arm,sh4,x86
-test-debug/DebugBreak # Fails on arm,sh4,x86
-test-lockers/MultithreadedParallelIsolates # fails on x86, sh4
-test-lockers/SeparateIsolatesLocksNonexclusive # fails on x86, sh4
-test-lockers/LockAndUnlockDifferentIsolates # fails on x86, sh4
-test-lockers/IsolateLockingStress # fails probably due to QEMU
-test-lockers/IsolateNestedLocking # fails probably due to QEMU
-test-lockers/SeparateIsolatesLocksNonexclusive # fails probably due to QEMU
-test-lockers/LockerUnlocker # fails probably due to QEMU
-test-lockers/LockTwiceAndUnlock # fails probably due to QEMU
-test-lockers/LockUnlockLockMultithreaded # fails probably due to QEMU
-test-lockers/LockUnlockLockDefaultIsolateMultithreaded # fails probably due to QEMU
-test-log/LogCallbacks # Fails on arm,sh4,x86
-test-log/LogAccessorCallbacks # Fails on arm,sh4,x86
-test-log/EquivalenceOfLoggingAndTraversal # Fails on arm,sh4,x86
-test-threads/ThreadIdValidation # fails probably due to QEMU
+test-lockers/MultithreadedParallelIsolates # fails on x86, sh4/QEMU,  ok on sh4/board
+test-lockers/SeparateIsolatesLocksNonexclusive # fails on x86, sh4/QEMU,  ok on sh4/board
+test-lockers/LockAndUnlockDifferentIsolates # fails on x86, sh4/QEMU,  ok on sh4/board
+test-lockers/IsolateLockingStress # fails on sh4/QEMU,   ok on sh4/board
+test-lockers/IsolateNestedLocking # fails on sh4/QEMU,   ok on sh4/board
+test-lockers/SeparateIsolatesLocksNonexclusive # fails on sh4/QEMU,   ok on sh4/board
+test-lockers/LockerUnlocker # fails on sh4/QEMU,   ok on sh4/board
+test-lockers/LockTwiceAndUnlock # fails on sh4/QEMU,   ok on sh4/board
+test-lockers/LockUnlockLockMultithreaded # fails on sh4/QEMU,   ok on sh4/board
+test-lockers/LockUnlockLockDefaultIsolateMultithreaded # fails on sh4/QEMU,   ok on sh4/board
+test-log/LogCallbacks # Fails on arm,sh4,x86 QEMU and board
+test-log/LogAccessorCallbacks # Fails on arm,sh4,x86 QEMU and board
+test-log/EquivalenceOfLoggingAndTraversal # Fails on arm,sh4,x86 QEMU and board
 test-serialize/TestThatAlwaysFails # Expected to always fail
 test-weakmaps/Shrinking # Fails on arm,sh4,x86
