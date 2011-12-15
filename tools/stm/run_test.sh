@@ -12,7 +12,7 @@ mode=${mode:-release}
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
 jobs=${jobs:-4}
 library=${library:-shared}
-[ "$library" = shared ] && LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+[ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 
 if [ "$QEMU" != "" ]; then
     if [ "$PROOT" = "" ]; then

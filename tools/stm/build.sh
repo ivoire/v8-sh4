@@ -19,7 +19,7 @@ tests=${tests:-""}
 vfp3=${vfp3:-on}
 jobs=${jobs:-4}
 
-[ "$library" = shared ] && LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+[ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 
 scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} -j ${jobs}
 scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} -j ${jobs} sample=shell
