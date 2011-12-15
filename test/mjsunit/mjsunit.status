@@ -151,8 +151,31 @@ regress/regress-91008: SKIP
 ##############################################################################
 [ $arch == sh4 ]
 
-# Skip all debug test as debugger support is no active
+# Skip all debug test (Flags: --expose-debug-as debug) as debuggersupport=off
 debug-*: SKIP
+regress/regress-1586: SKIP
+regress/regress-1170187: SKIP
+regress/regress-1523: SKIP
+regress/regress-998565: SKIP
+regress/regress-269: SKIP
+regress/regress-1081309: SKIP
+mirror-number: SKIP
+mirror-undefined: SKIP
+function-source: SKIP
+mirror-script: SKIP
+mirror-unresolved-function: SKIP
+mirror-object: SKIP
+bugs/harmony/debug-blockscopes: SKIP
+mirror-null: SKIP
+mirror-regexp: SKIP
+mirror-date: SKIP
+mirror-boolean: SKIP
+harmony/debug-blockscopes: SKIP
+harmony/debug-evaluate-blockscopes: SKIP
+mirror-error: SKIP
+mirror-function: SKIP
+mirror-string: SKIP
+mirror-array: SKIP
 
 ##############################################################################
 [ $isolates ]
