@@ -16,8 +16,18 @@ tmpfile=`mktemp /tmp/cctestXXXXXX`
 library=${library:-shared}
 [ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 
-QEMU_OPTS=${QEMU:+"-distro -L $TARGET_ROOT -x $PWD -cwd $PWD"}
-RUN_PREFIX=${RUN_PREFIX:-"$QEMU $QEMU_OPTS"}
+if [ "$QEMU" != "" ]; then
+    if [ "$PROOT" = "" ]; then
+	QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
+	RUN_PREFIX=${RUN_PREFIX:-"$QEMU $QEMU_OPTS"}
+    else
+	QEMU_PROOT_OPTS=`echo $QEMU | sed 's/ /,/g'`
+	PROOT_OPTS="-W -Q $QEMU_PROOT_OPTS $TARGET_ROOT"
+	RUN_PREFIX=${RUN_PREFIX:-"$PROOT $PROOT_OPTS"}
+    fi
+else
+    RUN_PREFIX="${RUN_PREFIX}"
+fi
 
 echo Running $RUN_PREFIX ${1+"$@"}
 exec $RUN_PREFIX ${1+"$@"}
