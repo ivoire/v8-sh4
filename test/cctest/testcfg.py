@@ -57,7 +57,7 @@ class CcTestCase(test.TestCase):
     serialization_file = join(self.context.buildspace, serialization_file)
     serialization_file += ''.join(self.variant_flags).replace('-', '_')
     serialization_option = '--testing_serialization_file=' + serialization_file
-    result = [ self.executable, name, serialization_option ]
+    result = self.context.run_prefix.split() + [ self.executable, name, serialization_option ]
     result += self.context.GetVmFlags(self, self.mode)
     return result
 

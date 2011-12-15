@@ -55,10 +55,10 @@ class PreparserTestCase(test.TestCase):
 
   def BuildCommand(self, path):
     if (self.source is not None):
-      result = [self.executable, "-e", self.source]
+      result = self.context.run_prefix.split() + [self.executable, "-e", self.source]
     else:
       testfile = join(self.root, self.GetName()) + ".js"
-      result = [self.executable, testfile]
+      result = self.context.run_prefix.split() + [self.executable, testfile]
     if (self.throws):
       result += ['throws'] + self.throws
     return result
