@@ -823,7 +823,6 @@ D8_FLAGS = {
   'all': {
     'library:shared': {
       'CPPDEFINES': ['V8_SHARED'],
-      'LIBS': ['v8'],
       'LIBPATH': ['.']
     },
   },
@@ -1498,6 +1497,7 @@ def BuildSpecific(env, mode, env_overrides, tools):
     shell = d8_env.Program('d8' + suffix, object_files + shell_files)
   else:
     shell = d8_env.Program('d8' + suffix, shell_files)
+    d8_env.Prepend(LIBS=[library_name])
     d8_env.Depends(shell, library)
   context.d8_targets.append(shell)
 
