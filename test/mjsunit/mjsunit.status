@@ -177,6 +177,10 @@ mirror-function: SKIP
 mirror-string: SKIP
 mirror-array: SKIP
 
+# Skip long-running tests that are supposed to expose crankshaft optimizations
+# To be removed when crankshaft is on
+compiler/regress-gvn: SKIP
+
 ##############################################################################
 [ $isolates ]
 # d8-os writes temporary files that might interfer with each other when running
