@@ -15,6 +15,8 @@ tmpfile=`mktemp /tmp/cctestXXXXXX`
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
 library=${library:-shared}
 [ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+profile_gcov=${profile_gcov:-off}
+[ "$profile_gcov" = on ] && jobs=1 && find . -name '*.gcda' -exec rm {} \;
 
 if [ "$QEMU" != "" ]; then
     if [ "$PROOT" = "" ]; then

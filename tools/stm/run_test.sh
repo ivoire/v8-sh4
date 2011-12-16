@@ -11,8 +11,11 @@ mode=${mode:-release}
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
 jobs=${jobs:-4}
+profile_gcov=${profile_gcov:-off}
 library=${library:-shared}
 [ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+# For gcov we need to run in sequencial mode
+[ "$profile_gcov" = on ] && jobs=1 && find . -name '*.gcda' -exec rm {} \;
 
 if [ "$QEMU" != "" ]; then
     if [ "$PROOT" = "" ]; then

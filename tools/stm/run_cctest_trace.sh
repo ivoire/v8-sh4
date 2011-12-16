@@ -13,6 +13,7 @@ mode=${mode:-release}
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
+profile_gcov=${profile_gcov:-off}
 
 TIMEOUT=${TIMEOUT:-timeout}
 RUN_TIMEOUT=${RUN_TIMEOUT:-1200}
@@ -30,8 +31,7 @@ else
 RUN_PREFIX=${RUN_PREFIX:-"$TIMEOUT $TIMEOUT_OPTS"}
 fi
 
-echo "Cleaning profiling files..."
-find . -name '*.gcda' -exec rm {} \;
+[ "$profile_gcov" = on ] && echo "Cleaning profiling files..." && find . -name '*.gcda' -exec rm {} \;
 
 CCTEST=${CCTEST:-./obj/test/${mode}/cctest}
 CCTEST_OPTS=${CCTEST_OPTS-"-debug_code $XCCTEST_OPTS"}

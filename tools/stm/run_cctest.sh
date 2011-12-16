@@ -25,6 +25,7 @@ tmpfile=`mktemp /tmp/cctestXXXXXX`
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
+profile_gcov=${profile_gcov:-off}
 
 TIMEOUT=${TIMEOUT:-timeout}
 RUN_TIMEOUT=${RUN_TIMEOUT:-1200}
@@ -42,12 +43,11 @@ else
 RUN_PREFIX=${RUN_PREFIX:-"$TIMEOUT $TIMEOUT_OPTS"}
 fi
 
-# Clean profiling files if present
-find . -name '*.gcda' -exec rm {} \;
-
 CCTEST=${CCTEST:-./obj/test/${mode}/cctest}
 $RUN_PREFIX $CCTEST --list >$tmpfile || error "cannot list the tests: cctest --list failed"
 CCTEST_OPTS=${CCTEST_OPTS-"-debug_code $XCCTEST_OPTS"}
+
+[ "$profile_gcov" = on ] && find . -name '*.gcda' -exec rm {} \;
 
 echo "Listing the available tests..."
 if [ $# != 0 ]; then
@@ -60,8 +60,7 @@ fi
 total=0
 failed=0
 
-echo "Cleaning profiling files..."
-find . -name '*.gcda' -exec rm {} \;
+[ "$profile_gcov" = on ] && echo "Cleaning profiling files..." && find . -name '*.gcda' -exec rm {} \;
 
 rm -f run_cctest_${mode}.log
 echo "Running the tests..."

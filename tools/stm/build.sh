@@ -18,8 +18,13 @@ armeabi=${armeabi:-soft}
 tests=${tests:-""}
 vfp3=${vfp3:-on}
 jobs=${jobs:-4}
-
+profile_gcov=${profile_gcov:-off}
+if [ "$profile_gcov" = on -a "$mode" = release ]; then
+    echo "error: cannot compile for both mode=release and profile_gcov=on. Use mode=debug for coverage." >&2
+    exit 1
+fi
 [ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+[ "$profile_gcov" = on ] && export CXXFLAGS="-fprofile-arcs -ftest-coverage -fno-inline -fno-default-inline -fno-inline-functions -fno-early-inlining" && export LIBS="gcov"
 
 scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} -j ${jobs}
 scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} -j ${jobs} sample=shell
