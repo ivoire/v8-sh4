@@ -16,7 +16,7 @@ export TARGET_ROOT=${SH4_TARGET_ROOT}
 
 # Emulation tools
 export QEMU=${SH4_QEMU}
-export XCCTEST_OPTS="-stack_size=256 ${XCCTEST_OPTS}" # for QEMU we use a 256kb stack size (default is 512)
+export XCCTEST_OPTS="-stack_size=128 $XCCTEST_OPTS" # for QEMU we use a 128kb stack size (default is 512)
 
 # Default v8 settings for sh4
 debuggersupport=off
