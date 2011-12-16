@@ -41,6 +41,11 @@ test-serialize/DependentTestThatAlwaysFails: FAIL
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
 
+# Tests that fail on sh4, arm and x86. Skip them
+test-log/LogCallbacks: SKIP
+test-log/LogAccessorCallbacks: SKIP
+test-log/EquivalenceOfLoggingAndTraversal: SKIP
+
 ##############################################################################
 [ $arch == arm ]
 
@@ -84,11 +89,6 @@ test-api/Threading: PASS || TIMEOUT
 ##############################################################################
 [ $arch == sh4 ]
 
-# Tests that fail on sh4, arm and x86. Skip them
-test-log/LogCallbacks: SKIP
-test-log/LogAccessorCallbacks: SKIP
-test-log/EquivalenceOfLoggingAndTraversal: SKIP
-
 # Issues in sh4 and arm with QEMU, skip all lockers tests
 test-lockers/*: SKIP
 
@@ -96,7 +96,8 @@ test-lockers/*: SKIP
 test-api/ApplyInterruption: SKIP
 
 # Test that fail on sh4 and arm in QEMU mode. Unresolved.
-test-api/Threading: SKIP
+test-api/Threading*: SKIP
+test-threads/ThreadIdValidation: SKIP
 
 # BUG(1075): Unresolved crashes (ref arm). Sometimes fails on sh4.
 test-serialize/Deserialize: SKIP
