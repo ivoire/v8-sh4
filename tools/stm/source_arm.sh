@@ -16,5 +16,6 @@ export TARGET_ROOT=${ARM_TARGET_ROOT}
 
 # Emulation tools
 export QEMU=${ARM_QEMU}
-export XCCTEST_OPTS="-stack_size=256" # for QEMU we use a 256kb stack size (default is 512)
+export PROOT=${ARM_PROOT}
+export XCCTEST_OPTS="-stack_size=256 ${XCCTEST_OPTS}" # for QEMU we use a 256kb stack size (default is 512)
 
