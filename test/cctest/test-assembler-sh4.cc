@@ -183,6 +183,38 @@ TEST(5) {
   CHECK_EQ((0x7fecba98>>(4+1))+(0x7fecba98>>(4+2)), res);
 }
 
+TEST(5b) {
+  BEGIN();
+
+  __ asr(r0, r4, r5, r3);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 2,
+                                                      0, 0, 0));
+  CHECK_EQ(0, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 16, 2,
+                                                      0, 0, 0));
+  CHECK_EQ(4, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 16, 32,
+                                                      0, 0, 0));
+  CHECK_EQ(0, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, -16, 32,
+                                                      0, 0, 0));
+  CHECK_EQ(-1, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x80000000, 33,
+                                                      0, 0, 0));
+  CHECK_EQ(-1, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fffffff, 33,
+                                                      0, 0, 0));
+  CHECK_EQ(0, res);
+}
+
 
 TEST(6) {
   BEGIN();
@@ -208,6 +240,40 @@ TEST(6) {
   ::printf("f() = %d\n", res);
   CHECK_EQ(42<<(14+1+2+1+1), res);
 }
+
+
+TEST(6b) {
+  BEGIN();
+
+  __ lsl(r0, r4, r5, r3);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 2,
+                                                      0, 0, 0));
+  CHECK_EQ(0, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 16, 2,
+                                                      0, 0, 0));
+  CHECK_EQ(64, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 16, 32,
+                                                      0, 0, 0));
+  CHECK_EQ(0, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, -16, 32,
+                                                      0, 0, 0));
+  CHECK_EQ(0, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x80000000, 33,
+                                                      0, 0, 0));
+  CHECK_EQ(0, res);
+  res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fffffff, 33,
+                                                      0, 0, 0));
+  CHECK_EQ(0, res);
+}
+
 
 TEST(7) {
   BEGIN();
