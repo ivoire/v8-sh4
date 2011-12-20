@@ -367,8 +367,12 @@ void Assembler::emit(Instr x) {
 
 void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
-  mov(rtmp, imm);
-  rsb(Rd, Rs, rtmp);
+  if (imm.imm32_ == 0 && imm.rmode_ == RelocInfo::NONE) {
+    neg_(Rs, Rd);
+  } else {
+    mov(rtmp, imm);
+    sub(Rd, rtmp, Rs);
+  }
 }
 
 void Assembler::rsb(Register Rd, Register Rs, Register Rt) {
@@ -379,14 +383,21 @@ void Assembler::rsb(Register Rd, Register Rs, Register Rt) {
 void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
                     Condition cond, Register rtmp) {
   ASSERT(cond == ne || cond == eq);
-  NearLabel end;
-  if (cond == eq)
-    bf(&end);           // Jump after sequence if T bit is false
-  else
-    bt(&end);           // Jump after sequence if T bit is true
-
-  rsb(Rd, Rs, imm, rtmp);
-  bind(&end);
+  if (imm.imm32_ == 0 && imm.rmode_ == RelocInfo::NONE) {
+    if (cond == eq)
+      bf_(0);           // Jump after sequence if T bit is false
+    else
+      bt_(0);           // Jump after sequence if T bit is true
+    neg_(Rs, Rd);
+  } else {
+    NearLabel end;
+    if (cond == eq)
+      bf(&end);           // Jump after sequence if T bit is false
+    else
+      bt(&end);           // Jump after sequence if T bit is true
+    rsb(Rd, Rs, imm, rtmp);
+    bind(&end);
+  }
 }
 
 
