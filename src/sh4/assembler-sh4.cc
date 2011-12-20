@@ -389,6 +389,8 @@ void Assembler::asl(Register Rd, Register Rs, const Operand& imm,
 void Assembler::asr(Register Rd, Register Rs, Register Rt, Register rtmp) {
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
   // Clamp shit to 31 max
+  movt_(rtmp);
+  push(rtmp);
   cmphi(Rt, Operand(31), rtmp);
   neg_(Rt, rtmp);
   bf_(0);
@@ -397,6 +399,8 @@ void Assembler::asr(Register Rd, Register Rs, Register Rt, Register rtmp) {
     mov_(Rs, Rd);
   }
   shad_(rtmp, Rd);
+  pop(rtmp);
+  cmppl_(rtmp); // gives back t bit
 }
 
 
@@ -434,6 +438,8 @@ void Assembler::lsl(Register Rd, Register Rs, const Operand& imm,
 void Assembler::lsl(Register Rd, Register Rs, Register Rt, Register rtmp) {
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
   Register rshift = Rt;
+  movt_(rtmp);
+  push(rtmp);
   cmphi(Rt, Operand(31), rtmp);
   if (Rs.code() != Rd.code()) {
     if (Rt.is(Rd)) {
@@ -446,6 +452,8 @@ void Assembler::lsl(Register Rd, Register Rs, Register Rt, Register rtmp) {
   bf_(0);
   // Nullify result for shift amount >= 32
   mov_imm_(0, Rd);
+  pop(rtmp);
+  cmppl_(rtmp); // gives back t bit
 }
 
 
@@ -468,6 +476,8 @@ void Assembler::lsr(Register Rd, Register Rs, const Operand& imm,
 void Assembler::lsr(Register Rd, Register Rs, Register Rt, Register rtmp) {
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
   // Nullify result for shift amount >= 32
+  movt_(rtmp);
+  push(rtmp);
   cmphi(Rt, Operand(31), rtmp);
   neg_(Rt, rtmp);
   if (Rs.code() != Rd.code()) {
@@ -477,6 +487,8 @@ void Assembler::lsr(Register Rd, Register Rs, Register Rt, Register rtmp) {
   bf_(0);
   // Nullify result for shift amount >= 32
   mov_imm_(0, Rd);
+  pop(rtmp);
+  cmppl_(rtmp); // gives back t bit
 }
 
 

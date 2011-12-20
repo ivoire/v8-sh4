@@ -352,8 +352,7 @@ void MacroAssembler::ConvertToInt32(Register source,
     // Move down according to the exponent.
     lsr(dest, scratch, dest);
     // Fix sign if sign bit was set.
-    b(eq, &done);
-    rsb(dest, dest, Operand(0));
+    rsb(dest, dest, Operand(0), ne);
     bind(&done);
   }
 }
