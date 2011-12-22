@@ -97,7 +97,8 @@ SOURCES = {
     'test-unbound-queue.cc',
     'test-utils.cc',
     'test-version.cc',
-    'test-weakmaps.cc'
+    'test-weakmaps.cc',
+    'test-regressions-sh4.cc'
   ],
   'arch:arm':  [
     'test-assembler-arm.cc',
@@ -107,8 +108,7 @@ SOURCES = {
     'test-sh4.cc',
     'test-assembler-sh4.cc',
     'test-macro-assembler-sh4.cc',
-    'test-code-stub-sh4.cc',
-    'test-regressions-sh4.cc'
+    'test-code-stub-sh4.cc'
   ],
   'arch:ia32': [
     'test-assembler-ia32.cc',
