@@ -346,7 +346,6 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Handle<Script> script = info->script();
   script->set_context_data((*isolate->global_context())->data());
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
     Script::CompilationType compilation_type = Script::COMPILATION_TYPE_EVAL;
     script->set_compilation_type(Smi::FromInt(compilation_type));
@@ -365,6 +364,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
     }
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
   isolate->debugger()->OnBeforeCompile(script);
 #endif

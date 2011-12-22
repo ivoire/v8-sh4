@@ -179,3 +179,21 @@ TEST(IssueTryCatchSourceInfo) {
   CHECK_EQ(1, message->GetLineNumber());
 }
 
+
+// Extracted from mjsunit/stack-traces.js
+// Does not return the correct eval location
+// when compiled with debuggersupport=off.
+// This has been corrected in compiler.cc/MakeFunctionInfo()
+// where the code was guarded by ENABLE_DEBUGGER_SUPPORT.
+// This guard was moved such tha eval location is
+// correctly setup.
+TEST(IssueEvalStackTrace) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Script> script =
+    v8::Script::Compile(v8::String::New("try { eval(\"FAIL\") } catch(e) { e.stack }"));
+  v8::internal::Handle<v8::internal::String> result = v8::Utils::OpenHandle(*v8::Handle<v8::String>::Cast(script->Run()));
+  // Check that the returned string contains an eval location
+  CHECK(strstr(*(*result)->ToCString(), "eval at") != NULL);
+}
