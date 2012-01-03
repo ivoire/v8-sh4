@@ -390,7 +390,7 @@ void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
       bt_(0);           // Jump after sequence if T bit is true
     neg_(Rs, Rd);
   } else {
-    NearLabel end;
+    Label end;
     if (cond == eq)
       bf(&end);           // Jump after sequence if T bit is false
     else

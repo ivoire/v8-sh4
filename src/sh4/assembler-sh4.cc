@@ -542,7 +542,7 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt) {
 
 void Assembler::lor(Register Rd, Register Rs, Register Rt, Condition cond) {
   ASSERT(cond == ne || cond == eq);
-  NearLabel end;
+  Label end;
   if (cond == eq)
     bf(&end);   // Jump after sequence if T bit is false
   else
@@ -555,7 +555,7 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt, Condition cond) {
 void Assembler::lor(Register Rd, Register Rs, const Operand& imm,
                     Condition cond, Register rtmp) {
   ASSERT(cond == ne || cond == eq);
-  NearLabel end;
+  Label end;
   if (cond == eq)
     bf(&end);   // Jump after sequence if T bit is false
   else
@@ -1085,7 +1085,7 @@ void Assembler::mov(Register Rd, const Operand& imm, Condition cond) {
       bt_(0);           // Jump after sequence if T bit is true
     mov_imm_(imm.imm32_, Rd);
   } else {
-    NearLabel skip;
+    Label skip;
     if (cond == eq)
       bf(&skip);
     else

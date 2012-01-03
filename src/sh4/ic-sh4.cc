@@ -526,7 +526,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
   // Check if the receiver is a global object of some sort.
   // This can happen only for regular CallIC but not KeyedCallIC.
   if (id == IC::kCallIC_Miss) {
-    NearLabel invoke, global;
+    Label invoke, global;
     __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
     __ JumpIfSmi(r2, &invoke);
     __ CompareObjectType(r2, r3, r3, JS_GLOBAL_OBJECT_TYPE, eq);
@@ -1277,7 +1277,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   //  -- r2     : receiver
   //  -- lr     : return address
   // -----------------------------------
-  NearLabel slow, fast, array, extra;
+  Label slow, fast, array, extra;
 
   // Register usage.
   Register value = r0;

@@ -290,7 +290,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
 
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(AstNode::kDeclarationsId, NO_REGISTERS);
-      NearLabel ok;
+      Label ok;
       __ LoadRoot(ip, Heap::kStackLimitRootIndex);
       __ cmphs(sp, ip);
       __ bt(&ok);
@@ -327,7 +327,7 @@ void FullCodeGenerator::ClearAccumulator() {
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Comment cmnt(masm_, "[ Stack check");
-  NearLabel ok;
+  Label ok;
   __ LoadRoot(ip, Heap::kStackLimitRootIndex);
   __ cmphs(sp, ip);
   __ bt(&ok);
@@ -545,7 +545,7 @@ void FullCodeGenerator::EffectContext::Plug(Label* materialize_true,
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Label* materialize_true,
     Label* materialize_false) const {
-  NearLabel done;
+  Label done;
   __ bind(materialize_true);
   __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
   __ jmp(&done);
@@ -558,7 +558,7 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
 void FullCodeGenerator::StackValueContext::Plug(
     Label* materialize_true,
     Label* materialize_false) const {
-  NearLabel done;
+  Label done;
   __ bind(materialize_true);
   __ LoadRoot(ip, Heap::kTrueValueRootIndex);
   __ push(ip);
@@ -708,7 +708,7 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(State state,
   // preparation to avoid preparing with the same AST id twice.
   if (!context()->IsTest() || !info_->IsOptimizable()) return;
 
-  NearLabel skip;
+  Label skip;
   if (should_normalize) __ b(&skip);
 
   ForwardBailoutStack* current = forward_bailout_stack_;
@@ -932,7 +932,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Convert the object to a JS object.
   Label convert;
-  NearLabel done_convert;
+  Label done_convert;
   __ JumpIfSmi(r0, &convert);
   __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge);
   __ bt(&done_convert);
@@ -976,7 +976,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ JumpIfSmi(r3, &call_runtime);
 
   // For all objects but the receiver, check that the cache is empty.
-  NearLabel check_prototype;
+  Label check_prototype;
   __ cmp(r1, r0);
   __ bt(&check_prototype);
   __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheBridgeCacheOffset));
@@ -991,7 +991,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.
-  NearLabel use_cache;
+  Label use_cache;
   __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ b(&use_cache);
 
@@ -1003,7 +1003,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // If we got a map from the runtime call, we can do a fast
   // modification check. Otherwise, we got a fixed array, and we have
   // to do a slow check.
-  NearLabel fixed_array;
+  Label fixed_array;
   __ mov(r2, r0);
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kMetaMapRootIndex);
@@ -1051,7 +1051,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check if the expected map still matches that of the enumerable.
   // If not, we have to filter the key.
-  NearLabel update_each;
+  Label update_each;
   __ ldr(r1, MemOperand(sp, 4 * kPointerSize));
   __ ldr(r4, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ cmpeq(r4, r2);
@@ -1322,7 +1322,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  NearLabel materialized;
+  Label materialized;
   // Registers will be used as follows:
   // r5 = materialized value (RegExp literal)
   // r4 = JS function, literals array
@@ -2257,7 +2257,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // function and receiver and have the slow path jump around this
     // code.
     if (done.is_linked()) {
-      NearLabel call;
+      Label call;
       __ b(&call);
       __ bind(&done);
       // Push function.
@@ -2675,7 +2675,7 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
 void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 
-  NearLabel exit;
+  Label exit;
   // Get the number of formal parameters.
   __ mov(r0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
 
@@ -2696,7 +2696,7 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-  NearLabel done, function, non_function_constructor;
+  Label done, function, non_function_constructor;
   Label null;
 
   VisitForAccumulatorValue(args->at(0));
@@ -2776,7 +2776,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 
   Label slow_allocate_heapnumber;
-  NearLabel heapnumber_allocated;
+  Label heapnumber_allocated;
 
   __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
   __ AllocateHeapNumber(r4, r1, r2, r6, &slow_allocate_heapnumber);
@@ -2905,7 +2905,7 @@ void FullCodeGenerator::EmitStringCharFromCode(ZoneList<Expression*>* args) {
 
   VisitForAccumulatorValue(args->at(0));
 
-  NearLabel done;
+  Label done;
   StringCharFromCodeGenerator generator(r0, r1);
   generator.GenerateFast(masm_);
   __ jmp(&done);
@@ -2933,7 +2933,7 @@ void FullCodeGenerator::EmitStringCharCodeAt(ZoneList<Expression*>* args) {
 
   Label need_conversion;
   Label index_out_of_range;
-  NearLabel done;
+  Label done;
   StringCharCodeAtGenerator generator(object,
                                       index,
                                       scratch,
@@ -2981,7 +2981,7 @@ void FullCodeGenerator::EmitStringCharAt(ZoneList<Expression*>* args) {
 
   Label need_conversion;
   Label index_out_of_range;
-  NearLabel done;
+  Label done;
   StringCharAtGenerator generator(object,
                                   index,
                                   scratch1,
@@ -3115,7 +3115,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
-  NearLabel done;
+  Label done;
   Label slow_case;
   Register object = r0;
   Register index1 = r1;
@@ -3217,7 +3217,7 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
          FieldMemOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
 
 
-  NearLabel done, not_found;
+  Label done, not_found;
   // tmp now holds finger offset as a smi.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   __ ldr(r2, FieldMemOperand(cache, JSFunctionResultCache::kFingerOffset));
@@ -3812,7 +3812,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
 
   // Inline smi case if we are in a loop.
-  NearLabel stub_call;
+  Label stub_call;
   Label done;
   JumpPatchSite patch_site(masm_);
 

@@ -62,7 +62,7 @@ static void ProbeTable(Isolate* isolate,
   // Check that ip is not used
   ASSERT(!name.is(ip) && !offset.is(ip) && !scratch.is(ip) && !scratch2.is(ip));
 
-  NearLabel miss;
+  Label miss;
   Register offsets_base_addr = scratch;
 
   // Check that the key in the entry matches the name.
@@ -928,7 +928,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
   // if (CpuFeatures::IsSupported(VFP3)) {
   // } else
   {
-    NearLabel not_special, done;
+    Label not_special, done;
     // Move sign bit from source to destination.  This works because the sign
     // bit in the exponent word of the double has the same position and polarity
     // as the 2's complement sign bit in a Smi.
@@ -1331,7 +1331,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
     // Check if interceptor provided a value for property.  If it's
     // the case, return immediately.
-    NearLabel interceptor_failed;
+    Label interceptor_failed;
     __ LoadRoot(scratch1, Heap::kNoInterceptorResultSentinelRootIndex);
     __ cmp(r0, scratch1);
     __ b(eq, &interceptor_failed);
@@ -2114,7 +2114,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
 
   // Check the sign of the argument. If the argument is positive,
   // just return it.
-  NearLabel negative_sign;
+  Label negative_sign;
   __ tst(r1, Operand(HeapNumber::kSignMask));
   __ b(ne, &negative_sign);
   __ Drop(argc + 1);
@@ -2277,7 +2277,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
         // requires boxing.
         __ jmp(&miss);
       } else {
-        NearLabel fast;
+        Label fast;
         // Check that the object is a smi or a heap number.
         __ JumpIfSmi(r1, &fast);
         __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE, eq);
@@ -2298,7 +2298,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
         // requires boxing.
         __ jmp(&miss);
       } else {
-        NearLabel fast;
+        Label fast;
         // Check that the object is a boolean.
         __ LoadRoot(ip, Heap::kTrueValueRootIndex);
         __ cmp(r1, ip);
@@ -2592,7 +2592,7 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   //  -- r2    : name
   //  -- lr    : return address
   // -----------------------------------
-  NearLabel miss;
+  Label miss;
 
   // Check that the map of the global has not changed.
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -3236,7 +3236,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   SharedFunctionInfo* shared = function->shared();
   for (int i = 0; i < shared->this_property_assignments_count(); i++) {
     if (shared->IsThisPropertyAssignmentArgument(i)) {
-      NearLabel not_passed, next;
+      Label not_passed, next;
       // Check if the argument assigned to the property is actually passed.
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
       __ cmpgt(r0, Operand(arg_number));

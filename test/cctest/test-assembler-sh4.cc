@@ -1573,7 +1573,7 @@ TEST(27) {
 TEST(28) {
   BEGIN();
 
-  NearLabel l1, l2, l3, l4;
+  Label l1, l2, l3, l4;
 
   PROLOGUE();
 
@@ -1623,7 +1623,7 @@ TEST(28) {
 TEST(29) {
   BEGIN();
 
-  NearLabel l1;
+  Label l1;
 
   PROLOGUE();
 

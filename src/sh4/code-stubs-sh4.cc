@@ -89,7 +89,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Dead(r1, r2, r3);
   __ Dead(r4, r5, r6, r7);
 #endif
-  NearLabel check_heap_number, call_builtin;
+  Label check_heap_number, call_builtin;
   __ JumpIfNotSmi(r0, &check_heap_number);
   __ Ret();
 
@@ -334,7 +334,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   Register exponent = result1_;
   Register mantissa = result2_;
 
-  NearLabel not_special;
+  Label not_special;
   // Convert from Smi to integer.
   __ asr(source_, source_, Operand(kSmiTagSize));
   // Move sign bit from source to destination.  This works because the sign bit
@@ -450,7 +450,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   }
 
   Label is_smi;
-  NearLabel done;
+  Label done;
 
   __ JumpIfSmi(object, &is_smi);
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
@@ -557,7 +557,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
   // if (CpuFeatures::IsSupported(VFP3)) {
   // } else
   {
-    NearLabel fewer_than_20_useful_bits;
+    Label fewer_than_20_useful_bits;
     // Expected output:
     // |         dst2            |         dst1            |
     // | s |   exp   |              mantissa               |
@@ -854,7 +854,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
 // See comment for class.
 void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   ASSERT(!scratch_.is(ip) && !the_int_.is(ip));
-  NearLabel max_negative_int;
+  Label max_negative_int;
   // the_int_ has the answer which is a signed int32 but not a Smi.
   // We test for the special value that has a different exponent.  This test
   // has the neat side effect of setting the flags according to the sign.
@@ -867,7 +867,7 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
       (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
   __ mov(scratch_, Operand(non_smi_exponent));
   __ cmpge(the_int_, Operand(0));
-  NearLabel skip;
+  Label skip;
   __ bt(&skip);
   // Set the sign bit in scratch_ if the value was negative.
   __ lor(scratch_, scratch_, Operand(HeapNumber::kSignMask));
@@ -910,8 +910,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Label* slow,
                                           Condition cond,
                                           bool never_nan_nan) {
-  NearLabel not_identical;
-  NearLabel heap_number, return_equal;
+  Label not_identical;
+  Label heap_number, return_equal;
   __ cmp(r0, r1);
   __ b(ne, &not_identical);
 
@@ -1021,7 +1021,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   ASSERT((lhs.is(r0) && rhs.is(r1)) ||
          (lhs.is(r1) && rhs.is(r0)));
 
-  NearLabel rhs_is_smi;
+  Label rhs_is_smi;
   __ JumpIfSmi(rhs, &rhs_is_smi);
 
   // Lhs is a Smi.  Check whether the rhs is a heap number.
@@ -1100,7 +1100,7 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond) {
   Register lhs_exponent = exp_first ? r2 : r3;
   Register rhs_mantissa = exp_first ? r1 : r0;
   Register lhs_mantissa = exp_first ? r3 : r2;
-  NearLabel one_is_nan, neither_is_nan;
+  Label one_is_nan, neither_is_nan;
 
   __ Sbfx(r4,
           lhs_exponent,
@@ -1211,14 +1211,14 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     // not equal since their pointers are different.
     // There is no test for undetectability in strict equality.
     STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
-    NearLabel first_non_object;
+    Label first_non_object;
     // Get the type of the first operand into r2 and compare it with
     // FIRST_JS_OBJECT_TYPE.
     __ CompareObjectType(rhs, r2, r2, FIRST_SPEC_OBJECT_TYPE, ge);
     __ bf(&first_non_object);
 
     // Return non-zero (r0 is not zero)
-    NearLabel return_not_equal;
+    Label return_not_equal;
     __ bind(&return_not_equal);
     __ Ret();
 
@@ -1284,7 +1284,7 @@ static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
 
   // r2 is object type of rhs.
   // Ensure that no non-strings have the symbol bit set.
-  NearLabel object_test;
+  Label object_test;
   STATIC_ASSERT(kSymbolTag != 0);
   __ tst(r2, Operand(kIsNotStringMask));
   __ b(ne, &object_test);
@@ -1414,7 +1414,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   Label not_smis, both_loaded_as_doubles, lhs_not_nan;
 
   if (include_smi_compare_) {
-    NearLabel not_two_smis, smi_done;
+    Label not_two_smis, smi_done;
     __ orr(r2, r1, r0);
     __ JumpIfNotSmi(r2, &not_two_smis);
     __ asr(r1, r1, Operand(1));
@@ -2594,7 +2594,7 @@ void BinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
   }
 
   // Convert oddball arguments to numbers.
-  NearLabel check, done;
+  Label check, done;
   __ CompareRoot(r1, Heap::kUndefinedValueRootIndex);
   __ b(ne, &check);
   if (Token::IsBitOp(op_)) {
@@ -2728,7 +2728,7 @@ void BinaryOpStub::GenerateHeapResultAllocation(MacroAssembler* masm,
 
   if (mode_ == OVERWRITE_LEFT || mode_ == OVERWRITE_RIGHT) {
     Label skip_allocation;
-    NearLabel allocated;
+    Label allocated;
     Register overwritable_operand = mode_ == OVERWRITE_LEFT ? r1 : r0;
     // If the overwritable operand is already an object, we skip the
     // allocation of a heap number.
@@ -2909,7 +2909,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   int frame_alignment_mask = frame_alignment - 1;
   if (FLAG_debug_code) {
     if (frame_alignment > kPointerSize) {
-      NearLabel alignment_as_expected;
+      Label alignment_as_expected;
       ASSERT(IsPowerOf2(frame_alignment));
       __ tst(sp, Operand(frame_alignment_mask));
       __ b(eq, &alignment_as_expected);
@@ -2958,7 +2958,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 
   // check for failure result
-  NearLabel failure_returned;
+  Label failure_returned;
   STATIC_ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
   // Lower 2 bits of r2 are 0 if r0 has failure tag.
   __ add(r2, r0, Operand(1));
@@ -2977,7 +2977,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ rts();
 
   // check if we should retry or throw exception
-  NearLabel retry;
+  Label retry;
   __ bind(&failure_returned);
   STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ tst(r0, Operand(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
@@ -3100,7 +3100,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // [sp+0]: argv
 
   Label invoke;
-  NearLabel exit;
+  Label exit;
 
   // Save callee-saved registers
   __ pushm(kCalleeSaved);
@@ -3286,7 +3286,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // If there is a call site cache don't look in the global cache, but do the
   // real lookup and update the call site cache.
   if (!HasCallSiteInlineCheck()) {
-    NearLabel miss;
+    Label miss;
     __ LoadRoot(ip, Heap::kInstanceofCacheFunctionRootIndex);
     __ cmp(function, ip);
     __ b(ne, &miss);
@@ -3379,7 +3379,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   }
   __ Ret(HasArgsInRegisters() ? 0 : 2);
 
-  NearLabel object_not_null;
+  Label object_not_null;
   Label object_not_null_or_smi;
   __ bind(&not_js_object);
   // Before null, smi and string value checks, check that the rhs is a function
@@ -3414,7 +3414,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
-    NearLabel ltrue, lfalse;
+    Label ltrue, lfalse;
     __ EnterInternalFrame();
     __ Push(r0, r1);
     __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
@@ -3448,7 +3448,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ JumpIfNotSmi(r1, &slow);
 
   // Check if the calling frame is an arguments adaptor frame.
-  NearLabel adaptor;
+  Label adaptor;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
@@ -3753,7 +3753,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Try the new space allocation. Start out with computing the size
   // of the arguments object and the elements array in words.
-  NearLabel add_arguments_object;
+  Label add_arguments_object;
   __ bind(&try_allocate);
   __ cmp(r1, Operand(0, RelocInfo::NONE));
   __ b(eq, &add_arguments_object);
@@ -3787,7 +3787,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
       Heap::kArgumentsLengthIndex * kPointerSize));
 
   // If there are no actual arguments, we're done.
-  NearLabel done;
+  Label done;
   __ cmp(r1, Operand(0, RelocInfo::NONE));
   __ b(eq, &done);
 
@@ -3805,7 +3805,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ lsr(r1, r1, Operand(kSmiTagSize));
 
   // Copy the fixed array slots.
-  NearLabel loop;
+  Label loop;
   // Setup r4 to point to the first array slot.
   __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ bind(&loop);
@@ -3845,7 +3845,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   const int kMaxInlineLength = 100;
   Label slowcase;
-  NearLabel done;
+  Label done;
   Factory* factory = masm->isolate()->factory();
 
   __ ldr(r1, MemOperand(sp, kPointerSize * 2));
@@ -3915,7 +3915,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // r2: the hole.
   // r3: Start of elements in FixedArray.
   // r5: Number of elements to fill.
-  NearLabel loop;
+  Label loop;
   __ cmpgt(r5, Operand(0));
   __ bind(&loop);
   __ b(f, &done);  // Jump if r1 is negative or zero.
@@ -4330,7 +4330,7 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
                                           Register count,
                                           Register scratch,
                                           bool ascii) {
-  NearLabel loop, done;
+  Label loop, done;
   // This loop just copies one character at a time, as it is only used for very
   // short strings.
   if (!ascii) {
@@ -4388,7 +4388,7 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   STATIC_ASSERT(kObjectAlignment >= kReadAlignment);
   // Assumes word reads and writes are little endian.
   // Nothing to do for zero characters.
-  NearLabel done;
+  Label done;
   if (!ascii) {
     __ add(count, count, count);
   }
@@ -4396,7 +4396,7 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   __ bt(&done);
 
   // Assume that you cannot read (or write) unaligned.
-  NearLabel byte_loop;
+  Label byte_loop;
   __ add(count, dest, count);
   Register limit = count;
   // TODO(stm): SH4 implementation is not optimized, always copy byte per byte.
@@ -4429,7 +4429,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Make sure that both characters are not digits as such strings has a
   // different hash algorithm. Don't try to look for these in the symbol table.
-  NearLabel not_array_index;
+  Label not_array_index;
   __ sub(scratch, c1, Operand(static_cast<int>('0')));
   __ cmphi(scratch, Operand(static_cast<int>('9' - '0')));
   __ bt(&not_array_index);
@@ -4509,7 +4509,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     __ ldr(candidate, MemOperand(scratch));
 
     // If entry is undefined no string with this hash can be found.
-    NearLabel is_string;
+    Label is_string;
     __ CompareObjectType(candidate, scratch, scratch, ODDBALL_TYPE, eq);
     __ b(ne, &is_string);
 
@@ -4682,7 +4682,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r3: from index (untagged smi)
   // r6 (a.k.a. to): to (smi)
   // r7 (a.k.a. from): from offset (smi)
-  NearLabel seq_string;
+  Label seq_string;
   __ land(r4, r1, Operand(kStringRepresentationMask));
   STATIC_ASSERT(kSeqStringTag < kConsStringTag);
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
@@ -4931,7 +4931,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register scratch4) {
   ASSERT(!scratch2.is(r0) && !scratch4.is(r0));
   Label result_not_equal;
-  NearLabel compare_lengths, skip;
+  Label compare_lengths, skip;
   // Find minimum length and length difference.
   __ ldr(scratch1, FieldMemOperand(left, String::kLengthOffset));
   __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
@@ -5007,7 +5007,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   //  sp[4]: left string
   __ Ldrd(r0 , r1, MemOperand(sp));  // Load right in r0, left in r1.
 
-  NearLabel not_same;
+  Label not_same;
   __ cmp(r0, r1);
   __ b(ne, &not_same);
   STATIC_ASSERT(EQUAL == 0);
@@ -5084,7 +5084,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // r4: first string instance type (if flags_ == NO_STRING_ADD_FLAGS)
   // r5: second string instance type (if flags_ == NO_STRING_ADD_FLAGS)
   {
-    NearLabel strings_not_empty, string_return;
+    Label strings_not_empty, string_return;
     // Check if either of the strings are empty. In that case return the other.
     __ ldr(r2, FieldMemOperand(r0, String::kLengthOffset));
     __ ldr(r3, FieldMemOperand(r1, String::kLengthOffset));
@@ -5180,7 +5180,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ ldrb(r5, FieldMemOperand(r5, Map::kInstanceTypeOffset));
   }
   Label ascii_data, allocated;
-  NearLabel non_ascii;
+  Label non_ascii;
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ tst(r4, Operand(kStringEncodingMask));
   __ bt(&non_ascii);
@@ -5386,7 +5386,7 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::SMIS);
-  NearLabel miss;
+  Label miss;
   __ orr(r2, r1, r0);
   __ JumpIfNotSmi(r2, &miss);
 
@@ -5410,9 +5410,9 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::HEAP_NUMBERS);
 
-  NearLabel generic_stub;
+  Label generic_stub;
   Label unordered;
-  NearLabel miss;
+  Label miss;
   __ land(r2, r1, r0);
   __ JumpIfSmi(r2, &generic_stub);
 
@@ -5541,7 +5541,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::OBJECTS);
-  NearLabel miss;
+  Label miss;
   __ land(r2, r1, r0);
   __ JumpIfSmi(r2, &miss);
 

@@ -185,7 +185,7 @@ static void AllocateJSArray(MacroAssembler* masm,
                             Register scratch2,
                             bool fill_with_hole,
                             Label* gc_required) {
-  NearLabel not_empty, allocated;
+  Label not_empty, allocated;
 
   // Load the initial map from the array function.
   __ ldr(elements_array_storage,
@@ -287,7 +287,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_storage: elements array element storage
   // elements_array_end: start of next object
   if (fill_with_hole) {
-    NearLabel loop, entry;
+    Label loop, entry;
     __ LoadRoot(scratch1, Heap::kTheHoleValueRootIndex);
     __ jmp(&entry);
     __ bind(&loop);
@@ -403,7 +403,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // r4: elements_array storage start (untagged)
   // r5: elements_array_end (untagged)
   // sp[0]: last argument
-  NearLabel loop, entry;
+  Label loop, entry;
   __ jmp(&entry);
   __ bind(&loop);
   __ ldr(r2, MemOperand(sp, kPointerSize, PostIndex));
@@ -624,7 +624,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  NearLabel non_function_call;
+  Label non_function_call;
   // Check that the function is not a smi.
   __ JumpIfSmi(r1, &non_function_call);
   // Check that the function is a JSFunction.
@@ -696,7 +696,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ b(eq, &rt_call);
 
     if (count_constructions) {
-      NearLabel allocate;
+      Label allocate;
       // Decrease generous allocation count.
       __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
       MemOperand constructor_count =
@@ -749,7 +749,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ lsl(r6, r3, Operand(kPointerSizeLog2));
     __ add(r6, r4, r6);  // End of object.
     ASSERT_EQ(3 * kPointerSize, JSObject::kHeaderSize);
-    { NearLabel loop, entry;
+    { Label loop, entry;
       if (count_constructions) {
         // To allow for truncation.
         __ LoadRoot(r7, Heap::kOnePointerFillerMapRootIndex);
@@ -827,7 +827,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ lsl(r6, r3, Operand(kPointerSizeLog2));
     __ add(r6, r2, r6);  // End of object.
     ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
-    { NearLabel loop, entry;
+    { Label loop, entry;
       if (count_constructions) {
         __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
       } else if (FLAG_debug_code) {
@@ -909,7 +909,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // sp[2]: receiver
   // sp[3]: constructor function
   // sp[4]: number of arguments (smi-tagged)
-  NearLabel loop, entry;
+  Label loop, entry;
   __ b(&entry);
   __ bind(&loop);
   __ lsl(ip, r3, Operand(kPointerSizeLog2 - 1));
@@ -953,7 +953,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // If the result is an object (in the ECMA sense), we should get rid
   // of the receiver and use the result; see ECMA-262 section 13.2.2-7
   // on page 74.
-  NearLabel use_receiver, exit;
+  Label use_receiver, exit;
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
   // r0: result
@@ -1036,7 +1036,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r1: function
   // r3: argc
   // r4: argv, i.e. points to first arg
-  NearLabel loop, entry;
+  Label loop, entry;
   __ lsl(r2, r3, Operand(kPointerSizeLog2));
   __ add(r2, r4, r2);
   // r2 points past last arg.
@@ -1141,7 +1141,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   __ ldr(r6, MemOperand(sp, 0 * kPointerSize));
   __ SmiUntag(r6);
   // Switch on the state.
-  NearLabel with_tos_register, unknown_state;
+  Label with_tos_register, unknown_state;
   __ cmp(r6, Operand(FullCodeGenerator::NO_REGISTERS));
   __ b(ne, &with_tos_register);
   __ add(sp, sp, Operand(1 * kPointerSize));  // Remove state.
@@ -1193,7 +1193,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 1. Make sure we have at least one argument.
   // r0: actual number of arguments
-  { NearLabel done;
+  { Label done;
     __ tst(r0, r0);
     __ b(ne, &done);
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
@@ -1216,7 +1216,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r0: actual number of arguments
   // r1: function
   Label shift_arguments;
-  { NearLabel convert_to_object, use_global_receiver, patch_receiver;
+  { Label convert_to_object, use_global_receiver, patch_receiver;
     // Change context eagerly in case we need the global receiver.
     __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
@@ -1305,7 +1305,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r0: actual number of arguments
   // r1: function
   __ bind(&shift_arguments);
-  { NearLabel loop;
+  { Label loop;
     // Calculate the copy start address (destination). Copy end address is sp.
     __ lsl(r2, r0, Operand(kPointerSizeLog2));
     __ add(r2, sp, r2);
@@ -1325,7 +1325,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin.
   // r0: actual number of arguments
   // r1: function
-  { NearLabel function;
+  { Label function;
     __ tst(r1, r1);
     __ b(ne, &function);
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
@@ -1342,7 +1342,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     (tail-call) to the code in register edx without checking arguments.
   // r0: actual number of arguments
   // r1: function
-  NearLabel end;
+  Label end;
   __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r2,
          FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
@@ -1378,7 +1378,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying need to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  NearLabel okay;
+  Label okay;
   __ LoadRoot(r2, Heap::kRealStackLimitRootIndex);
   // Make r2 the space we have left. The stack might already be overflowed
   // here which will cause r2 to become negative.
@@ -1408,7 +1408,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ ldr(r1, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
 
   // Compute the receiver.
-  NearLabel call_to_object, use_global_receiver, push_receiver;
+  Label call_to_object, use_global_receiver, push_receiver;
   __ ldr(r0, MemOperand(fp, kRecvOffset));
 
   // Do not transform the receiver for strict mode functions.
@@ -1458,7 +1458,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(r0);
 
   // Copy all arguments from the array to the stack.
-  NearLabel entry, loop;
+  Label entry, loop;
   __ ldr(r0, MemOperand(fp, kIndexOffset));
   __ b(&entry);
 
@@ -1563,7 +1563,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r2: copy end address
     // r3: code entry to call
 
-    NearLabel copy;
+    Label copy;
     __ bind(&copy);
     __ ldr(ip, MemOperand(r0, 0));
     __ push(ip);
@@ -1591,7 +1591,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r1: function
     // r2: expected number of arguments
     // r3: code entry to call
-    NearLabel copy;
+    Label copy;
     __ bind(&copy);
     // Adjust load for return address and receiver.
     __ ldr(ip, MemOperand(r0, 2 * kPointerSize));
@@ -1609,7 +1609,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ sub(r2, fp, r2);
     __ sub(r2, r2, Operand(4 * kPointerSize));  // Adjust for frame.
 
-    NearLabel fill;
+    Label fill;
     __ bind(&fill);
     __ push(ip);
     __ cmp(sp, r2);

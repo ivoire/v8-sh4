@@ -36,10 +36,6 @@
 namespace v8 {
 namespace internal {
 
-// TODO(stm): this is a temporary hack for nearlabels
-typedef Label NearLabel;
-
-
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -567,9 +563,6 @@ class Assembler : public AssemblerBase {
   // binds an unbound label L to the current code position
   void bind(Label* L);
 
-//  void bind(NearLabel* L);
-
-
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
   INLINE(static Address target_address_address_at(Address pc));
@@ -675,15 +668,6 @@ class Assembler : public AssemblerBase {
   void jsr(Register Rd);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
-
-//  void bt(NearLabel* L)         { branch(L, branch_true); }
-//  void bf(NearLabel* L)         { branch(L, branch_false); }
-//  void jmp(NearLabel* L)        { branch(L, branch_unconditional); }
-//  void b(NearLabel* L)          { jmp(L); }
-//  void b(Condition cond, NearLabel* L) {
-//    ASSERT(cond == ne || cond == eq);
-//    branch(L, cond == eq ? branch_true : branch_false);
-//  }
 
   void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
   void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }     // is Rd > Rs ?
@@ -964,8 +948,6 @@ class Assembler : public AssemblerBase {
   void bf(int offset, Register rtmp, bool patched_later);
   void jmp(int offset, Register rtmp, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
-
-//  void branch(NearLabel* L, branch_type type);
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos);

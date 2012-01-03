@@ -61,7 +61,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
   RECORD_LINE();
   // Make sure that the function has an instance prototype.
-  NearLabel non_instance;
+  Label non_instance;
   ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
   tst(scratch, Operand(1 << Map::kHasNonInstancePrototype));
   bf(&non_instance);
@@ -80,7 +80,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
   RECORD_LINE();
   // If the function does not have an initial map, we're done.
-  NearLabel done;
+  Label done;
   CompareObjectType(result, scratch, scratch, MAP_TYPE, eq);
   bf(&done);
 
@@ -184,13 +184,13 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   mov(r6, r10);
   mov(r7, r11);
 
-  NearLabel promote_scheduled_exception;
-  NearLabel delete_allocated_handles;
+  Label promote_scheduled_exception;
+  Label delete_allocated_handles;
   Label leave_exit_frame;
 
   // If result is non-zero, dereference to get the result value
   // otherwise set it to undefined.
-  NearLabel ltrue, lfalse;
+  Label ltrue, lfalse;
   cmp(r0, Operand(0));
   bf(&lfalse);
   LoadRoot(r0, Heap::kUndefinedValueRootIndex);
@@ -285,7 +285,7 @@ void MacroAssembler::ConvertToInt32(Register source,
     // the range of signed int32 values that are not Smis.  Jumps to the label
     // 'not_int32' if the double isn't in the range -0x80000000.0 to
     // 0x80000000.0 (excluding the endpoints).
-    NearLabel right_exponent, done;
+    Label right_exponent, done;
     // Get exponent word.
     ldr(scratch, FieldMemOperand(source, HeapNumber::kExponentOffset));
     // Get exponent alone in scratch2.
@@ -362,7 +362,7 @@ void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
                                                  Register input_high,
                                                  Register input_low,
                                                  Register scratch) {
-  NearLabel done, normal_exponent, restore_sign;
+  Label done, normal_exponent, restore_sign;
 
   // Extract the biased exponent in result.
   Ubfx(result,
@@ -407,7 +407,7 @@ void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
   lsl(input_high, input_high, scratch);
 
   // Replace the shifted bits with bits from the lower mantissa word.
-  NearLabel pos_shift, shift_done;
+  Label pos_shift, shift_done;
   rsb(scratch, scratch, Operand(32));
   cmpge(scratch, Operand(0));
   bt(&pos_shift);
@@ -770,7 +770,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   ASSERT(!code_reg.is(sh4_ip));
   ASSERT(!code_reg.is(sh4_rtmp));
   bool definitely_matches = false;
-  NearLabel regular_invoke;
+  Label regular_invoke;
 
   // Check whether the expected and actual arguments count match. If not,
   // setup registers according to contract with ArgumentsAdaptorTrampoline:
@@ -1090,7 +1090,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {
       ASSERT(IsPowerOf2(frame_alignment));
-      NearLabel alignment_as_expected;
+      Label alignment_as_expected;
       tst(sp, Operand(frame_alignment_mask));
       bt(&alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort possibly
@@ -1252,7 +1252,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   ldr(sp, MemOperand(r3));
 
   // Unwind the handlers until the ENTRY handler is found.
-  NearLabel loop, done;
+  Label loop, done;
   bind(&loop);
   RECORD_LINE();
   // Load the type of the current stack handler.
@@ -1313,7 +1313,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
 void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
                                             Register scratch,
                                             Label* miss) {
-  NearLabel same_contexts;
+  Label same_contexts;
 
   ASSERT(!holder_reg.is(scratch));
   ASSERT(!holder_reg.is(ip));
@@ -1414,7 +1414,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // t1 - used to hold the capacity mask of the dictionary
   //
   // t2 - used for the index into the dictionary.
-  NearLabel done;
+  Label done;
 
   // Compute the hash code from the untagged key.  This must be kept in sync
   // with ComputeIntegerHash in utils.h.
@@ -1684,7 +1684,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
   if (emit_debug_code()) {
     ASSERT(!elements.is(sh4_rtmp));
     ASSERT(!elements.is(sh4_ip));
-    NearLabel ok;
+    Label ok;
     RECORD_LINE();
     push(elements);
     ldr(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
@@ -1705,7 +1705,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
 
 
 void MacroAssembler::Check(Condition cond, const char* msg) {
-  NearLabel L;
+  Label L;
   RECORD_LINE();
   b(cond, &L);
   Abort(msg);
@@ -2140,7 +2140,7 @@ void MacroAssembler::CopyBytes(Register src,
                                Register dst,
                                Register length,
                                Register scratch) {
-  NearLabel align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
+  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
 
   // Align src before copying in word size chunks.
   bind(&align_loop);
@@ -2215,7 +2215,7 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   ASSERT(!zeros.is(sh4_ip));
   RECORD_LINE();
 
-  NearLabel l0, l1, l2, l3, l4, l5;
+  Label l0, l1, l2, l3, l4, l5;
   cmpeq(source, Operand(0));
   bf(&l0);
   mov(zeros, Operand(32));
@@ -2320,7 +2320,7 @@ void MacroAssembler::Ret(Condition cond) {
     rts();
   } else {
     RECORD_LINE();
-    NearLabel skip;
+    Label skip;
     if (cond == eq) {
       bf(&skip);
     } else {
@@ -2654,7 +2654,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   // Load the initial map. The global functions all have initial maps.
   ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
-    NearLabel ok;
+    Label ok;
     Label fail;
     CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
     b(&ok);
