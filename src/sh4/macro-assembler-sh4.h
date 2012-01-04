@@ -390,14 +390,20 @@ class MacroAssembler: public Assembler {
   void FCmp();
 
   // Jump the register contains a smi.
-  inline void JumpIfSmi(Register value, Label* smi_label) {
+  inline void JumpIfSmi(Register value, Label* smi_label, Label::Distance distance = Label::kFar) {
     tst(value, Operand(kSmiTagMask));
-    bt(smi_label);
+    if (distance == Label::kFar)
+      bt(smi_label);
+    else
+      bt_near(smi_label);
   }
   // Jump if the register contains a non-smi.
-  inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
+  inline void JumpIfNotSmi(Register value, Label* not_smi_label, Label::Distance distance = Label::kFar) {
     tst(value, Operand(kSmiTagMask));
-    bf(not_smi_label);
+    if (distance == Label::kFar)
+      bf(not_smi_label);
+    else
+      bf_near(not_smi_label);
   }
 
   // Jump if either of the registers contain a non-smi.

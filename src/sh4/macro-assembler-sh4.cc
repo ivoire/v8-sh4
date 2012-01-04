@@ -64,7 +64,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   Label non_instance;
   ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
   tst(scratch, Operand(1 << Map::kHasNonInstancePrototype));
-  bf(&non_instance);
+  bf_near(&non_instance);
 
   RECORD_LINE();
   // Get the prototype or initial map from the function.
@@ -192,7 +192,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   // otherwise set it to undefined.
   Label ltrue, lfalse;
   cmp(r0, Operand(0));
-  bf(&lfalse);
+  bf_near(&lfalse);
   LoadRoot(r0, Heap::kUndefinedValueRootIndex);
   jmp(&ltrue);
   bind(&lfalse);
@@ -2227,25 +2227,25 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   mov(zeros, Operand(0));
   // Top 16.
   tst(scratch, Operand(0xffff0000));
-  bf(&l1);
+  bf_near(&l1);
   add(zeros, zeros, Operand(16));
   lsl(scratch, scratch, Operand(16));
   // Top 8.
   bind(&l1);
   tst(scratch, Operand(0xff000000));
-  bf(&l2);
+  bf_near(&l2);
   add(zeros, zeros, Operand(8));
   lsl(scratch, scratch, Operand(8));
   // Top 4.
   bind(&l2);
   tst(scratch, Operand(0xf0000000));
-  bf(&l3);
+  bf_near(&l3);
   add(zeros, zeros, Operand(4));
   lsl(scratch, scratch, Operand(4));
   // Top 2.
   bind(&l3);
   tst(scratch, Operand(0xc0000000));
-  bf(&l4);
+  bf_near(&l4);
   add(zeros, zeros, Operand(2));
   lsl(scratch, scratch, Operand(2));
   // Top bit.

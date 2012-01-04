@@ -409,9 +409,9 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // to probe.
   //
   // Check for number.
-  __ JumpIfSmi(r1, &number);
+  __ JumpIfSmi(r1, &number, Label::kNear);
   __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE, eq);
-  __ bf(&non_number);
+  __ bf_near(&non_number);
   __ bind(&number);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::NUMBER_FUNCTION_INDEX, r1);
@@ -420,7 +420,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // Check for string.
   __ bind(&non_number);
   __ cmphs(r3, Operand(FIRST_NONSTRING_TYPE));
-  __ bt(&non_string);
+  __ bt_near(&non_string);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::STRING_FUNCTION_INDEX, r1);
   __ b(&probe);
@@ -528,11 +528,11 @@ static void GenerateCallMiss(MacroAssembler* masm,
   if (id == IC::kCallIC_Miss) {
     Label invoke, global;
     __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
-    __ JumpIfSmi(r2, &invoke);
+    __ JumpIfSmi(r2, &invoke, Label::kNear);
     __ CompareObjectType(r2, r3, r3, JS_GLOBAL_OBJECT_TYPE, eq);
-    __ bt(&global);
+    __ bt_near(&global);
     __ cmpeq(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
-    __ bf(&invoke);
+    __ bf_near(&invoke);
 
     // Patch the receiver on the stack.
     __ bind(&global);
@@ -1180,11 +1180,11 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   Label slow;
 
   // Check that the receiver isn't a smi.
-  __ JumpIfSmi(r1, &slow);
+  __ JumpIfSmi(r1, &slow, Label::kNear);
 
   // Check that the key is an array index, that is Uint32.
   __ tst(r0, Operand(kSmiTagMask | kSmiSignMask));
-  __ bf(&slow);
+  __ bf_near(&slow);
 
   // Get the map of the receiver.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -1194,7 +1194,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   __ ldrb(r3, FieldMemOperand(r2, Map::kBitFieldOffset));
   __ land(r3, r3, Operand(kSlowCaseBitFieldMask));
   __ cmpeq(r3, Operand(1 << Map::kHasIndexedInterceptor));
-  __ bf(&slow);
+  __ bf_near(&slow);
 
   // Everything is fine, call runtime.
   __ Push(r1, r0);  // Receiver, key.
@@ -1287,27 +1287,27 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // r4 and r5 are used as general scratch registers.
 
   // Check that the key is a smi.
-  __ JumpIfNotSmi(key, &slow);
+  __ JumpIfNotSmi(key, &slow, Label::kNear);
   // Check that the object isn't a smi.
-  __ JumpIfSmi(receiver, &slow);
+  __ JumpIfSmi(receiver, &slow, Label::kNear);
   // Get the map of the object.
   __ ldr(r4, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
   __ ldrb(ip, FieldMemOperand(r4, Map::kBitFieldOffset));
   __ tst(ip, Operand(1 << Map::kIsAccessCheckNeeded));
-  __ bf(&slow);
+  __ bf_near(&slow);
   // Check if the object is a JS array or not.
   __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
   __ cmpeq(r4, Operand(JS_ARRAY_TYPE));
   __ bt(&array);
   // Check that the object is some kind of JSObject.
   __ cmpge(r4, Operand(FIRST_JS_RECEIVER_TYPE));
-  __ bf(&slow);
+  __ bf_near(&slow);
   __ cmpeq(r4, Operand(JS_PROXY_TYPE));
-  __ bt(&slow);
+  __ bt_near(&slow);
   __ cmpeq(r4, Operand(JS_FUNCTION_PROXY_TYPE));
-  __ bt(&slow);
+  __ bt_near(&slow);
 
   // Object case: Check key against length in the elements array.
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
@@ -1315,7 +1315,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ldr(r4, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmpeq(r4, ip);
-  __ bf(&slow);
+  __ bf_near(&slow);
   // Check array bounds. Both the key and the length of FixedArray are smis.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ cmphs(key, ip);

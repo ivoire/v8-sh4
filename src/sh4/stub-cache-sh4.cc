@@ -70,7 +70,7 @@ static void ProbeTable(Isolate* isolate,
   __ lsl(ip, offset, Operand(1));
   __ ldr(ip, MemOperand(offsets_base_addr, ip));
   __ cmp(name, ip);
-  __ bf(&miss);
+  __ bf_near(&miss);
 
   // Get the code entry from the cache.
   __ add(offsets_base_addr, offsets_base_addr,
@@ -82,7 +82,7 @@ static void ProbeTable(Isolate* isolate,
   __ ldr(scratch2, FieldMemOperand(scratch2, Code::kFlagsOffset));
   __ bic(scratch2, scratch2, Operand(Code::kFlagsNotUsedInLookup));
   __ cmp(scratch2, Operand(flags));
-  __ bf(&miss);
+  __ bf_near(&miss);
 
   // Re-load code entry from cache.
   __ lsl(ip, offset, Operand(1));
@@ -1592,7 +1592,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // Check if we could survive without allocation.
       __ cmpgt(r0, r4);
-      __ bt(&attempt_to_grow_elements);
+      __ bt_near(&attempt_to_grow_elements);
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1735,7 +1735,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   __ ldr(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
   __ cmpge(r4, Operand(Smi::FromInt(1))); // for branch below
   __ sub(r4, r4, Operand(Smi::FromInt(1)));
-  __ bf(&return_undefined);
+  __ bf_near(&return_undefined);
 
   // Get the last element.
   __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
@@ -3034,7 +3034,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadMegamorphic(
     Handle<Code> code(handler_ics->at(current));
     __ mov(ip, Operand(map));
     __ cmp(r2, ip);
-    __ bf(&skip);
+    __ bf_near(&skip);
     __ jmp(code, RelocInfo::CODE_TARGET);
     __ bind(&skip);
   }
@@ -3135,7 +3135,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
     Handle<Code> code(handler_ics->at(current));
     __ mov(ip, Operand(map));
     __ cmp(r3, ip);
-    __ bf(&skip);
+    __ bf_near(&skip);
     __ Jump(code, RelocInfo::CODE_TARGET);
     __ bind(&skip);
   }
@@ -3475,7 +3475,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     Label box_int;
     __ add(r3, value, Operand(0x40000000)); // Non-smi value gives neg result
     __ cmpge(r3, Operand(0));
-    __ bf(&box_int);
+    __ bf_near(&box_int);
     // Tag integer as smi and return it.
     __ lsl(r0, value, Operand(kSmiTagSize));
     __ Ret();
@@ -3815,14 +3815,14 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
         Label skip1, skip2;
         __ cmpgt(r9, Operand(kBinary32MaxExponent));
-        __ bf(&skip1);
+        __ bf_near(&skip1);
         __ land(r5, r5, Operand(HeapNumber::kSignMask));
         __ orr(r5, r5, Operand(kBinary32ExponentMask));
         __ b(&done);
         __ bind(&skip1);
 
         __ cmpge(r9, Operand(kBinary32MinExponent));
-        __ bt(&skip2);
+        __ bt_near(&skip2);
         __ land(r5, r5, Operand(HeapNumber::kSignMask));
         __ b(&done);
         __ bind(&skip2);
@@ -3898,7 +3898,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ rsb(r9, r9, Operand(HeapNumber::kMantissaBitsInTopWord));
         __ cmpge(r9, Operand(0));
         Label skip;
-        __ bf(&skip);
+        __ bf_near(&skip);
         __ lsr(r5, r5, r9);
         __ b(&sign);
         __ bind(&skip);
@@ -4222,7 +4222,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
   // it's an Infinity, and the non-NaN code path applies.
   __ cmpgt(exponent_reg, scratch);
-  __ bt(&is_nan);
+  __ bt_near(&is_nan);
   __ ldr(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
   __ cmp(mantissa_reg, Operand(0));
   __ b(eq, &have_double_value);

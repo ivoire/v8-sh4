@@ -965,7 +965,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // If the type of the result (stored in its map) is less than
   // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
   __ CompareObjectType(r0, r3, r3, FIRST_SPEC_OBJECT_TYPE, ge);
-  __ bt(&exit);
+  __ bt_near(&exit);
 
   // Throw away the result of the constructor invocation and use the
   // on-stack receiver as the result.
@@ -1350,7 +1350,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   __ SetCallKind(r5, CALL_AS_METHOD);
   __ cmp(r2, r0);  // Check formal and actual parameter counts.
-  __ bt(&end);
+  __ bt_near(&end);
   __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
   __ bind(&end);
@@ -1386,7 +1386,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Check if the arguments will overflow the stack.
   __ lsl(ip, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ cmpgt(r2, ip);
-  __ bt(&okay);  // Signed comparison.
+  __ bt_near(&okay);  // Signed comparison.
 
   // Out of stack space.
   __ ldr(r1, MemOperand(fp, kFunctionOffset));
