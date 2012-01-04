@@ -78,30 +78,6 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 
-static void* GetRandomMmapAddr() {
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  // Note that the current isolate isn't set up in a call path via
-  // CpuFeatures::Probe. We don't care about randomization in this case because
-  // the code page is immediately freed.
-  if (isolate != NULL) {
-#ifdef V8_TARGET_ARCH_X64
-    uint64_t rnd1 = V8::RandomPrivate(isolate);
-    uint64_t rnd2 = V8::RandomPrivate(isolate);
-    uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
-    raw_addr &= V8_UINT64_C(0x3ffffffff000);
-#else
-    uint32_t raw_addr = V8::RandomPrivate(isolate);
-    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
-    // variety of ASLR modes (PAE kernel, NX compat mode, etc).
-    raw_addr &= 0x3ffff000;
-    raw_addr += 0x20000000;
-#endif
-    return reinterpret_cast<void*>(raw_addr);
-  }
-  return NULL;
-}
-
-
 void OS::Setup() {
   // Seed the random number generator. We preserve microsecond resolution.
   uint64_t seed = Ticks() ^ (getpid() << 16);
@@ -385,8 +361,7 @@ void* OS::Allocate(const size_t requested,
                    bool is_executable) {
   const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* addr = GetRandomMmapAddr();
-  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) {
     LOG(i::Isolate::Current(),
         StringEvent("OS::Allocate", "mmap failed"));
@@ -604,7 +579,7 @@ static const int kMmapFdOffset = 0;
 
 
 VirtualMemory::VirtualMemory(size_t size) {
-  address_ = mmap(GetRandomMmapAddr(), size, PROT_NONE,
+  address_ = mmap(NULL, size, PROT_NONE,
                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
                   kMmapFd, kMmapFdOffset);
   size_ = size;
