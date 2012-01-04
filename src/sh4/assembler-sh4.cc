@@ -544,9 +544,9 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt, Condition cond) {
   ASSERT(cond == ne || cond == eq);
   Label end;
   if (cond == eq)
-    bf(&end);   // Jump after sequence if T bit is false
+    bf_near(&end);   // Jump after sequence if T bit is false
   else
-    bt(&end);   // Jump after sequence if T bit is true
+    bt_near(&end);   // Jump after sequence if T bit is true
   lor(Rd, Rs, Rt);
   bind(&end);
 }
@@ -557,9 +557,9 @@ void Assembler::lor(Register Rd, Register Rs, const Operand& imm,
   ASSERT(cond == ne || cond == eq);
   Label end;
   if (cond == eq)
-    bf(&end);   // Jump after sequence if T bit is false
+    bf_near(&end);   // Jump after sequence if T bit is false
   else
-    bt(&end);   // Jump after sequence if T bit is true
+    bt_near(&end);   // Jump after sequence if T bit is true
   lor(Rd, Rs, imm, rtmp);
   bind(&end);
 }
@@ -686,7 +686,7 @@ int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
 
 
 // Negative pc_offset value (aligned value)
-const int kEndOfChain = -2;
+const int kEndOfChain = -4;
 
 void Assembler::bind(Label* L) {
   // label can only be bound once
@@ -694,20 +694,24 @@ void Assembler::bind(Label* L) {
 
   // Jump directly to the current PC
   int target_pos = reinterpret_cast<int>(pc_);
+  int is_near_linked = L->is_near_linked();
+  Label::Distance distance = is_near_linked ? Label::kNear : Label::kFar;
 
-  // List the linked to patch
+  // List the links to patch
   while (L->is_linked()) {
     // Compute the current position
     // L->pos() is the offset from the begining of the buffer
     uint16_t* p_pos = reinterpret_cast<uint16_t*>(L->pos() + buffer_);
+    ASSERT((is_near_linked && (int)(*p_pos) % 4 != 0) || !is_near_linked);
 
     // Compute the next before the patch
-    next(L);
+    next(L, distance);
 
     // Patching
-    patchBranchOffset(target_pos, p_pos);
+    patchBranchOffset(target_pos, p_pos, is_near_linked);
   }
   L->bind_to(pc_offset());
+  L->UnuseNear();
 
   // Keep track of the last bound label so we don't eliminate any instructions
   // before a bound label.
@@ -748,33 +752,59 @@ void Assembler::bind(Label* L) {
 //}
 
 
-void Assembler::next(Label* L) {
-  ASSERT(L->is_linked());
-  int link = *reinterpret_cast<uint32_t*>(L->pos() + buffer_);
-  if (link > 0) {
-    L->link_to(link);
+void Assembler::next(Label* L, Label::Distance distance) {
+  if (distance == Label::kNear) {
+    ASSERT(L->is_near_linked());
+    int16_t link = (*reinterpret_cast<uint16_t*>(L->pos() + buffer_)) & ~ 0x3;
+    if (link > 0) {
+      L->link_to(link & ~0x3);
+    } else {
+      ASSERT(link == kEndOfChain);
+      L->Unuse();
+    }
   } else {
-    ASSERT(link == kEndOfChain);
-    L->Unuse();
+    ASSERT(L->is_linked());
+    int link = *reinterpret_cast<uint32_t*>(L->pos() + buffer_);
+    if (link > 0) {
+      L->link_to(link);
+    } else {
+      ASSERT(link == kEndOfChain);
+      L->Unuse();
+    }
   }
 }
 
 
-void Assembler::branch(Label* L, Register rtmp, branch_type type) {
+void Assembler::branch(Label* L, Register rtmp, branch_type type,
+                       Label::Distance distance) {
+  // when bound both near and far labels are represented the same way
   if (L->is_bound()) {
     ASSERT(L->pos() != kEndOfChain);
-    branch(L->pos() - pc_offset(), rtmp, type, false);
+    branch(L->pos() - pc_offset(), rtmp, type, distance, false);
   } else {
+    // The only difference between Near and far label is in the
+    // is_near_linked function.
+    // Moreover the position of the linked branch will be altered when dumped
+    // on memory to carry the type of branch to write when patching back
+    if (distance == Label::kNear)
+      L->link_to(1, Label::kNear);
+
     if (L->is_linked()) {
       ASSERT(L->pos() != kEndOfChain);
-      branch(L->pos(), rtmp, type, true);
+      branch(L->pos(), rtmp, type, distance, true);
     } else {
-      branch(kEndOfChain, rtmp, type, true);   // Patched later on
+      branch(kEndOfChain, rtmp, type, distance, true);   // Patched later on
     }
-    // Compensate the place of the constant (sizeof(uint32_t))
-    // Constant pool is always emited last in the sequence
-    // the position is defined as an offset from the begining of the buffer
-    int pos = pc_offset() - sizeof(uint32_t);
+
+    int pos;
+    if (distance == Label::kFar) {
+      // Compensate the place of the constant (sizeof(uint32_t))
+      // Constant pool is always emited last in the sequence
+      // the position is defined as an offset from the begining of the buffer
+      pos = pc_offset() - sizeof(uint32_t);
+    } else {
+      pos = pc_offset() - sizeof(uint16_t);
+    }
     L->link_to(pos);  // Link to the constant
   }
 }
@@ -813,13 +843,13 @@ void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
 }
 
 void Assembler::branch(int offset, Register rtmp, branch_type type,
-                       bool patched_later) {
+                       Label::Distance distance, bool patched_later) {
   switch (type) {
   case branch_true:
-    bt(offset, rtmp, patched_later);
+    bt(offset, rtmp, distance, patched_later);
     break;
   case branch_false:
-    bf(offset, rtmp, patched_later);
+    bf(offset, rtmp, distance, patched_later);
     break;
   case branch_unconditional:
     jmp(offset, rtmp, patched_later);
@@ -831,30 +861,56 @@ void Assembler::branch(int offset, Register rtmp, branch_type type,
 }
 
 
-void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant) {
-  // Patch the constant
-  ASSERT(*(p_constant - 1) == 0x09);
-  // Is it a jsr or any other branch ?
-  if (*(p_constant - 2) == 0xa002)
-    *reinterpret_cast<uint32_t*>(p_constant) = target_pos -
-                                               (unsigned)p_constant + 4;
-  else
-    *reinterpret_cast<uint32_t*>(p_constant) = target_pos -
-                                               (unsigned)p_constant;
+void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant, int is_near_linked) {
+  if (is_near_linked) {
+    // The two least significant bits represent the type of branch (1 or 2)
+    ASSERT((*p_constant & 0x3) == 1 ||
+           (*p_constant & 0x3) == 2);
+    int disp = target_pos - (unsigned)p_constant - 4;
+
+    // select the right branch type
+    if ((*p_constant & 0x3) == 1) {
+      ASSERT(FITS_SH4_bt(disp));
+      *p_constant = (0x8 << 12) | (0x9 << 8) | (((disp & 0x1FE) >> 1) << 0) ;
+    } else if ((*p_constant & 0x3) == 2) {
+      ASSERT(FITS_SH4_bf(disp));
+      *p_constant = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0) ;
+    }
+
+  } else {
+    // Patch the constant
+    ASSERT(*(p_constant - 1) == 0x09);
+    // Is it a jsr or any other branch ?
+    if (*(p_constant - 2) == 0xa002)
+      *reinterpret_cast<uint32_t*>(p_constant) = target_pos -
+                                                 (unsigned)p_constant + 4;
+    else
+      *reinterpret_cast<uint32_t*>(p_constant) = target_pos -
+                                                 (unsigned)p_constant;
+  }
 }
 
 
-void Assembler::bt(int offset, Register rtmp, bool patched_later) {
+void Assembler::bt(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
   if (patched_later) {
-    align();
-    bf_(12);
-    nop_();
-    movl_dispPC_(4, rtmp);
-    nop_();
-    braf_(rtmp);
-    nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = offset;
-    pc_ += sizeof(uint32_t);
+    if (distance == Label::kNear) {
+      align();
+      // Use the 2 least significant bits to store the type of branch
+      // We assume (and assert) that they always are null
+      ASSERT((offset % 4) == 0);
+      *reinterpret_cast<uint16_t*>(pc_) = offset + 0x1;
+      pc_ += sizeof(uint16_t);
+    } else {
+      align();
+      bf_(12);
+      nop_();
+      movl_dispPC_(4, rtmp);
+      nop_();
+      braf_(rtmp);
+      nop_();
+      *reinterpret_cast<uint32_t*>(pc_) = offset;
+      pc_ += sizeof(uint32_t);
+    }
   } else {
     if (FITS_SH4_bt(offset - 4)) {
       bt_(offset - 4);
@@ -874,17 +930,26 @@ void Assembler::bt(int offset, Register rtmp, bool patched_later) {
 }
 
 
-void Assembler::bf(int offset, Register rtmp, bool patched_later) {
+void Assembler::bf(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
   if (patched_later) {
-    align();
-    bt_(12);
-    nop_();
-    movl_dispPC_(4, rtmp);
-    nop_();
-    braf_(rtmp);
-    nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = offset;
-    pc_ += sizeof(uint32_t);
+    if (distance == Label::kNear) {
+      align();
+      // Use the 2 least significant bits to store the type of branch
+      // We assume (and assert) that they always are null
+      ASSERT((offset % 4) == 0);
+      *reinterpret_cast<uint16_t*>(pc_) = offset + 0x2;
+      pc_ += sizeof(uint16_t);
+    } else {
+      align();
+      bt_(12);
+      nop_();
+      movl_dispPC_(4, rtmp);
+      nop_();
+      braf_(rtmp);
+      nop_();
+      *reinterpret_cast<uint32_t*>(pc_) = offset;
+      pc_ += sizeof(uint32_t);
+    }
   } else {
     if (FITS_SH4_bf(offset - 4)) {
       bf_(offset - 4);
@@ -1087,9 +1152,9 @@ void Assembler::mov(Register Rd, const Operand& imm, Condition cond) {
   } else {
     Label skip;
     if (cond == eq)
-      bf(&skip);
+      bf_near(&skip);
     else
-      bt(&skip);
+      bt_near(&skip);
     mov(Rd, imm);
     bind(&skip);
   }

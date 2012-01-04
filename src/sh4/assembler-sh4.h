@@ -639,12 +639,24 @@ class Assembler : public AssemblerBase {
 
   void bt(Label* L, Register rtmp = sh4_rtmp)
         { branch(L, rtmp, branch_true); }
+  void bt_near(Label* L, Register rtmp = sh4_rtmp)
+        { branch(L, rtmp, branch_true, Label::kNear); }
+
   void bf(Label* L, Register rtmp = sh4_rtmp)
         { branch(L, rtmp, branch_false); }
+  void bf_near(Label* L, Register rtmp = sh4_rtmp)
+        { branch(L, rtmp, branch_false, Label::kNear); }
+
   void jmp(Label* L, Register rtmp = sh4_rtmp)
         { branch(L, rtmp, branch_unconditional); }
+  void jmp_near(Label* L, Register rtmp = sh4_rtmp)
+        { branch(L, rtmp, branch_unconditional); }
+
   void b(Label* L, Register rtmp = sh4_rtmp)
         { jmp(L, rtmp); }
+  void b_near(Label* L, Register rtmp = sh4_rtmp)
+        { jmp(L, rtmp); }
+
   void b(Condition cond, Label* L, Register rtmp = sh4_rtmp)   {
     ASSERT(cond == ne || cond == eq);
     branch(L, rtmp, cond == eq ? branch_true: branch_false);
@@ -942,15 +954,15 @@ class Assembler : public AssemblerBase {
 
  private:
   // code generation wrappers
-  void branch(Label* L, Register rtmp, branch_type type);
-  void branch(int offset, Register rtmp, branch_type type, bool patched_later);
-  void bt(int offset, Register rtmp, bool patched_later);
-  void bf(int offset, Register rtmp, bool patched_later);
+  void branch(Label* L, Register rtmp, branch_type type, Label::Distance distance = Label::kFar);
+  void branch(int offset, Register rtmp, branch_type type, Label::Distance distance, bool patched_later);
+  void bt(int offset, Register rtmp, Label::Distance distance, bool patched_later);
+  void bf(int offset, Register rtmp, Label::Distance distance, bool patched_later);
   void jmp(int offset, Register rtmp, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
 
   void writeBranchTag(int nop_count, branch_type type);
-  void patchBranchOffset(int fixup_pos, uint16_t *p_pos);
+  void patchBranchOffset(int fixup_pos, uint16_t *p_pos, int is_near_linked);
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
@@ -959,7 +971,7 @@ class Assembler : public AssemblerBase {
   inline void CheckBuffer();
   void GrowBuffer();
 
-  void next(Label *L);
+  void next(Label *L, Label::Distance distance = Label::kFar);
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);

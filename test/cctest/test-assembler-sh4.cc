@@ -1579,12 +1579,17 @@ TEST(28) {
 
   __ mov(r0, Operand(0));
   __ cmpeq(r4, r5);
-  __ bf(&l1);
+  __ bf_near(&l1);
+  __ bf_near(&l1);
+  __ bf_near(&l1);
 
   __ add(r0, Operand(1));
   __ bind(&l1);
   __ cmpeq(r4, r5);
-  __ bt(&l2);
+  __ bt_near(&l2);
+  __ bt_near(&l2);
+  __ bt_near(&l2);
+  __ bt_near(&l2);
 
   __ sub(r0, r0, Operand(1));
   __ sub(r0, r0, Operand(1));
@@ -1599,7 +1604,7 @@ TEST(28) {
   __ bind(&l3);
   __ add(r4, Operand(1));
   __ cmpeq(r4, Operand(2));
-  __ bf(&l3);
+  __ bf_near(&l3);
 
   __ jmp(&l4);
   __ add(r0, Operand(1));
@@ -1630,7 +1635,7 @@ TEST(29) {
   __ mov(r0, Operand(0));
 
   __ cmpeq(r4, r5);
-  __ bf(&l1);
+  __ bf_near(&l1);
   for (int i = 0; i < 50; i++)
     __ nop();
   __ add(r0, Operand(1));
