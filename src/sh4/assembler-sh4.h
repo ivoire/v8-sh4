@@ -638,19 +638,25 @@ class Assembler : public AssemblerBase {
   void add(Register Rd, Register Rs, Register Rt);
 
   void bt(Label* L, Register rtmp = sh4_rtmp)
-        { branch(L, rtmp, branch_true); }
+        { ASSERT(!L->is_near_linked());
+          branch(L, rtmp, branch_true); }
   void bt_near(Label* L, Register rtmp = sh4_rtmp)
-        { branch(L, rtmp, branch_true, Label::kNear); }
+        { ASSERT(L->is_unused() || L->is_near_linked());
+          branch(L, rtmp, branch_true, Label::kNear); }
 
   void bf(Label* L, Register rtmp = sh4_rtmp)
-        { branch(L, rtmp, branch_false); }
+        { ASSERT(!L->is_near_linked());
+          branch(L, rtmp, branch_false); }
   void bf_near(Label* L, Register rtmp = sh4_rtmp)
-        { branch(L, rtmp, branch_false, Label::kNear); }
+        { ASSERT(L->is_unused() || L->is_near_linked());
+          branch(L, rtmp, branch_false, Label::kNear); }
 
   void jmp(Label* L, Register rtmp = sh4_rtmp)
-        { branch(L, rtmp, branch_unconditional); }
+        { ASSERT(!L->is_near_linked());
+          branch(L, rtmp, branch_unconditional); }
   void jmp_near(Label* L, Register rtmp = sh4_rtmp)
-        { branch(L, rtmp, branch_unconditional); }
+        { ASSERT(L->is_unused() || L->is_near_linked());
+          branch(L, rtmp, branch_unconditional); }
 
   void b(Label* L, Register rtmp = sh4_rtmp)
         { jmp(L, rtmp); }
