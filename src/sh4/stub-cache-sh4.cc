@@ -1592,7 +1592,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // Check if we could survive without allocation.
       __ cmpgt(r0, r4);
-      __ bt_near(&attempt_to_grow_elements);
+      __ bt(&attempt_to_grow_elements);
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1608,7 +1608,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
 
       // Check for a smi.
-      __ JumpIfNotSmi(r4, &with_write_barrier);
+      __ JumpIfNotSmi(r4, &with_write_barrier, Label::kNear);
       __ bind(&exit);
       __ Drop(argc + 1);
       __ Ret();
