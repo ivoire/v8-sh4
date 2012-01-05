@@ -656,16 +656,19 @@ class Assembler : public AssemblerBase {
           branch(L, rtmp, branch_unconditional); }
   void jmp_near(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(L->is_bound() || L->is_unused() || L->is_near_linked());
-          branch(L, rtmp, branch_unconditional); }
+          branch(L, rtmp, branch_unconditional, Label::kNear); }
 
   void b(Label* L, Register rtmp = sh4_rtmp)
         { jmp(L, rtmp); }
   void b_near(Label* L, Register rtmp = sh4_rtmp)
-        { jmp(L, rtmp); }
+        { jmp_near(L, rtmp); }
 
-  void b(Condition cond, Label* L, Register rtmp = sh4_rtmp)   {
+  void b(Condition cond, Label* L, Label::Distance distance = Label::kFar,
+         Register rtmp = sh4_rtmp) {
+    ASSERT((distance == Label::kNear && (L->is_bound() || L->is_unused() || L->is_near_linked())) ||
+           (distance == Label::kFar  && (!L->is_near_linked())));
     ASSERT(cond == ne || cond == eq);
-    branch(L, rtmp, cond == eq ? branch_true: branch_false);
+    branch(L, rtmp, cond == eq ? branch_true: branch_false, distance);
   }
 
   void jsr(Label* L, Register rtmp = sh4_rtmp)
@@ -892,6 +895,7 @@ class Assembler : public AssemblerBase {
 
   // Align the code
   inline int align();
+  inline int misalign();
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -964,7 +968,7 @@ class Assembler : public AssemblerBase {
   void branch(int offset, Register rtmp, branch_type type, Label::Distance distance, bool patched_later);
   void bt(int offset, Register rtmp, Label::Distance distance, bool patched_later);
   void bf(int offset, Register rtmp, Label::Distance distance, bool patched_later);
-  void jmp(int offset, Register rtmp, bool patched_later);
+  void jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
 
   void writeBranchTag(int nop_count, branch_type type);

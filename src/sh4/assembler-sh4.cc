@@ -852,7 +852,7 @@ void Assembler::branch(int offset, Register rtmp, branch_type type,
     bf(offset, rtmp, distance, patched_later);
     break;
   case branch_unconditional:
-    jmp(offset, rtmp, patched_later);
+    jmp(offset, rtmp, distance, patched_later);
     break;
   case branch_subroutine:
     jsr(offset, rtmp, patched_later);
@@ -863,9 +863,10 @@ void Assembler::branch(int offset, Register rtmp, branch_type type,
 
 void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant, int is_near_linked) {
   if (is_near_linked) {
-    // The two least significant bits represent the type of branch (1 or 2)
-    ASSERT((*p_constant & 0x3) == 1 ||
-           (*p_constant & 0x3) == 2);
+    // The two least significant bits represent the type of branch (1, 2 or 3)
+    ASSERT((*p_constant & 0x3) == 1 ||  // bt
+           (*p_constant & 0x3) == 2 ||  // bf
+           (*p_constant & 0x3) == 3);   // jmp
     int disp = target_pos - (unsigned)p_constant - 4;
 
     // select the right branch type
@@ -875,7 +876,13 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant, int is_n
     } else if ((*p_constant & 0x3) == 2) {
       ASSERT(FITS_SH4_bf(disp));
       *p_constant = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0) ;
-    }
+    } else if (((*p_constant & 0x3) == 3)) {
+      ASSERT(FITS_SH4_bra(disp + 2));
+      ASSERT(*(p_constant - 1) == 0x9);
+      *(p_constant - 1) = (0xA << 12) | ((((disp + 2) & 0x1FFE) >> 1) << 0);
+      *(p_constant) = 0x9;
+    } else
+        ASSERT(0);
 
   } else {
     // Patch the constant
@@ -969,20 +976,27 @@ void Assembler::bf(int offset, Register rtmp, Label::Distance distance, bool pat
 }
 
 
-void Assembler::jmp(int offset, Register rtmp, bool patched_later) {
+void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
   positions_recorder()->WriteRecordedPositions();
 
   // Is it going to be pacthed later on
   if (patched_later) {
-    // There is no way to know the size of the offset: take the worst case
-    align();
-    movl_dispPC_(4, rtmp);
-    nop();
-    braf_(rtmp);
-    nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = offset;
-    pc_ += sizeof(uint32_t);
-
+    if (distance == Label::kNear) {
+      misalign();
+      nop();
+      ASSERT((offset % 4) == 0);
+      *reinterpret_cast<uint16_t*>(pc_) = offset + 0x3;
+      pc_ += sizeof(uint16_t);
+    } else {
+      // There is no way to know the size of the offset: take the worst case
+      align();
+      movl_dispPC_(4, rtmp);
+      nop();
+      braf_(rtmp);
+      nop_();
+      *reinterpret_cast<uint32_t*>(pc_) = offset;
+      pc_ += sizeof(uint32_t);
+    }
   } else {
     // Does it fits in a bra offset
     if (FITS_SH4_bra(offset - 4)) {

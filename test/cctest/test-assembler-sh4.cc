@@ -1606,7 +1606,8 @@ TEST(28) {
   __ cmpeq(r4, Operand(2));
   __ bf_near(&l3);
 
-  __ jmp(&l4);
+  __ jmp_near(&l4);
+  __ jmp_near(&l4);
   __ add(r0, Operand(1));
   __ bind(&l4);
 

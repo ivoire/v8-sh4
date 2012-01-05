@@ -308,6 +308,16 @@ int Assembler::align() {
 }
 
 
+int Assembler::misalign() {
+  int count = 0;
+  while (((unsigned)pc_ & 0x3) != 2) {
+    nop_();
+    count++;
+  }
+  return count;
+}
+
+
 void Assembler::cmp(Condition *cond, Register Rd, Register Rs) {
   Condition cond_to_test = eq;
   switch (*cond) {
