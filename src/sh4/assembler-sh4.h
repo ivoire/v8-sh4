@@ -641,21 +641,21 @@ class Assembler : public AssemblerBase {
         { ASSERT(!L->is_near_linked());
           branch(L, rtmp, branch_true); }
   void bt_near(Label* L, Register rtmp = sh4_rtmp)
-        { ASSERT(L->is_unused() || L->is_near_linked());
+        { ASSERT(L->is_bound() || L->is_unused() || L->is_near_linked());
           branch(L, rtmp, branch_true, Label::kNear); }
 
   void bf(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(!L->is_near_linked());
           branch(L, rtmp, branch_false); }
   void bf_near(Label* L, Register rtmp = sh4_rtmp)
-        { ASSERT(L->is_unused() || L->is_near_linked());
+        { ASSERT(L->is_bound() || L->is_unused() || L->is_near_linked());
           branch(L, rtmp, branch_false, Label::kNear); }
 
   void jmp(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(!L->is_near_linked());
           branch(L, rtmp, branch_unconditional); }
   void jmp_near(Label* L, Register rtmp = sh4_rtmp)
-        { ASSERT(L->is_unused() || L->is_near_linked());
+        { ASSERT(L->is_bound() || L->is_unused() || L->is_near_linked());
           branch(L, rtmp, branch_unconditional); }
 
   void b(Label* L, Register rtmp = sh4_rtmp)
