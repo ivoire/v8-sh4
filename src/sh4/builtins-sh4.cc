@@ -289,7 +289,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   if (fill_with_hole) {
     Label loop, entry;
     __ LoadRoot(scratch1, Heap::kTheHoleValueRootIndex);
-    __ jmp(&entry);
+    __ jmp_near(&entry);
     __ bind(&loop);
     __ str(scratch1,
            MemOperand(elements_array_storage, kPointerSize, PostIndex));
@@ -404,7 +404,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // r5: elements_array_end (untagged)
   // sp[0]: last argument
   Label loop, entry;
-  __ jmp(&entry);
+  __ jmp_near(&entry);
   __ bind(&loop);
   __ ldr(r2, MemOperand(sp, kPointerSize, PostIndex));
   __ str(r2, MemOperand(r5, -kPointerSize, PreIndex));
@@ -1266,7 +1266,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // Restore the function to r1.
     __ lsl(r1, r0, Operand(kPointerSizeLog2));
     __ ldr(r1, MemOperand(sp, r1));
-    __ jmp(&patch_receiver);
+    __ jmp_near(&patch_receiver);
 
     // Use the global receiver object from the called function as the
     // receiver.

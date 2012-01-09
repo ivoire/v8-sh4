@@ -82,12 +82,12 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // If the function does not have an initial map, we're done.
   Label done;
   CompareObjectType(result, scratch, scratch, MAP_TYPE, eq);
-  bf(&done);
+  bf_near(&done);
 
   RECORD_LINE();
   // Get the prototype from the initial map.
   mov(result, FieldMemOperand(result, Map::kPrototypeOffset));
-  jmp(&done);
+  jmp_near(&done);
 
   RECORD_LINE();
   // Non-instance prototype: Fetch prototype from constructor field
@@ -194,7 +194,7 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
   cmp(r0, Operand(0));
   bf_near(&lfalse);
   LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-  jmp(&ltrue);
+  jmp_near(&ltrue);
   bind(&lfalse);
   ldr(r0, MemOperand(r0));
   bind(&ltrue);
@@ -2217,9 +2217,9 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
 
   Label l0, l1, l2, l3, l4, l5;
   cmpeq(source, Operand(0));
-  bf(&l0);
+  bf_near(&l0);
   mov(zeros, Operand(32));
-  jmp(&l5);
+  jmp_near(&l5);
 
   bind(&l0);
   // Be carefull to save source in scratch, source and zeros may be the same register
@@ -2251,7 +2251,7 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   // Top bit.
   bind(&l4);
   tst(scratch, Operand(0x80000000u));
-  bf(&l5);
+  bf_near(&l5);
   add(zeros, zeros, Operand(1));
   bind(&l5);
 }

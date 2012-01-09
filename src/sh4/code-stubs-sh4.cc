@@ -465,7 +465,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     // Load the double from heap number to dst1 and dst2 in double format.
     __ Ldrd(dst1, dst2, FieldMemOperand(object, HeapNumber::kValueOffset));
   }
-  __ jmp(&done);
+  __ jmp_near(&done);
 
   // Handle loading a double from a smi.
   __ bind(&is_smi);
@@ -1745,7 +1745,7 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
   } else {
     Label slow_allocate_heapnumber, heapnumber_allocated;
     __ AllocateHeapNumber(r1, r2, r3, r6, &slow_allocate_heapnumber);
-    __ jmp(&heapnumber_allocated);
+    __ jmp_near(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
     __ EnterInternalFrame();
@@ -2602,10 +2602,10 @@ void BinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
   } else {
     __ LoadRoot(r1, Heap::kNanValueRootIndex);
   }
-  __ jmp(&done);
+  __ jmp_near(&done);
   __ bind(&check);
   __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
-  __ b(ne, &done);
+  __ b(ne, &done, Label::kNear);
   if (Token::IsBitOp(op_)) {
     __ mov(r0, Operand(Smi::FromInt(0)));
   } else {
@@ -3336,7 +3336,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ LoadRoot(scratch2, Heap::kNullValueRootIndex);
   __ bind(&loop);
   __ cmp(scratch, prototype);
-  __ b(eq, &is_instance);
+  __ b(eq, &is_instance, Label::kNear);
   __ cmp(scratch, scratch2);
   __ b(eq, &is_not_instance);
   __ ldr(scratch, FieldMemOperand(scratch, HeapObject::kMapOffset));
@@ -3420,9 +3420,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
     __ LeaveInternalFrame();
     __ cmp(r0, Operand(0));
-    __ bf(&lfalse);
+    __ bf_near(&lfalse);
     __ LoadRoot(r0, Heap::kTrueValueRootIndex);
-    __ jmp(&ltrue);
+    __ jmp_near(&ltrue);
     __ bind(&lfalse);
     __ LoadRoot(r0, Heap::kFalseValueRootIndex);
     __ bind(&ltrue);
@@ -3673,7 +3673,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // r4 = address of parameter map (tagged)
   // r5 = temporary scratch (a.o., for address calculation)
   // r7 = the hole value
-  __ jmp(&parameters_test);
+  __ jmp_near(&parameters_test);
 
   __ bind(&parameters_loop);
   __ sub(r6, r6, Operand(Smi::FromInt(1)));
@@ -3701,7 +3701,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ ldr(r4, MemOperand(sp, 1 * kPointerSize));
   __ lsl(r5, r9, Operand(1));
   __ sub(r4, r4, r5);
-  __ jmp(&arguments_test);
+  __ jmp_near(&arguments_test);
 
   __ bind(&arguments_loop);
   __ sub(r4, r4, Operand(kPointerSize));
@@ -3918,7 +3918,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   Label loop;
   __ cmpgt(r5, Operand(0));
   __ bind(&loop);
-  __ b(f, &done);  // Jump if r1 is negative or zero.
+  __ b(f, &done, Label::kNear);  // Jump if r1 is negative or zero.
   __ sub(r5, r5, Operand(1));
   __ lsl(ip, r5, Operand(kPointerSizeLog2));
   __ str(r2, MemOperand(r3, ip));
@@ -4098,7 +4098,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ b(ne, &call_runtime_);
   // Get the first of the two strings and load its instance type.
   __ ldr(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
-  __ jmp(&assure_seq_string);
+  __ jmp_near(&assure_seq_string);
 
   // SlicedString, unpack and add offset.
   __ bind(&sliced_string);
@@ -4129,7 +4129,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1 && kSmiShiftSize == 0);
   __ add(scratch_, object_, scratch_);
   __ ldrh(result_, FieldMemOperand(scratch_, SeqTwoByteString::kHeaderSize));
-  __ jmp(&got_char_code);
+  __ jmp_near(&got_char_code);
 
   // ASCII string.
   // Load the byte into the result register.
@@ -4835,14 +4835,14 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ cmp(r5, r9);
     __ b(ne, &runtime);
     __ ldr(r5, FieldMemOperand(r0, ConsString::kFirstOffset));
-    __ jmp(&allocate_slice);
+    __ jmp_near(&allocate_slice);
 
     __ bind(&sliced_string);
     // Sliced string.  Fetch parent and correct start index by offset.
     __ ldr(r5, FieldMemOperand(r0, SlicedString::kOffsetOffset));
     __ add(r7, r7, r5);
     __ ldr(r5, FieldMemOperand(r0, SlicedString::kParentOffset));
-    __ jmp(&allocate_slice);
+    __ jmp_near(&allocate_slice);
 
     __ bind(&seq_string);
     // Sequential string.  Just move string to the right register.

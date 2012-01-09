@@ -548,7 +548,7 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
   Label done;
   __ bind(materialize_true);
   __ LoadRoot(result_register(), Heap::kTrueValueRootIndex);
-  __ jmp(&done);
+  __ jmp_near(&done);
   __ bind(materialize_false);
   __ LoadRoot(result_register(), Heap::kFalseValueRootIndex);
   __ bind(&done);
@@ -562,7 +562,7 @@ void FullCodeGenerator::StackValueContext::Plug(
   __ bind(materialize_true);
   __ LoadRoot(ip, Heap::kTrueValueRootIndex);
   __ push(ip);
-  __ jmp(&done);
+  __ jmp_near(&done);
   __ bind(materialize_false);
   __ LoadRoot(ip, Heap::kFalseValueRootIndex);
   __ push(ip);
@@ -1022,7 +1022,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(r0, Operand(Smi::FromInt(0)));
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(r2, r1, r0);
-  __ jmp(&loop);
+  __ jmp_near(&loop);
 
   // We got a fixed array in register r0. Iterate through that.
   __ bind(&fixed_array);
@@ -1241,7 +1241,7 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
     if (local->mode() == Variable::CONST) {
       Label skip;
       __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
-      __ bf(&skip);
+      __ bf_near(&skip);
       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
       __ bind(&skip);
     }
@@ -1352,7 +1352,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
   Label allocated, runtime_allocate;
   __ AllocateInNewSpace(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
-  __ jmp(&allocated);
+  __ jmp_near(&allocated);
 
   __ bind(&runtime_allocate);
   __ push(r5);
@@ -1702,7 +1702,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   BinaryOpStub stub(op, mode);
   __ Call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   patch_site.EmitPatchInfo();
-  __ jmp(&done);
+  __ jmp_near(&done);
 
   __ bind(&smi_case);
   // Smi case. This code works the same way as the smi-smi case in the type
@@ -1754,7 +1754,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ b(ne, &stub_call);
       __ tst(scratch1, scratch1);
       __ mov(right, scratch1, ne);
-      __ b(ne, &done);
+      __ b(ne, &done, Label::kNear);
       __ add(scratch2, right, left);
       __ cmpge(scratch2, Operand(0));
       __ mov(right, Operand(Smi::FromInt(0)), t);
@@ -2507,7 +2507,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // The use of ip to store the valueOf symbol asumes that it is not otherwise
   // used in the loop below.
   __ mov(ip, Operand(FACTORY->value_of_symbol()));
-  __ jmp(&entry);
+  __ jmp_near(&entry);
   __ bind(&loop);
   __ ldr(r3, MemOperand(r4, 0));
   __ cmp(r3, ip);
@@ -2728,17 +2728,17 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   // instance class name from there.
   __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kInstanceClassNameOffset));
-  __ b(&done);
+  __ b_near(&done);
 
   // Functions have class 'Function'.
   __ bind(&function);
   __ LoadRoot(r0, Heap::kfunction_class_symbolRootIndex);
-  __ jmp(&done);
+  __ jmp_near(&done);
 
   // Objects with a non-function constructor have class 'Object'.
   __ bind(&non_function_constructor);
   __ LoadRoot(r0, Heap::kObject_symbolRootIndex);
-  __ jmp(&done);
+  __ jmp_near(&done);
 
   // Non-JS objects have class null.
   __ bind(&null);
@@ -2780,7 +2780,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
 
   __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
   __ AllocateHeapNumber(r4, r1, r2, r6, &slow_allocate_heapnumber);
-  __ jmp(&heapnumber_allocated);
+  __ jmp_near(&heapnumber_allocated);
 
   __ bind(&slow_allocate_heapnumber);
   // Allocate a heap number.
@@ -3181,7 +3181,7 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // We are done. Drop elements from the stack, and return undefined.
   __ Drop(3);
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-  __ jmp(&done);
+  __ jmp_near(&done);
 
   __ bind(&slow_case);
   __ CallRuntime(Runtime::kSwapElements, 3);
@@ -3258,24 +3258,24 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(ZoneList<Expression*>* args) {
 
   Label done, fail, ok;
   __ cmp(left, right);
-  __ b(eq, &ok);
+  __ b(eq, &ok, Label::kNear);
   // Fail if either is a non-HeapObject.
   __ land(tmp, left, right);
-  __ JumpIfSmi(tmp, &fail);
+  __ JumpIfSmi(tmp, &fail, Label::kNear);
   __ ldr(tmp, FieldMemOperand(left, HeapObject::kMapOffset));
   __ ldrb(tmp2, FieldMemOperand(tmp, Map::kInstanceTypeOffset));
   __ cmp(tmp2, Operand(JS_REGEXP_TYPE));
-  __ b(ne, &fail);
+  __ b(ne, &fail, Label::kNear);
   __ ldr(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
   __ cmp(tmp, tmp2);
-  __ b(ne, &fail);
+  __ b(ne, &fail, Label::kNear);
   __ ldr(tmp, FieldMemOperand(left, JSRegExp::kDataOffset));
   __ ldr(tmp2, FieldMemOperand(right, JSRegExp::kDataOffset));
   __ cmp(tmp, tmp2);
-  __ b(eq, &ok);
+  __ b(eq, &ok, Label::kNear);
   __ bind(&fail);
   __ LoadRoot(r0, Heap::kFalseValueRootIndex);
-  __ jmp(&done);
+  __ jmp_near(&done);
   __ bind(&ok);
   __ LoadRoot(r0, Heap::kTrueValueRootIndex);
   __ bind(&done);
@@ -3494,7 +3494,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ ldrb(separator, FieldMemOperand(separator, SeqAsciiString::kHeaderSize));
   // Jump into the loop after the code that copies the separator, so the first
   // element is not preceded by a separator
-  __ jmp(&one_char_separator_loop_entry);
+  __ jmp_near(&one_char_separator_loop_entry);
 
   __ bind(&one_char_separator_loop);
   // Live values in registers:
