@@ -419,15 +419,6 @@ class MemOperand BASE_EMBEDDED {
   friend class Assembler;
 };
 
-// CpuFeatures keeps track of which features are supported by the target CPU.
-// Supported features must be enabled by a Scope before use.
-// Example:
-//   if (CpuFeatures::IsSupported(SSE2)) {
-//     CpuFeatures::Scope fscope(SSE2);
-//     // Generate SSE2 floating point code.
-//   } else {
-//     // Generate standard x87 floating point code.
-//   }
 class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
@@ -436,34 +427,57 @@ class CpuFeatures : public AllStatic {
 
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
-    UNIMPLEMENTED();
+    ASSERT(initialized_);
+    if (f == FPU && !FLAG_enable_fpu) return false;
+    return (supported_ & (1u << f)) != 0;
   }
 
 #ifdef DEBUG
   // Check whether a feature is currently enabled.
   static bool IsEnabled(CpuFeature f) {
-    UNIMPLEMENTED();
+    ASSERT(initialized_);
+    Isolate* isolate = Isolate::UncheckedCurrent();
+    if (isolate == NULL) {
+      // When no isolate is available, work as if we're running in
+      // release mode.
+      return IsSupported(f);
+    }
+    unsigned enabled = static_cast<unsigned>(isolate->enabled_cpu_features());
+    return (enabled & (1u << f)) != 0;
   }
 #endif
 
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
+
    public:
     explicit Scope(CpuFeature f) {
-      UNIMPLEMENTED();
+      unsigned mask = 1u << f;
+      ASSERT(CpuFeatures::IsSupported(f));
+      ASSERT(!Serializer::enabled() ||
+             (CpuFeatures::found_by_runtime_probing_ & mask) == 0);
+      isolate_ = Isolate::UncheckedCurrent();
+      old_enabled_ = 0;
+      if (isolate_ != NULL) {
+        old_enabled_ = static_cast<unsigned>(isolate_->enabled_cpu_features());
+        isolate_->set_enabled_cpu_features(old_enabled_ | mask);
+      }
     }
     ~Scope() {
-      UNIMPLEMENTED();
+      ASSERT_EQ(Isolate::UncheckedCurrent(), isolate_);
+      if (isolate_ != NULL) {
+        isolate_->set_enabled_cpu_features(old_enabled_);
+      }
     }
+
    private:
     Isolate* isolate_;
     unsigned old_enabled_;
 #else
+
    public:
-    explicit Scope(CpuFeature f) {
-      UNIMPLEMENTED();
-    }
+    explicit Scope(CpuFeature f) {}
 #endif
   };
 
@@ -471,11 +485,15 @@ class CpuFeatures : public AllStatic {
    public:
     explicit TryForceFeatureScope(CpuFeature f)
         : old_supported_(CpuFeatures::supported_) {
-      UNIMPLEMENTED();
+      if (CanForce()) {
+        CpuFeatures::supported_ |= (1u << f);
+      }
     }
 
     ~TryForceFeatureScope() {
-      UNIMPLEMENTED();
+      if (CanForce()) {
+        CpuFeatures::supported_ = old_supported_;
+      }
     }
 
    private:

@@ -197,6 +197,11 @@ bool OS::ArmUsingHardFloat() {
 }
 
 
+bool OS::SHCpuHasFeature(CpuFeature feature) {
+  UNIMPLEMENTED();
+}
+
+
 bool OS::IsOutsideAllocatedSpace(void* address) {
   UNIMPLEMENTED();
   return false;

@@ -277,6 +277,9 @@ class OS {
   // Support runtime detection of FPU on MIPS CPUs.
   static bool MipsCpuHasFeature(CpuFeature feature);
 
+  // Support runtime detection of features on SH CPUs.
+  static bool SHCpuHasFeature(CpuFeature feature);
+
   // Returns the activation frame alignment constraint or zero if
   // the platform doesn't care. Guaranteed to be a power of two.
   static int ActivationFrameAlignment();

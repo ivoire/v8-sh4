@@ -46,16 +46,60 @@ unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 
 
+// Get the CPU features enabled by the build. For cross compilation the
+// preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
+// can be defined to enable FPU instructions when building the
+// snapshot.
+static uint64_t CpuFeaturesImpliedByCompiler() {
+  uint64_t answer = 0;
+#ifdef CAN_USE_FPU_INSTRUCTIONS
+  answer |= 1u << FPU;
+#endif  // def CAN_USE_FPU_INSTRUCTIONS
+
+#ifdef __sh__
+  // If the compiler is allowed to use FPU then we can use FPU too in our code
+  // generation even when generating snapshots.  This won't work for cross
+  // compilation.
+#if(defined(__SH_FPU_ANY__) && __SH_FPU_ANY__ != 0)
+  answer |= 1u << FPU;
+#endif  // defined(__SH_FPU_ANY__) && __SH_FPU_ANY__ != 0
+#endif  // def __sh__
+
+  return answer;
+}
+
+
 void CpuFeatures::Probe() {
   ASSERT(!initialized_);
 #ifdef DEBUG
   initialized_ = true;
 #endif
-  // FIXME(STM): define the right features to accept or not
+
+  // Get the features implied by the OS and the compiler settings. This is the
+  // minimal set of features which is also alowed for generated code in the
+  // snapshot.
+  supported_ |= OS::CpuFeaturesImpliedByPlatform();
+  supported_ |= CpuFeaturesImpliedByCompiler();
+
   if (Serializer::enabled()) {
-    supported_ |= OS::CpuFeaturesImpliedByPlatform();
-    return;  // No features if we might serialize.
+    // No probing for features if we might serialize (generate snapshot).
+    return;
   }
+
+#ifndef __sh__
+  // For the simulator=sh4 build, use FPU when FLAG_enable_fpu is enabled.
+  if (FLAG_enable_fpu) {
+    supported_ |= 1u << FPU;
+  }
+#else  // def __sh__
+  // Probe for additional features not already known to be available.
+  if (!IsSupported(FPU) && OS::SHCpuHasFeature(FPU)) {
+    // This implementation also sets the FPU flags if runtime
+    // detection of FPU returns true.
+    supported_ |= 1u << FPU;
+    found_by_runtime_probing_ |= 1u << FPU;
+  }
+#endif
 }
 
 

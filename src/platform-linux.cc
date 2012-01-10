@@ -279,6 +279,21 @@ bool OS::MipsCpuHasFeature(CpuFeature feature) {
 #endif  // def __mips__
 
 
+#ifdef __sh__
+bool OS::SHCpuHasFeature(CpuFeature feature) {
+  switch(feature) {
+    case FPU:
+      // Assume FPU is always active. 
+      // All supported SH4 implementation feature it
+      return true;
+    default:
+      UNREACHABLE();
+  }
+  return false;
+}
+#endif // def __sh__
+
+
 int OS::ActivationFrameAlignment() {
 #ifdef V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
