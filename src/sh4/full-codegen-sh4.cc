@@ -166,7 +166,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   if (info->is_strict_mode() || info->is_native()) {
     Label ok;
     __ cmp(r5, Operand(0));
-    __ b(eq, &ok);
+    __ b(eq, &ok, Label::kNear);
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ str(r2, MemOperand(sp, receiver_offset));
@@ -293,7 +293,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       Label ok;
       __ LoadRoot(ip, Heap::kStackLimitRootIndex);
       __ cmphs(sp, ip);
-      __ bt(&ok);
+      __ bt_near(&ok);
       StackCheckStub stub;
       __ CallStub(&stub);
       __ bind(&ok);
@@ -330,7 +330,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
   Label ok;
   __ LoadRoot(ip, Heap::kStackLimitRootIndex);
   __ cmphs(sp, ip);
-  __ bt(&ok);
+  __ bt_near(&ok);
   StackCheckStub stub;
   __ CallStub(&stub);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
@@ -933,9 +933,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Convert the object to a JS object.
   Label convert;
   Label done_convert;
-  __ JumpIfSmi(r0, &convert);
+  __ JumpIfSmi(r0, &convert, Label::kNear);
   __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge);
-  __ bt(&done_convert);
+  __ bt_near(&done_convert);
   __ bind(&convert);
   __ push(r0);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
@@ -960,28 +960,28 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // current JS object we've reached through the prototype chain.
   __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
   __ cmp(r2, empty_fixed_array_value);
-  __ b(ne, &call_runtime);
+  __ b(ne, &call_runtime, Label::kNear);
 
   // Check that instance descriptors are not empty so that we can
   // check for an enum cache.  Leave the map in r2 for the subsequent
   // prototype load.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOrBitField3Offset));
-  __ JumpIfSmi(r3, &call_runtime);
+  __ JumpIfSmi(r3, &call_runtime, Label::kNear);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (r3).  This is the case if the next enumeration
   // index field does not contain a smi.
   __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumerationIndexOffset));
-  __ JumpIfSmi(r3, &call_runtime);
+  __ JumpIfSmi(r3, &call_runtime, Label::kNear);
 
   // For all objects but the receiver, check that the cache is empty.
   Label check_prototype;
   __ cmp(r1, r0);
-  __ bt(&check_prototype);
+  __ bt_near(&check_prototype);
   __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheBridgeCacheOffset));
   __ cmp(r3, empty_fixed_array_value);
-  __ b(ne, &call_runtime);
+  __ b(ne, &call_runtime, Label::kNear);
 
   // Load the prototype from the map and loop if non-null.
   __ bind(&check_prototype);
@@ -993,7 +993,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // iterated over and use the cache for the iteration.
   Label use_cache;
   __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ b(&use_cache);
+  __ b_near(&use_cache);
 
   // Get the set of properties to enumerate.
   __ bind(&call_runtime);
@@ -1008,7 +1008,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kMetaMapRootIndex);
   __ cmpeq(r1, ip);
-  __ bf(&fixed_array);
+  __ bf_near(&fixed_array);
 
   // We got a map in register r0. Get the enumeration cache from it.
   __ bind(&use_cache);
@@ -1055,7 +1055,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ ldr(r1, MemOperand(sp, 4 * kPointerSize));
   __ ldr(r4, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ cmpeq(r4, r2);
-  __ bt(&update_each);
+  __ bt_near(&update_each);
 
   // Convert the entry to a string or (smi) 0 if it isn't a property
   // any more. If the property has been removed while iterating, we
@@ -1170,7 +1170,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
     __ ldr(temp, FieldMemOperand(next, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
     __ cmp(temp, ip);
-    __ b(eq, &fast);
+    __ b(eq, &fast, Label::kNear);
     // Check that extension is NULL.
     __ ldr(temp, ContextOperand(next, Context::EXTENSION_INDEX));
     __ tst(temp, temp);
@@ -1287,14 +1287,14 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
         if (var->mode() == Variable::LET) {
           Label done;
-          __ b(ne, &done);
+          __ b(ne, &done, Label::kNear);
           __ mov(r0, Operand(var->name()));
           __ push(r0);
           __ CallRuntime(Runtime::kThrowReferenceError, 1);
           __ bind(&done);
         } else {
           Label skip;
-          __ bf(&skip);
+          __ bf_near(&skip);
           __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
           __ bind(&skip);
         }
@@ -1337,7 +1337,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ ldr(r5, FieldMemOperand(r4, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmpeq(r5, ip);
-  __ bf(&materialized);
+  __ bf_near(&materialized);
 
   // Create regexp literal using runtime function.
   // Result will be in r0.
@@ -1866,7 +1866,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       Label skip;
       __ ldr(r1, StackOperand(var));
       __ CompareRoot(r1, Heap::kTheHoleValueRootIndex);
-      __ b(ne, &skip);
+      __ b(ne, &skip, Label::kNear);
       __ str(result_register(), StackOperand(var));
       __ bind(&skip);
     } else {
@@ -1896,7 +1896,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       MemOperand location = VarOperand(var, r1);
       __ ldr(r3, location);
       __ CompareRoot(r3, Heap::kTheHoleValueRootIndex);
-      __ b(ne, &assign);
+      __ b(ne, &assign, Label::kNear);
       __ mov(r3, Operand(var->name()));
       __ push(r3);
       __ CallRuntime(Runtime::kThrowReferenceError, 1);
@@ -2258,7 +2258,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // code.
     if (done.is_linked()) {
       Label call;
-      __ b(&call);
+      __ b_near(&call);
       __ bind(&done);
       // Push function.
       __ push(r0);
@@ -2621,7 +2621,7 @@ void FullCodeGenerator::EmitIsConstructCall(ZoneList<Expression*>* args) {
   Label check_frame_marker;
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &check_frame_marker);
+  __ b(ne, &check_frame_marker, Label::kNear);
   __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
 
   // Check the marker in the calling frame.
@@ -2683,7 +2683,7 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &exit);
+  __ b(ne, &exit, Label::kNear);
 
   // Arguments adaptor case: Read the arguments length from the
   // adaptor frame.
@@ -2702,13 +2702,13 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   VisitForAccumulatorValue(args->at(0));
 
   // If the object is a smi, we return null.
-  __ JumpIfSmi(r0, &null);
+  __ JumpIfSmi(r0, &null, Label::kNear);
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
   __ CompareObjectType(r0, r0, r1, FIRST_SPEC_OBJECT_TYPE, ge);
   // Map is now in r0.
-  __ b(f, &null);
+  __ b(f, &null, Label::kNear);
 
   // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type, and
   // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
@@ -2717,12 +2717,12 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
   STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
                 LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
   __ cmpge(r1, Operand(FIRST_CALLABLE_SPEC_OBJECT_TYPE));
-  __ bt(&function);
+  __ bt_near(&function);
 
   // Check if the constructor in the map is a function.
   __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
   __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE, eq);
-  __ b(ne, &non_function_constructor);
+  __ b(ne, &non_function_constructor, Label::kNear);
 
   // r0 now contains the constructor function. Grab the
   // instance class name from there.
@@ -2840,10 +2840,10 @@ void FullCodeGenerator::EmitValueOf(ZoneList<Expression*>* args) {
 
   Label done;
   // If the object is a smi return the object.
-  __ JumpIfSmi(r0, &done);
+  __ JumpIfSmi(r0, &done, Label::kNear);
   // If the object is not a value type, return the object.
   __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE, eq);
-  __ b(f, &done);
+  __ b(f, &done, Label::kNear);
   __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
 
   __ bind(&done);
@@ -3129,31 +3129,31 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // Check that object doesn't require security checks and
   // has no indexed interceptor.
   __ CompareObjectType(object, scratch1, scratch2, JS_ARRAY_TYPE, eq);
-  __ b(ne, &slow_case);
+  __ b(ne, &slow_case, Label::kNear);
   // Map is now in scratch1.
 
   __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));
   __ tst(scratch2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
-  __ b(ne, &slow_case);
+  __ b(ne, &slow_case, Label::kNear);
 
   // Check the object's elements are in fast case and writable.
   __ ldr(elements, FieldMemOperand(object, JSObject::kElementsOffset));
   __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmp(scratch1, ip);
-  __ b(ne, &slow_case);
+  __ b(ne, &slow_case, Label::kNear);
 
   // Check that both indices are smis.
   __ ldr(index1, MemOperand(sp, 1 * kPointerSize));
   __ ldr(index2, MemOperand(sp, 0));
-  __ JumpIfNotBothSmi(index1, index2, &slow_case);
+  __ JumpIfNotBothSmi(index1, index2, &slow_case, Label::kNear);
 
   // Check that both indices are valid.
   __ ldr(scratch1, FieldMemOperand(object, JSArray::kLengthOffset));
   __ cmphi(scratch1, index1);
-  __ bf(&slow_case);
+  __ bf_near(&slow_case);
   __ cmphi(scratch1, index2);
-  __ bf(&slow_case);
+  __ bf_near(&slow_case);
 
   // Bring the address of the elements into index1 and index2.
   __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -3229,10 +3229,10 @@ void FullCodeGenerator::EmitGetFromCache(ZoneList<Expression*>* args) {
   __ ldr(r2, MemOperand(r3));
   // Note side effect of PreIndex: r3 now points to the key of the pair.
   __ cmp(key, r2);
-  __ b(ne, &not_found);
+  __ b(ne, &not_found, Label::kNear);
 
   __ ldr(r0, MemOperand(r3, kPointerSize));
-  __ b(&done);
+  __ b_near(&done);
 
   __ bind(&not_found);
   // Call runtime to perform the lookup.
@@ -3357,7 +3357,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ ldr(array_length, FieldMemOperand(array, JSArray::kLengthOffset));
   __ SmiUntag(array_length);
   __ tst(array_length, array_length);
-  __ b(ne, &non_trivial_array);
+  __ b(ne, &non_trivial_array, Label::kNear);
   __ LoadRoot(r0, Heap::kEmptyStringRootIndex);
   __ b(&done);
 
@@ -3401,7 +3401,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
 
   // If array_length is 1, return elements[0], a string.
   __ cmp(array_length, Operand(1));
-  __ b(ne, &not_size_one_array);
+  __ b(ne, &not_size_one_array, Label::kNear);
   __ ldr(r0, FieldMemOperand(elements, FixedArray::kHeaderSize));
   __ b(&done);
 
@@ -3466,7 +3466,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   // Check the length of the separator.
   __ ldr(scratch1, FieldMemOperand(separator, SeqAsciiString::kLengthOffset));
   __ cmpeq(scratch1, Operand(Smi::FromInt(1)));
-  __ bt(&one_char_separator);
+  __ bt_near(&one_char_separator);
   __ cmpgt(scratch1, Operand(Smi::FromInt(1)));
   __ bt(&long_separator);
 

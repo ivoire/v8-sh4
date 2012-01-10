@@ -756,7 +756,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       } else {
         __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
       }
-      __ b(&entry);
+      __ b_near(&entry);
       __ bind(&loop);
       __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
       __ bind(&entry);
@@ -835,7 +835,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ cmp(r7, cp);
         __ Assert(eq, "Undefined value not loaded.");
       }
-      __ b(&entry);
+      __ b_near(&entry);
       __ bind(&loop);
       __ str(r7, MemOperand(r2, kPointerSize, PostIndex));
       __ bind(&entry);
@@ -910,7 +910,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // sp[3]: constructor function
   // sp[4]: number of arguments (smi-tagged)
   Label loop, entry;
-  __ b(&entry);
+  __ b_near(&entry);
   __ bind(&loop);
   __ lsl(ip, r3, Operand(kPointerSizeLog2 - 1));
   __ ldr(ip, MemOperand(r2, ip));
@@ -1040,7 +1040,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ lsl(r2, r3, Operand(kPointerSizeLog2));
   __ add(r2, r4, r2);
   // r2 points past last arg.
-  __ b(&entry);
+  __ b_near(&entry);
   __ bind(&loop);
   __ ldr(r0, MemOperand(r4, kPointerSize, PostIndex));  // read next parameter
   __ ldr(r0, MemOperand(r0));  // dereference handle
@@ -1460,7 +1460,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Copy all arguments from the array to the stack.
   Label entry, loop;
   __ ldr(r0, MemOperand(fp, kIndexOffset));
-  __ b(&entry);
+  __ b_near(&entry);
 
   // Load the current argument from the arguments array and push it to the
   // stack.

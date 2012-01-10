@@ -90,7 +90,7 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
   __ Dead(r4, r5, r6, r7);
 #endif
   Label check_heap_number, call_builtin;
-  __ JumpIfNotSmi(r0, &check_heap_number);
+  __ JumpIfNotSmi(r0, &check_heap_number, Label::kNear);
   __ Ret();
 
   __ bind(&check_heap_number);
@@ -350,7 +350,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   // absolute value: it is either equal to 1 (special case of -1 and 1),
   // greater than 1 (not a special case) or less than 1 (special case of 0).
   __ cmpgt(source_, Operand(1));
-  __ bt(&not_special);
+  __ bt_near(&not_special);
 
   // For 1 or -1 we need to or in the 0 exponent (biased to 1023).
   static const uint32_t exponent_word_for_1 =
@@ -452,7 +452,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   Label is_smi;
   Label done;
 
-  __ JumpIfSmi(object, &is_smi);
+  __ JumpIfSmi(object, &is_smi, Label::kNear);
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
 
   // Handle loading a double from a heap number.
@@ -595,7 +595,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     // Get the number of bits to set in the lower part of the mantissa.
     __ sub(scratch2, dst1, Operand(HeapNumber::kMantissaBitsInTopWord));
     __ cmpge(scratch2, Operand(0));
-    __ b(f, &fewer_than_20_useful_bits);
+    __ b(f, &fewer_than_20_useful_bits, Label::kNear);
     // Set the higher 20 bits of the mantissa.
     __ lsr(ip, int_scratch, scratch2);
     __ orr(dst2, dst2, ip);
@@ -860,7 +860,7 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   // has the neat side effect of setting the flags according to the sign.
   STATIC_ASSERT(HeapNumber::kSignMask == 0x80000000u);
   __ cmp(the_int_, Operand(0x80000000u));
-  __ b(eq, &max_negative_int);
+  __ b(eq, &max_negative_int, Label::kNear);
   // Set up the correct exponent in scratch_.  All non-Smi int32s have the same.
   // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased).
   uint32_t non_smi_exponent =
@@ -868,7 +868,7 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   __ mov(scratch_, Operand(non_smi_exponent));
   __ cmpge(the_int_, Operand(0));
   Label skip;
-  __ bt(&skip);
+  __ bt_near(&skip);
   // Set the sign bit in scratch_ if the value was negative.
   __ lor(scratch_, scratch_, Operand(HeapNumber::kSignMask));
   // Subtract from 0 if the value was negative.
@@ -927,7 +927,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
       __ bt(slow);
     } else {
       __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE, eq);
-      __ b(eq, &heap_number);
+      __ b(eq, &heap_number, Label::kNear);
       // Comparing JS objects with <=, >= is complicated.
       if (cond != eq) {
         __ cmpge(r4, Operand(FIRST_SPEC_OBJECT_TYPE));
@@ -937,10 +937,10 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
         // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
         if (cond == le || cond == ge) {
           __ cmp(r4, Operand(ODDBALL_TYPE));
-          __ b(ne, &return_equal);
+          __ b(ne, &return_equal, Label::kNear);
           __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
           __ cmp(r0, r2);
-          __ b(ne, &return_equal);
+          __ b(ne, &return_equal, Label::kNear);
           if (cond == le) {
             // undefined <= undefined should fail.
             __ mov(r0, Operand(GREATER));
@@ -1022,7 +1022,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
          (lhs.is(r1) && rhs.is(r0)));
 
   Label rhs_is_smi;
-  __ JumpIfSmi(rhs, &rhs_is_smi);
+  __ JumpIfSmi(rhs, &rhs_is_smi, Label::kNear);
 
   // Lhs is a Smi.  Check whether the rhs is a heap number.
   __ CompareObjectType(rhs, r4, r4, HEAP_NUMBER_TYPE, eq);
@@ -1111,9 +1111,9 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond) {
   __ b(ne, lhs_not_nan);
   __ lsl(r4, lhs_exponent, Operand(HeapNumber::kNonMantissaBitsInTopWord));
   __ cmpeq(r4, Operand(0));
-  __ b(ne, &one_is_nan);
+  __ b(ne, &one_is_nan, Label::kNear);
   __ cmp(lhs_mantissa, Operand(0, RelocInfo::NONE));
-  __ b(ne, &one_is_nan);
+  __ b(ne, &one_is_nan, Label::kNear);
 
   __ bind(lhs_not_nan);
   __ Sbfx(r4,
@@ -1122,12 +1122,12 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond) {
           HeapNumber::kExponentBits);
   // NaNs have all-one exponents so they sign extend to -1.
   __ cmp(r4, Operand(-1));
-  __ b(ne, &neither_is_nan);
+  __ b(ne, &neither_is_nan, Label::kNear);
   __ lsl(r4, rhs_exponent, Operand(HeapNumber::kNonMantissaBitsInTopWord));
   __ cmpeq(r4, Operand(0, RelocInfo::NONE));
-  __ b(ne, &one_is_nan);
+  __ b(ne, &one_is_nan, Label::kNear);
   __ cmp(rhs_mantissa, Operand(0));
-  __ b(eq, &neither_is_nan);
+  __ b(eq, &neither_is_nan, Label::kNear);
 
   __ bind(&one_is_nan);
   // NaN comparisons always fail.
@@ -1215,7 +1215,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     // Get the type of the first operand into r2 and compare it with
     // FIRST_JS_OBJECT_TYPE.
     __ CompareObjectType(rhs, r2, r2, FIRST_SPEC_OBJECT_TYPE, ge);
-    __ bf(&first_non_object);
+    __ bf_near(&first_non_object);
 
     // Return non-zero (r0 is not zero)
     Label return_not_equal;
@@ -1287,7 +1287,7 @@ static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
   Label object_test;
   STATIC_ASSERT(kSymbolTag != 0);
   __ tst(r2, Operand(kIsNotStringMask));
-  __ b(ne, &object_test);
+  __ b(ne, &object_test, Label::kNear);
   __ tst(r2, Operand(kIsSymbolMask));
   __ b(eq, possible_strings);
   __ CompareObjectType(lhs, r3, r3, FIRST_NONSTRING_TYPE, ge);
@@ -1348,7 +1348,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Label is_smi;
   Label load_result_from_cache;
   if (!object_is_smi) {
-    __ JumpIfSmi(object, &is_smi);
+    __ JumpIfSmi(object, &is_smi, Label::kNear);
 
     // TODO(stm): FPU
     // if (CpuFeatures::IsSupported(VFP3)) {
@@ -1416,7 +1416,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   if (include_smi_compare_) {
     Label not_two_smis, smi_done;
     __ orr(r2, r1, r0);
-    __ JumpIfNotSmi(r2, &not_two_smis);
+    __ JumpIfNotSmi(r2, &not_two_smis, Label::kNear);
     __ asr(r1, r1, Operand(1));
     __ asr(r0, r0, Operand(1));
     __ sub(r0, r1, r0);

@@ -2145,17 +2145,17 @@ void MacroAssembler::CopyBytes(Register src,
   // Align src before copying in word size chunks.
   bind(&align_loop);
   cmp(length, Operand(0));
-  b(eq, &done);
+  b(eq, &done, Label::kNear);
   bind(&align_loop_1);
   tst(src, Operand(kPointerSize - 1));
-  b(eq, &word_loop);
+  b(eq, &word_loop, Label::kNear);
   ldrb(scratch, MemOperand(src));
   add(src, src, Operand(1));
   strb(scratch, MemOperand(dst));
   add(dst, dst, Operand(1));
   sub(length, length, Operand(1));
   tst(length, length);
-  b(ne, &byte_loop_1);
+  b(ne, &byte_loop_1, Label::kNear);
 
   // Copy bytes in word size chunks.
   bind(&word_loop);
@@ -2164,7 +2164,7 @@ void MacroAssembler::CopyBytes(Register src,
     Assert(eq, "Expecting alignment for CopyBytes");
   }
   cmpge(length, Operand(kPointerSize));
-  bf(&byte_loop);
+  bf_near(&byte_loop);
   ldr(scratch, MemOperand(src));
   add(src, src, Operand(kPointerSize));
 #if CAN_USE_UNALIGNED_ACCESSES
@@ -2184,12 +2184,12 @@ void MacroAssembler::CopyBytes(Register src,
   add(dst, dst, Operand(1));
 #endif
   sub(length, length, Operand(kPointerSize));
-  b(&word_loop);
+  b_near(&word_loop);
 
   // Copy the last bytes if any left.
   bind(&byte_loop);
   cmp(length, Operand(0));
-  b(eq, &done);
+  b(eq, &done, Label::kNear);
   bind(&byte_loop_1);
   ldrb(scratch, MemOperand(src));
   add(src, src, Operand(1));
@@ -2197,7 +2197,7 @@ void MacroAssembler::CopyBytes(Register src,
   add(dst, dst, Operand(1));
   sub(length, length, Operand(1));
   tst(length, length);
-  b(ne, &byte_loop_1);
+  b(ne, &byte_loop_1, Label::kNear);
   bind(&done);
 }
 
@@ -2322,9 +2322,9 @@ void MacroAssembler::Ret(Condition cond) {
     RECORD_LINE();
     Label skip;
     if (cond == eq) {
-      bf(&skip);
+      bf_near(&skip);
     } else {
-      bt(&skip);
+      bt_near(&skip);
     }
     rts();
     bind(&skip);
@@ -2657,7 +2657,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
     Label ok;
     Label fail;
     CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
-    b(&ok);
+    b_near(&ok);
     bind(&fail);
     Abort("Global functions must have initial map");
     bind(&ok);
@@ -2702,15 +2702,16 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
 
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
-                                      Label* on_not_both_smi) {
+                                      Label* on_not_both_smi,
+                                      Label::Distance distance) {
   ASSERT(!reg1.is(sh4_ip) && !reg2.is(sh4_ip));
   ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
   STATIC_ASSERT(kSmiTag == 0);
   RECORD_LINE();
   tst(reg1, Operand(kSmiTagMask));
-  b(ne, on_not_both_smi);
+  b(ne, on_not_both_smi, distance);
   tst(reg2, Operand(kSmiTagMask));
-  b(ne, on_not_both_smi);
+  b(ne, on_not_both_smi, distance);
 }
 
 
@@ -3067,11 +3068,11 @@ void MacroAssembler::DispatchMap(Register obj,
                                  SmiCheckType smi_check_type) {
   Label fail;
   if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, &fail);
+    JumpIfSmi(obj, &fail, Label::kNear);
   }
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   cmp(scratch, Operand(map));
-  bf(&fail);
+  bf_near(&fail);
   jmp(success, RelocInfo::CODE_TARGET);
   bind(&fail);
 }
@@ -3088,7 +3089,7 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
   ldr(descriptors,
       FieldMemOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
   Label not_smi;
-  JumpIfNotSmi(descriptors, &not_smi);
+  JumpIfNotSmi(descriptors, &not_smi, Label::kNear);
   mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
   bind(&not_smi);
 }
