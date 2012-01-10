@@ -720,38 +720,6 @@ void Assembler::bind(Label* L) {
 }
 
 
-//void Assembler::bind(NearLabel* L) {
-//  ASSERT(!L->is_bound());
-//  while (L->unresolved_branches_ > 0) {
-//    int branch_pos = L->unresolved_positions_[L->unresolved_branches_ - 1];
-//    uint16_t* p_pos = reinterpret_cast<uint16_t*>(branch_pos + buffer_) - 1;
-//    int disp = pc_offset() - branch_pos - 2;
-//    branch_type type = static_cast<branch_type>(*p_pos);
-//
-//    switch (type) {
-//    case branch_true:
-//      ASSERT(FITS_SH4_bf(disp));
-//      *p_pos = (0x8 << 12) | (0x9 << 8) | (((disp & 0x1FE) >> 1) << 0);
-//      break;
-//    case branch_false:
-//      ASSERT(FITS_SH4_bt(disp));
-//      *p_pos = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0);
-//      break;
-//    case branch_unconditional:
-//      disp += 2;
-//      ASSERT(FITS_SH4_bra(disp));
-//      *(p_pos-1) = (0xA << 12) | (((disp & 0x1FFE) >> 1) << 0);
-//      *p_pos = 0x9;
-//      break;
-//    default:
-//      UNREACHABLE();
-//    }
-//    L->unresolved_branches_--;
-//  }
-//  L->bind_to(pc_offset());
-//}
-
-
 void Assembler::next(Label* L, Label::Distance distance) {
   if (distance == Label::kNear) {
     ASSERT(L->is_near_linked());
@@ -1048,37 +1016,6 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
     }
   }
 }
-
-
-//void Assembler::branch(NearLabel* L, branch_type type) {
-//  if (L->is_bound()) {
-//    int offset = L->pos() - pc_offset() - 4;
-//    switch (type) {
-//    case branch_true:
-//      bt_(offset);
-//      break;
-//    case branch_false:
-//      bf_(offset);
-//      break;
-//    case branch_unconditional:
-//      bra_(offset);
-//      nop_();
-//      break;
-//    default:
-//      UNREACHABLE();
-//    }
-//  } else {
-//    // Emit the right sequence according to the type
-//    // In case of an unconditional jump, we must add a nop to handle
-//    // the delay slot
-//    if (type == branch_unconditional)
-//      nop_();
-//    *reinterpret_cast<uint16_t*>(pc_) = static_cast<uint16_t>(type);
-//    pc_ += sizeof(uint16_t);
-//    // The offset is set later
-//    L->link_to(pc_offset());
-//  }
-//}
 
 
 void Assembler::mov(Register Rd, const Operand& imm) {
