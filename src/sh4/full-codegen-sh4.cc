@@ -960,20 +960,20 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // current JS object we've reached through the prototype chain.
   __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
   __ cmp(r2, empty_fixed_array_value);
-  __ b(ne, &call_runtime, Label::kNear);
+  __ b(ne, &call_runtime);
 
   // Check that instance descriptors are not empty so that we can
   // check for an enum cache.  Leave the map in r2 for the subsequent
   // prototype load.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOrBitField3Offset));
-  __ JumpIfSmi(r3, &call_runtime, Label::kNear);
+  __ JumpIfSmi(r3, &call_runtime);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (r3).  This is the case if the next enumeration
   // index field does not contain a smi.
   __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumerationIndexOffset));
-  __ JumpIfSmi(r3, &call_runtime, Label::kNear);
+  __ JumpIfSmi(r3, &call_runtime);
 
   // For all objects but the receiver, check that the cache is empty.
   Label check_prototype;
@@ -981,7 +981,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bt_near(&check_prototype);
   __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheBridgeCacheOffset));
   __ cmp(r3, empty_fixed_array_value);
-  __ b(ne, &call_runtime, Label::kNear);
+  __ b(ne, &call_runtime);
 
   // Load the prototype from the map and loop if non-null.
   __ bind(&check_prototype);
@@ -3129,31 +3129,31 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   // Check that object doesn't require security checks and
   // has no indexed interceptor.
   __ CompareObjectType(object, scratch1, scratch2, JS_ARRAY_TYPE, eq);
-  __ b(ne, &slow_case, Label::kNear);
+  __ b(ne, &slow_case);
   // Map is now in scratch1.
 
   __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));
   __ tst(scratch2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
-  __ b(ne, &slow_case, Label::kNear);
+  __ b(ne, &slow_case);
 
   // Check the object's elements are in fast case and writable.
   __ ldr(elements, FieldMemOperand(object, JSObject::kElementsOffset));
   __ ldr(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
   __ cmp(scratch1, ip);
-  __ b(ne, &slow_case, Label::kNear);
+  __ b(ne, &slow_case);
 
   // Check that both indices are smis.
   __ ldr(index1, MemOperand(sp, 1 * kPointerSize));
   __ ldr(index2, MemOperand(sp, 0));
-  __ JumpIfNotBothSmi(index1, index2, &slow_case, Label::kNear);
+  __ JumpIfNotBothSmi(index1, index2, &slow_case);
 
   // Check that both indices are valid.
   __ ldr(scratch1, FieldMemOperand(object, JSArray::kLengthOffset));
   __ cmphi(scratch1, index1);
-  __ bf_near(&slow_case);
+  __ bf(&slow_case);
   __ cmphi(scratch1, index2);
-  __ bf_near(&slow_case);
+  __ bf(&slow_case);
 
   // Bring the address of the elements into index1 and index2.
   __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
