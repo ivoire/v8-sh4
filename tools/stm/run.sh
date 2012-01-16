@@ -31,5 +31,7 @@ else
     RUN_PREFIX="${RUN_PREFIX}"
 fi
 
+export LANG=
+export TZ=:Europe/London
 echo Running $RUN_PREFIX ${1+"$@"}
 exec $RUN_PREFIX ${1+"$@"}
