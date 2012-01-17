@@ -410,7 +410,8 @@ class MacroAssembler: public Assembler {
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi,
                         Label::Distance distance = Label::kFar);
   // Jump if either of the registers contain a smi.
-  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
+  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi,
+                       Label::Distance distance = Label::kFar);
 
   // ---------------------------------------------------------------------------
   // String utilities

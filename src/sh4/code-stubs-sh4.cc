@@ -2981,7 +2981,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ bind(&failure_returned);
   STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ tst(r0, Operand(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ b(eq, &retry);
+  __ b(eq, &retry, Label::kNear);
 
   // Special handling of out of memory exceptions.
   Failure* out_of_memory = Failure::OutOfMemoryException();
@@ -3152,11 +3152,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ ldr(r6, MemOperand(r5));
   __ cmp(r6, Operand(0));
-  __ b(ne, &non_outermost_js);
+  __ b(ne, &non_outermost_js, Label::kNear);
   __ str(fp, MemOperand(r5));
   __ mov(ip, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
   Label cont;
-  __ b(&cont);
+  __ b_near(&cont);
   __ bind(&non_outermost_js);
   __ mov(ip, Operand(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
   __ bind(&cont);
@@ -3223,7 +3223,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label non_outermost_js_2;
   __ pop(r5);
   __ cmp(r5, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
-  __ b(ne, &non_outermost_js_2);
+  __ b(ne, &non_outermost_js_2, Label::kNear);
   __ mov(r6, Operand(0));
   __ mov(r5, Operand(ExternalReference(js_entry_sp)));
   __ str(r6, MemOperand(r5));
@@ -3289,10 +3289,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     Label miss;
     __ LoadRoot(ip, Heap::kInstanceofCacheFunctionRootIndex);
     __ cmp(function, ip);
-    __ b(ne, &miss);
+    __ b(ne, &miss, Label::kNear);
     __ LoadRoot(ip, Heap::kInstanceofCacheMapRootIndex);
     __ cmp(map, ip);
-    __ b(ne, &miss);
+    __ b(ne, &miss, Label::kNear);
     __ LoadRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
     __ Ret(HasArgsInRegisters() ? 0 : 2);
 
@@ -3390,7 +3390,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Null is not instance of anything.
   __ cmp(scratch, Operand(masm->isolate()->factory()->null_value()));
-  __ b(ne, &object_not_null);
+  __ b(ne, &object_not_null, Label::kNear);
   __ mov(r0, Operand(Smi::FromInt(1)));
   __ Ret(HasArgsInRegisters() ? 0 : 2);
 
@@ -3452,7 +3452,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(eq, &adaptor);
+  __ b(eq, &adaptor, Label::kNear);
 
   // Check index against formal parameters count limit passed in
   // through register r0. Use unsigned comparison to get negative
@@ -3500,7 +3500,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictSlow(MacroAssembler* masm) {
   __ ldr(r3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r2, MemOperand(r3, StandardFrameConstants::kContextOffset));
   __ cmp(r2, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &runtime);
+  __ b(ne, &runtime, Label::kNear);
 
   // Patch the arguments.length and the parameters pointer in the current frame.
   __ ldr(r2, MemOperand(r3, ArgumentsAdaptorFrameConstants::kLengthOffset));
@@ -3533,11 +3533,11 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ ldr(r3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r2, MemOperand(r3, StandardFrameConstants::kContextOffset));
   __ cmp(r2, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(eq, &adaptor_frame);
+  __ b(eq, &adaptor_frame, Label::kNear);
 
   // No adaptor, parameter count = argument count.
   __ mov(r2, r1);
-  __ b(&try_allocate);
+  __ b_near(&try_allocate);
 
   // We have an adaptor frame. Patch the parameters pointer.
   __ bind(&adaptor_frame);
@@ -3563,7 +3563,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ cmpeq(r1, Operand(Smi::FromInt(0)));
   __ mov(r9, Operand(0), t);
   Label skip;
-  __ bt(&skip);
+  __ bt_near(&skip);
   __ lsl(r9, r1, Operand(1));
   __ add(r9, r9, Operand(kParameterMapHeaderSize));
   __ bind(&skip);
@@ -3591,9 +3591,9 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
   __ cmp(r1, Operand(0));
   Label lf, end;
-  __ bf(&lf);
+  __ bf_near(&lf);
   __ ldr(r4, MemOperand(r4, kNormalOffset));
-  __ b(&end);
+  __ b_near(&end);
   __ bind(&lf);
   __ ldr(r4, MemOperand(r4, kAliasedOffset));
   __ bind(&end);
@@ -3736,11 +3736,11 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(eq, &adaptor_frame);
+  __ b(eq, &adaptor_frame, Label::kNear);
 
   // Get the length from the frame.
   __ ldr(r1, MemOperand(sp, 0));
-  __ b(&try_allocate);
+  __ b_near(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
@@ -3756,7 +3756,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   Label add_arguments_object;
   __ bind(&try_allocate);
   __ cmp(r1, Operand(0, RelocInfo::NONE));
-  __ b(eq, &add_arguments_object);
+  __ b(eq, &add_arguments_object, Label::kNear);
   __ lsr(r1, r1, Operand(kSmiTagSize));
   __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
   __ bind(&add_arguments_object);
@@ -3789,7 +3789,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // If there are no actual arguments, we're done.
   Label done;
   __ cmp(r1, Operand(0, RelocInfo::NONE));
-  __ b(eq, &done);
+  __ b(eq, &done, Label::kNear);
 
   // Get the parameters pointer from the stack.
   __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
@@ -3947,7 +3947,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ ldr(r4, MemOperand(sp, argc_ * kPointerSize));
     // Call as function is indicated with the hole.
     __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
-    __ b(ne, &call);
+    __ b(ne, &call, Label::kNear);
     // Patch the receiver on the stack with the global receiver object.
     __ ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
     __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
@@ -3973,7 +3973,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   if (ReceiverMightBeImplicit()) {
     Label call_as_function;
     __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
-    __ b(eq, &call_as_function);
+    __ b(eq, &call_as_function, Label::kNear);
     __ InvokeFunction(r1,
                       actual,
                       JUMP_FUNCTION,
@@ -4082,7 +4082,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   __ cmpgt(result_, Operand(kExternalStringTag));
-  __ bt(&sliced_string);
+  __ bt_near(&sliced_string);
   __ cmpeq(result_, Operand(kExternalStringTag));
   __ bt(&call_runtime_);
 
@@ -4120,7 +4120,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ tst(result_, Operand(kStringEncodingMask));
-  __ b(ne, &ascii_string);
+  __ b(ne, &ascii_string, Label::kNear);
 
   // 2-byte string.
   // Load the 2-byte character code into the result register. We can
@@ -4337,7 +4337,7 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
     __ add(count, count, count);
   }
   __ cmp(count, Operand(0));
-  __ b(eq, &done);
+  __ b(eq, &done, Label::kNear);
 
   __ bind(&loop);
   __ ldrb(scratch, MemOperand(src));
@@ -4393,7 +4393,7 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
     __ add(count, count, count);
   }
   __ cmpeq(count, Operand(0));
-  __ bt(&done);
+  __ bt_near(&done);
 
   // Assume that you cannot read (or write) unaligned.
   Label byte_loop;
@@ -4432,7 +4432,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   Label not_array_index;
   __ sub(scratch, c1, Operand(static_cast<int>('0')));
   __ cmphi(scratch, Operand(static_cast<int>('9' - '0')));
-  __ bt(&not_array_index);
+  __ bt_near(&not_array_index);
   __ sub(scratch, c2, Operand(static_cast<int>('0')));
   __ cmphi(scratch, Operand(static_cast<int>('9' - '0')));
 
@@ -4511,7 +4511,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     // If entry is undefined no string with this hash can be found.
     Label is_string;
     __ CompareObjectType(candidate, scratch, scratch, ODDBALL_TYPE, eq);
-    __ b(ne, &is_string);
+    __ b(ne, &is_string, Label::kNear);
 
     __ cmp(undefined, candidate);
     __ b(eq, not_found);
@@ -4690,7 +4690,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ cmpgt(r4, Operand(kConsStringTag));
   __ bt(&runtime);  // Slices and external strings go to runtime.
   __ cmpge(r4, Operand(kConsStringTag));
-  __ bf(&seq_string);  // Sequential strings are handled directly.
+  __ bf_near(&seq_string);  // Sequential strings are handled directly.
 
   // Cons string. Try to recurse (once) on the first substring.
   // (This adds a little more generality than necessary to handle flattened
@@ -4820,7 +4820,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     Label allocate_slice, sliced_string, seq_string;
     STATIC_ASSERT(kSeqStringTag == 0);
     __ tst(r1, Operand(kStringRepresentationMask));
-    __ b(eq, &seq_string);
+    __ b(eq, &seq_string, Label::kNear);
     STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
     STATIC_ASSERT(kIsIndirectStringMask != 0);
     __ tst(r1, Operand(kIsIndirectStringMask));
@@ -4828,7 +4828,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ b(eq, &runtime);
 
     __ tst(r1, Operand(kSlicedNotConsMask));
-    __ b(ne, &sliced_string);
+    __ b(ne, &sliced_string, Label::kNear);
     // Cons string.  Check whether it is flat, then fetch first part.
     __ ldr(r5, FieldMemOperand(r0, ConsString::kSecondOffset));
     __ LoadRoot(r9, Heap::kEmptyStringRootIndex);
@@ -4896,7 +4896,7 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
   __ ldr(length, FieldMemOperand(left, String::kLengthOffset));
   __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
   __ cmp(length, scratch2);
-  __ b(eq, &check_zero_length);
+  __ b(eq, &check_zero_length, Label::kNear);
   __ bind(&strings_not_equal);
   __ mov(r0, Operand(Smi::FromInt(NOT_EQUAL)));
   __ Ret();
@@ -4906,7 +4906,7 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
   __ bind(&check_zero_length);
   STATIC_ASSERT(kSmiTag == 0);
   __ tst(length, length);
-  __ b(ne, &compare_chars);
+  __ b(ne, &compare_chars, Label::kNear);
   __ mov(r0, Operand(Smi::FromInt(EQUAL)));
   __ Ret();
 
@@ -5009,7 +5009,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   Label not_same;
   __ cmp(r0, r1);
-  __ b(ne, &not_same);
+  __ b(ne, &not_same, Label::kNear);
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
   __ mov(r0, Operand(Smi::FromInt(EQUAL)));
@@ -5091,11 +5091,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT(kSmiTag == 0);
     __ cmp(r2, Operand(Smi::FromInt(0)));  // Test if first string is empty.
     __ mov(r0, r1, eq);  // If first is empty, return second.
-    __ bt(&string_return);
+    __ bt_near(&string_return);
     STATIC_ASSERT(kSmiTag == 0);
      // Else test if second string is empty.
     __ cmp(r3, Operand(Smi::FromInt(0)));
-    __ b(ne, &strings_not_empty);  // If either string was empty, return r0.
+    __ b(ne, &strings_not_empty, Label::kNear);  // If either string was empty, return r0.
 
     __ bind(&string_return);
     __ IncrementCounter(counters->string_add_native(), 1, r2, r3);
@@ -5183,9 +5183,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label non_ascii;
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ tst(r4, Operand(kStringEncodingMask));
-  __ bt(&non_ascii);
+  __ bt_near(&non_ascii);
   __ tst(r5, Operand(kStringEncodingMask));
-  __ b(eq, &non_ascii);
+  __ b(eq, &non_ascii, Label::kNear);
 
   // Allocate an ASCII cons string.
   __ bind(&ascii_data);
@@ -5414,12 +5414,12 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   Label unordered;
   Label miss;
   __ land(r2, r1, r0);
-  __ JumpIfSmi(r2, &generic_stub);
+  __ JumpIfSmi(r2, &generic_stub, Label::kNear);
 
   __ CompareObjectType(r0, r2, r2, HEAP_NUMBER_TYPE, eq);
-  __ b(ne, &miss);
+  __ b(ne, &miss, Label::kNear);
   __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE, eq);
-  __ b(ne, &miss);
+  __ b(ne, &miss, Label::kNear);
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or VFP3 is unsupported.
@@ -5447,7 +5447,7 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   Register tmp2 = r3;
 
   // Check that both operands are heap objects.
-  __ JumpIfEitherSmi(left, right, &miss);
+  __ JumpIfEitherSmi(left, right, &miss, Label::kNear);
 
   // Check that both operands are symbols.
   __ ldr(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
@@ -5457,7 +5457,7 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   STATIC_ASSERT(kSymbolTag != 0);
   __ land(tmp1, tmp1, tmp2);
   __ tst(tmp1, Operand(kIsSymbolMask));
-  __ b(eq, &miss);
+  __ b(eq, &miss, Label::kNear);
 
   // Symbols are compared by identity.
   __ cmp(left, right);
@@ -5543,12 +5543,12 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::OBJECTS);
   Label miss;
   __ land(r2, r1, r0);
-  __ JumpIfSmi(r2, &miss);
+  __ JumpIfSmi(r2, &miss, Label::kNear);
 
   __ CompareObjectType(r0, r2, r2, JS_OBJECT_TYPE, eq);
-  __ b(ne, &miss);
+  __ b(ne, &miss, Label::kNear);
   __ CompareObjectType(r1, r2, r2, JS_OBJECT_TYPE, eq);
-  __ b(ne, &miss);
+  __ b(ne, &miss, Label::kNear);
 
   ASSERT(GetCondition() == eq);
   __ sub(r0, r0, r1);

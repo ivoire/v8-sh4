@@ -2717,15 +2717,16 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
 
 void MacroAssembler::JumpIfEitherSmi(Register reg1,
                                      Register reg2,
-                                     Label* on_either_smi) {
+                                     Label* on_either_smi,
+                                     Label::Distance distance) {
   ASSERT(!reg1.is(sh4_ip) && !reg2.is(sh4_ip));
   ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
   STATIC_ASSERT(kSmiTag == 0);
   RECORD_LINE();
   tst(reg1, Operand(kSmiTagMask));
-  b(eq, on_either_smi);
+  b(eq, on_either_smi, distance);
   tst(reg2, Operand(kSmiTagMask));
-  b(eq, on_either_smi);
+  b(eq, on_either_smi, distance);
 }
 
 
