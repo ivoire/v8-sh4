@@ -17,9 +17,6 @@ library=${library:-shared}
 # For gcov we need to run in sequencial mode
 [ "$profile_gcov" = on ] && jobs=1 && find . -name '*.gcda' -exec rm {} \;
 
-test_suite=""
-[ "$suite" != "" ] && test_suite="--suite test/$suite $suite"
-
 if [ "$QEMU" != "" ]; then
     if [ "$PROOT" = "" ]; then
 	QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
@@ -39,5 +36,5 @@ fi
 rm -f run_test_${mode}.log
 export LANG=
 export TZ=:Europe/London
-tools/test.py --no-build ${arch:+--arch=${arch}} --mode ${mode} --nocrankshaft --run-prefix "${RUN_PREFIX}" ${XCCTEST_OPTS:+--special-command "@ $XCCTEST_OPTS"} -j ${jobs} ${test_suite} --report --progress mono ${1+"$@"} 2>&1 | tee run_test_${mode}.log
+tools/test.py --no-build ${arch:+--arch=${arch}} --mode ${mode} --nocrankshaft --run-prefix "${RUN_PREFIX}" ${XCCTEST_OPTS:+--special-command "@ $XCCTEST_OPTS"} -j ${jobs} --report --progress mono ${1+"$@"} 2>&1 | tee run_test_${mode}.log
 exit ${PIPESTATUS[0]}
