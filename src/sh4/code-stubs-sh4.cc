@@ -4954,6 +4954,12 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   ASSERT(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
   // Use length_delta as result if it's zero.
   __ mov(r0, length_delta);
+  __ cmpgt(r0, Operand(0));
+  __ mov(r0, Operand(Smi::FromInt(GREATER)), t);
+  __ cmpge(r0, Operand(0));
+  __ mov(r0, Operand(Smi::FromInt(LESS)), f);
+  __ Ret();
+
   __ bind(&result_not_equal);
   // Conditionally update the result based either on length_delta or
   // the last comparion performed in the loop above.
