@@ -3103,8 +3103,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label exit;
 
   // Save callee-saved registers
-  __ pushm(kCalleeSaved);
   __ push(pr);
+  __ pushm(kCalleeSaved);
 
   // Move the registers to use ARM ABI (and JS ABI)
   __ mov(r0, r4);
@@ -3238,10 +3238,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Reset the stack to the callee saved registers.
   __ add(sp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
 
-  __ pop(pr);
-
   // Restore callee-saved registers and return.
   __ popm(kCalleeSaved);
+  __ pop(pr);
 
   __ rts();
 }
@@ -5764,16 +5763,16 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
        r3.bit() | r2.bit() | r1.bit() | r0.bit()) &
       ~(scratch1.bit() | scratch2.bit());
 
-  __ pushm(spill_mask);
   __ push(pr);
+  __ pushm(spill_mask);
   __ Move(r0, elements);
   __ Move(r1, name);
   StringDictionaryLookupStub stub(POSITIVE_LOOKUP);
   __ CallStub(&stub);
   __ tst(r0, r0);
   __ mov(scratch2, r2);
-  __ pop(pr);
   __ popm(spill_mask);
+  __ pop(pr);
 
   __ b(ne, done);
   __ b(eq, miss);
