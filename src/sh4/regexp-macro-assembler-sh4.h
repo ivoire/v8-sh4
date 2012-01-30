@@ -25,28 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
-#define V8_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
+#ifndef V8_SH4_REGEXP_MACRO_ASSEMBLER_SH4_H_
+#define V8_SH4_REGEXP_MACRO_ASSEMBLER_SH4_H_
 
-#include "arm/assembler-arm.h"
-#include "arm/assembler-arm-inl.h"
+#include "sh4/assembler-sh4.h"
+#include "sh4/assembler-sh4-inl.h"
 
 namespace v8 {
 namespace internal {
 
 
 #ifdef V8_INTERPRETED_REGEXP
-class RegExpMacroAssemblerARM: public RegExpMacroAssembler {
+class RegExpMacroAssemblerSH4: public RegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerARM();
-  virtual ~RegExpMacroAssemblerARM();
+  RegExpMacroAssemblerSH4();
+  virtual ~RegExpMacroAssemblerSH4();
 };
 
 #else  // V8_INTERPRETED_REGEXP
-class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
+class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerARM(Mode mode, int registers_to_save);
-  virtual ~RegExpMacroAssemblerARM();
+  RegExpMacroAssemblerSH4(Mode mode, int registers_to_save);
+  virtual ~RegExpMacroAssemblerSH4();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
   virtual void AdvanceRegister(int reg, int by);
@@ -149,8 +149,6 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
 
-  static const int kBacktrackConstantPoolSize = 4;
-
   // Load a number of characters at the given offset from the
   // current position, into the current-character register.
   void LoadCurrentCharacterUnchecked(int cp_offset, int character_count);
@@ -160,10 +158,6 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
-
-  void EmitBacktrackConstantPool();
-  int GetBacktrackConstantPoolEntry();
-
 
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);
@@ -179,7 +173,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   inline Register current_character() { return r7; }
 
   // Register holding address of the end of the input string.
-  inline Register end_of_input_address() { return r10; }
+  inline Register end_of_input_address() { return r9; }
 
   // Register holding the frame address. Local variables, parameters and
   // regexp registers are addressed relative to this.
@@ -234,11 +228,6 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   // are always 0..num_saved_registers_-1)
   int num_saved_registers_;
 
-  // Manage a small pre-allocated pool for writing label targets
-  // to for pushing backtrack addresses.
-  int backtrack_constant_pool_offset_;
-  int backtrack_constant_pool_capacity_;
-
   // Labels used internally.
   Label entry_label_;
   Label start_label_;
@@ -254,4 +243,4 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
 
 }}  // namespace v8::internal
 
-#endif  // V8_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
+#endif  // V8_SH4_REGEXP_MACRO_ASSEMBLER_SH4_H_

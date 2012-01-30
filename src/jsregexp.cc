@@ -52,6 +52,8 @@
 #include "arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/regexp-macro-assembler-mips.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/regexp-macro-assembler-sh4.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -5315,6 +5317,8 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
   RegExpMacroAssemblerARM macro_assembler(mode, (data->capture_count + 1) * 2);
 #elif V8_TARGET_ARCH_MIPS
   RegExpMacroAssemblerMIPS macro_assembler(mode, (data->capture_count + 1) * 2);
+#elif V8_TARGET_ARCH_SH4
+  RegExpMacroAssemblerSH4 macro_assembler(mode, (data->capture_count + 1) * 2);
 #endif
 
 #else  // V8_INTERPRETED_REGEXP

@@ -191,6 +191,7 @@ SOURCES = {
     sh4/lithium-gap-resolver-sh4.cc
     sh4/lithium-sh4.cc
     sh4/macro-assembler-sh4.cc
+    sh4/regexp-macro-assembler-sh4.cc
     sh4/opcodes-sh4.cc
     sh4/stub-cache-sh4.cc
     """),
