@@ -801,10 +801,10 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
 
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
     static const int num_arguments = 3;
+    __ mov(r4, backtrack_stackpointer());
+    __ add(r5, frame_pointer(), Operand(kStackHighEnd));
+    __ mov(r6, Operand(ExternalReference::isolate_address()));
     __ PrepareCallCFunction(num_arguments, r0);
-    __ mov(r0, backtrack_stackpointer());
-    __ add(r1, frame_pointer(), Operand(kStackHighEnd));
-    __ mov(r2, Operand(ExternalReference::isolate_address()));
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(masm_->isolate());
     __ CallCFunction(grow_stack, num_arguments);
