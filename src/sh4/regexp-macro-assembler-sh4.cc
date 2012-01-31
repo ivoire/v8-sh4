@@ -623,6 +623,8 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
   // Start new stack frame.
   // Store link register in existing stack-cell.
   // Order here should correspond to order of offset constants in header file.
+  // WARNING: should change the value of kReturnAddress (depend on the number
+  // of saved registers.
   RegList registers_to_retain = kCalleeSaved;
   RegList argument_registers = r4.bit() | r5.bit() | r6.bit() | r7.bit();
   __ push(pr);
@@ -1138,7 +1140,7 @@ void RegExpMacroAssemblerSH4::BranchOrBacktrack(Condition condition,
 
 void RegExpMacroAssemblerSH4::SafeCall(Label* to, Condition cond) {
   Label skip;
-  ASSERT(cond == ne && cond == eq);
+  ASSERT(cond == eq || cond == ne);
   __ b(NegateCondition(cond), &skip);
   __ jsr(to);
   __ bind(&skip);

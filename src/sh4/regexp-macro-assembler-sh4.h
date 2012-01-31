@@ -125,7 +125,7 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
   // Register 4..11.
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
-  static const int kReturnAddress = kStoredRegisters + 8 * kPointerSize;
+  static const int kReturnAddress = kStoredRegisters + 7 * kPointerSize;
   static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
   // Stack parameters placed by caller.
   static const int kRegisterOutput = kSecondaryReturnAddress + kPointerSize;
