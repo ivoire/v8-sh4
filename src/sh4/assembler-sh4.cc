@@ -1113,6 +1113,7 @@ void Assembler::mov(Register Rd, const Operand& imm, Condition cond) {
 
 
 void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     ASSERT(rtmp.is_valid());
     add(rtmp, src.rm_, src.rn_);
@@ -1132,6 +1133,7 @@ void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
     movb_indRs_(rtmp, Rd);
@@ -1148,6 +1150,7 @@ void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
     movw_indRs_(rtmp, Rd);
@@ -1183,6 +1186,7 @@ void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds) {
 
 
 void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
     movb_indRs_(rtmp, Rd);
@@ -1198,6 +1202,7 @@ void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
     movw_indRs_(rtmp, Rd);
@@ -1213,6 +1218,7 @@ void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
+  ASSERT(dst.mode_ == Offset);
   if (dst.rn_.is_valid()) {
     add(rtmp, dst.rm_, dst.rn_);
     movl_indRd_(Rd, rtmp);
@@ -1233,6 +1239,7 @@ void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
 
 
 void Assembler::movb(const MemOperand& dst, Register Rd, Register rtmp) {
+  ASSERT(dst.mode_ == Offset);
   if (dst.rn_.is_valid()) {
     add(rtmp, dst.rm_, dst.rn_);
     movb_indRd_(Rd, rtmp);
@@ -1249,6 +1256,7 @@ void Assembler::movb(const MemOperand& dst, Register Rd, Register rtmp) {
 
 
 void Assembler::movw(const MemOperand& dst, Register Rd, Register rtmp) {
+  ASSERT(dst.mode_ == Offset);
   if (dst.rn_.is_valid()) {
     add(rtmp, dst.rm_, dst.rn_);
     movw_indRd_(Rd, rtmp);
