@@ -51,28 +51,27 @@ namespace internal {
  * - r7 : Currently loaded character. Must be loaded using
  *        LoadCurrentCharacter before using any of the dispatch methods.
  * - r8 : points to tip of backtrack stack
- * - r9 : Unused, might be used by C code and expected unchanged.
- * - r10 : End of input (points to byte after last character in input).
- * - r11 : Frame pointer. Used to access arguments, local variables and
+ * - r9 : End of input (points to byte after last character in input).
+ * - fp : Frame pointer. Used to access arguments, local variables and
  *         RegExp registers.
- * - r12 : IP register, used by assembler. Very volatile.
- * - r13/sp : points to tip of C stack.
+ * - r10 : IP register, used by assembler. Very volatile.
+ * - sp : points to tip of C stack.
  *
  * The remaining registers are free for computations.
  * Each call to a public method should retain this convention.
  *
  * The stack will have the following structure:
- *  - fp[52]  Isolate* isolate   (Address of the current isolate)
- *  - fp[48]  direct_call  (if 1, direct call from JavaScript code,
+ *  - fp[48]  Isolate* isolate   (Address of the current isolate)
+ *  - fp[44]  direct_call  (if 1, direct call from JavaScript code,
  *                          if 0, call through the runtime system).
- *  - fp[44]  stack_area_base (High end of the memory area to use as
+ *  - fp[40]  stack_area_base (High end of the memory area to use as
  *                             backtracking stack).
- *  - fp[40]  int* capture_array (int[num_saved_registers_], for output).
- *  - fp[36]  secondary link/return address used by native call.
+ *  - fp[46]  int* capture_array (int[num_saved_registers_], for output).
+ *  - fp[32]  secondary link/return address used by native call.
  *  --- sp when called ---
- *  - fp[32]  return address (lr).
- *  - fp[28]  old frame pointer (r11).
- *  - fp[0..24]  backup of registers r4..r10.
+ *  - fp[28]  return address (pr).
+ *  - fp[24]  old frame pointer (r14).
+ *  - fp[0..20]  backup of registers r8..r13.
  *  --- frame pointer ----
  *  - fp[-4]  end of input       (Address of end of string).
  *  - fp[-8]  start of input     (Address of first character in string).
@@ -256,11 +255,13 @@ void RegExpMacroAssemblerSH4::CheckCharacters(Vector<const uc16> str,
   int stored_high_byte = 0;
   for (int i = 0; i < str.length(); i++) {
     if (mode_ == ASCII) {
-      __ ldrb(r1, MemOperand(r0, char_size(), PostIndex));
+      __ ldrb(r1, MemOperand(r0));
+      __ add(r0, r0, Operand(char_size()));
       ASSERT(str[i] <= String::kMaxAsciiCharCode);
       __ cmp(r1, Operand(str[i]));
     } else {
-      __ ldrh(r1, MemOperand(r0, char_size(), PostIndex));
+      __ ldrh(r1, MemOperand(r0));
+      __ add(r0, r0, Operand(char_size()));
       uc16 match_char = str[i];
       int match_high_byte = (match_char >> 8);
       if (match_high_byte == 0) {
@@ -325,8 +326,8 @@ void RegExpMacroAssemblerSH4::CheckNotBackReferenceIgnoreCase(
 
     Label loop;
     __ bind(&loop);
-    __ ldrb(r3, MemOperand(r0, char_size(), PostIndex));
-    __ ldrb(r4, MemOperand(r2, char_size(), PostIndex));
+    __ ldrb(r3, MemOperand(r0)); __ add(r0, r0, Operand(char_size()));
+    __ ldrb(r4, MemOperand(r2)); __ add(r2, r2, Operand(char_size()));
     __ cmp(r4, r3);
     __ b(eq, &loop_check);
 
@@ -418,12 +419,12 @@ void RegExpMacroAssemblerSH4::CheckNotBackReference(
   Label loop;
   __ bind(&loop);
   if (mode_ == ASCII) {
-    __ ldrb(r3, MemOperand(r0, char_size(), PostIndex));
-    __ ldrb(r4, MemOperand(r2, char_size(), PostIndex));
+    __ ldrb(r3, MemOperand(r0)); __ add(r0, r0, Operand(char_size()));
+    __ ldrb(r4, MemOperand(r2)); __ add(r2, r2, Operand(char_size()));
   } else {
     ASSERT(mode_ == UC16);
-    __ ldrh(r3, MemOperand(r0, char_size(), PostIndex));
-    __ ldrh(r4, MemOperand(r2, char_size(), PostIndex));
+    __ ldrh(r3, MemOperand(r0)); __ add(r0, r0, Operand(char_size()));
+    __ ldrh(r4, MemOperand(r2)); __ add(r2, r2, Operand(char_size()));
   }
   __ cmp(r3, r4);
   BranchOrBacktrack(ne, on_no_match);
@@ -1261,9 +1262,8 @@ void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
   __ mov(r0, sp);
   __ jsr(r5);
   __ ldr(ip, MemOperand(sp));
-  __ mov(pr, ip);
   __ add(sp, sp, Operand(stack_alignment));
-  __ rts();
+  __ jmp(ip);
 }
 
 #undef __
