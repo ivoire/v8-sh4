@@ -42,7 +42,6 @@ SOURCES = {
     api.cc
     assembler.cc
     ast.cc
-    atomicops_internals_x86_gcc.cc
     bignum.cc
     bignum-dtoa.cc
     bootstrapper.cc
@@ -196,6 +195,7 @@ SOURCES = {
     sh4/stub-cache-sh4.cc
     """),
   'arch:ia32': Split("""
+    atomicops_internals_x86_gcc.cc
     ia32/assembler-ia32.cc
     ia32/builtins-ia32.cc
     ia32/code-stubs-ia32.cc
@@ -215,6 +215,7 @@ SOURCES = {
     ia32/stub-cache-ia32.cc
     """),
   'arch:x64': Split("""
+    atomicops_internals_x86_gcc.cc
     x64/assembler-x64.cc
     x64/builtins-x64.cc
     x64/code-stubs-x64.cc
