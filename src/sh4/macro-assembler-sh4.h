@@ -885,7 +885,10 @@ class MacroAssembler: public Assembler {
            int lsb,
            int width);
 
-  Handle<Object> CodeObject() { return code_object_; }
+  Handle<Object> CodeObject() {
+    ASSERT(!code_object_.is_null());
+    return code_object_;
+  }
 
   // Record code generator line mapping through comments.
   // Use -code_comments to enable.
