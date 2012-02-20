@@ -1018,12 +1018,12 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
 }
 
 
-void Assembler::mov(Register Rd, const Operand& imm) {
+void Assembler::mov(Register Rd, const Operand& imm, bool force) {
   // FIXME(STM): Internal ref not handled
   ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE);
 
   // Move based on immediates can only be 8 bits long
-  if (imm.is_int8() && imm.rmode_ == RelocInfo::NONE) {
+  if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE)) {
     mov_imm_(imm.imm32_, Rd);
   } else {
     // Use a tiny constant pool and jump above

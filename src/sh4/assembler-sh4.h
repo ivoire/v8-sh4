@@ -831,7 +831,7 @@ class Assembler : public AssemblerBase {
   // Moves and conditional moves.
   // This one allows pr as src or dst.
   void mov(Register Rd, Register Rs, Condition cond = al);
-  void mov(Register Rd, const Operand& src);
+  void mov(Register Rd, const Operand& src, bool force = false);
   void mov(Register Rd, const Operand& imm, Condition cond);
 
   // load op.
