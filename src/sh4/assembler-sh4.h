@@ -629,6 +629,9 @@ class Assembler : public AssemblerBase {
 
   static const RegList kAllRegisters = 0xffffffff;
 
+  // Negative pc_offset value (aligned value)
+  static const int kEndOfChain = -4;
+
 
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators

@@ -685,9 +685,6 @@ int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
 }
 
 
-// Negative pc_offset value (aligned value)
-const int kEndOfChain = -4;
-
 void Assembler::bind(Label* L) {
   // label can only be bound once
   ASSERT(!L->is_bound());
