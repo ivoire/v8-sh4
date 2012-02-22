@@ -1602,8 +1602,10 @@ void PatchInlinedSmiCode(Address address) {
   Address patch_address =
       cmp_instruction_address - delta * Assembler::kInstrSize;
   Instr instr_at_patch = Assembler::instr_at(patch_address);
+#ifdef DEBUG
   Instr instr_before_patch =
     Assembler::instr_at(patch_address - Assembler::kInstrSize);
+#endif
   Instr branch_instr =
       Assembler::instr_at(patch_address + Assembler::kInstrSize);
   ASSERT(Assembler::IsCmpRegister(instr_at_patch));
