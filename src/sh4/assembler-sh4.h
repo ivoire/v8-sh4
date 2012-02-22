@@ -563,6 +563,10 @@ class Assembler : public AssemblerBase {
   // binds an unbound label L to the current code position
   void bind(Label* L);
 
+  // Puts a labels target address at the given position.
+  // This function is only used with not-bound labels
+  void load_label(Label* L);
+
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
   INLINE(static Address target_address_address_at(Address pc));

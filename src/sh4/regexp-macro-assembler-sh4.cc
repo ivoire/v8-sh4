@@ -173,8 +173,9 @@ void RegExpMacroAssemblerSH4::Backtrack() {
   CheckPreemption();
   // Pop Code* offset from backtrack stack, add Code* and jump to location.
   Pop(r0);
-  __ add(ip, r0, code_pointer());
-  __ jmp(ip);
+  __ add(r0, r0, code_pointer());
+  __ jmp(r0);
+
 }
 
 
@@ -664,7 +665,6 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
   __ b(ne, &exit_label_);
 
   __ bind(&stack_ok);
-//  __ bkpt(); __ nop();
 
   // Allocate space on stack for registers.
   __ sub(sp, sp, Operand(num_registers_ * kPointerSize));
@@ -903,7 +903,7 @@ void RegExpMacroAssemblerSH4::PushBacktrack(Label* label) {
     int target = label->pos();
     __ mov(r0, Operand(target + Code::kHeaderSize - kHeapObjectTag));
   } else {
-    UNIMPLEMENTED();
+    masm_->load_label(label);
   }
   Push(r0);
   CheckStackLimit();

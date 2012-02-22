@@ -705,7 +705,14 @@ void Assembler::bind(Label* L) {
     next(L, distance);
 
     // Patching
-    patchBranchOffset(target_pos, p_pos, is_near_linked);
+    // Is it a backtrack label or a classical one ?
+    // In this case the LSB is set to 1
+    if (!is_near_linked && (((signed)*p_pos) & 0x3) == 1) {
+      ASSERT(((*reinterpret_cast<int16_t*>(p_pos)) & ~ 0x3) == kEndOfChain);
+      *reinterpret_cast<uint32_t*>(p_pos) = target_pos - (unsigned)buffer_ + (Code::kHeaderSize - kHeapObjectTag);
+    }
+    else
+      patchBranchOffset(target_pos, p_pos, is_near_linked);
   }
   L->bind_to(pc_offset());
   L->UnuseNear();
@@ -733,10 +740,19 @@ void Assembler::next(Label* L, Label::Distance distance) {
     if (link > 0) {
       L->link_to(link);
     } else {
-      ASSERT(link == kEndOfChain);
+      ASSERT((link & ~0x3) == kEndOfChain);
       L->Unuse();
     }
   }
+}
+
+
+void Assembler::load_label(Label* L) {
+  ASSERT(!L->is_bound());
+  int offset = L->is_linked() ? L->pos() : kEndOfChain;
+  ASSERT((offset % 4) == 0);
+  mov(r0, Operand(offset + 0x1), true);
+  L->link_to(pc_offset() - sizeof(uint32_t));
 }
 
 
@@ -749,6 +765,8 @@ void Assembler::branch(Label* L, Register rtmp, branch_type type,
   } else {
     // The only difference between Near and far label is in the
     // is_near_linked function.
+    // For this reason, we set the near_link_pos to 1 and then we use the
+    // generic link_to to know the position
     // Moreover the position of the linked branch will be altered when dumped
     // on memory to carry the type of branch to write when patching back
     if (distance == Label::kNear)
