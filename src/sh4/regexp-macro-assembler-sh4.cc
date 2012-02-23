@@ -1142,7 +1142,7 @@ void RegExpMacroAssemblerSH4::BranchOrBacktrack(Condition condition,
 void RegExpMacroAssemblerSH4::SafeCall(Label* to, Condition cond) {
   Label skip;
   ASSERT(cond == eq || cond == ne);
-  __ b(NegateCondition(cond), &skip);
+  __ b(NegateCondition(cond), &skip, Label::kNear);
   __ jsr(to);
   __ bind(&skip);
 }
