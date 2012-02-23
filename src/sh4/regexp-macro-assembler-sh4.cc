@@ -991,15 +991,19 @@ void RegExpMacroAssemblerSH4::WriteStackPointerToRegister(int reg) {
 
 void RegExpMacroAssemblerSH4::CallCheckStackGuardState(Register scratch) {
   static const int num_arguments = 3;
+  // We do not have to save r5 as this value is then putted back by
+  // CallCFunctionUsingStub (from the CodeObject)
+  __ Push(r4, r6, r7);
   __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
-  __ mov(r2, frame_pointer());
+  __ mov(r6, frame_pointer());
   // Code* of self.
-  __ mov(r1, Operand(masm_->CodeObject()));
+  __ mov(r5, Operand(masm_->CodeObject()));
   // r0 becomes return address pointer.
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(masm_->isolate());
   CallCFunctionUsingStub(stack_guard_check, num_arguments);
+  __ Pop(r4, r6, r7);
 }
 
 
@@ -1205,7 +1209,7 @@ void RegExpMacroAssemblerSH4::CallCFunctionUsingStub(
     int num_arguments) {
   // Must pass all arguments in registers. The stub pushes on the stack.
   ASSERT(num_arguments <= 4);
-  __ mov(code_pointer(), Operand(function));
+  __ mov(r1, Operand(function));
   RegExpCEntryStub stub;
   __ CallStub(&stub);
   if (OS::ActivationFrameAlignment() != 0) {
@@ -1256,14 +1260,11 @@ void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
   if (stack_alignment < kPointerSize) stack_alignment = kPointerSize;
   // Stack is already aligned for call, so decrement by alignment
   // to make room for storing the link register.
-  __ add(sp, sp, Operand(-stack_alignment));
-  __ mov(r0, pr);
-  __ str(r0,  MemOperand(sp));
-  __ mov(r0, sp);
-  __ jsr(r5);
-  __ ldr(ip, MemOperand(sp));
-  __ add(sp, sp, Operand(stack_alignment));
-  __ jmp(ip);
+  __ push(pr);
+  __ mov(r4, sp);
+  __ jsr(r1);
+  __ pop(pr);
+  __ rts();
 }
 
 #undef __
