@@ -1212,9 +1212,6 @@ void RegExpMacroAssemblerSH4::CallCFunctionUsingStub(
   __ mov(r1, Operand(function));
   RegExpCEntryStub stub;
   __ CallStub(&stub);
-  if (OS::ActivationFrameAlignment() != 0) {
-    __ ldr(sp, MemOperand(sp, 0));
-  }
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
 
@@ -1256,11 +1253,9 @@ void RegExpMacroAssemblerSH4::LoadCurrentCharacterUnchecked(int cp_offset,
 
 
 void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
-  int stack_alignment = OS::ActivationFrameAlignment();
-  if (stack_alignment < kPointerSize) stack_alignment = kPointerSize;
-  // Stack is already aligned for call, so decrement by alignment
-  // to make room for storing the link register.
+  // Store pr on the stack
   __ push(pr);
+  // The first argument should be sp
   __ mov(r4, sp);
   __ jsr(r1);
   __ pop(pr);
