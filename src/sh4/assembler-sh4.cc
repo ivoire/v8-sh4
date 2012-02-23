@@ -818,8 +818,6 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
 void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   positions_recorder()->WriteRecordedPositions(); // Record position of a jsr to code
-  // TODO(stm): make a faster sequence where the constant pool is
-  // after the branch
   mov(rtmp, Operand(reinterpret_cast<intptr_t>(code.location()), rmode));
   jsr_indRd_(rtmp);
   nop_();
