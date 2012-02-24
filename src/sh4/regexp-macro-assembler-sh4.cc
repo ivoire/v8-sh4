@@ -368,26 +368,30 @@ void RegExpMacroAssemblerSH4::CheckNotBackReferenceIgnoreCase(
     //   r2: size_t byte_length - length of capture in bytes(!)
     //   r3: Isolate* isolate
 
+    __ Push(r4, r5, r6, r7);
     // Address of start of capture.
-    __ add(r0, r0, end_of_input_address());
+    __ add(r4, r0, end_of_input_address());
     // Length of capture.
-    __ mov(r2, r1);
-    // Save length in callee-save register for use on return.
-    __ mov(r4, r1);
+    __ mov(r6, r1);
+    // Save length on stack for use on return.
+    __ push(r1);
     // Address of current input position.
-    __ add(r1, current_input_offset(), end_of_input_address());
+    __ add(r5, current_input_offset(), end_of_input_address());
     // Isolate.
-    __ mov(r3, Operand(ExternalReference::isolate_address()));
+    __ mov(r7, Operand(ExternalReference::isolate_address()));
 
     ExternalReference function =
         ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
     __ CallCFunction(function, argument_count);
 
+    __ pop(r1);
+    __ Pop(r4, r5, r6, r7);
+
     // Check if function returned non-zero for success or zero for failure.
     __ cmp(r0, Operand(0, RelocInfo::NONE));
     BranchOrBacktrack(eq, on_no_match);
     // On success, increment position by length of capture.
-    __ add(current_input_offset(), current_input_offset(), r4);
+    __ add(current_input_offset(), current_input_offset(), r1);
   }
 
   __ bind(&fallthrough);
@@ -710,6 +714,7 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
   __ ldr(backtrack_stackpointer(), MemOperand(frame_pointer(), kStackHighEnd));
   // Initialize code pointer register
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
+
   // Load previous char as initial value of current character register.
   Label at_start;
   __ ldr(r0, MemOperand(frame_pointer(), kAtStart));
@@ -801,6 +806,7 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
     Label grow_failed;
 
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
+    __ Push(r4, r5, r6, r7);
     static const int num_arguments = 3;
     __ mov(r4, backtrack_stackpointer());
     __ add(r5, frame_pointer(), Operand(kStackHighEnd));
@@ -811,6 +817,7 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
     __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
+    __ Pop(r4, r5, r6, r7);
     __ cmp(r0, Operand(0, RelocInfo::NONE));
     __ b(eq, &exit_with_exception);
     // Otherwise use return value as new stack pointer.
