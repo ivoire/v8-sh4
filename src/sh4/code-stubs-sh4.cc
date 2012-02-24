@@ -3444,7 +3444,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   Label slow;
-  __ JumpIfNotSmi(r1, &slow);
+  __ JumpIfNotSmi(r1, &slow, Label::kNear);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
@@ -3457,7 +3457,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // through register r0. Use unsigned comparison to get negative
   // check for free.
   __ cmphs(r1, r0);
-  __ bt(&slow);
+  __ bt_near(&slow);
 
   // Read the argument from the stack and return it.
   __ sub(r3, r0, r1);
@@ -3472,7 +3472,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ bind(&adaptor);
   __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ cmphs(r1, r0);
-  __ bt(&slow);
+  __ bt_near(&slow);
 
   // Read the argument from the adaptor frame and return it.
   __ sub(r3, r0, r1);

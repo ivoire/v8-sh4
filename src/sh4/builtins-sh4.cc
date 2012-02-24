@@ -626,10 +626,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   Label non_function_call;
   // Check that the function is not a smi.
-  __ JumpIfSmi(r1, &non_function_call);
+  __ JumpIfSmi(r1, &non_function_call, Label::kNear);
   // Check that the function is a JSFunction.
   __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE, eq);
-  __ b(ne, &non_function_call);
+  __ b(ne, &non_function_call, Label::kNear);
 
   // Jump to the function-specific construct stub.
   __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
@@ -1143,14 +1143,14 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
   // Switch on the state.
   Label with_tos_register, unknown_state;
   __ cmp(r6, Operand(FullCodeGenerator::NO_REGISTERS));
-  __ b(ne, &with_tos_register);
+  __ b(ne, &with_tos_register, Label::kNear);
   __ add(sp, sp, Operand(1 * kPointerSize));  // Remove state.
   __ Ret();
 
   __ bind(&with_tos_register);
   __ ldr(r0, MemOperand(sp, 1 * kPointerSize));
   __ cmp(r6, Operand(FullCodeGenerator::TOS_REG));
-  __ b(ne, &unknown_state);
+  __ b(ne, &unknown_state, Label::kNear);
   __ add(sp, sp, Operand(2 * kPointerSize));  // Remove state.
   __ Ret();
 
@@ -1195,7 +1195,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r0: actual number of arguments
   { Label done;
     __ tst(r0, r0);
-    __ b(ne, &done);
+    __ b(ne, &done, Label::kNear);
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ push(r2);
     __ add(r0, r0, Operand(1));
@@ -1238,7 +1238,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // r0: actual number of arguments
     // r1: function
     // r2: first argument
-    __ JumpIfSmi(r2, &convert_to_object);
+    __ JumpIfSmi(r2, &convert_to_object, Label::kNear);
 
     __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
     __ cmp(r2, r3);
@@ -1327,7 +1327,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r1: function
   { Label function;
     __ tst(r1, r1);
-    __ b(ne, &function);
+    __ b(ne, &function, Label::kNear);
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
     __ mov(r2, Operand(0, RelocInfo::NONE));
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
