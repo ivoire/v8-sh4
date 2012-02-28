@@ -364,15 +364,6 @@ class MacroAssembler: public Assembler {
   // Uses the ip register as scratch.
   void CompareRoot(Register obj, Heap::RootListIndex index);
 
-  // Check if the object in register heap_object is a string. Afterwards the
-  // register map contains the object map and the register instance_type
-  // contains the instance_type. The registers map and instance_type can be the
-  // same in which case it contains the instance type afterwards. Either of the
-  // registers map and instance_type can be the same as heap_object.
-  Condition IsObjectStringType(Register heap_object,
-                               Register map,
-                               Register instance_type);
-
   // Check if a heap object's type is in the JSObject range, not including
   // JSFunction.  The object's map will be loaded in the map register.
   // Any or all of the three registers may be the same.
