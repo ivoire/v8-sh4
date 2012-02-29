@@ -4229,7 +4229,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 
-#endif
+#endif  // V8_INTERPRETED_REGEXP
 }
 
 
