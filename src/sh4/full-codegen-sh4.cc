@@ -1702,7 +1702,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   BinaryOpStub stub(op, mode);
   __ Call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   patch_site.EmitPatchInfo();
-  __ jmp_near(&done);
+  __ jmp(&done);
 
   __ bind(&smi_case);
   // Smi case. This code works the same way as the smi-smi case in the type
@@ -1754,7 +1754,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ b(ne, &stub_call);
       __ tst(scratch1, scratch1);
       __ mov(right, scratch1, ne);
-      __ b(ne, &done, Label::kNear);
+      __ b(ne, &done);
       __ add(scratch2, right, left);
       __ cmpge(scratch2, Operand(0));
       __ mov(right, Operand(Smi::FromInt(0)), t);
