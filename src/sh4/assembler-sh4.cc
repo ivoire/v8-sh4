@@ -886,8 +886,7 @@ void Assembler::bt(int offset, Register rtmp, Label::Distance distance, bool pat
       // Use the 2 least significant bits to store the type of branch
       // We assume (and assert) that they always are null
       ASSERT((offset % 4) == 0);
-      *reinterpret_cast<uint16_t*>(pc_) = offset + 0x1;
-      pc_ += sizeof(uint16_t);
+      dw(offset + 0x1);
     } else {
       align();
       bf_(12);
@@ -896,8 +895,7 @@ void Assembler::bt(int offset, Register rtmp, Label::Distance distance, bool pat
       nop_();
       braf_(rtmp);
       nop_();
-      *reinterpret_cast<uint32_t*>(pc_) = offset;
-      pc_ += sizeof(uint32_t);
+      dd(offset);
     }
   } else {
     if (FITS_SH4_bt(offset - 4)) {
@@ -911,8 +909,7 @@ void Assembler::bt(int offset, Register rtmp, Label::Distance distance, bool pat
       nop_();
       braf_(rtmp);
       nop_();
-      *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 8 - 2*nop_count;
-      pc_ += sizeof(uint32_t);
+      dd(offset - 4 - 8 - 2 * nop_count);
     }
   }
 }
@@ -925,8 +922,7 @@ void Assembler::bf(int offset, Register rtmp, Label::Distance distance, bool pat
       // Use the 2 least significant bits to store the type of branch
       // We assume (and assert) that they always are null
       ASSERT((offset % 4) == 0);
-      *reinterpret_cast<uint16_t*>(pc_) = offset + 0x2;
-      pc_ += sizeof(uint16_t);
+      dw(offset + 0x2);
     } else {
       align();
       bt_(12);
@@ -935,8 +931,7 @@ void Assembler::bf(int offset, Register rtmp, Label::Distance distance, bool pat
       nop_();
       braf_(rtmp);
       nop_();
-      *reinterpret_cast<uint32_t*>(pc_) = offset;
-      pc_ += sizeof(uint32_t);
+      dd(offset);
     }
   } else {
     if (FITS_SH4_bf(offset - 4)) {
@@ -950,8 +945,7 @@ void Assembler::bf(int offset, Register rtmp, Label::Distance distance, bool pat
       nop_();
       braf_(rtmp);
       nop_();
-      *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 8 - 2*nop_count;
-      pc_ += sizeof(uint32_t);
+      dd(offset - 4 - 8 - 2 * nop_count);
     }
   }
 }
@@ -966,8 +960,7 @@ void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool pa
       misalign();
       nop();
       ASSERT((offset % 4) == 0);
-      *reinterpret_cast<uint16_t*>(pc_) = offset + 0x3;
-      pc_ += sizeof(uint16_t);
+      dw(offset + 0x3);
     } else {
       // There is no way to know the size of the offset: take the worst case
       align();
@@ -975,8 +968,7 @@ void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool pa
       nop();
       braf_(rtmp);
       nop_();
-      *reinterpret_cast<uint32_t*>(pc_) = offset;
-      pc_ += sizeof(uint32_t);
+      dd(offset);
     }
   } else {
     // Does it fits in a bra offset
@@ -989,8 +981,7 @@ void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool pa
       nop();
       braf_(rtmp);
       nop_();
-      *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 4 - 2*nop_count;
-      pc_ += sizeof(uint32_t);
+      dd(offset - 4 - 4 - 2 * nop_count);
     }
   }
 }
@@ -1008,9 +999,7 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
     nop_();
     bra_(4);
     nop_();
-    *reinterpret_cast<uint32_t*>(pc_) = offset;
-    pc_ += sizeof(uint32_t);
-
+    dd(offset);
   } else {
     // Does it fits in a bsr offset
     if (FITS_SH4_bsr(offset - 4)) {
@@ -1024,8 +1013,7 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
       nop_();
       bra_(4);
       nop_();
-      *reinterpret_cast<uint32_t*>(pc_) = offset - 4 - 4 - 2*nop_count;
-      pc_ += sizeof(uint32_t);
+      dd(offset - 4 - 4 - 2 * nop_count);
     }
   }
 }
@@ -1064,8 +1052,7 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
                 reinterpret_cast<byte*>(buffer_ + instr_address)));
     }
 #endif
-    *reinterpret_cast<uint32_t*>(pc_) = imm.imm32_;
-    pc_ += sizeof(uint32_t);
+    dd(imm.imm32_);
   }
 }
 
