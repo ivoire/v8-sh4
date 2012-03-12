@@ -851,19 +851,24 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant, int is_n
     int disp = target_pos - (unsigned)p_constant - 4;
 
     // select the right branch type
-    if ((*p_constant & 0x3) == 1) {
-      ASSERT(FITS_SH4_bt(disp));
-      *p_constant = (0x8 << 12) | (0x9 << 8) | (((disp & 0x1FE) >> 1) << 0) ;
-    } else if ((*p_constant & 0x3) == 2) {
-      ASSERT(FITS_SH4_bf(disp));
-      *p_constant = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0) ;
-    } else if (((*p_constant & 0x3) == 3)) {
-      ASSERT(FITS_SH4_bra(disp + 2));
-      ASSERT(*(p_constant - 1) == 0x9);
-      *(p_constant - 1) = (0xA << 12) | ((((disp + 2) & 0x1FFE) >> 1) << 0);
-      *(p_constant) = 0x9;
-    } else
-        ASSERT(0);
+    switch ((*p_constant & 0x3)) {
+      case 1:
+        ASSERT(FITS_SH4_bt(disp));
+        *p_constant = (0x8 << 12) | (0x9 << 8) | (((disp & 0x1FE) >> 1) << 0);
+        break;
+      case 2:
+        ASSERT(FITS_SH4_bf(disp));
+        *p_constant = (0x8 << 12) | (0xB << 8) | (((disp & 0x1FE) >> 1) << 0);
+        break;
+      case 3:
+        ASSERT(FITS_SH4_bra(disp + 2));
+        ASSERT(*(p_constant - 1) == 0x9);
+        *(p_constant - 1) = (0xA << 12) | ((((disp + 2) & 0x1FFE) >> 1) << 0);
+        *(p_constant) = 0x9;
+        break;
+      default:
+        UNREACHABLE();
+    }
 
   } else {
     // Patch the constant
