@@ -689,12 +689,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space, Register
 
   // Reserve place for the return address and stack space and align the frame
   // preparing for calling the runtime function.
-  const int frame_alignment = OS::ActivationFrameAlignment();
+  // Different from ARM as OS::ActivationFrameAlignment is always greater than kInstrSize
   sub(sp, sp, Operand((stack_space + 1) * kPointerSize));
-  if (frame_alignment > kPointerSize) {
-    ASSERT(IsPowerOf2(frame_alignment));
-    land(sp, sp, Operand(-frame_alignment));
-  }
 
   // Set the exit frame sp value to point just before the return address
   // location.
@@ -1044,24 +1040,14 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
   ASSERT(!scratch.is(sh4_rtmp));
   ASSERT(!scratch.is(r4) && !scratch.is(r5) && !scratch.is(r6) &&
          !scratch.is(r7));
-  int frame_alignment = OS::ActivationFrameAlignment();
-
   // Up to four simple arguments are passed in registers r4..r7.
   int num_arguments = num_reg_arguments + 2 * num_double_arguments;
   int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
                                0 : num_arguments - kRegisterPassedArguments;
 
-  if (frame_alignment > kPointerSize) {
-    RECORD_LINE();
-    mov(scratch, sp);
-    sub(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
-    ASSERT(IsPowerOf2(frame_alignment));
-    land(sp, sp, Operand(-frame_alignment));
-    str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
-    RECORD_LINE();
-    sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
-  }
+  // Different from ARM as ActivationFrameAlignment is allways greater than kInstrSize
+  RECORD_LINE();
+  sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
 }
 
 
@@ -1080,26 +1066,8 @@ void MacroAssembler::CallCFunctionHelper(Register function,
                                          int num_double_arguments) {
   ASSERT(!function.is(sh4_ip));
   ASSERT(!function.is(sh4_rtmp));
-  // Make sure that the stack is aligned before calling a C function unless
-  // running in the simulator. The simulator has its own alignment check which
-  // provides more information.
-#if defined(V8_HOST_ARCH_SH4)
-  if (emit_debug_code()) {
-    RECORD_LINE();
-    int frame_alignment = OS::ActivationFrameAlignment();
-    int frame_alignment_mask = frame_alignment - 1;
-    if (frame_alignment > kPointerSize) {
-      ASSERT(IsPowerOf2(frame_alignment));
-      Label alignment_as_expected;
-      tst(sp, Operand(frame_alignment_mask));
-      bt(&alignment_as_expected);
-      // Don't use Check here, as it will call Runtime_Abort possibly
-      // re-entering here.
-      stop("Unexpected alignment");
-      bind(&alignment_as_expected);
-    }
-  }
-#endif
+  // Different from ARM as ActivationFrameAlignment is allways greater than kInstrSize
+  // We do not use any internal simulator
 
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
@@ -1115,11 +1083,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   int num_arguments = num_reg_arguments + 2 * num_double_arguments;
   int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
                                0 : num_arguments - kRegisterPassedArguments;
-  if (OS::ActivationFrameAlignment() > kPointerSize) {
-    mov(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
-    add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
-  }
+  add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
 }
 
 
