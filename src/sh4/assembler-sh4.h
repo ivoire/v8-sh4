@@ -973,8 +973,7 @@ class Assembler : public AssemblerBase {
   // code generation wrappers
   void branch(Label* L, Register rtmp, branch_type type, Label::Distance distance = Label::kFar);
   void branch(int offset, Register rtmp, branch_type type, Label::Distance distance, bool patched_later);
-  void bt(int offset, Register rtmp, Label::Distance distance, bool patched_later);
-  void bf(int offset, Register rtmp, Label::Distance distance, bool patched_later);
+  void conditional_branch(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
   void jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
 

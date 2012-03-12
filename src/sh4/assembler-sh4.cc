@@ -827,10 +827,10 @@ void Assembler::branch(int offset, Register rtmp, branch_type type,
                        Label::Distance distance, bool patched_later) {
   switch (type) {
   case branch_true:
-    bt(offset, rtmp, distance, patched_later);
+    conditional_branch(offset, rtmp, distance, patched_later, true);
     break;
   case branch_false:
-    bf(offset, rtmp, distance, patched_later);
+    conditional_branch(offset, rtmp, distance, patched_later, false);
     break;
   case branch_unconditional:
     jmp(offset, rtmp, distance, patched_later);
@@ -884,17 +884,19 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant, int is_n
 }
 
 
-void Assembler::bt(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
+void Assembler::conditional_branch(int offset, Register rtmp,
+                                   Label::Distance distance, bool patched_later,
+                                   bool type) {
   if (patched_later) {
     if (distance == Label::kNear) {
       align();
       // Use the 2 least significant bits to store the type of branch
       // We assume (and assert) that they always are null
       ASSERT((offset % 4) == 0);
-      dw(offset + 0x1);
+      dw(offset + (type ? 0x1 : 0x2));
     } else {
       align();
-      bf_(12);
+      type ? bf_(12) : bt_(12);
       nop_();
       movl_dispPC_(4, rtmp);
       nop_();
@@ -904,11 +906,11 @@ void Assembler::bt(int offset, Register rtmp, Label::Distance distance, bool pat
     }
   } else {
     if (FITS_SH4_bt(offset - 4)) {
-      bt_(offset - 4);
+      type ? bt_(offset - 4) : bf_(offset - 4);
       nop_();
     } else {
       int nop_count = align();
-      bf_(12);
+      type ? bf_(12) : bt_(12);
       nop_();
       movl_dispPC_(4, rtmp);
       nop_();
@@ -917,42 +919,7 @@ void Assembler::bt(int offset, Register rtmp, Label::Distance distance, bool pat
       dd(offset - 4 - 8 - 2 * nop_count);
     }
   }
-}
 
-
-void Assembler::bf(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
-  if (patched_later) {
-    if (distance == Label::kNear) {
-      align();
-      // Use the 2 least significant bits to store the type of branch
-      // We assume (and assert) that they always are null
-      ASSERT((offset % 4) == 0);
-      dw(offset + 0x2);
-    } else {
-      align();
-      bt_(12);
-      nop_();
-      movl_dispPC_(4, rtmp);
-      nop_();
-      braf_(rtmp);
-      nop_();
-      dd(offset);
-    }
-  } else {
-    if (FITS_SH4_bf(offset - 4)) {
-      bf_(offset - 4);
-      nop_();
-    } else {
-      int nop_count = align();
-      bt_(12);
-      nop_();
-      movl_dispPC_(4, rtmp);
-      nop_();
-      braf_(rtmp);
-      nop_();
-      dd(offset - 4 - 8 - 2 * nop_count);
-    }
-  }
 }
 
 
