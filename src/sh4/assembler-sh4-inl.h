@@ -332,7 +332,7 @@ void Assembler::cmp(Condition *cond, Register Rd, Register Rs) {
     cmpge(Rd, Rs);
     break;
   default:
-    UNIMPLEMENTED();
+    UNREACHABLE();
   }
   *cond = cond_to_test;
 }
