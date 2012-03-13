@@ -402,9 +402,9 @@ void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
   } else {
     Label end;
     if (cond == eq)
-      bf(&end);           // Jump after sequence if T bit is false
+      bf_near(&end);           // Jump after sequence if T bit is false
     else
-      bt(&end);           // Jump after sequence if T bit is true
+      bt_near(&end);           // Jump after sequence if T bit is true
     rsb(Rd, Rs, imm, rtmp);
     bind(&end);
   }
