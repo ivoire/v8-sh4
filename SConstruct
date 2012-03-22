@@ -113,6 +113,9 @@ LIBRARY_FLAGS = {
       'CXXFLAGS':   ['-fexceptions'],
       'LINKFLAGS':  ['-rdynamic'],
     },
+    'logging:on': {
+      'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING'],
+    },
     'os:linux': {
       'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
       'library:shared': {
@@ -1148,6 +1151,11 @@ SIMPLE_OPTIONS = {
     'default': 'off',
     'help': 'enable backtrace support for debug'
   },
+  'logging': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable logging and profiling'
+  }
 
 }
 
