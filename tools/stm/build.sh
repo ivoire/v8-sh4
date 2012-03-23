@@ -29,4 +29,4 @@ fi
 
 scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} -j ${jobs}
 scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} -j ${jobs} sample=shell
-tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport}  -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging}-j ${jobs} ${tests}
+tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -j ${jobs} ${tests}
