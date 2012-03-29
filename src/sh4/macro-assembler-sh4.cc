@@ -2501,21 +2501,22 @@ void MacroAssembler::RecordWrite(Register object,
 }
 
 
-// Will clobber 4 registers: object, offset, scratch, sh4_ip (ARM:ip). The
+// Will clobber 4 registers: object, scratch0/1, sh4_ip (ARM:ip). The
 // register 'object' contains a heap object pointer. The heap object
 // tag is shifted away.
+// Note that offset is preserved.
 void MacroAssembler::RecordWrite(Register object,
                                  Register offset,
                                  Register scratch0,
-                                 Register scratch1) {
+				 Register scratch1) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are cp.
-  ASSERT(!object.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
+  ASSERT(!object.is(cp) && !offset.is(cp) && !scratch0.is(cp) && !scratch1.is(cp));
   // Also check that the scratch are not sh4_rtmp (super scratch).
-  ASSERT(!object.is(sh4_rtmp) && !scratch0.is(sh4_rtmp) && !scratch1.is(sh4_rtmp));
+  ASSERT(!object.is(sh4_rtmp) && !offset.is(sh4_rtmp) && !scratch0.is(sh4_rtmp) && !scratch1.is(sh4_rtmp));
   // Also check that the scratch are not sh4_ip (used in macro-assembler-sh4.cc).
-  ASSERT(!object.is(sh4_ip) && !scratch0.is(sh4_ip) && !scratch1.is(sh4_ip));
+  ASSERT(!object.is(sh4_ip) && !offset.is(sh4_ip) && !scratch0.is(sh4_ip) && !scratch1.is(sh4_ip));
 
   Label done;
 

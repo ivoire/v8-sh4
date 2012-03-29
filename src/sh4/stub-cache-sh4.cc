@@ -4131,12 +4131,13 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   __ add(scratch,
          elements_reg, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ lsl(ip, key_reg, Operand(kPointerSizeLog2 - kSmiTagSize));
+  // Use key_reg there, it can be scratched as only r0 has to be preserved
+  __ lsl(key_reg, key_reg, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ str(value_reg,
-         MemOperand(scratch, ip));
+         MemOperand(scratch, key_reg));
   __ RecordWrite(scratch,
-                 ip,
-                 receiver_reg , elements_reg);
+                 key_reg,
+		 receiver_reg , elements_reg);
 
   // value_reg (r0) is preserved.
   // Done.
