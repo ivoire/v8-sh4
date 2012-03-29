@@ -94,8 +94,10 @@ LIBRARY_FLAGS = {
       'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
     },
     'visibility:hidden': {
-      # Use visibility=default to disable this.
-      'CXXFLAGS':     ['-fvisibility=hidden']
+      'backtracesupport:off': {
+        # Use visibility=default to disable this.
+        'CXXFLAGS':     ['-fvisibility=hidden']
+      }
     },
     'strictaliasing:off': {
       'CCFLAGS':      ['-fno-strict-aliasing']
@@ -110,7 +112,7 @@ LIBRARY_FLAGS = {
     },
     'backtracesupport:on': {
       'CPPDEFINES':   ['ENABLE_BACKTRACE'],
-      'CXXFLAGS':   ['-fexceptions'],
+      'CXXFLAGS':   ['-fexceptions', '-fvisibility=default'],
       'LINKFLAGS':  ['-rdynamic'],
     },
     'logging:on': {
