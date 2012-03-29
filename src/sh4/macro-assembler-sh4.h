@@ -913,6 +913,9 @@ class MacroAssembler: public Assembler {
   // Print a message to stdout and abort execution.
   void Abort(const char* msg);
 
+  // Print an object to stdout.
+  void DebugPrint(Register obj);
+
   // Check that the stack is aligned.
   void CheckStackAlignment();
 

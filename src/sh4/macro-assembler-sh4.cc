@@ -1677,6 +1677,12 @@ void MacroAssembler::Check(Condition cond, const char* msg) {
   bind(&L);
 }
 
+void MacroAssembler::DebugPrint(Register obj) {
+  RECORD_LINE();
+  push(obj);
+  CallRuntime(Runtime::kDebugPrint, 1);
+}
+
 void MacroAssembler::Abort(const char* msg) {
   Label abort_start;
   bind(&abort_start);
