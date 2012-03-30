@@ -2452,7 +2452,8 @@ void MacroAssembler::RecordWriteHelper(Register object,
   // Mark region dirty.
   mov(scratch, MemOperand(object, Page::kDirtyFlagOffset));
   mov(sh4_ip, Operand(1));
-  lsl(sh4_ip, sh4_ip, address);
+  // The region number is in [0,31], hence we can use the fast case (wrap == true)
+  lsl(sh4_ip, sh4_ip, address, true);
   lor(scratch, scratch, sh4_ip);
   mov(MemOperand(object, Page::kDirtyFlagOffset), scratch);
 }
