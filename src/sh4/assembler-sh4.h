@@ -754,8 +754,20 @@ class Assembler : public AssemblerBase {
   void addc(Register Rd, Register Rs, Register Rt);
   void subc(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
 
+  // Note for shifts with shift amount in register:
+  // the default behavior is mapped on ARM behavior which flushes when shift amount
+  // is >= 32. The implementation is quite slow in this case as SH4 shifts
+  // do not flush.
+  // In case where the register shift amount is known to be in range [0,31] one
+  // can call the shift methods with in_range parameter set to true. This case
+  // generates faster code.
+  // In addition, in the case of lsl (but not asr nor lsr) the semantic is
+  // to wrap on SH4 (i.e. the least 5 bits are extracted before doing the shift), thus
+  // in this case the boolean parameter is called wrap and this semantic can be used
+  // on purpose whatever the shift amount.
+  
   // arithmetic shift right
-  void asr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
+  void asr(Register Rd, Register Rs, Register Rt, bool in_range = false, Register rtmp = sh4_rtmp);
   void asr(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
   // arithmetic shift left
@@ -764,10 +776,10 @@ class Assembler : public AssemblerBase {
 
   void lsl(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
-  void lsl(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
+  void lsl(Register Rd, Register Rs, Register Rt, bool wrap = false, Register rtmp = sh4_rtmp);
   void lsr(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
-  void lsr(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
+  void lsr(Register Rd, Register Rs, Register Rt, bool in_range = false, Register rtmp = sh4_rtmp);
 
   void land(Register Rd, Register Rs, const Operand& imm,
             Register rtmp = sh4_rtmp);
