@@ -18,7 +18,7 @@ site=${site:-stgnb}
 env site=$site arch=$arch mode=$mode regexp=$regexp profile_gcov=on $dir/build.sh
 
 rm -f /dev/shm/sem.qemu-user.acicecmg
-env site=$site arch=$arch mode=$mode regexp=$regexp profile_gcov=on $dir/run_test.sh --progress=verbose --timeout-scale=10 cctest/*${arch} || true
+env site=$site arch=$arch mode=$mode regexp=$regexp profile_gcov=on $dir/run_test.sh --progress=verbose --timeout-scale=15 cctest/*${arch} || true
 
 # Generate JUnit test output
 wget -O v8test_to_junit.pl -q ${HUDSON_URL}/job/aci-utils-master/lastStableBuild/artifact/utils/v8test_to_junit.pl

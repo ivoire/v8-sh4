@@ -19,7 +19,7 @@ tests=${tests:-cctest}
 env site=$site arch=$arch mode=$mode regexp=$regexp tools/stm/build.sh
 
 rm -f /dev/shm/sem.qemu-user.acicecmg
-env site=$site arch=$arch mode=$mode regexp=$regexp tools/stm/run_test.sh --progress=verbose --timeout-scale=10 ${tests} || true
+env site=$site arch=$arch mode=$mode regexp=$regexp tools/stm/run_test.sh --progress=verbose --timeout-scale=15 ${tests} || true
 
 # Generate JUnit test output
 wget -O v8test_to_junit.pl -q ${HUDSON_URL}/job/aci-utils-master/lastStableBuild/artifact/utils/v8test_to_junit.pl
