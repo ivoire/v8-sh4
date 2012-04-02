@@ -371,12 +371,12 @@ void RegExpMacroAssemblerSH4::CheckNotBackReferenceIgnoreCase(
     __ Push(r4, r5, r6, r7);
     // Address of start of capture.
     __ add(r4, r0, end_of_input_address());
+    // Address of current input position.
+    __ add(r5, current_input_offset(), end_of_input_address());
     // Length of capture.
     __ mov(r6, r1);
     // Save length on stack for use on return.
     __ push(r1);
-    // Address of current input position.
-    __ add(r5, current_input_offset(), end_of_input_address());
     // Isolate.
     __ mov(r7, Operand(ExternalReference::isolate_address()));
 
@@ -714,7 +714,6 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
   __ ldr(backtrack_stackpointer(), MemOperand(frame_pointer(), kStackHighEnd));
   // Initialize code pointer register
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
-
   // Load previous char as initial value of current character register.
   Label at_start;
   __ ldr(r0, MemOperand(frame_pointer(), kAtStart));
