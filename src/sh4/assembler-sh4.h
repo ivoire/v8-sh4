@@ -697,11 +697,11 @@ class Assembler : public AssemblerBase {
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
 
-  void cmpeq(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
-  void cmpgt(Register Rd, Register Rs) { cmpgt_(Rs, Rd); }     // is Rd > Rs ?
-  void cmpge(Register Rd, Register Rs) { cmpge_(Rs, Rd); }     // is Rd >= Rs ?
-  void cmphi(Register Rd, Register Rs) { cmphi_(Rs, Rd); }    // is Rd u> Rs ?
-  void cmphs(Register Rd, Register Rs) { cmphs_(Rs, Rd); }    // is Rd u>= Rs ?
+  void cmpeq(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmpeq_(Rs, Rd); }
+  void cmpgt(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmpgt_(Rs, Rd); }     // is Rd > Rs ?
+  void cmpge(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmpge_(Rs, Rd); }     // is Rd >= Rs ?
+  void cmphi(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmphi_(Rs, Rd); }    // is Rd u> Rs ?
+  void cmphs(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmphs_(Rs, Rd); }    // is Rd u>= Rs ?
 
   inline void cmpeq(Register Rd, const Operand& imm,
 		    Register rtmp = sh4_rtmp);
@@ -715,7 +715,7 @@ class Assembler : public AssemblerBase {
 		    Register rtmp = sh4_rtmp);
 
   // ALiases for cmpeq
-  void cmp(Register Rd, Register Rs) { cmpeq(Rd, Rs); }
+  void cmp(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
   void cmp(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp)
         { cmpeq(Rd, imm, rtmp); }
 
