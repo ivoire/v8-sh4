@@ -975,7 +975,7 @@ void MacroAssembler::Bfi(Register dst,
   ASSERT(0 <= lsb && lsb < 32);
   ASSERT(0 <= width && width <= 32);
   ASSERT(lsb + width <= 32);
-  ASSERT(!scratch.is(dst) && !scratch.is(src));
+  ASSERT(!dst.is(src) && !dst.is(scratch));
   if (width == 0) return;
   if (width == 32) {
     mov(dst, src);
