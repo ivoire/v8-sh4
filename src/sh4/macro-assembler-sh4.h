@@ -141,7 +141,7 @@ class MacroAssembler: public Assembler {
     if (d4.is_valid()) Dead(d4);
   }
 
-  void Push(Handle<Object> handle);
+  void Push(Handle<Object> handle) { push(Operand(handle), sh4_ip); }
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {

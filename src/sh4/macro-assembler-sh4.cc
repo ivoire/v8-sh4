@@ -119,12 +119,6 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
 }
 
 
-void MacroAssembler::Push(Handle<Object> handle) {
-  mov(sh4_ip, Operand(handle));
-  push(sh4_ip);
-}
-
-
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
