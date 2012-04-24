@@ -268,7 +268,8 @@ void MacroAssembler::ConvertToInt32(Register source,
          !scratch2.is(sh4_ip));
   ASSERT(!source.is(sh4_rtmp) && !dest.is(sh4_rtmp) && !scratch.is(sh4_rtmp) &&
          !scratch2.is(sh4_rtmp));
-  ASSERT(!source.is(dest));
+  ASSERT(!source.is(dest) && !source.is(scratch) && !source.is(scratch2) &&
+         !dest.is(scratch) && !dest.is(scratch2) && !scratch.is(scratch2));
 
   // TODO(stm): FPU
   // if (CpuFeatures::IsSupported(VFP3)) {
@@ -481,8 +482,6 @@ void MacroAssembler::Call(Handle<Code> code,
 void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
-  ASSERT(!dst.is(sh4_ip) && !src.is(sh4_ip));
-  ASSERT(!dst.is(sh4_rtmp) && !src.is(sh4_rtmp));
   Ubfx(dst, src, kSmiTagSize, num_least_bits);
 }
 
@@ -490,7 +489,6 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
 void MacroAssembler::GetLeastBitsFromInt32(Register dst,
                                            Register src,
                                            int num_least_bits) {
-  ASSERT(!dst.is(sh4_ip) && !src.is(sh4_ip));
   ASSERT(!dst.is(sh4_rtmp) && !src.is(sh4_rtmp));
   land(dst, src, Operand((1 << num_least_bits) - 1));
 }
@@ -695,7 +693,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   Pop(pr, fp);
   if (argument_count.is_valid()) {
     ASSERT(!argument_count.is(r3));
-    ASSERT(!argument_count.is(sh4_ip));
     lsl(r3, argument_count, Operand(kPointerSizeLog2));
     add(sp, sp, r3);
   }
@@ -806,8 +803,7 @@ void MacroAssembler::InvokeCode(Register code,
   // r1: must hold function pointer
   // actual: must be r0 if register
   ASSERT(actual.is_immediate() || actual.reg().is(r0));
-  ASSERT(!code.is(sh4_ip));
-  ASSERT(!code.is(sh4_rtmp));
+  ASSERT(!code.is(sh4_ip) && !code.is(sh4_rtmp) && !code.is(r5));
 
   RECORD_LINE();
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
@@ -953,6 +949,7 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 
 void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width) {
+  ASSERT(!dst.is(sh4_rtmp) && !src1.is(sh4_rtmp));
   ASSERT(lsb >= 0 && lsb < 32);
   ASSERT(width > 0 && width <= 32);
   ASSERT(width + lsb <= 32);
@@ -978,7 +975,7 @@ void MacroAssembler::Bfi(Register dst,
   ASSERT(0 <= lsb && lsb < 32);
   ASSERT(0 <= width && width <= 32);
   ASSERT(lsb + width <= 32);
-  ASSERT(!scratch.is(dst));
+  ASSERT(!scratch.is(dst) && !scratch.is(src));
   if (width == 0) return;
   if (width == 32) {
     mov(dst, src);
@@ -2327,7 +2324,6 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 
 void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
   ASSERT(!dst.is(sh4_rtmp) && !src.is(sh4_rtmp));
-  ASSERT(!dst.is(sh4_ip) && !src.is(sh4_ip));
   ASSERT(lsb >= 0 && lsb < 32);
   ASSERT(width > 0 && width <= 32);
   ASSERT(width + lsb <= 32);
@@ -2345,7 +2341,6 @@ void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
 
 void MacroAssembler::Bfc(Register dst, int lsb, int width) {
   ASSERT(!dst.is(sh4_rtmp));
-  ASSERT(!dst.is(sh4_ip));
   ASSERT(lsb >= 0 && lsb < 32);
   ASSERT(width > 0 && width <= 32);
   ASSERT(width + lsb <= 32);
@@ -2548,7 +2543,6 @@ void MacroAssembler::RecordWrite(Register object,
 // live-out: cp, dst
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   ASSERT(!dst.is(sh4_rtmp));
-  ASSERT(!dst.is(sh4_ip));
   RECORD_LINE();
   if (context_chain_length > 0) {
     RECORD_LINE();
@@ -2602,7 +2596,6 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
     Register reg,
     Register scratch,
     Label* not_power_of_two_or_zero) {
-  ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
   ASSERT(!reg.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   RECORD_LINE();
   // Note: actually the case 0x80000000 is considered a power of two
@@ -2620,7 +2613,6 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
     Register scratch,
     Label* zero_and_neg,
     Label* not_power_of_two) {
-  ASSERT(!reg.is(sh4_ip) && !scratch.is(sh4_ip));
   ASSERT(!reg.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   RECORD_LINE();
   // Note: actually the case 0x80000000 is considered a pozer of two
@@ -2637,7 +2629,6 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
                                       Label* on_not_both_smi,
                                       Label::Distance distance) {
-  ASSERT(!reg1.is(sh4_ip) && !reg2.is(sh4_ip));
   ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
   STATIC_ASSERT(kSmiTag == 0);
   RECORD_LINE();
@@ -2652,7 +2643,6 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
                                      Register reg2,
                                      Label* on_either_smi,
                                      Label::Distance distance) {
-  ASSERT(!reg1.is(sh4_ip) && !reg2.is(sh4_ip));
   ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
   STATIC_ASSERT(kSmiTag == 0);
   RECORD_LINE();
@@ -2665,7 +2655,6 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 
 void MacroAssembler::AbortIfSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
-  ASSERT(!object.is(sh4_ip));
   ASSERT(!object.is(sh4_rtmp));
 
   tst(object, Operand(kSmiTagMask));
@@ -2675,7 +2664,6 @@ void MacroAssembler::AbortIfSmi(Register object) {
 
 void MacroAssembler::AbortIfNotSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
-  ASSERT(!object.is(sh4_ip));
   ASSERT(!object.is(sh4_rtmp));
 
   tst(object, Operand(kSmiTagMask));
@@ -2836,7 +2824,6 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
                                                             Register scratch,
                                                             Label* failure) {
-  ASSERT(!type.is(sh4_ip) && !scratch.is(sh4_ip));
   ASSERT(!type.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
 
   int kFlatAsciiStringMask =
@@ -2907,7 +2894,6 @@ void MacroAssembler::CompareInstanceType(Register map,
                                          Register type_reg,
                                          InstanceType type,
                                          Condition cond) {
-  ASSERT(!map.is(sh4_ip) && !type_reg.is(sh4_ip));
   ASSERT(!map.is(sh4_rtmp) && !type_reg.is(sh4_rtmp));
 
   RECORD_LINE();
