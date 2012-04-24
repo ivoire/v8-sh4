@@ -1773,3 +1773,104 @@ TEST(29) {
   CHECK_EQ(2, res);
 }
 
+
+// These test case are taken from the arm ones
+TEST(from_arm_2) {
+  BEGIN();
+  Label L, C;
+
+  __ mov(r1, r4);
+  __ mov(r0, Operand(1));
+  __ b(&C);
+
+  __ bind(&L);
+  __ mul(r0, r1, r0);
+  __ sub(r1, r1, Operand(1));
+
+  __ bind(&C);
+  __ teq(r1, Operand(0, RelocInfo::NONE));
+  __ b(ne, &L);
+
+  __ rts();
+
+  // some relocated stuff here, not executed
+  __ RecordComment("dead code, just testing relocations");
+  __ mov(r0, Operand(FACTORY->true_value()));
+  __ RecordComment("dead code, just testing immediate operands");
+  __ mov(r0, Operand(-1));
+  __ mov(r0, Operand(0xFF000000));
+  __ mov(r0, Operand(0xF0F0F0F0));
+  __ mov(r0, Operand(0xFFF0FFFF));
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(3628800, res);
+}
+
+
+TEST(from_arm_3) {
+  BEGIN();
+
+  typedef struct {
+    int i;
+    char c;
+    int16_t s;
+  } T;
+  T t;
+
+  Label L, C;
+
+  __ mov(r0, r4);
+  __ push(pr); __ push(fp);
+  __ sub(fp, sp, Operand(4));
+
+  __ ldr(r0, MemOperand(r4, OFFSET_OF(T, i)), r5);
+  __ asr(r2, r0, Operand(1), r5);
+  __ str(r2, MemOperand(r4, OFFSET_OF(T, i)), r5);
+
+  __ ldrsb(r2, MemOperand(r4, OFFSET_OF(T, c)));
+  __ add(r0, r2, r0);
+  __ lsl(r2, r2, Operand(2));
+  __ strb(r2, MemOperand(r4, OFFSET_OF(T, c)), r5);
+
+  __ ldrsh(r2, MemOperand(r4, OFFSET_OF(T, s)), r5);
+  __ add(r0, r2, r0);
+  __ asr(r2, r2, Operand(3));
+  __ strh(r2, MemOperand(r4, OFFSET_OF(T, s)), r5);
+
+  __ pop(fp); __ pop(pr);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  t.i = 100000;
+  t.c = 10;
+  t.s = 1000;
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(101010, res);
+  CHECK_EQ(100000/2, t.i);
+  CHECK_EQ(10*4, t.c);
+  CHECK_EQ(1000/8, t.s);
+}
+
+
+TEST(from_arm_12) {
+  // Test chaining of label usages within instructions (issue 1644).
+  BEGIN();
+
+  Label target;
+  __ b(eq, &target);
+  __ b(ne, &target);
+  __ bind(&target);
+  __ nop();
+}
+
