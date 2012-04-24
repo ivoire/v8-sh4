@@ -7,6 +7,7 @@ pdir=`dirname $0`
 arch=${arch:-""} # if not defined, build in native mode
 site=${site:-default}
 mode=${mode:-release}
+snapshot=${snapshot:-off}
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
@@ -28,6 +29,6 @@ fi
 [ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 [ "$profile_gcov" = on ] && export CXXFLAGS="-fprofile-arcs -ftest-coverage -fno-inline -fno-default-inline -fno-inline-functions -fno-early-inlining" && export LIBS="gcov"
 
-scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} -j ${jobs}
-scons ${arch:+arch=${arch}} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} -j ${jobs} sample=shell
-tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S backtracesupport=${backtracesupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -j ${jobs} ${tests}
+scons ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} -j ${jobs}
+scons ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} -j ${jobs} sample=shell
+tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S snapshot=${snapshot} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S backtracesupport=${backtracesupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -j ${jobs} ${tests}
