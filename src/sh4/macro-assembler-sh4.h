@@ -853,7 +853,6 @@ class MacroAssembler: public Assembler {
   void Jump(Handle<Code> code, RelocInfo::Mode rmode);
   void Call(Label* target) { call(target); }
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET, unsigned ast_id = kNoASTId);
-  void Call(Address target, RelocInfo::Mode rmode);
 
   // Emit call to the code we are currently generating.
   void CallSelf() {

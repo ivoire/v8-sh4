@@ -462,39 +462,6 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode);
 }
 
-void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
-  // TODO(stm): check whether this is necessaery
-  //   // Block constant pool for the call instruction sequence.
-  //   BlockConstPoolScope block_const_pool(this);
-  // #ifdef DEBUG
-  //   int pre_position = pc_offset();
-  // #endif
-
-  RECORD_LINE();
-
-  align();  // Force alignment such that we can check kCallTargetAddressOffset
-#ifdef DEBUG
-  int start_position = pc_offset();
-#endif
-
-  // No need to record position here for sh4. The jsr() does it.
-  // positions_recorder()->WriteRecordedPositions();
-
-  mov(sh4_ip, Operand(reinterpret_cast<int32_t>(target), rmode));
-  jsr(sh4_ip);
-
-  // The offset from the start of the call sequence to the address after
-  // the jsr/nop. Ref to assembler-sh4.h for kCallTargetAddressOffset.
-  ASSERT(kCallTargetAddressOffset == pc_offset() - start_position);
-
-
-  // TODO(stm): check whether this is necessaery
-  // #ifdef DEBUG
-  //   int post_position = pc_offset();
-  //   CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
-  // #endif
-}
-
 
 void MacroAssembler::Call(Handle<Code> code,
                           RelocInfo::Mode rmode,
@@ -509,7 +476,7 @@ void MacroAssembler::Call(Handle<Code> code,
     SetRecordedAstId(ast_id);
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
-  Call(reinterpret_cast<Address>(code.location()), rmode);
+  jsr(code, rmode, sh4_ip);
 
   // TODO(stm): check whether this is necessary
   // ASSERT_EQ(CallSize(code, rmode, ast_id, cond),
