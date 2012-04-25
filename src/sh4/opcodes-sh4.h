@@ -451,7 +451,7 @@ void fmov_indRs_(Register Rs, SwVfpRegister Rd);
 
 void fmov_indRs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-void fmov_indRd_(Register Rs, Register Rd);
+void fmov_indRd_(SwVfpRegister Rs, Register Rd);
 
 void fmov_Xdouble_indRd_(DwVfpRegister Rs, Register Rd);
 

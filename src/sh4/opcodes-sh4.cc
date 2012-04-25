@@ -1609,7 +1609,7 @@ void Assembler::fmov_indRs_Xdouble_(Register Rs, DwVfpRegister Rd) {
 }
 
 
-void Assembler::fmov_indRd_(Register Rs, Register Rd) {
+void Assembler::fmov_indRd_(SwVfpRegister Rs, Register Rd) {
   ASSERT(REGNUM(Rd) <= 15 && REGNUM(Rs) <= 15);
   emit((0xF << 12) | ((REGNUM(Rd) & 0xF) << 8) | ((REGNUM(Rs) & 0xF) << 4) |
        (0xA << 0));
