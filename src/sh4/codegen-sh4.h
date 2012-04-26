@@ -69,15 +69,6 @@ class CodeGenerator: public AstVisitor {
                               int pos,
                               bool right_here = false);
 
-  // Constants related to patching of inlined load/store.
-  static int GetInlinedKeyedLoadInstructionsAfterPatch() {
-    UNIMPLEMENTED();
-  }
-  static const int kInlinedKeyedStoreInstructionsAfterPatch = 8;
-  static int GetInlinedNamedStoreInstructionsAfterPatch() {
-    UNIMPLEMENTED();
-  }
-
  private:
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

@@ -357,19 +357,6 @@ inline Condition ReverseCondition(Condition cc) {
 }
 
 
-enum Hint {
-  no_hint = 0
-};
-
-
-// The result of negating a hint is as if the corresponding condition
-// were negated by NegateCondition.  That is, no_hint is mapped to
-// itself and not_taken and taken are mapped to each other.
-inline Hint NegateHint(Hint hint) {
-  UNIMPLEMENTED();
-}
-
-
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
