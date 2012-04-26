@@ -30,7 +30,7 @@
 #if defined(V8_TARGET_ARCH_SH4)
 
 #include "disasm.h"
-#include "constant-sh4.h"
+#include "constants-sh4.h"
 
 
 // Define this to use the disassembler in opcodes-disasm-sh4.cc.

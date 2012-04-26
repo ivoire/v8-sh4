@@ -29,7 +29,7 @@
 
 #include "disassembler.h"
 #include "factory.h"
-#include "sh4/constant-sh4.h"
+#include "sh4/constants-sh4.h"
 #include "sh4/simulator-sh4.h"
 #include "sh4/assembler-sh4-inl.h"
 #include "cctest.h"

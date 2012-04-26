@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_SH4)
 
-#include "constant-sh4.h"
+#include "constants-sh4.h"
 
 
 namespace v8 {
