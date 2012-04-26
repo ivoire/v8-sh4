@@ -105,6 +105,7 @@ static FILE* mapstream(FILE* stream) {
   } else if (stream == stderr) {
     return stderrstream;
   }
+  return stream;
 }
 #else /* !DEBUG */
 #define mapstream(stream) (stream)
