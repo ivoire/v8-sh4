@@ -11,7 +11,7 @@ snapshot=${snapshot:-off}
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
-regexp=${regexp:-interpreted}
+regexp=${regexp:-native}
 profilingsupport=${profilingsupport:-off}
 debuggersupport=${debuggersupport:-on}
 backtracesupport=${backtracesupport:-off}

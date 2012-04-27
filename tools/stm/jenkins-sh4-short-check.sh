@@ -10,7 +10,7 @@ rm -f *.log *.xml *.tgz
 
 # configuration
 arch=${arch:-sh4}
-regexp=${regexp:-interpreted}
+regexp=${regexp:-native}
 mode=${mode:-debug}
 site=${site:-stgnb}
 
