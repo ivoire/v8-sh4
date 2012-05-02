@@ -8,8 +8,6 @@ arch=${arch:-""} # if not defined, assume build in native mode
 site=${site:-default}
 mode=${mode:-release}
 
-tmpfile=`mktemp /tmp/cctestXXXXXX`
-
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
