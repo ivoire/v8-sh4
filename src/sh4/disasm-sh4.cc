@@ -33,11 +33,9 @@
 #include "constants-sh4.h"
 
 
-// Define this to use the disassembler in opcodes-disasm-sh4.cc.
-// Due to GPL licencing of the opcodes-disasm-sh4.c file, if you enable this
-// part of the code, the whole project became GPL.
-
-#define USE_KERNEL_DISASM 1
+// Due to GPL licencing of the opcodes-disasm-sh4.c file, if you enable the
+// part of code surrounded by USE_KERNEL_DISASM, the the whole project became
+// GPL.
 
 //------------------------------------------------------------------------------
 

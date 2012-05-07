@@ -350,6 +350,11 @@ V8_EXTRA_FLAGS = {
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
+    },
+    'arch:sh4': {
+      'gpl_disassembler:on': {
+        'CPPDEFINES': ['USE_KERNEL_DISASM']
+      }
     }
   },
   'msvc': {
@@ -1157,8 +1162,12 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'off',
     'help': 'enable logging and profiling'
+  },
+  'gpl_disassembler': {
+    'values': [ 'on', 'off'],
+    'default': 'off',
+    'help': 'enable the disassembler from the linux kernel: This code is GPL, making libv8 GPL if activated'
   }
-
 }
 
 ALL_OPTIONS = dict(PLATFORM_OPTIONS, **SIMPLE_OPTIONS)
@@ -1398,6 +1407,9 @@ def PostprocessOptions(options, os):
       # Print a warning that backtrace is deactivated in non release mode
       print "Warning: forcing backtracesupport off in release mode"
       options['backtracesupport'] = 'off'
+  # Print a warning if the gpl_disassembler is used in release mode
+  if options['gpl_disassembler'] == 'on' and options['mode'] == 'release':
+      print "Warning: the GPL disassembler is enabled, making libv8 GPL too !"
 
 
 def ParseEnvOverrides(arg, imports):
