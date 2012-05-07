@@ -34,14 +34,13 @@
 
 
 // Define this to use the disassembler in opcodes-disasm-sh4.cc.
-// Due to GPL licencing of the opcodes-disasm-sh4.c file, this solution
-// is temporary. We should generate the decoder from the machine desc.
+// Due to GPL licencing of the opcodes-disasm-sh4.c file, if you enable this
+// part of the code, the whole project became GPL.
+
 #define USE_KERNEL_DISASM 1
 
 //------------------------------------------------------------------------------
 
-
-#ifndef USE_KERNEL_DISASM
 
 namespace v8 {
 namespace internal {
@@ -49,16 +48,19 @@ namespace internal {
 
 //------------------------------------------------------------------------------
 
-// Decoder decodes and disassembles instructions into an output buffer.
-// It uses the converter to convert register names and call destinations into
-// more informative description.
+#ifdef USE_KERNEL_DISASM
+# define V8_IN_TYPE_DECLS 1
+#  include "opcodes-disasm-sh4.c"
+# undef  V8_IN_TYPE_DECLS
+#endif /* USE_KERNEL_DISASM */
+
 class Decoder {
  public:
-  Decoder(const disasm::NameConverter& converter,
-          Vector<char> out_buffer)
-    : converter_(converter),
-      out_buffer_(out_buffer),
-      out_buffer_pos_(0) {
+  explicit Decoder(Vector<char> out_buffer)
+    : out_buffer_(out_buffer),
+      out_buffer_pos_(0),
+      last_pool_offset_(0),
+      last_pool_size_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
   }
 
@@ -68,17 +70,7 @@ class Decoder {
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(byte* instruction);
 
-  static bool IsConstantPoolAt(byte* instr_ptr);
-  static int ConstantPoolSizeAt(byte* instr_ptr);
-
- private:
-  // Bottleneck functions to print into the out_buffer.
-  void PrintChar(const char ch);
-  void Print(const char* str);
-
-  // Print a formated stream.
-  void Format(const char *format, ...);
-
+#ifndef USE_KERNEL_DISASM
   // All Decode... function are decoding the set of instructions
   // from the tables defined in thhe architecture manual.
   // From Architecture Manual ADCS 7182230G SH-4 CPU Core Architecture
@@ -87,15 +79,75 @@ class Decoder {
 
   // Decode instructions from Table 39, p.150
   int DecodeTable39(Instruction* instr);
+#endif /* !USE_KERNEL_DISASM */
 
-  const disasm::NameConverter& converter_;
+
+  // Returns the offset from the current PC (before the instruction)
+  // and size of the reference if a PC relative dereference was decoded.
+  int LastPoolSize();
+  int LastPoolReference();
+
+ private:
+  // Print a formated stream.
+  void Format(const char *format, ...);
+
+#if USE_KERNEL_DISASM
+  // This method is implemented in opcodes-disasm-sh4.c
+  void print_sh_insn(uint32_t memaddr, uint16_t insn);
+#endif /* USE_KERNEL_DISASM */
+
   Vector<char> out_buffer_;
   int out_buffer_pos_;
+  int last_pool_offset_;
+  int last_pool_size_;
 
   DISALLOW_COPY_AND_ASSIGN(Decoder);
 };
 
+#if USE_KERNEL_DISASM
+# define printk Format
+# define __get_user(val, ptr)                   \
+  do { last_pool_offset_ = (u32)(ptr) - memaddr;\
+    last_pool_size_ = sizeof(*(ptr));           \
+    ((val) = *(ptr)); } while (0)
+# define u16 uint16_t
+# define u32 uint32_t
+#  include "opcodes-disasm-sh4.c"
+# undef u16
+# undef u32
+# undef __get_user
+# undef printk
+#endif /* USE_KERNEL_DISASM */
 
+
+void Decoder::Format(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  out_buffer_pos_ += OS::VSNPrintF(out_buffer_ + out_buffer_pos_, format, args);
+  va_end(args);
+}
+
+
+int Decoder::InstructionDecode(byte* instr_ptr) {
+  uint16_t bits = *reinterpret_cast<const uint16_t *>(instr_ptr);
+  // Print raw instruction bytes.
+  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "%02x %02x     ",
+                                  (bits & 0xff), ((bits>>8) & 0xff));
+
+#ifdef USE_KERNEL_DISASM
+  uint32_t pc = (uint32_t)(instr_ptr);
+  print_sh_insn(pc, bits);
+#else
+  Instruction* instr = Instruction::At(instr_ptr);
+  DecodeTable39(instr);
+#endif /* USE_KERNEL_DISASM */
+
+  return Instruction::kInstrSize;
+}
+
+
+#ifndef USE_KERNEL_DISASM
 
 #define FMT_T39_1 1
 #define FMT_T39_1_FMT "\t%s\t#%d,%s"
@@ -590,146 +642,8 @@ int Decoder::DecodeTable39(Instruction *instr) {
   return 1;
 }
 
-// Append the ch to the output buffer.
-void Decoder::PrintChar(const char ch) {
-  out_buffer_[out_buffer_pos_++] = ch;
-}
-
-
-// Append the str to the output buffer.
-void Decoder::Print(const char* str) {
-  char cur = *str++;
-  while (cur != '\0' && (out_buffer_pos_ < (out_buffer_.length() - 1))) {
-    PrintChar(cur);
-    cur = *str++;
-  }
-  out_buffer_[out_buffer_pos_] = 0;
-}
-
-
-void Decoder::Format(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  out_buffer_pos_ += OS::VSNPrintF(out_buffer_ + out_buffer_pos_, format, args);
-  va_end(args);
-}
-
-
-bool Decoder::IsConstantPoolAt(byte* instr_ptr) {
-  int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
-  return (instruction_bits & kConstantPoolMarkerMask) == kConstantPoolMarker;
-}
-
-
-int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
-  if (IsConstantPoolAt(instr_ptr)) {
-    int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
-    return instruction_bits & kConstantPoolLengthMask;
-  } else {
-    return -1;
-  }
-}
-
-
-int Decoder::InstructionDecode(byte* instr_ptr) {
-  Instruction* instr = Instruction::At(instr_ptr);
-  uint16_t bits = (uint16_t)(instr->InstructionBits());
-  // Print raw instruction bytes.
-  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%02x %02x     ",
-                                  (bits & 0xff), ((bits>>8) & 0xff));
-  DecodeTable39(instr);
-  return Instruction::kInstrSize;
-}
-
-
-} }  // namespace v8::internal
-
-
 #endif /* !USE_KERNEL_DISASM */
 
-
-#ifdef USE_KERNEL_DISASM
-
-
-namespace v8 {
-namespace internal {
-
-
-//------------------------------------------------------------------------------
-
-#define V8_IN_TYPE_DECLS 1
-#include "opcodes-disasm-sh4.c"
-#undef  V8_IN_TYPE_DECLS
-
-class Decoder {
- public:
-  explicit Decoder(Vector<char> out_buffer)
-    : out_buffer_(out_buffer),
-      out_buffer_pos_(0),
-      last_pool_offset_(0),
-      last_pool_size_(0) {
-    out_buffer_[out_buffer_pos_] = '\0';
-  }
-
-  ~Decoder() {}
-
-  // Writes one disassembled instruction into 'buffer' (0-terminated).
-  // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(byte* instruction);
-
-  // Returns the offset from the current PC (before the instruction)
-  // and size of the reference if a PC relative dereference was decoded.
-  int LastPoolSize();
-  int LastPoolReference();
-
- private:
-  // Print a formated stream.
-  void Format(const char *format, ...);
-
-  // This method is implemented in opcodes-disasm-sh4.c
-  void print_sh_insn(uint32_t memaddr, uint16_t insn);
-
-  Vector<char> out_buffer_;
-  int out_buffer_pos_;
-  int last_pool_offset_;
-  int last_pool_size_;
-
-  DISALLOW_COPY_AND_ASSIGN(Decoder);
-};
-
-#define printk Format
-#define __get_user(val, ptr) \
-  do { last_pool_offset_ = (u32)(ptr) - memaddr;        \
-    last_pool_size_ = sizeof(*(ptr));                        \
-    ((val) = *(ptr)); } while (0)
-#define u16 uint16_t
-#define u32 uint32_t
-#include "opcodes-disasm-sh4.c"
-#undef u16
-#undef u32
-#undef __get_user
-#undef printk
-
-
-void Decoder::Format(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  out_buffer_pos_ += OS::VSNPrintF(out_buffer_ + out_buffer_pos_, format, args);
-  va_end(args);
-}
-
-
-int Decoder::InstructionDecode(byte* instr_ptr) {
-  uint16_t bits = *reinterpret_cast<const uint16_t *>(instr_ptr);
-  uint32_t pc = (uint32_t)(instr_ptr);
-  // Print raw instruction bytes.
-  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%02x %02x     ",
-                                  (bits & 0xff), ((bits>>8) & 0xff));
-  print_sh_insn(pc, bits);
-  return Instruction::kInstrSize;
-}
 
 int Decoder::LastPoolReference() {
   return last_pool_offset_;
@@ -740,9 +654,6 @@ int Decoder::LastPoolSize() {
 }
 
 } }  // namespace v8::internal
-
-
-#endif /* USE_KERNEL_DISASM */
 
 
 //------------------------------------------------------------------------------
