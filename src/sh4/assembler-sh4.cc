@@ -1204,6 +1204,57 @@ void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 
+void Assembler::vldr(SwVfpRegister dst, const MemOperand& src, Register rtmp) {
+  if (src.rn_.is_valid()) {
+    add(rtmp, src.rm_, src.rn_);
+    fmov_indRs_(rtmp, dst);
+  } else {
+    if (src.offset_ == 0) {
+      fmov_indRs_(src.rm_, dst);
+    } else {
+      ASSERT(src.rn_.is(no_reg));
+      add(rtmp, src.rm_, Operand(src.offset_));
+      fmov_indRs_(rtmp, dst);
+    }
+  }
+}
+
+
+void Assembler::vldr(DwVfpRegister dst, const MemOperand& src, Register rtmp) {
+  if (src.rn_.is_valid()) {
+    UNIMPLEMENTED();
+  } else {
+    vldr(dst.low(), src, rtmp);
+    vldr(dst.high(), MemOperand(src.rm_, src.offset_ + 4), rtmp);
+  }
+}
+
+
+void Assembler::vstr(SwVfpRegister src, const MemOperand& dst, Register rtmp) {
+  if (dst.rn_.is_valid()) {
+    add(rtmp, dst.rm_ ,dst.rn_);
+    fmov_indRd_(src, rtmp);
+  } else {
+    if (dst.offset_ == 0) {
+      fmov_indRd_(src, dst.rm_);
+    } else {
+      ASSERT(dst.rn_.is(no_reg));
+      add(rtmp, dst.rm_, Operand(dst.offset_));
+      fmov_indRd_(src, rtmp);
+    }
+  }
+}
+
+
+void Assembler::vstr(DwVfpRegister src, const MemOperand& dst, Register rtmp) {
+  if (dst.rn_.is_valid()) {
+    UNIMPLEMENTED();
+  } else {
+    vstr(src.low(), dst, rtmp);
+    vstr(src.high(), MemOperand(dst.rm_, dst.offset_ + 4), rtmp);
+  }
+}
+
 void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
   if (dst.rn_.is_valid()) {

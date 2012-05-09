@@ -867,6 +867,12 @@ class Assembler : public AssemblerBase {
   // signed 16 bit load op.
   void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
 
+  // load to floating point registers
+  void vldr(SwVfpRegister dst, const MemOperand& src, Register rtmp = sh4_rtmp);
+  void vldr(DwVfpRegister dst, const MemOperand& src, Register rtmp = sh4_rtmp);
+  void vstr(SwVfpRegister src, const MemOperand& dst, Register rtmp = sh4_rtmp);
+  void vstr(DwVfpRegister src, const MemOperand& dst, Register rtmp = sh4_rtmp);
+
   inline void str(Register Rs, const MemOperand& dst,
                   Register rtmp = sh4_rtmp);
   void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)

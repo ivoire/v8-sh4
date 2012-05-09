@@ -1774,6 +1774,38 @@ TEST(29) {
 }
 
 
+TEST(30) {
+  typedef struct {
+    double a;
+    double b;
+  } T;
+  T t;
+  t.a = 12345.012456021864;
+  t.b = 0.1348714347684218;
+
+  BEGIN();
+  __ vldr(dr0, MemOperand(r4, OFFSET_OF(T, a)), r6);
+  __ vldr(dr2, MemOperand(r4, OFFSET_OF(T, b)), r6);
+
+  __ vstr(dr0, MemOperand(r4, OFFSET_OF(T, b)), r6);
+  __ vstr(dr2, MemOperand(r4, OFFSET_OF(T, a)), r6);
+
+  __ mov(r0, r5);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, &t, 123156, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(123156, res);
+  CHECK_EQ(t.a, 0.1348714347684218);
+  CHECK_EQ(t.b, 12345.012456021864);
+}
+
 // These test case are taken from the arm ones
 TEST(from_arm_2) {
   BEGIN();
