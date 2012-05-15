@@ -2276,7 +2276,6 @@ void BinaryOpStub::GenerateSmiCode(
   Register left = r1;
   Register right = r0;
   Register scratch1 = r7;
-  Register scratch2 = r9;
 
   // Perform combined smi check on both operands.
   __ orr(scratch1, left, right);
@@ -2367,8 +2366,8 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Register right = r0;
   Register scratch1 = r7;
   Register scratch2 = r9;
-  DwVfpRegister double_scratch = no_dreg/*d0*/;         // TODO(stm): FPU
-  SwVfpRegister single_scratch = no_freg/*s3*/;         // TODO(stm): FPU
+  // DwVfpRegister double_scratch = no_dreg/*d0*/;         // TODO(stm): FPU
+  // SwVfpRegister single_scratch = no_freg/*s3*/;         // TODO(stm): FPU
 
   Register heap_number_result = no_reg;
   Register heap_number_map = r6;
@@ -2760,22 +2759,22 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // Tagged case: tagged input on top of stack and in r0,
   //   tagged result (heap number) goes into r0.
 
-  Label input_not_smi;
-  Label loaded;
-  Label calculate;
-  Label invalid_cache;
-  const Register scratch0 = r9;
-  const Register scratch1 = r7;
-  const Register cache_entry = r0;
+  // Label input_not_smi;
+  // Label loaded;
+  // Label calculate;
+  // Label invalid_cache;
+  // const Register scratch0 = r9;
+  // const Register scratch1 = r7;
+  // const Register cache_entry = r0;
   const bool tagged = (argument_type_ == TAGGED);
 
   // FIXME(stm): FPU
   // if (CpuFeatures::IsSupported(VFP3)) {
   // }  // if (CpuFeatures::IsSupported(VFP3))
 
-  __ bind(&calculate);
+  // __ bind(&calculate);
   if (tagged) {
-    __ bind(&invalid_cache);
+    // __ bind(&invalid_cache);
     ExternalReference runtime_function =
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime_function, 1, 1);

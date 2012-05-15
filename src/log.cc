@@ -320,12 +320,14 @@ void Profiler::Disengage() {
 
 
 void Profiler::Run() {
+#if ENABLE_LOGGING_AND_PROFILING
   TickSample sample;
   bool overflow = Remove(&sample);
   while (running_) {
     LOG(isolate_, TickEvent(&sample, overflow));
     overflow = Remove(&sample);
   }
+#endif
 }
 
 
