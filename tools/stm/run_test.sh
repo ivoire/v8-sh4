@@ -49,8 +49,7 @@ if [ "$QEMU" != "" ]; then
 	QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
 	RUN_PREFIX=${RUN_PREFIX:-"$QEMU $QEMU_OPTS"}
     else
-	QEMU_PROOT_OPTS=`echo $QEMU | sed 's/ /,/g'`
-	PROOT_OPTS="-W -Q $QEMU_PROOT_OPTS $TARGET_ROOT"
+	PROOT_OPTS="-W -Q $QEMU $TARGET_ROOT"
 	RUN_PREFIX=${RUN_PREFIX:-"$PROOT $PROOT_OPTS"}
     fi
 else
