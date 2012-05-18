@@ -1554,10 +1554,82 @@ void CompareStub::Generate(MacroAssembler* masm) {
 // The stub expects its argument in the tos_ register and returns its result in
 // it, too: zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Label patch;
+  const Register map = r9.is(tos_) ? r7 : r9;
+
+  // undefined -> false.
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
+
+  // Boolean -> its value.
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true);
+
+  // 'null' -> false.
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false);
+
+  if (types_.Contains(SMI)) {
+    // Smis: 0 -> false, all other -> true
+    __ tst(tos_, Operand(kSmiTagMask));
+    // tos_ contains the correct return value already
+    __ Ret(eq);
+  } else if (types_.NeedsMap()) {
+    // If we need a map later and have a Smi -> patch.
+    __ JumpIfSmi(tos_, &patch);
+  }
+
+  if (types_.NeedsMap()) {
+    __ ldr(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
+
+    if (types_.CanBeUndetectable()) {
+      __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
+      __ tst(ip, Operand(1 << Map::kIsUndetectable));
+      // Undetectable -> false.
+      Label skip;
+      __ bt_near(&skip);
+      __ mov(tos_, Operand(0, RelocInfo::NONE));
+      __ rts();
+      __ bind(&skip);
+    }
+  }
+
+  if (types_.Contains(SPEC_OBJECT)) {
+    // Spec object -> true.
+    __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE, ge);
+    // tos_ contains the correct non-zero return value already.
+    __ Ret(eq);
+  }
+
+  if (types_.Contains(STRING)) {
+    // String value -> false iff empty.
+  __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE, ge);
+  Label skip;
+  __ bt_near(&skip);
+  __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset));
+  __ rts();  // the string length is OK as the return value
+  __ bind(&skip);
+  }
+
+  if (types_.Contains(HEAP_NUMBER)) {
+    // Heap number -> false iff +0, -0, or NaN.
+    Label not_heap_number;
+    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+    __ bf_near(&not_heap_number);
+    __ dldr(dr0, FieldMemOperand(tos_, HeapNumber::kValueOffset));
+    // "tos_" is a register, and contains a non zero value by default.
+    // Hence we only need to overwrite "tos_" with zero to return false for
+    // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
+    __ dfloat(dr2, Operand(0));
+    __ dcmpeq(dr0, dr2);
+    __ mov(tos_, Operand(0, RelocInfo::NONE), eq);  // for FP_ZERO
+    __ dcmpeq(dr0, dr0);
+    __ mov(tos_, Operand(0, RelocInfo::NONE), ne);  // for FP_NAN (dr0 != dr0 iff isnan(dr0))
+    __ Ret();
+    __ bind(&not_heap_number);
+  }
+
+  __ bind(&patch);
+  GenerateTypeTransition(masm);
 }
-
-
 
 
 void ToBooleanStub::CheckOddball(MacroAssembler* masm,

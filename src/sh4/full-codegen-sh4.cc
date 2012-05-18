@@ -613,9 +613,11 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
+  if (CpuFeatures::IsSupported(FPU)) {
+    ToBooleanStub stub(result_register());
+    __ CallStub(&stub);
+    __ tst(result_register(), result_register());
+  } else
   {
     // Call the runtime to find the boolean value of the source and then
     // translate it into control flow to the pair of labels.
