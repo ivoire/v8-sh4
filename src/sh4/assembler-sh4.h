@@ -736,6 +736,24 @@ class Assembler : public AssemblerBase {
   int fits_raw_immediate(int raw_immediate)
         { return (raw_immediate & ~0xFF) == 0; }
 
+  // FPU support
+  // Load float
+  void fldr(SwVfpRegister dst, const MemOperand& src, Register rtmp = sh4_rtmp);
+  // Load double
+  void dldr(DwVfpRegister dst, const MemOperand& src, Register rtmp = sh4_rtmp);
+ // Store float
+  void fstr(SwVfpRegister src, const MemOperand& dst, Register rtmp = sh4_rtmp);
+  // Store double
+  void dstr(DwVfpRegister src, const MemOperand& dst, Register rtmp = sh4_rtmp);
+
+  // Double conversion from register: Dd = (double)Rs
+  void dfloat(DwVfpRegister Dd, Register Rs);
+  // Double conversion from int operand: Dd = (double)imm
+  void dfloat(DwVfpRegister Dd, const Operand &imm, Register rtmp = sh4_rtmp);
+
+  // Double comparisons
+  void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Dd, Ds); }
+
   // Read/patch instructions
   static Instr instr_at(byte* pc)
         { return *reinterpret_cast<Instr*>(pc); }
@@ -884,12 +902,6 @@ class Assembler : public AssemblerBase {
   void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   // signed 16 bit load op.
   void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
-
-  // load to floating point registers
-  void vldr(SwVfpRegister dst, const MemOperand& src, Register rtmp = sh4_rtmp);
-  void vldr(DwVfpRegister dst, const MemOperand& src, Register rtmp = sh4_rtmp);
-  void vstr(SwVfpRegister src, const MemOperand& dst, Register rtmp = sh4_rtmp);
-  void vstr(DwVfpRegister src, const MemOperand& dst, Register rtmp = sh4_rtmp);
 
   inline void str(Register Rs, const MemOperand& dst,
                   Register rtmp = sh4_rtmp);

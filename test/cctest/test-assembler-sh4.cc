@@ -1784,11 +1784,11 @@ TEST(30) {
   t.b = 0.1348714347684218;
 
   BEGIN();
-  __ vldr(dr0, MemOperand(r4, OFFSET_OF(T, a)), r6);
-  __ vldr(dr2, MemOperand(r4, OFFSET_OF(T, b)), r6);
+  __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, a)), r6);
+  __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, b)), r6);
 
-  __ vstr(dr0, MemOperand(r4, OFFSET_OF(T, b)), r6);
-  __ vstr(dr2, MemOperand(r4, OFFSET_OF(T, a)), r6);
+  __ dstr(dr0, MemOperand(r4, OFFSET_OF(T, b)), r6);
+  __ dstr(dr2, MemOperand(r4, OFFSET_OF(T, a)), r6);
 
   __ mov(r0, r5);
   __ rts();
