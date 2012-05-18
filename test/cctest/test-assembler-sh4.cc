@@ -42,6 +42,7 @@ typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
 typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
+typedef Object* (*F5)(double x, double y, int p2, int p3, int p4);
 
 
 static v8::Persistent<v8::Context> env;
@@ -1805,6 +1806,36 @@ TEST(30) {
   CHECK_EQ(t.a, 0.1348714347684218);
   CHECK_EQ(t.b, 12345.012456021864);
 }
+
+
+TEST(31) {
+  Label end;
+
+  BEGIN();
+  __ dfloat(dr0, Operand(0));
+  __ mov(r0, Operand(0));
+  __ dfloat(dr4, r0);
+
+  __ dcmpeq(dr0, dr4);
+  __ bt(&end);
+
+  __ mov(r0, Operand(1));
+  __ rts();
+
+  __ bind(&end);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0.0f, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
+
 
 // These test case are taken from the arm ones
 TEST(from_arm_2) {
