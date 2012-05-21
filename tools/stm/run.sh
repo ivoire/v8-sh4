@@ -43,20 +43,20 @@ library=${library:-shared}
 profile_gcov=${profile_gcov:-off}
 [ "$profile_gcov" = on ] && jobs=1 && find . -name '*.gcda' -exec rm {} \;
 
+export LANG=
+export TZ=:Europe/London
 if [ "$QEMU" != "" ]; then
     if [ "$PROOT" = "" ]; then
-	QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
-	RUN_PREFIX=${RUN_PREFIX:-"$QEMU $QEMU_OPTS"}
+	    QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
+	    RUN_PREFIX=${RUN_PREFIX:-"$QEMU $QEMU_OPTS"}
+        echo Running $RUN_PREFIX ${1+"$@"}
+        exec $RUN_PREFIX ${1+"$@"}
     else
-	QEMU_PROOT_OPTS=`echo $QEMU | sed 's/ /,/g'`
-	PROOT_OPTS="-W -Q $QEMU_PROOT_OPTS $TARGET_ROOT"
-	RUN_PREFIX=${RUN_PREFIX:-"$PROOT $PROOT_OPTS"}
+        echo Running $PROOT -W -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
+        exec $PROOT -W -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
     fi
 else
     RUN_PREFIX="${RUN_PREFIX}"
+    echo Running $RUN_PREFIX ${1+"$@"}
+    exec $RUN_PREFIX ${1+"$@"}
 fi
-
-export LANG=
-export TZ=:Europe/London
-echo Running $RUN_PREFIX ${1+"$@"}
-exec $RUN_PREFIX ${1+"$@"}
