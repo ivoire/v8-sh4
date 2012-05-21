@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import shlex
 import test
 import os
 from os.path import join, dirname, exists, isfile
@@ -55,10 +56,10 @@ class PreparserTestCase(test.TestCase):
 
   def BuildCommand(self, path):
     if (self.source is not None):
-      result = self.context.run_prefix.split() + [self.executable, "-e", self.source]
+      result = shlex.split(self.context.run_prefix) + [self.executable, "-e", self.source]
     else:
       testfile = join(self.root, self.GetName()) + ".js"
-      result = self.context.run_prefix.split() + [self.executable, testfile]
+      result = shlex.split(self.context.run_prefix) + [self.executable, testfile]
     if (self.throws):
       result += ['throws'] + self.throws
     return result

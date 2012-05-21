@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import shlex
 import test
 import os
 from os.path import join, dirname, exists
@@ -57,7 +58,7 @@ class CcTestCase(test.TestCase):
     serialization_file = join(self.context.buildspace, serialization_file)
     serialization_file += ''.join(self.variant_flags).replace('-', '_')
     serialization_option = '--testing_serialization_file=' + serialization_file
-    result = self.context.run_prefix.split() + [ self.executable, name, serialization_option ]
+    result = shlex.split(self.context.run_prefix) + [ self.executable, name, serialization_option ]
     result += self.context.GetVmFlags(self, self.mode)
     return result
 
@@ -91,7 +92,7 @@ class CcTestConfiguration(test.TestConfiguration):
       if utils.IsWindows():
         executable += '.exe'
       executable = join(self.context.buildspace, executable)
-    output = test.Execute(self.context.run_prefix.split() + [executable, '--list'], self.context)
+    output = test.Execute(shlex.split(self.context.run_prefix) + [executable, '--list'], self.context)
     if output.exit_code != 0:
       print output.stdout
       print output.stderr

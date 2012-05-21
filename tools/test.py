@@ -34,6 +34,7 @@ import os
 from os.path import join, dirname, abspath, basename, isdir, exists
 import platform
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -703,7 +704,7 @@ class Context(object):
     return name
 
   def GetVmCommand(self, testcase, mode):
-    return self.run_prefix.split() + [self.GetVm(mode)] + self.GetVmFlags(testcase, mode)
+    return shlex.split(self.run_prefix) + [self.GetVm(mode)] + self.GetVmFlags(testcase, mode)
 
   def GetVmFlags(self, testcase, mode):
     flags = testcase.GetCustomFlags(mode)
