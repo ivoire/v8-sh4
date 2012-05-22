@@ -1202,15 +1202,15 @@ void Assembler::movd(DwVfpRegister Dd, Register Rs1, Register Rs2) {
   align();
   push(Rs1);
   push(Rs2);
-  fmov_incRs_(sp, SwVfpRegister::from_code(Dd.code()));
-  fmov_incRs_(sp, SwVfpRegister::from_code(Dd.code()+1));
+  fmov_incRs_(sp, Dd.low());
+  fmov_incRs_(sp, Dd.high());
 }
 
 
 void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds) {
   align();
-  fmov_decRd_(SwVfpRegister::from_code(Ds.code()), sp);
-  fmov_decRd_(SwVfpRegister::from_code(Ds.code()+1), sp);
+  fmov_decRd_(Ds.low(), sp);
+  fmov_decRd_(Ds.high(), sp);
   pop(Rd1);
   pop(Rd2);
 }
