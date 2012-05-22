@@ -861,3 +861,7 @@ ecma/Expressions/11.7.3: SKIP
 ecma/Expressions/11.10-3: SKIP
 ecma/Expressions/11.7.1: SKIP
 ecma_3/RegExp/regress-209067: SKIP
+
+[ $arch == sh4 ]
+# This test fail under QEMU but not on board
+js1_5/Regress/regress-465137: FAIL_OK
