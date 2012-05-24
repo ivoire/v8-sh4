@@ -303,7 +303,6 @@ void Decoder::print_sh_insn(u32 memaddr, u16 insn)
 {
         int relmask = ~0;
         int nibs[4] = { (insn >> 12) & 0xf, (insn >> 8) & 0xf, (insn >> 4) & 0xf, insn & 0xf};
-        int lastsp;
         struct sh_opcode_info *op = sh_table;
 
         for (; op->name; op++) {
@@ -388,7 +387,6 @@ void Decoder::print_sh_insn(u32 memaddr, u16 insn)
 
         ok:
                 printk("%-8s  ", op->name);
-                lastsp = (op->arg[0] == A_END);
                 disp_pc = 0;
                 for (n = 0; n < 6 && op->arg[n] != A_END; n++) {
                         if (n && op->arg[1] != A_END)
