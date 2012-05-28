@@ -754,6 +754,12 @@ class Assembler : public AssemblerBase {
   // Double comparisons
   void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Dd, Ds); }
 
+  // FPU operations
+  void fadd(DwVfpRegister Dd, DwVfpRegister Ds)     { fadd_double_(Ds, Dd); }
+  void fsub(DwVfpRegister Dd, DwVfpRegister Ds)     { fsub_double_(Ds, Dd); }
+  void fmul(DwVfpRegister Dd, DwVfpRegister Ds)     { fmul_double_(Ds, Dd); }
+  void fdiv(DwVfpRegister Dd, DwVfpRegister Ds)     { fdiv_double_(Ds, Dd); }
+
   // Read/patch instructions
   static Instr instr_at(byte* pc)
         { return *reinterpret_cast<Instr*>(pc); }

@@ -1831,10 +1831,59 @@ TEST(31) {
 
   F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123, 0, 0, 0, 0));
-  ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
 
+
+TEST(32) {
+  BEGIN();
+
+  Label error;
+  PROLOGUE();
+
+  __ dfloat(dr0, Operand(34));
+  __ fadd(dr0, dr4);
+  __ dfloat(dr2, Operand(456 + 34));
+  __ dcmpeq(dr2, dr0);
+  B_LINE(f, &error);
+
+  __ dfloat(dr2, Operand(56));
+  __ fsub(dr0, dr2);
+  __ dfloat(dr2, Operand(456 + 34 - 56));
+  __ dcmpeq(dr2, dr0);
+  B_LINE(f, &error);
+
+  __ dfloat(dr2, Operand(7));
+  __ fmul(dr0, dr2);
+  __ dfloat(dr2, Operand((456 + 34 - 56) * 7));
+  __ dcmpeq(dr2, dr0);
+  B_LINE(f, &error);
+
+  __ dfloat(dr2, Operand(2));
+  __ fdiv(dr0, dr2);
+  __ dfloat(dr2, Operand(((456 + 34 - 56) * 7) / 2));
+  __ dcmpeq(dr2, dr0);
+  B_LINE(f, &error);
+
+  // All ok
+  __ mov(r0, Operand(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 456, 0, 0, 0, 0));
+  CHECK_EQ(0, res);
+}
 
 // These test case are taken from the arm ones
 TEST(from_arm_2) {
