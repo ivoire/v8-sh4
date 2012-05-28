@@ -1812,9 +1812,8 @@ TEST(31) {
   Label end;
 
   BEGIN();
-  __ dfloat(dr0, Operand(0));
+  __ dfloat(dr0, Operand(123));
   __ mov(r0, Operand(0));
-  __ dfloat(dr4, r0);
 
   __ dcmpeq(dr0, dr4);
   __ bt(&end);
@@ -1831,7 +1830,7 @@ TEST(31) {
 #endif
 
   F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0.0f, 0, 0, 0, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
