@@ -1314,6 +1314,13 @@ void Assembler::dfloat(DwVfpRegister Dd, Register Rs)
 }
 
 
+void Assembler::idouble(Register Rd, DwVfpRegister Ds)
+{
+  ftrc_double_FPUL_(Ds);
+  sts_FPUL_(Rd);
+}
+
+
 void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
   if (dst.rn_.is_valid()) {

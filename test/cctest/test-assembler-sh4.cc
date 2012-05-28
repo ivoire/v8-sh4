@@ -1885,6 +1885,43 @@ TEST(32) {
   CHECK_EQ(0, res);
 }
 
+
+TEST(33) {
+  BEGIN();
+
+  Label error;
+  PROLOGUE();
+
+  __ idouble(r1, dr4);
+  __ cmpeq(r1, Operand(4212));
+  B_LINE(f, &error);
+
+  __ dfloat(dr2, Operand(343575789));
+  __ idouble(r3, dr2);
+  __ cmpeq(r3, Operand(343575789));
+  B_LINE(f, &error);
+
+  // All ok
+  EPILOGUE();
+  __ mov(r0, Operand(0));
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 4212, 0, 0, 0, 0));
+  CHECK_EQ(0, res);
+}
+
+
 // These test case are taken from the arm ones
 TEST(from_arm_2) {
   BEGIN();

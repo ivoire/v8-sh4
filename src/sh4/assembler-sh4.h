@@ -751,6 +751,9 @@ class Assembler : public AssemblerBase {
   // Double conversion from int operand: Dd = (double)imm
   void dfloat(DwVfpRegister Dd, const Operand &imm, Register rtmp = sh4_rtmp);
 
+  // Interger conversion from double: Rs = (int)Dd
+  void idouble(Register Rd, DwVfpRegister Ds);
+
   // Double comparisons
   void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Dd, Ds); }
 
