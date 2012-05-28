@@ -2213,7 +2213,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         FloatingPointHelper::CallCCodeForDoubleOperation(masm,
                                                          op_,
                                                          result,
-                                                         scratch3);
+                                                         scratch1);
         if (FLAG_debug_code) {
           __ stop("Unreachable code.");
         }
