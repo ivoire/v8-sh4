@@ -1268,8 +1268,8 @@ void Assembler::dldr(DwVfpRegister dst, const MemOperand& src, Register rtmp) {
   if (src.rn_.is_valid()) {
     UNIMPLEMENTED();
   } else {
-    fldr(dst.low(), src, rtmp);
-    fldr(dst.high(), MemOperand(src.rm_, src.offset_ + 4), rtmp);
+    fldr(dst.high(), src, rtmp);
+    fldr(dst.low(), MemOperand(src.rm_, src.offset_ + 4), rtmp);
   }
 }
 
@@ -1294,8 +1294,8 @@ void Assembler::dstr(DwVfpRegister src, const MemOperand& dst, Register rtmp) {
   if (dst.rn_.is_valid()) {
     UNIMPLEMENTED();
   } else {
-    fstr(src.low(), dst, rtmp);
-    fstr(src.high(), MemOperand(dst.rm_, dst.offset_ + 4), rtmp);
+    fstr(src.high(), dst, rtmp);
+    fstr(src.low(), MemOperand(dst.rm_, dst.offset_ + 4), rtmp);
   }
 }
 
