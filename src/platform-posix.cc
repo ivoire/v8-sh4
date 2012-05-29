@@ -523,7 +523,7 @@ void OS::Backtrace(FILE * out) {
 #ifdef ENABLE_BACKTRACE
 
   void *bkt_buffer[32];
-  fprintf(mapstream(out), 
+  fprintf(mapstream(out),
 	  "==== Native backtrace =======================================\n");
   fflush(mapstream(out));
   int nptrs =  backtrace(bkt_buffer, sizeof(bkt_buffer)/sizeof(*bkt_buffer));

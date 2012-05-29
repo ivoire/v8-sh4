@@ -283,7 +283,7 @@ bool OS::MipsCpuHasFeature(CpuFeature feature) {
 bool OS::SHCpuHasFeature(CpuFeature feature) {
   switch(feature) {
     case FPU:
-      // Assume FPU is always active. 
+      // Assume FPU is always active.
       // All supported SH4 implementation feature it
       return true;
     default:

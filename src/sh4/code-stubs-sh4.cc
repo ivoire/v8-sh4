@@ -3116,7 +3116,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ str(r0, MemOperand(sp, (1+0)*kPointerSize)); // skip lr location at sp[1]
   __ str(r1, MemOperand(sp, (1+1)*kPointerSize));
   __ str(r3, MemOperand(sp, (1+2)*kPointerSize));
-  
+
   // sh4_r8: number of arguments (C callee-saved)
   // sh4_r9: pointer to builtin function (C callee-saved)
   // sh4_r10: pointer to first argument (C callee-saved)
@@ -6063,7 +6063,8 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ mov(scratch1, Operand(function));
   GenerateCall(masm, scratch1, scratch2);
 }
-  
+
+
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
 				    Register target,
 				    Register scratch1) {

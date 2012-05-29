@@ -809,7 +809,7 @@ class Assembler : public AssemblerBase {
   // to wrap on SH4 (i.e. the least 5 bits are extracted before doing the shift), thus
   // in this case the boolean parameter is called wrap and this semantic can be used
   // on purpose whatever the shift amount.
-  
+
   // arithmetic shift right
   void asr(Register Rd, Register Rs, Register Rt, bool in_range = false, Register rtmp = sh4_rtmp);
   void asr(Register Rd, Register Rs, const Operand& imm,
