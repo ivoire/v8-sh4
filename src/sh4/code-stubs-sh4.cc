@@ -391,10 +391,16 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
                                    FloatingPointHelper::Destination destination,
                                    Register scratch1,
                                    Register scratch2) {
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    __ asr(scratch1, r0, Operand(kSmiTagSize));
+    __ dfloat(dr2, scratch1);
+    __ asr(scratch1, r1, Operand(kSmiTagSize));
+    __ dfloat(dr0, scratch1);
+    if (destination == kCoreRegisters) {
+      __ movd(r2, r3, dr2);
+      __ movd(r0, r1, dr0);
+    }
+  } else {
     ASSERT(destination == kCoreRegisters);
     // Write Smi from r0 to r3 and r2 in double format.
     __ mov(scratch1, r0);
@@ -422,11 +428,11 @@ void FloatingPointHelper::LoadOperands(
   ASSERT(!heap_number_map.is(r0) && !heap_number_map.is(r1) &&
          !heap_number_map.is(r2) && !heap_number_map.is(r3));
   LoadNumber(masm, destination,
-             r0, no_dreg/*d7*/, r2, r3, heap_number_map, scratch1, scratch2, slow);
+             r0, dr2, r2, r3, heap_number_map, scratch1, scratch2, slow);
 
   // Load left operand (r1) to d6 or r0/r1.
   LoadNumber(masm, destination,
-             r1, no_dreg/*d7*/, r0, r1, heap_number_map, scratch1, scratch2, slow);
+             r1, dr0, r0, r1, heap_number_map, scratch1, scratch2, slow);
 }
 
 
@@ -440,27 +446,24 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
                                      Register scratch1,
                                      Register scratch2,
                                      Label* not_number) {
-  // TODO(stm): remove this assert when FPU is supported
-  ASSERT(dst.is(no_dreg));
-
   if (FLAG_debug_code) {
     __ AbortIfNotRootValue(heap_number_map,
                            Heap::kHeapNumberMapRootIndex,
                            "HeapNumberMap register clobbered.");
   }
 
-  Label is_smi;
-  Label done;
+  Label is_smi, done;
 
   __ JumpIfSmi(object, &is_smi, Label::kNear);
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_number);
 
   // Handle loading a double from a heap number.
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3) &&
-  //     destination == kVFPRegisters) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU) &&
+      destination == kVFPRegisters) {
+    // Load the double from tagged HeapNumber to double register.
+    __ sub(scratch1, object, Operand(kHeapObjectTag));
+    __ dldr(dst, MemOperand(scratch1, HeapNumber::kValueOffset));
+  } else {
     ASSERT(destination == kCoreRegisters);
     // Load the double from heap number to dst1 and dst2 in double format.
     __ Ldrd(dst1, dst2, FieldMemOperand(object, HeapNumber::kValueOffset));
@@ -469,10 +472,15 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
 
   // Handle loading a double from a smi.
   __ bind(&is_smi);
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    // Convert smi to double using FPU instructions.
+    __ SmiUntag(scratch1, object);
+    __ dfloat(dst, scratch1);
+    if (destination == kCoreRegisters) {
+      // Load the converted smi to dst1 and dst2 in double format.
+      __ movd(dst1, dst2, dst);
+    }
+  } else {
     ASSERT(destination == kCoreRegisters);
     // Write smi to dst1 and dst2 double format.
     __ mov(scratch1, object);
@@ -2181,10 +2189,9 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       // Load left and right operands into d6 and d7 or r0/r1 and r2/r3
       // depending on whether VFP3 is available or not.
       FloatingPointHelper::Destination destination =
-     // TODO(stm): FPU
-          // CpuFeatures::IsSupported(VFP3) &&
-          // op_ != Token::MOD ?
-          // FloatingPointHelper::kVFPRegisters :
+          CpuFeatures::IsSupported(FPU) &&
+          op_ != Token::MOD ?
+          FloatingPointHelper::kVFPRegisters :
           FloatingPointHelper::kCoreRegisters;
 
       // Allocate new heap number for result.
@@ -2205,10 +2212,32 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       }
 
       // Calculate the result.
-      // TODO(stm): FPU
-      // if (destination == FloatingPointHelper::kVFPRegisters) {
-      // } else
-      {
+      if (destination == FloatingPointHelper::kVFPRegisters) {
+        // Using VFP registers:
+        // dr0: Left value   d6
+        // dr2: Right value  d7
+        switch (op_) {
+          case Token::ADD:
+            __ fadd(dr0, dr2);
+            break;
+          case Token::SUB:
+            __ fsub(dr0, dr2);
+            break;
+          case Token::MUL:
+            __ fmul(dr0, dr2);
+            break;
+          case Token::DIV:
+            __ fdiv(dr0, dr2);
+            break;
+          default:
+            UNREACHABLE();
+        }
+
+        __ sub(r0, result, Operand(kHeapObjectTag));
+        __ dstr(dr0, MemOperand(r0, HeapNumber::kValueOffset));
+        __ add(r0, r0, Operand(kHeapObjectTag));
+        __ Ret();
+      } else {
         // Call the C function to handle the double operation.
         FloatingPointHelper::CallCCodeForDoubleOperation(masm,
                                                          op_,
