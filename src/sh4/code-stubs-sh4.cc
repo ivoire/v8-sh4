@@ -551,8 +551,6 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
                                              Register dst2,
                                              Register scratch2,
                                              SwVfpRegister single_scratch) {
-  // TODO(stm): remove these asserts when the FPU is used
-  ASSERT(double_dst.is(no_dreg));
   ASSERT(single_scratch.is(no_freg));
 
   ASSERT(!int_scratch.is(scratch2));
@@ -561,10 +559,12 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
 
   Label done;
 
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(VFP3)) {
+    __ dfloat(double_dst, int_scratch);
+    if (destination == kCoreRegisters) {
+      __ movd(dst1, dst2, double_dst);
+    }
+  } else {
     Label fewer_than_20_useful_bits;
     // Expected output:
     // |         dst2            |         dst1            |
@@ -635,7 +635,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Label* not_int32) {
   // TODO(stm): remove these asserts when the FPU is used
   ASSERT(single_scratch.is(no_freg));
-  ASSERT(double_dst.is(no_dreg));
+
   ASSERT(!scratch1.is(object) && !scratch2.is(object));
   ASSERT(!scratch1.is(scratch2));
   ASSERT(!heap_number_map.is(object) &&
@@ -2267,7 +2267,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                                   scratch1,
                                                   scratch2,
                                                   scratch3,
-                                                  no_dreg/*TODO:d0*/,
+                                                  dr0,
                                                   not_numbers);
         FloatingPointHelper::ConvertNumberToInt32(masm,
                                                   right,
@@ -2276,7 +2276,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
                                                   scratch1,
                                                   scratch2,
                                                   scratch3,
-                                                  no_dreg/*TODO:d0*/,
+                                                  dr0,
                                                   not_numbers);
       }
 
@@ -2497,32 +2497,33 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       // Load both operands and check that they are 32-bit integer.
       // Jump to type transition if they are not. The registers r0 and r1 (right
       // and left) are preserved for the runtime call.
+      // TODO(STM): for the moment we only use core registers
       FloatingPointHelper::Destination destination =
-          (0/*CpuFeatures::IsSupported(VFP3)*/ && op_ != Token::MOD)
+/*          (CpuFeatures::IsSupported(FPU) && op_ != Token::MOD)
               ? FloatingPointHelper::kVFPRegisters
-              : FloatingPointHelper::kCoreRegisters;
+              : */FloatingPointHelper::kCoreRegisters;
 
       FloatingPointHelper::LoadNumberAsInt32Double(masm,
                                                    right,
                                                    destination,
-                                                   no_dreg/*TODO:d7*/,
+                                                   dr2,
                                                    r2,
                                                    r3,
                                                    heap_number_map,
                                                    scratch1,
                                                    scratch2,
-                                                   no_freg/*TODO:s0*/,
+                                                   no_freg,
                                                    &transition);
       FloatingPointHelper::LoadNumberAsInt32Double(masm,
                                                    left,
                                                    destination,
-                                                   no_dreg/*TODO:d6*/,
+                                                   dr0,
                                                    r4,
                                                    r5,
                                                    heap_number_map,
                                                    scratch1,
                                                    scratch2,
-                                                   no_freg/*TODO:s0*/,
+                                                   no_freg,
                                                    &transition);
 
     // TODO(stm): FPU

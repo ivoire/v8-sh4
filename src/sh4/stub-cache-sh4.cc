@@ -3500,7 +3500,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       FloatingPointHelper::ConvertIntToDouble(masm,
                                               value,
                                               dest,
-                                              /*d0*/no_dreg,
+                                              dr0,
                                               dst1,
                                               dst2,
                                               r9,
@@ -3747,7 +3747,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       FloatingPointHelper::ConvertIntToDouble(
           masm, r5, destination,
-          /*d0*/no_dreg, r6, r7,  // These are: double_dst, dst1, dst2.
+          dr0, r6, r7,  // These are: double_dst, dst1, dst2.
           r4, /*s2*/no_freg);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kVFPRegisters) {
         UNIMPLEMENTED();
@@ -4258,7 +4258,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
       masm,
       untagged_value,
       destination,
-      /*d0*/no_dreg,
+      dr0,
       mantissa_reg,
       exponent_reg,
       scratch4,
