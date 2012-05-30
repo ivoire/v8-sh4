@@ -3431,19 +3431,21 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ ldr(value, MemOperand(r3, value));
       break;
     case EXTERNAL_FLOAT_ELEMENTS:
-      // TODO(stm): FPU
-      // if (CpuFeatures::IsSupported(VFP3)) {
-      // } else
-      {
+      if (CpuFeatures::IsSupported(VFP3)) {
+        __ lsl(r2, key, Operand(1));
+        __ add(r2, r3, r2);
+        __ fldr(fr0, MemOperand(r2, 0));
+      } else {
         __ lsl(value, key, Operand(1));
         __ ldr(value, MemOperand(r3, value));
       }
       break;
     case EXTERNAL_DOUBLE_ELEMENTS:
-      // TODO(stm): FPU
-      // if (CpuFeatures::IsSupported(VFP3)) {
-      // } else
-      {
+      if (CpuFeatures::IsSupported(VFP3)) {
+        __ lsl(r2, key, Operand(2));
+        __ add(r2, r3, r2);
+        __ dldr(dr0, MemOperand(r2, 0));
+      } else {
         __ lsl(r4, key, Operand(2));
         __ add(r4, r3, r4);
         // r4: pointer to the beginning of the double we want to load.
@@ -3489,10 +3491,12 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     // Now we can use r0 for the result as key is not needed any more.
     __ mov(r0, r5);
 
-    // TODO(stm): FPU
-    // if (CpuFeatures::IsSupported(VFP3)) {
-    // } else
-    {
+    if (CpuFeatures::IsSupported(FPU)) {
+      __ dfloat(dr0, value);
+      __ sub(r3, r0, Operand(kHeapObjectTag));
+      __ dstr(dr0, MemOperand(r3, HeapNumber::kValueOffset));
+      __ Ret();
+    } else {
       Register dst1 = r1;
       Register dst2 = r3;
       FloatingPointHelper::Destination dest =
@@ -3557,10 +3561,19 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   } else if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
-    // TODO(stm): FPU
-    // if (CpuFeatures::IsSupported(VFP3)) {
-    // } else
-    {
+    if (CpuFeatures::IsSupported(VFP3)) {
+      // Allocate a HeapNumber for the result. Don't use r0 and r1 as
+      // AllocateHeapNumber clobbers all registers - also when jumping due to
+      // exhausted young space.
+      __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
+      __ fcnvsd(dr0, fr0);
+      __ sub(r1, r2, Operand(kHeapObjectTag));
+      __ dstr(dr0, MemOperand(r1, HeapNumber::kValueOffset));
+
+      __ mov(r0, r2);
+      __ Ret();
+    } else {
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
@@ -3617,10 +3630,18 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ Ret();
     }
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    // TODO(stm): FPU
-    // if (CpuFeatures::IsSupported(VFP3)) {
-    // } else
-    {
+    if (CpuFeatures::IsSupported(VFP3)) {
+      // Allocate a HeapNumber for the result. Don't use r0 and r1 as
+      // AllocateHeapNumber clobbers all registers - also when jumping due to
+      // exhausted young space.
+      __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
+      __ sub(r1, r2, Operand(kHeapObjectTag));
+      __ dstr(dr0, MemOperand(r1, HeapNumber::kValueOffset));
+
+      __ mov(r0, r2);
+      __ Ret();
+    } else {
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
@@ -3738,11 +3759,9 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       __ add(r3, r3, r4);
       // r3: effective address of the double element
       FloatingPointHelper::Destination destination;
-      // TODO(stm): FPU
-      //if (CpuFeatures::IsSupported(VFP3)) {
-      //  destination = FloatingPointHelper::kVFPRegisters;
-      //} else
-      {
+      if (CpuFeatures::IsSupported(VFP3)) {
+        destination = FloatingPointHelper::kVFPRegisters;
+      } else {
         destination = FloatingPointHelper::kCoreRegisters;
       }
       FloatingPointHelper::ConvertIntToDouble(
@@ -3750,7 +3769,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           dr0, r6, r7,  // These are: double_dst, dst1, dst2.
           r4, /*s2*/no_freg);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kVFPRegisters) {
-        UNIMPLEMENTED();
+        __ dstr(dr0, MemOperand(r3, 0));
       } else {
         __ str(r6, MemOperand(r3, 0));
         __ str(r7, MemOperand(r3, Register::kSizeInBytes));
@@ -4244,11 +4263,9 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   FloatingPointHelper::Destination destination;
 
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  //  UNIMPLEMENTED();
-  // } else {
-  {
+  if (CpuFeatures::IsSupported(VFP3)) {
+    destination = FloatingPointHelper::kVFPRegisters;
+  } else {
     destination = FloatingPointHelper::kCoreRegisters;
   }
 
@@ -4264,7 +4281,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
       scratch4,
       /*s2*/no_freg);
   if (destination == FloatingPointHelper::kVFPRegisters) {
-    UNIMPLEMENTED();
+    __ dstr(dr0, MemOperand(scratch, 0));
   } else {
     __ str(mantissa_reg, MemOperand(scratch, 0));
     __ str(exponent_reg, MemOperand(scratch, Register::kSizeInBytes));

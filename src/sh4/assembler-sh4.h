@@ -754,6 +754,9 @@ class Assembler : public AssemblerBase {
   // Interger conversion from double: Rs = (int)Dd
   void idouble(Register Rd, DwVfpRegister Ds);
 
+  // Conversion from simple to double
+  void fcnvsd(DwVfpRegister Dd, SwVfpRegister Fs)   { flds_FPUL_(Fs); fcnvsd_FPUL_double_(Dd); }
+
   // Double comparisons
   void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Dd, Ds); }
 
