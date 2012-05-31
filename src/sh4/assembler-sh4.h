@@ -756,6 +756,8 @@ class Assembler : public AssemblerBase {
 
   // Conversion from simple to double
   void fcnvsd(DwVfpRegister Dd, SwVfpRegister Fs)   { flds_FPUL_(Fs); fcnvsd_FPUL_double_(Dd); }
+  // Conversion from double to simple
+  void fcnvds(SwVfpRegister Fd, DwVfpRegister Ds)   { fcnvds_double_FPUL_(Ds); fsts_FPUL_(Fd); }
 
   // Double comparisons
   void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Dd, Ds); }
