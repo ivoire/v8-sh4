@@ -2011,6 +2011,99 @@ TEST(from_arm_3) {
 }
 
 
+TEST(from_arm_4) {
+  // Test the FPU floating point instructions.
+  BEGIN();
+
+  typedef struct {
+    double a;
+    double b;
+    double c;
+    double d;
+    double e;
+    double f;
+    double g;
+    double h;
+    int i;
+    float x;
+    float y;
+  } T;
+  T t;
+
+  Label L, C;
+
+  __ mov(r0, sp);
+  __ push(pr); __ push(fp); __ push(r4);
+  __ sub(fp, r0, Operand(4));
+
+  __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, a)));
+  __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, b)));
+  __ fadd(dr0, dr2);
+  __ dstr(dr0, MemOperand(r4, OFFSET_OF(T, c)));
+
+  __ movd(r2, r3, dr0);
+  __ movd(dr0, r2, r3);
+  __ dstr(dr0, MemOperand(r4, OFFSET_OF(T, b)));
+
+  // Load t.x and t.y, switch values, and store back to the struct.
+  __ fldr(fr0, MemOperand(r4, OFFSET_OF(T, x)));
+  __ fldr(fr1, MemOperand(r4, OFFSET_OF(T, y)));
+  __ fstr(fr1, MemOperand(r4, OFFSET_OF(T, x)));
+  __ fstr(fr0, MemOperand(r4, OFFSET_OF(T, y)));
+
+  // Load a double and store it as an integer
+  __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, d)));
+  __ idouble(r0, dr0);
+  __ str(r0, MemOperand(r4, OFFSET_OF(T, i)));
+
+  // Divisions and multiplications
+  __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, e)));
+  __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, f)));
+  __ fmul(dr2, dr0);
+  __ dstr(dr2, MemOperand(r4, OFFSET_OF(T, e)));
+
+  __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, f)));
+  __ fdiv(dr2, dr0);
+  __ dstr(dr2, MemOperand(r4, OFFSET_OF(T, f)));
+
+  __ dldr(dr4, MemOperand(r4, OFFSET_OF(T, g)));
+  __ dldr(dr6, MemOperand(r4, OFFSET_OF(T, h)));
+  __ fsub(dr4, dr6);
+  __ dstr(dr4, MemOperand(r4, OFFSET_OF(T,g)));
+
+  __ pop(r4); __ pop(fp); __ pop(pr);
+  __ rts();
+
+    JIT();
+#ifdef DEBUG
+    Code::cast(code)->Print();
+#endif
+    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    t.a = 1.5;
+    t.b = 2.75;
+    t.c = 17.17;
+    t.d = 17.17;
+    t.e = 1234.56;
+    t.f = 12.1;
+    t.g = 2718.2818;
+    t.h = 31415926.5;
+    t.i = 0;
+    t.x = 4.5;
+    t.y = 9.0;
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    USE(dummy);
+    CHECK_EQ(1.5, t.a);
+    CHECK_EQ(1.5+2.75, t.b);
+    CHECK_EQ(1.5+2.75, t.c);
+    CHECK_EQ(4.5, t.y);
+    CHECK_EQ(9.0, t.x);
+    CHECK_EQ(17, t.i);
+    CHECK_EQ(1234.56*12.1, t.e);
+    CHECK_EQ(12.1/1234.56, t.f);
+    CHECK_EQ(2718.2818-31415926.5, t.g);
+    CHECK_EQ(31415926.5, t.h);
+}
+
 TEST(from_arm_12) {
   // Test chaining of label usages within instructions (issue 1644).
   BEGIN();
