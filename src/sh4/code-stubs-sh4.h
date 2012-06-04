@@ -130,6 +130,7 @@ class BinaryOpStub: public CodeStub {
         mode_(mode),
         operands_type_(BinaryOpIC::UNINITIALIZED),
         result_type_(BinaryOpIC::UNINITIALIZED) {
+    use_fpu_ = CpuFeatures::IsSupported(FPU);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 
@@ -139,6 +140,7 @@ class BinaryOpStub: public CodeStub {
       BinaryOpIC::TypeInfo result_type = BinaryOpIC::UNINITIALIZED)
       : op_(OpBits::decode(key)),
         mode_(ModeBits::decode(key)),
+        use_fpu_(FPUBits::decode(key)),
         operands_type_(operands_type),
         result_type_(result_type) { }
 
@@ -150,6 +152,7 @@ class BinaryOpStub: public CodeStub {
 
   Token::Value op_;
   OverwriteMode mode_;
+  bool use_fpu_;
 
   // Operand type information determined at runtime.
   BinaryOpIC::TypeInfo operands_type_;
@@ -160,7 +163,7 @@ class BinaryOpStub: public CodeStub {
   // Minor key encoding in 16 bits RRRTTTVOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 7> {};
-  class VFP3Bits: public BitField<bool, 9, 1> {};
+  class FPUBits: public BitField<bool, 9, 1> {};
   class OperandTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 10, 3> {};
   class ResultTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 13, 3> {};
 
@@ -168,7 +171,7 @@ class BinaryOpStub: public CodeStub {
   int MinorKey() {
     return OpBits::encode(op_)
            | ModeBits::encode(mode_)
-           /*| VFP3Bits::encode(use_vfp3_)*/
+           | FPUBits::encode(use_fpu_)
            | OperandTypeInfoBits::encode(operands_type_)
            | ResultTypeInfoBits::encode(result_type_);
   }
