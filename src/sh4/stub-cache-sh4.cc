@@ -924,10 +924,13 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register fval,
                             Register scratch1,
                             Register scratch2) {
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(VFP3)) {
+    __ dfloat(dr0, ival);
+    __ fcnvds(fr0, dr0);
+    __ lsl(scratch1, wordoffset, Operand(2));
+    __ add(scratch1, dst, scratch1);
+    __ fstr(fr0, MemOperand(scratch1, 0));
+  } else {
     Label not_special, done;
     // Move sign bit from source to destination.  This works because the sign
     // bit in the exponent word of the double has the same position and polarity
