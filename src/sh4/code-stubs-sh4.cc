@@ -557,7 +557,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
 
   Label done;
 
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     __ dfloat(double_dst, int_scratch);
     if (destination == kCoreRegisters) {
       __ movd(dst1, dst2, double_dst);
@@ -1891,9 +1891,13 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     __ mov(r0, r2);  // Move newly allocated heap number to r0.
   }
 
-//  if (CpuFeatures::IsSupported(VFP3)) {
-//  } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    // Convert the int32 in r1 to the heap number in r0. r2 is corrupted.
+    __ dfloat(dr0, r1);
+    __ sub(r2, r0, Operand(kHeapObjectTag));
+    __ dstr(dr0, MemOperand(r2, HeapNumber::kValueOffset));
+    __ rts();
+  } else {
     // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
     // have to set up a frame.
     WriteInt32ToHeapNumberStub stub(r1, r0, r2);
