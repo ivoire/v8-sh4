@@ -504,8 +504,6 @@ void FloatingPointHelper::ConvertNumberToInt32(MacroAssembler* masm,
                                                Register scratch3,
                                                DwVfpRegister double_scratch,
                                                Label* not_number) {
-  // TODO(stm): remove when FPU is active
-  ASSERT(double_scratch.is(no_dreg));
   if (FLAG_debug_code) {
     __ AbortIfNotRootValue(heap_number_map,
                            Heap::kHeapNumberMapRootIndex,
