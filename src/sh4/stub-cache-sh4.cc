@@ -1001,6 +1001,7 @@ static void GenerateUInt2Double(MacroAssembler* masm,
                                 Register loword,
                                 Register scratch,
                                 int leading_zeroes) {
+  ASSERT(!scratch.is(hiword));
   const int meaningful_bits = kBitsPerInt - leading_zeroes - 1;
   const int biased_exponent = HeapNumber::kExponentBias + meaningful_bits;
 
@@ -3224,8 +3225,8 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
 
   // Calculate the location of the first argument. The stack contains only the
   // argc arguments.
-  __ lsl(ip, r0, Operand(kPointerSizeLog2));
-  __ add(r1, sp, ip);
+  __ lsl(r1, r0, Operand(kPointerSizeLog2));
+  __ add(r1, sp, r1);
 
   // Fill all the in-object properties with undefined.
   // r0: argc
@@ -3421,8 +3422,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ ldrb(value, MemOperand(r3, value));
       break;
     case EXTERNAL_SHORT_ELEMENTS:
-      __ lsl(value, key, Operand(0));
-      __ ldrsh(value, MemOperand(r3, value));
+      __ ldrsh(value, MemOperand(r3, key));
       break;
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       __ lsl(value, key, Operand(0));
@@ -3434,7 +3434,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ ldr(value, MemOperand(r3, value));
       break;
     case EXTERNAL_FLOAT_ELEMENTS:
-      if (CpuFeatures::IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(FPU)) {
         __ lsl(r2, key, Operand(1));
         __ add(r2, r3, r2);
         __ fldr(fr0, MemOperand(r2, 0));
@@ -3444,7 +3444,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       }
       break;
     case EXTERNAL_DOUBLE_ELEMENTS:
-      if (CpuFeatures::IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(FPU)) {
         __ lsl(r2, key, Operand(2));
         __ add(r2, r3, r2);
         __ dldr(dr0, MemOperand(r2, 0));
@@ -3467,17 +3467,18 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // For integer array types:
   // r2: value
   // For float array type:
-  // s0: value (if VFP3 is supported)
-  // r2: value (if VFP3 is not supported)
+  // s0: value (if FPU is supported)
+  // r2: value (if FPU is not supported)
   // For double array type:
-  // d0: value (if VFP3 is supported)
-  // r2/r3: value (if VFP3 is not supported)
+  // d0: value (if FPU is supported)
+  // r2/r3: value (if FPU is not supported)
 
   if (elements_kind == EXTERNAL_INT_ELEMENTS) {
     // For the Int and UnsignedInt array types, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
     Label box_int;
+   // TODO(STM): why is it different with ARM code ?
     __ add(r3, value, Operand(0x40000000)); // Non-smi value gives neg result
     __ cmpge(r3, Operand(0));
     __ bf_near(&box_int);
@@ -3511,7 +3512,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
                                               dst1,
                                               dst2,
                                               r9,
-                                              /*s0*/no_freg);
+                                              no_freg);
       __ str(dst1, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
       __ str(dst2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       __ Ret();
@@ -3564,7 +3565,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   } else if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
-    if (CpuFeatures::IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(FPU)) {
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
@@ -3633,7 +3634,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ Ret();
     }
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    if (CpuFeatures::IsSupported(VFP3)) {
+    if (CpuFeatures::IsSupported(FPU)) {
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
@@ -3762,7 +3763,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       __ add(r3, r3, r4);
       // r3: effective address of the double element
       FloatingPointHelper::Destination destination;
-      if (CpuFeatures::IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(FPU)) {
         destination = FloatingPointHelper::kVFPRegisters;
       } else {
         destination = FloatingPointHelper::kCoreRegisters;
@@ -3802,10 +3803,64 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // The WebGL specification leaves the behavior of storing NaN and
     // +/-Infinity into integer arrays basically undefined. For more
     // reproducible behavior, convert these to zero.
-    // TODO(stm): FPU
-    // if (CpuFeatures::IsSupported(VFP3)) {
-    // } else
-    {
+    if (CpuFeatures::IsSupported(FPU) &&
+        (elements_kind == EXTERNAL_FLOAT_ELEMENTS || elements_kind == EXTERNAL_DOUBLE_ELEMENTS)) {
+      if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+        // vldr requires offset to be a multiple of 4 so we can not
+        // include -kHeapObjectTag into it.
+        __ sub(r5, r0, Operand(kHeapObjectTag));
+        __ dldr(dr0, MemOperand(r5, HeapNumber::kValueOffset));
+        __ lsl(r5, key, Operand(1));
+        __ add(r5, r3, r5);
+        __ fcnvds(fr0, dr0);
+        __ fstr(fr0, MemOperand(r5, 0));
+      } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
+        __ sub(r5, r0, Operand(kHeapObjectTag));
+        __ dldr(dr0, MemOperand(r5, HeapNumber::kValueOffset));
+        __ lsl(r5, key, Operand(2));
+        __ add(r5, r3, r5);
+        __ dstr(dr0, MemOperand(r5, 0));
+      } else {
+        UNIMPLEMENTED();
+#if 0
+        // Hoisted load.  vldr requires offset to be a multiple of 4 so we can
+        // not include -kHeapObjectTag into it.
+        __ sub(r5, value, Operand(kHeapObjectTag));
+        __ dldr(dr0, MemOperand(r5, HeapNumber::kValueOffset));
+        __ EmitECMATruncate(r5, dr0, no_freg, r6, r7, r9);
+
+        switch (elements_kind) {
+          case EXTERNAL_BYTE_ELEMENTS:
+          case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+            __ lsr(r6, key, Operand(1));
+            __ strb(r5, MemOperand(r3, r6));
+            break;
+          case EXTERNAL_SHORT_ELEMENTS:
+          case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+            __ strh(r5, MemOperand(r3, key));
+            break;
+          case EXTERNAL_INT_ELEMENTS:
+          case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+            __ lsl(r6, key, Operand(1));
+            __ str(r5, MemOperand(r3, r6));
+            break;
+          case EXTERNAL_PIXEL_ELEMENTS:
+          case EXTERNAL_FLOAT_ELEMENTS:
+          case EXTERNAL_DOUBLE_ELEMENTS:
+          case FAST_ELEMENTS:
+          case FAST_DOUBLE_ELEMENTS:
+          case DICTIONARY_ELEMENTS:
+          case NON_STRICT_ARGUMENTS_ELEMENTS:
+            UNREACHABLE();
+            break;
+        }
+#endif
+      }
+
+      // Entry registers are intact, r0 holds the value which is the return
+      // value.
+      __ Ret();
+    } else {
       // VFP3 is not available do manual conversions.
       __ ldr(r5, FieldMemOperand(value, HeapNumber::kExponentOffset));
       __ ldr(r6, FieldMemOperand(value, HeapNumber::kMantissaOffset));
@@ -4266,7 +4321,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   FloatingPointHelper::Destination destination;
 
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     destination = FloatingPointHelper::kVFPRegisters;
   } else {
     destination = FloatingPointHelper::kCoreRegisters;
