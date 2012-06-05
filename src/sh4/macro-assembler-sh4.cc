@@ -254,6 +254,12 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
   LoadRoot(r0, Heap::kUndefinedValueRootIndex);
 }
 
+void MacroAssembler::SmiToDoubleFPURegister(Register smi,
+                                            DwVfpRegister value,
+                                            Register scratch) {
+  asr(scratch, smi, Operand(kSmiTagSize));
+  dfloat(value, scratch);
+}
 
 // Tries to get a signed int32 out of a double precision floating point heap
 // number. Rounds towards 0. Branch to 'not_int32' if the double is out of the

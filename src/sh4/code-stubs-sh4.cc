@@ -1047,10 +1047,13 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   }
 
   // Lhs is a smi, rhs is a number.
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    // Convert lhs to a double in dr2.
+    __ SmiToDoubleFPURegister(lhs, dr2, r7);
+    // Load the double from rhs, tagged HeapNumber r0, to dr0.
+    __ sub(r7, rhs, Operand(kHeapObjectTag));
+    __ dldr(dr0, MemOperand(r7, HeapNumber::kValueOffset));
+  } else {
     __ push(lr);
     // Convert lhs to a double in r2, r3.
     __ mov(r7, lhs);
@@ -1083,10 +1086,13 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   }
 
   // Rhs is a smi, lhs is a heap number.
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    // Load the double from lhs, tagged HeapNumber r1, to dr2.
+    __ sub(r7, lhs, Operand(kHeapObjectTag));
+    __ dldr(dr2, MemOperand(r7, HeapNumber::kValueOffset));
+    // Convert rhs to a double in dr0.
+    __ SmiToDoubleFPURegister(rhs, dr0, r7);
+  } else {
     __ push(lr);
     // Load lhs to a double in r2, r3.
     __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
@@ -1268,10 +1274,12 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
   // Both are heap numbers.  Load them up then jump to the code we have
   // for that.
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    __ sub(r7, rhs, Operand(kHeapObjectTag));
+    __ dldr(dr0, MemOperand(r7, HeapNumber::kValueOffset));
+    __ sub(r7, lhs, Operand(kHeapObjectTag));
+    __ dldr(dr2, MemOperand(r7, HeapNumber::kValueOffset));
+  } else {
     __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
     __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
   }
@@ -1459,13 +1467,48 @@ void CompareStub::Generate(MacroAssembler* masm) {
   EmitSmiNonsmiComparison(masm, lhs_, rhs_, &lhs_not_nan, &slow, strict_);
 
   __ bind(&both_loaded_as_doubles);
-  // The arguments have been converted to doubles and stored in d6 and d7, if
-  // VFP3 is supported, or in r0, r1, r2, and r3.
-  // TODO(stm): FPU
+  // The arguments have been converted to doubles and stored in dr0 and dr2, if
+  // FPU is supported, or in r0, r1, r2, and r3.
   Isolate* isolate = masm->isolate();
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    __ bind(&lhs_not_nan);
+
+    // Test for NaN
+    Label nan;
+    __ dcmpeq(dr0, dr0);
+    __ bf_near(&nan);
+    __ dcmpeq(dr2, dr2);
+    __ bf_near(&nan);
+
+    // Test for eq, lt and gt
+    Label equal, greater;
+    __ dcmpeq(dr2, dr0);
+    __ bt_near(&equal);
+    __ dcmpgt(dr2, dr0);
+    __ bt_near(&greater);
+
+    __ mov(r0, Operand(LESS));
+    __ rts();
+
+    __ bind(&equal);
+    __ mov(r0, Operand(EQUAL));
+    __ rts();
+
+    __ bind(&greater);
+    __ mov(r0, Operand(GREATER));
+    __ rts();
+
+    __ bind(&nan);
+    // If one of the sides was a NaN then the v flag is set.  Load r0 with
+    // whatever it takes to make the comparison fail, since comparisons with NaN
+    // always fail.
+    if (cc_ == lt || cc_ == le) {
+      __ mov(r0, Operand(GREATER));
+    } else {
+      __ mov(r0, Operand(LESS));
+    }
+    __ Ret();
+  } else {
     // Checks for NaN in the doubles we have loaded.  Can return the answer or
     // fall through if neither is a NaN.  Also binds lhs_not_nan.
     EmitNanCheck(masm, &lhs_not_nan, cc_);

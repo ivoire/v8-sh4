@@ -438,6 +438,14 @@ class MacroAssembler: public Assembler {
                                               Register scratch,
                                               Label* failure);
 
+  // Load the value of a smi object into a FPU double register. The register
+  // scratch1 can be the same register as smi in which case smi will hold the
+  // untagged value afterwards.
+  void SmiToDoubleFPURegister(Register smi,
+                              DwVfpRegister value,
+                              Register scratch1);
+
+
   // Convert the HeapNumber pointed to by source to a 32bits signed integer
   // dest. If the HeapNumber does not fit into a 32bits signed integer branch
   // to not_int32 label. If VFP3 is available double_scratch is used but not

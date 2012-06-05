@@ -760,7 +760,8 @@ class Assembler : public AssemblerBase {
   void fcnvds(SwVfpRegister Fd, DwVfpRegister Ds)   { fcnvds_double_FPUL_(Ds); fsts_FPUL_(Fd); }
 
   // Double comparisons
-  void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Dd, Ds); }
+  void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Ds, Dd); }
+  void dcmpgt(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpgt_double_(Ds, Dd); }
 
   // FPU operations
   void fadd(DwVfpRegister Dd, DwVfpRegister Ds)     { fadd_double_(Ds, Dd); }
