@@ -5965,10 +5965,40 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   __ b(ne, &miss, Label::kNear);
 
   // Inlining the double comparison and falling back to the general compare
-  // stub if NaN is involved or VFP3 is unsupported.
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // }
+  // stub if NaN is involved or FPU is unsupported.
+  if (CpuFeatures::IsSupported(FPU)) {
+    // Load left and right operand
+    __ sub(r2, r1, Operand(kHeapObjectTag));
+    __ dldr(dr0, MemOperand(r2, HeapNumber::kValueOffset));
+    __ sub(r2, r0, Operand(kHeapObjectTag));
+    __ dldr(dr2, MemOperand(r2, HeapNumber::kValueOffset));
+
+    Label unordered;
+    __ dcmpeq(dr0, dr0);
+    __ bf_near(&unordered);
+    __ dcmpeq(dr2, dr2);
+    __ bf_near(&unordered);
+
+    // Test for eq, lt and gt
+    Label equal, greater;
+    __ dcmpeq(dr0, dr2);
+    __ bt_near(&equal);
+    __ dcmpgt(dr0, dr2);
+    __ bt_near(&greater);
+
+    __ mov(r0, Operand(LESS));
+    __ rts();
+
+    __ bind(&equal);
+    __ mov(r0, Operand(EQUAL));
+    __ rts();
+
+    __ bind(&greater);
+    __ mov(r0, Operand(GREATER));
+    __ rts();
+
+    __ bind(&unordered);
+  }
 
   CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, r1, r0);
   __ bind(&generic_stub);
