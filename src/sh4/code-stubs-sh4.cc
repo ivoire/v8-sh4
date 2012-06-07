@@ -1364,10 +1364,40 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi, Label::kNear);
 
-    // TODO(stm): FPU
-    // if (CpuFeatures::IsSupported(VFP3)) {
-    // } else
-    {
+    if (CpuFeatures::IsSupported(FPU)) {
+      __ CheckMap(object,
+                  scratch1,
+                  Heap::kHeapNumberMapRootIndex,
+                  not_found,
+                  DONT_DO_SMI_CHECK);
+
+      STATIC_ASSERT(8 == kDoubleSize);
+      __ add(scratch1,
+             object,
+             Operand(HeapNumber::kValueOffset - kHeapObjectTag));
+      __ ldr(scratch2, MemOperand(scratch1, 4));
+      __ ldr(scratch1, MemOperand(scratch1, 0));
+
+      __ eor(scratch1, scratch1, scratch2);
+      __ land(scratch1, scratch1, mask);
+
+      // Calculate address of entry in string cache: each entry consists
+      // of two pointer sized fields.
+      __ lsl(scratch1, scratch1, Operand(kPointerSizeLog2 + 1));
+      __ add(scratch1, number_string_cache, scratch1);
+
+      Register probe = mask;
+      __ ldr(probe,
+             FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+      __ JumpIfSmi(probe, not_found);
+      __ sub(scratch2, object, Operand(kHeapObjectTag));
+      __ dldr(dr0, MemOperand(scratch2, HeapNumber::kValueOffset));
+      __ sub(probe, probe, Operand(kHeapObjectTag));
+      __ dldr(dr2, MemOperand(probe, HeapNumber::kValueOffset));
+      __ dcmpeq(dr0, dr2);
+      __ b(ne, not_found);  // The cache did not contain this value.
+      __ b(&load_result_from_cache);
+    } else {
       __ b(not_found);
     }
   }
