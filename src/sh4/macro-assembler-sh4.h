@@ -799,16 +799,15 @@ class MacroAssembler: public Assembler {
                        int num_arguments,
                        int result_size);
 
-  // Convenience function: tail call a runtime routine (jump). Try to generate
-  // the code if necessary. Do not perform a GC but instead return a retry after
-  // GC failure.
-  MUST_USE_RESULT MaybeObject* TryTailCallRuntime(Runtime::FunctionId fid,
-                                                  int num_arguments,
-                                                  int result_size);
+  int CalculateStackPassedWords(int num_reg_arguments,
+                                int num_double_arguments);
 
   // Before calling a C-function from generated code, align arguments on stack.
-  // After aligning the frame, arguments must be stored in esp[0], esp[4],
-  // etc., not pushed. The argument count assumes all arguments are word sized.
+  // After aligning the frame, non-register arguments must be stored in
+  // sp[0], sp[4], etc., not pushed. The argument count assumes all arguments
+  // are word sized. If double arguments are used, this function assumes that
+  // all double arguments are stored before core registers; otherwise the
+  // correct alignment of the double values is not guaranteed.
   // Some compilers/platforms require the stack to be aligned when calling
   // C++ code.
   // Needs a scratch register to do some arithmetic. This register will be
@@ -828,13 +827,6 @@ class MacroAssembler: public Assembler {
   // function).
   void CallCFunction(ExternalReference function, int num_reg_arguments, int num_double_arguments = 0);
   void CallCFunction(Register function, int num_arguments);
-
-  // Prepares stack to put arguments (aligns and so on). Reserves
-  // space for return value if needed (assumes the return value is a handle).
-  // Uses callee-saved esi to restore stack state after call. Arguments must be
-  // stored in ApiParameterOperand(0), ApiParameterOperand(1) etc. Saves
-  // context (esi).
-  void PrepareCallApiFunction(int argc, Register scratch);
 
   // Calls an API function. Allocates HandleScope, extracts
   // returned value from handle and propagates exceptions.

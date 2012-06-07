@@ -997,6 +997,22 @@ void MacroAssembler::Bfi(Register dst,
 
 static const int kRegisterPassedArguments = 4;
 
+int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
+                                              int num_double_arguments) {
+  int stack_passed_words = 0;
+  // Up to 4 simple arguments are passed in [r4, r7]
+  if (num_reg_arguments > kRegisterPassedArguments) {
+    stack_passed_words += num_reg_arguments - kRegisterPassedArguments;
+  }
+
+  // Up to 4 double arguments are passed in [dr4, dr10]
+  if (num_double_arguments > kRegisterPassedArguments) {
+    stack_passed_words += 2 * (num_double_arguments - kRegisterPassedArguments);
+  }
+
+  return stack_passed_words;
+}
+
 void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           int num_double_arguments,
                                           Register scratch) {
@@ -1005,9 +1021,8 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
   ASSERT(!scratch.is(r4) && !scratch.is(r5) && !scratch.is(r6) &&
          !scratch.is(r7));
   // Up to four simple arguments are passed in registers r4..r7.
-  int num_arguments = num_reg_arguments + 2 * num_double_arguments;
-  int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
-                               0 : num_arguments - kRegisterPassedArguments;
+  int stack_passed_arguments = CalculateStackPassedWords(num_reg_arguments,
+                                                         num_double_arguments);
 
   // Different from ARM as ActivationFrameAlignment is allways greater than kInstrSize
   RECORD_LINE();
@@ -1044,9 +1059,8 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   RECORD_LINE();
   jsr(function);
 
-  int num_arguments = num_reg_arguments + 2 * num_double_arguments;
-  int stack_passed_arguments = (num_arguments <= kRegisterPassedArguments) ?
-                               0 : num_arguments - kRegisterPassedArguments;
+  int stack_passed_arguments = CalculateStackPassedWords(num_reg_arguments,
+                                                         num_double_arguments);
   add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
 }
 
