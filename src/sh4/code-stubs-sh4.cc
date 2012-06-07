@@ -2421,10 +2421,14 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       // result.
       __ mov(r0, r5);       //TODO(stm): look at this: it should be better
 
-      // TODO(stm): FPU
-      // if (CpuFeatures::IsSupported(VFP3)) {
-      // } else
-      {
+      if (CpuFeatures::IsSupported(FPU) && op_ != Token::SHR) {
+        // TODO(STM): we should take also care of SHR: it needs a way to
+        // convert to double and keeping the result positiv only
+        __ dfloat(dr0, r2);
+        __ sub(r3, r0, Operand(kHeapObjectTag));
+        __ dstr(dr0, MemOperand(r3, HeapNumber::kValueOffset));
+        __ Ret();
+      } else {
         // Tail call that writes the int32 in r2 to the heap number in r0, using
         // r3 as scratch. r0 is preserved and returned.
         WriteInt32ToHeapNumberStub stub(r2, r0, r3);
