@@ -1259,7 +1259,11 @@ void RegExpMacroAssemblerSH4::LoadCurrentCharacterUnchecked(int cp_offset,
 
 
 void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
-  // Store pr on the stack
+  // TODO(STM): do we have to align the stack arguments ?
+  //// Decrement it by kPointerSize to make room for pushing and poping pr
+  //int stack_alignment = OS::ActivationFrameAlignment() - kPointerSize;
+  //// Stack is already aligned for call, so decrement by alignment
+  //// to make room for storing the link register.
   __ push(pr);
   // The first argument should be sp
   __ mov(r4, sp);
