@@ -3013,12 +3013,101 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
-    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+  Label call_runtime;
+  if (CpuFeatures::IsSupported(FPU)) {
+    Label base_not_smi;
+    Label exponent_not_smi;
+    Label convert_exponent;
+
+    const Register base = r0;
+    const Register exponent = r4;
+    const Register heapnumbermap = sh4_r8;
+    const Register heapnumber = r9;
+    const DoubleRegister double_base = dr4;
+    const DoubleRegister double_exponent = dr6;
+    const DoubleRegister double_result = dr0;
+    const Register scratch = r5;
+    const Register scratch2 = r6;
+
+    __ LoadRoot(heapnumbermap, Heap::kHeapNumberMapRootIndex);
+    __ ldr(base, MemOperand(sp, 1 * kPointerSize));
+    __ ldr(exponent, MemOperand(sp, 0 * kPointerSize));
+
+    // Convert base to double value and store it in dr0.
+    __ JumpIfNotSmi(base, &base_not_smi);
+    // Base is a Smi. Untag and convert it.
+    __ SmiUntag(base);
+    __ dfloat(double_base, base);
+    __ b(&convert_exponent);
+
+    __ bind(&base_not_smi);
+    __ ldr(scratch, FieldMemOperand(base, JSObject::kMapOffset));
+    __ cmp(scratch, heapnumbermap);
+    __ b(ne, &call_runtime);
+    // Base is a heapnumber. Load it into double register.
+    __ dldr(double_base, FieldMemOperand(base, HeapNumber::kValueOffset));
+
+    __ bind(&convert_exponent);
+    __ JumpIfNotSmi(exponent, &exponent_not_smi);
+    __ SmiUntag(exponent);
+
+    // The base is in a double register and the exponent is
+    // an untagged smi. Allocate a heap number and call a
+    // C function for integer exponents. The register containing
+    // the heap number is callee-saved.
+    __ AllocateHeapNumber(heapnumber,
+                          scratch,
+                          scratch2,
+                          heapnumbermap,
+                          &call_runtime);
+    __ push(pr);
+    __ PrepareCallCFunction(1, 1, scratch);
+    // check that the argument are stored in the right registers (sh4 ABI)
+    ASSERT(double_base.is(dr4) && exponent.is(r4));
+    __ CallCFunction(
+        ExternalReference::power_double_int_function(masm->isolate()),
+        1, 1);
+    __ pop(pr);
+    ASSERT(double_result.is(dr0));
+    __ dstr(double_result,
+            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
+    __ mov(r0, heapnumber);
+    __ Drop(2);
+    __ rts();
+
+    __ bind(&exponent_not_smi);
+    __ ldr(scratch, FieldMemOperand(exponent, JSObject::kMapOffset));
+    __ cmp(scratch, heapnumbermap);
+    __ b(ne, &call_runtime);
+    // Exponent is a heapnumber. Load it into double register.
+    __ dldr(double_exponent,
+            FieldMemOperand(exponent, HeapNumber::kValueOffset));
+
+    // The base and the exponent are in double registers.
+    // Allocate a heap number and call a C function for
+    // double exponents. The register containing
+    // the heap number is callee-saved.
+    __ AllocateHeapNumber(heapnumber,
+                          scratch,
+                          scratch2,
+                          heapnumbermap,
+                          &call_runtime);
+    __ push(pr);
+    __ PrepareCallCFunction(0, 2, scratch);
+    ASSERT(double_base.is(dr4) && double_exponent.is(dr6));
+    __ CallCFunction(
+        ExternalReference::power_double_double_function(masm->isolate()),
+        0, 2);
+    __ pop(pr);
+    ASSERT(double_result.is(dr0));
+    __ dstr(double_result,
+            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
+    __ mov(r0, heapnumber);
+    __ Drop(2);
+    __ rts();
   }
+  __ bind(&call_runtime);
+  __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
 }
 
 
