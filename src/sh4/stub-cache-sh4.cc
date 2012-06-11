@@ -924,7 +924,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register fval,
                             Register scratch1,
                             Register scratch2) {
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(FPU)) {
     __ dfloat(dr0, ival);
     __ fcnvds(fr0, dr0);
     __ lsl(scratch1, wordoffset, Operand(2));
@@ -4320,7 +4320,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // scratch is now effective address of the double element
 
   FloatingPointHelper::Destination destination;
-
   if (CpuFeatures::IsSupported(FPU)) {
     destination = FloatingPointHelper::kVFPRegisters;
   } else {
