@@ -1022,8 +1022,11 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           Register scratch) {
   ASSERT(!scratch.is(sh4_ip));
   ASSERT(!scratch.is(sh4_rtmp));
-  ASSERT(!scratch.is(r4) && !scratch.is(r5) && !scratch.is(r6) &&
-         !scratch.is(r7));
+  // Depending on the number of registers used, assert on the right scratch registers.
+  ASSERT((num_reg_arguments < 1 || !scratch.is(r4)) &&
+         (num_reg_arguments < 2 || !scratch.is(r5)) &&
+         (num_reg_arguments < 3 || !scratch.is(r6)) &&
+         (num_reg_arguments < 4 || !scratch.is(r7)));
   int frame_alignment = OS::ActivationFrameAlignment();
   int stack_passed_arguments = CalculateStackPassedWords(num_reg_arguments,
                                                          num_double_arguments);
