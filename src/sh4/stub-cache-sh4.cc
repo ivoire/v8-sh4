@@ -3497,8 +3497,9 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
     if (CpuFeatures::IsSupported(FPU)) {
       __ dfloat(dr0, value);
-      __ sub(r3, r0, Operand(kHeapObjectTag));
-      __ dstr(dr0, MemOperand(r3, HeapNumber::kValueOffset));
+      ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
+      __ sub(r3, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
+      __ dstr(dr0, MemOperand(r3, 0));
       __ Ret();
     } else {
       Register dst1 = r1;
@@ -3572,8 +3573,9 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
       __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
       __ fcnvsd(dr0, fr0);
-      __ sub(r1, r2, Operand(kHeapObjectTag));
-      __ dstr(dr0, MemOperand(r1, HeapNumber::kValueOffset));
+      ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
+      __ sub(r1, r2, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
+      __ dstr(dr0, MemOperand(r1, 0));
 
       __ mov(r0, r2);
       __ Ret();
@@ -3640,8 +3642,9 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // exhausted young space.
       __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
       __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
-      __ sub(r1, r2, Operand(kHeapObjectTag));
-      __ dstr(dr0, MemOperand(r1, HeapNumber::kValueOffset));
+      ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
+      __ sub(r1, r2, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
+      __ dstr(dr0, MemOperand(r1, 0));
 
       __ mov(r0, r2);
       __ Ret();
@@ -3808,15 +3811,17 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         // vldr requires offset to be a multiple of 4 so we can not
         // include -kHeapObjectTag into it.
-        __ sub(r5, r0, Operand(kHeapObjectTag));
-        __ dldr(dr0, MemOperand(r5, HeapNumber::kValueOffset));
+        ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
+        __ sub(r5, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
+        __ dldr(dr0, MemOperand(r5, 0));
         __ lsl(r5, key, Operand(1));
         __ add(r5, r3, r5);
         __ fcnvds(fr0, dr0);
         __ fstr(fr0, MemOperand(r5, 0));
       } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-        __ sub(r5, r0, Operand(kHeapObjectTag));
-        __ dldr(dr0, MemOperand(r5, HeapNumber::kValueOffset));
+        ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
+        __ sub(r5, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
+        __ dldr(dr0, MemOperand(r5, 0));
         __ lsl(r5, key, Operand(2));
         __ add(r5, r3, r5);
         __ dstr(dr0, MemOperand(r5, 0));
