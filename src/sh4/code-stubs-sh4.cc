@@ -463,7 +463,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     // Load the double from tagged HeapNumber to double register.
     ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
     __ sub(scratch1, object, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-    __ dldr(dst, MemOperand(scratch1, 0));
+    __ dldr(dst, MemOperand(scratch1, 0), scratch1);
   } else {
     ASSERT(destination == kCoreRegisters);
     // Load the double from heap number to dst1 and dst2 in double format.
@@ -1053,7 +1053,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ SmiToDoubleFPURegister(lhs, dr2, r7);
     // Load the double from rhs, tagged HeapNumber r0, to dr0.
     __ sub(r7, rhs, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-    __ dldr(dr0, MemOperand(r7, 0));
+    __ dldr(dr0, MemOperand(r7, 0), r7);
   } else {
     __ push(lr);
     // Convert lhs to a double in r2, r3.
@@ -1090,7 +1090,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   if (CpuFeatures::IsSupported(FPU)) {
     // Load the double from lhs, tagged HeapNumber r1, to dr2.
     __ sub(r7, lhs, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-    __ dldr(dr2, MemOperand(r7, 0));
+    __ dldr(dr2, MemOperand(r7, 0), r7);
     // Convert rhs to a double in dr0.
     __ SmiToDoubleFPURegister(rhs, dr0, r7);
   } else {
@@ -1277,9 +1277,9 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
   // for that.
   if (CpuFeatures::IsSupported(FPU)) {
     __ sub(r7, rhs, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-    __ dldr(dr0, MemOperand(r7, 0));
+    __ dldr(dr0, MemOperand(r7, 0), r7);
     __ sub(r7, lhs, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-    __ dldr(dr2, MemOperand(r7, 0));
+    __ dldr(dr2, MemOperand(r7, 0), r7);
   } else {
     __ Ldrd(r2, r3, FieldMemOperand(lhs, HeapNumber::kValueOffset));
     __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
@@ -1392,7 +1392,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
              FieldMemOperand(scratch1, FixedArray::kHeaderSize));
       __ JumpIfSmi(probe, not_found);
       __ sub(scratch2, object, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-      __ dldr(dr0, MemOperand(scratch2, 0));
+      __ dldr(dr0, MemOperand(scratch2, 0), scratch2);
       __ sub(probe, probe, Operand(kHeapObjectTag));
       __ dldr(dr2, MemOperand(probe, HeapNumber::kValueOffset));
       __ dcmpeq(dr0, dr2);
@@ -1969,7 +1969,7 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     // Convert the int32 in r1 to the heap number in r0. r2 is corrupted.
     __ dfloat(dr0, r1);
     __ sub(r2, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-    __ dstr(dr0, MemOperand(r2, 0));
+    __ dstr(dr0, MemOperand(r2, 0), r2);
     __ rts();
   } else {
     // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
@@ -2427,7 +2427,7 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
         // convert to double and keeping the result positiv only
         __ dfloat(dr0, r2);
         __ sub(r3, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-        __ dstr(dr0, MemOperand(r3, 0));
+        __ dstr(dr0, MemOperand(r3, 0), r3);
         __ Ret();
       } else {
         // Tail call that writes the int32 in r2 to the heap number in r0, using
@@ -6093,9 +6093,9 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   if (CpuFeatures::IsSupported(FPU)) {
     // Load left and right operand
     __ sub(r2, r1, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-    __ dldr(dr0, MemOperand(r2, 0));
+    __ dldr(dr0, MemOperand(r2, 0), r2);
     __ sub(r2, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-    __ dldr(dr2, MemOperand(r2, 0));
+    __ dldr(dr2, MemOperand(r2, 0), r2);
 
     Label unordered;
     __ dcmpeq(dr0, dr0);

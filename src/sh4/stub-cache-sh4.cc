@@ -3447,7 +3447,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       if (CpuFeatures::IsSupported(FPU)) {
         __ lsl(r2, key, Operand(2));
         __ add(r2, r3, r2);
-        __ dldr(dr0, MemOperand(r2, 0));
+        __ dldr(dr0, MemOperand(r2, 0), r2);
       } else {
         __ lsl(r4, key, Operand(2));
         __ add(r4, r3, r4);
@@ -3499,7 +3499,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ dfloat(dr0, value);
       ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
       __ sub(r3, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-      __ dstr(dr0, MemOperand(r3, 0));
+      __ dstr(dr0, MemOperand(r3, 0), r3);
       __ Ret();
     } else {
       Register dst1 = r1;
@@ -3575,7 +3575,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ fcnvsd(dr0, fr0);
       ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
       __ sub(r1, r2, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-      __ dstr(dr0, MemOperand(r1, 0));
+      __ dstr(dr0, MemOperand(r1, 0), r1);
 
       __ mov(r0, r2);
       __ Ret();
@@ -3644,7 +3644,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
       ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
       __ sub(r1, r2, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-      __ dstr(dr0, MemOperand(r1, 0));
+      __ dstr(dr0, MemOperand(r1, 0), r1);
 
       __ mov(r0, r2);
       __ Ret();
@@ -3813,7 +3813,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         // include -kHeapObjectTag into it.
         ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
         __ sub(r5, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-        __ dldr(dr0, MemOperand(r5, 0));
+        __ dldr(dr0, MemOperand(r5, 0), r5);
         __ lsl(r5, key, Operand(1));
         __ add(r5, r3, r5);
         __ fcnvds(fr0, dr0);
@@ -3821,10 +3821,10 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
         ASSERT(Operand(kHeapObjectTag - HeapNumber::kValueOffset).is_int8());
         __ sub(r5, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
-        __ dldr(dr0, MemOperand(r5, 0));
+        __ dldr(dr0, MemOperand(r5, 0), r5);
         __ lsl(r5, key, Operand(2));
         __ add(r5, r3, r5);
-        __ dstr(dr0, MemOperand(r5, 0));
+        __ dstr(dr0, MemOperand(r5, 0), r5);
       } else {
         UNIMPLEMENTED();
 #if 0
@@ -4343,7 +4343,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
       scratch4,
       /*s2*/no_freg);
   if (destination == FloatingPointHelper::kVFPRegisters) {
-    __ dstr(dr0, MemOperand(scratch, 0));
+    __ dstr(dr0, MemOperand(scratch, 0), scratch);
   } else {
     __ str(mantissa_reg, MemOperand(scratch, 0));
     __ str(exponent_reg, MemOperand(scratch, Register::kSizeInBytes));
