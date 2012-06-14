@@ -2794,10 +2794,28 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   // Convert 32 random bits in r0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    __ push(r4);
+    __ PrepareCallCFunction(1, r0);
+    __ mov(r4, Operand(ExternalReference::isolate_address()));
+    __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+    __ pop(r4);
+
+    // 0x41300000 is the top half of 1.0 x 2^20 as a double.
+    // Create this constant using mov/orr to avoid PC relative load.
+    __ mov(r1, Operand(0x41000000));
+    __ orr(r1, r1, Operand(0x300000));
+    // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
+    __ movd(dr2, r0, r1);
+    // Move 0x4130000000000000 to VFP.
+    __ mov(r0, Operand(0, RelocInfo::NONE));
+    __ movd(dr4, r0, r1);
+    // Subtract and store the result in the heap number.
+    __ fsub(dr2, dr4);
+    __ sub(r0, r4, Operand(kHeapObjectTag));
+    __ dstr(dr2, MemOperand(r0, HeapNumber::kValueOffset));
+    __ mov(r0, r4);
+  } else {
     __ Push(r4, r5, r6, r7);
     __ PrepareCallCFunction(2, r0);
     __ mov(r5, Operand(ExternalReference::isolate_address()));
