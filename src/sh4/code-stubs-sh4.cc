@@ -485,7 +485,6 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     ASSERT(destination == kCoreRegisters);
     // Write smi to dst1 and dst2 double format.
     __ mov(scratch1, object);
-    // TODO(stm): check order of dst2, dst1
     ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
     __ push(lr);
     __ Call(stub.GetCode());
@@ -1492,8 +1491,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // 3) Fall through to both_loaded_as_doubles.
   // 4) Jump to lhs_not_nan.
   // In cases 3 and 4 we have found out we were dealing with a number-number
-  // comparison.  If VFP3 is supported the double values of the numbers have
-  // been loaded into d7 and d6.  Otherwise, the double values have been loaded
+  // comparison.  If FPU is supported the double values of the numbers have
+  // been loaded into dr2 and dr0.  Otherwise, the double values have been loaded
   // into r0, r1, r2, and r3.
   EmitSmiNonsmiComparison(masm, lhs_, rhs_, &lhs_not_nan, &slow, strict_);
 
@@ -1530,9 +1529,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ rts();
 
     __ bind(&nan);
-    // If one of the sides was a NaN then the v flag is set.  Load r0 with
-    // whatever it takes to make the comparison fail, since comparisons with NaN
-    // always fail.
+    // One of the sides was a NaN .Load r0 with whatever it takes to make the
+    // comparison fail, since comparisons with NaN always fail.
     if (cc_ == lt || cc_ == le) {
       __ mov(r0, Operand(GREATER));
     } else {
@@ -2289,9 +2287,9 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
 
       // Calculate the result.
       if (destination == FloatingPointHelper::kVFPRegisters) {
-        // Using VFP registers:
-        // dr0: Left value   d6
-        // dr2: Right value  d7
+        // Using FPU registers:
+        // dr0: Left value
+        // dr2: Right value
         switch (op_) {
           case Token::ADD:
             __ fadd(dr0, dr2);
