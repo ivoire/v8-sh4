@@ -2115,7 +2115,7 @@ void BinaryOpStub::GenerateSmiSmiOperation(MacroAssembler* masm) {
   ASSERT(right.is(r0));
   STATIC_ASSERT(kSmiTag == 0);
 
-  Label not_smi_result;
+  Label not_smi_result, skip_if_true, skip_if_false;
   switch (op_) {
     case Token::ADD:
       __ addv(right, left, right);        // Add optimistically.
@@ -2142,16 +2142,19 @@ void BinaryOpStub::GenerateSmiSmiOperation(MacroAssembler* masm) {
       __ cmp(ip, scratch2);
       __ b(ne, &not_smi_result);
       // Go slow on zero result to handle -0.
-      // TODO(stm): merge cond mov and cond Ret or use fast branch
       __ tst(scratch1, scratch1);
-      __ mov(right, scratch1, ne);
-      __ Ret(ne);
+      __ bt_near(&skip_if_true);
+      __ mov(right, scratch1);
+      __ rts();
+      __ bind(&skip_if_true);
       // We need -0 if we were multiplying a negative number with 0 to get 0.
       // We know one of them was zero.
       __ add(scratch2, right, left);
       __ cmpge(scratch2, Operand(0));
-      __ mov(right, Operand(Smi::FromInt(0)), t);
-      __ Ret(t);  // Return smi 0 if the non-zero one was positive.
+      __ bf_near(&skip_if_false);
+      __ mov(right, Operand(Smi::FromInt(0)));
+      __ rts();  // Return smi 0 if the non-zero one was positive.
+      __ bind(&skip_if_false);
       // We fall through here if we multiplied a negative number with 0, because
       // that would mean we should produce -0.
       break;
