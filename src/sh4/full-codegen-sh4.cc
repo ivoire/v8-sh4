@@ -2816,12 +2816,10 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     __ dstr(dr2, MemOperand(r0, HeapNumber::kValueOffset));
     __ mov(r0, r4);
   } else {
-    __ Push(r4, r5, r6, r7);
     __ PrepareCallCFunction(2, r0);
     __ mov(r5, Operand(ExternalReference::isolate_address()));
     __ CallCFunction(
         ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
-    __ Pop(r4, r5, r6, r7);
   }
 
   context()->Plug(r0);
