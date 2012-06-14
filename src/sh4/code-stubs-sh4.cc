@@ -2937,32 +2937,122 @@ void BinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 
 
 void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
-  // Untagged case: double input in d2, double result goes
-  //   into d2.
+  // Untagged case: double input in dr2, double result goes
+  //   into dr2.
   // Tagged case: tagged input on top of stack and in r0,
   //   tagged result (heap number) goes into r0.
 
-  // Label input_not_smi;
-  // Label loaded;
-  // Label calculate;
-  // Label invalid_cache;
-  // const Register scratch0 = r9;
-  // const Register scratch1 = r7;
-  // const Register cache_entry = r0;
+  Label input_not_smi;
+  Label loaded;
+  Label calculate;
+  Label invalid_cache;
+  const Register scratch0 = r9;
+  const Register cache_entry = r0;
   const bool tagged = (argument_type_ == TAGGED);
 
-  // FIXME(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // }  // if (CpuFeatures::IsSupported(VFP3))
+  if (CpuFeatures::IsSupported(FPU)) {
+    if (tagged) {
+      // Argument is a number and is on stack and in r0.
+      // Load argument and check if it is a smi.
+      __ JumpIfNotSmi(r0, &input_not_smi);
 
-  // __ bind(&calculate);
+      // Input is a smi. Convert to double and load the low and high words
+      // of the double into r2, r3.
+      __ asr(scratch0, r0, Operand(kSmiTagSize));
+      __ dfloat(dr0, scratch0);
+      __ movd(r2, r3, dr0);
+      __ b(&loaded);
+
+      __ bind(&input_not_smi);
+      // Check if input is a HeapNumber.
+      __ CheckMap(r0,
+                  r1,
+                  Heap::kHeapNumberMapRootIndex,
+                  &calculate,
+                  DONT_DO_SMI_CHECK);
+      // Input is a HeapNumber. Load it to a double register and store the
+      // low and high words into r2, r3.
+      __ dldr(dr0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+      __ movd(r2, r3, dr0);
+    } else {
+      UNREACHABLE();
+    }
+    __ bind(&loaded);
+    // r2 = low 32 bits of double value
+    // r3 = high 32 bits of double value
+    // Compute hash (the shifts are arithmetic):
+    //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
+    __ eor(r1, r2, r3);
+    __ asr(scratch0, r1, Operand(16));
+    __ eor(r1, r1, scratch0);
+    __ asr(scratch0, r1, Operand(8));
+    __ eor(r1, r1, scratch0);
+    ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
+    __ land(r1, r1, Operand(TranscendentalCache::SubCache::kCacheSize - 1)); // ?
+
+    // r2 = low 32 bits of double value.
+    // r3 = high 32 bits of double value.
+    // r1 = TranscendentalCache::hash(double value).
+    Isolate* isolate = masm->isolate();
+    ExternalReference cache_array =
+        ExternalReference::transcendental_cache_array_address(isolate);
+    __ mov(cache_entry, Operand(cache_array));
+    // cache_entry points to cache array.
+    int cache_array_index
+        = type_ * sizeof(isolate->transcendental_cache()->caches_[0]);
+    __ ldr(cache_entry, MemOperand(cache_entry, cache_array_index));
+    // r0 points to the cache for the type type_.
+    // If NULL, the cache hasn't been initialized yet, so go through runtime.
+    __ cmp(cache_entry, Operand(0, RelocInfo::NONE));
+    __ b(eq, &invalid_cache);
+
+#ifdef DEBUG
+    // Check that the layout of cache elements match expectations.
+    { TranscendentalCache::SubCache::Element test_elem[2];
+      char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
+      char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
+      char* elem_in0 = reinterpret_cast<char*>(&(test_elem[0].in[0]));
+      char* elem_in1 = reinterpret_cast<char*>(&(test_elem[0].in[1]));
+      char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
+      CHECK_EQ(12, elem2_start - elem_start);  // Two uint_32's and a pointer.
+      CHECK_EQ(0, elem_in0 - elem_start);
+      CHECK_EQ(kIntSize, elem_in1 - elem_start);
+      CHECK_EQ(2 * kIntSize, elem_out - elem_start);
+    }
+#endif
+
+    // Find the address of the r1'st entry in the cache, i.e., &r0[r1*12].
+    __ lsl(scratch0, r1, Operand(1));
+    __ add(r1, r1, scratch0);
+    __ lsl(scratch0, r1, Operand(2));
+    __ add(cache_entry, cache_entry, scratch0);
+    // Check if cache matches: Double value is stored in uint32_t[2] array.
+    __ ldr(r4, MemOperand(cache_entry, 0));
+    __ ldr(r5, MemOperand(cache_entry, 4));
+    __ ldr(r6, MemOperand(cache_entry, 8));
+    __ cmp(r2, r4);
+    __ b(ne, &calculate);
+    __ cmp(r3, r5);
+    __ b(ne, &calculate);
+    // Cache hit. Load result, cleanup and return.
+    if (tagged) {
+      // Pop input value from stack and load result into r0.
+      __ pop();
+      __ mov(r0, r6);
+    } else {
+      // Load result into dr2.
+       __ dldr(dr2, FieldMemOperand(r6, HeapNumber::kValueOffset));
+    }
+    __ Ret();
+  }  // if (CpuFeatures::IsSupported(FPU))
+
+  __ bind(&calculate);
   if (tagged) {
-    // __ bind(&invalid_cache);
+    __ bind(&invalid_cache);
     ExternalReference runtime_function =
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime_function, 1, 1);
   } else {
-    // FIXME(stm): FPU
     UNREACHABLE();
   }
 }
