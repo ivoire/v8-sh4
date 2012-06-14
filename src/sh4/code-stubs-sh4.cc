@@ -7,7 +7,7 @@
 //       notice, this list of conditions and the following disclaimer.
 //     * Redistributions in binary form must reproduce the above
 //       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
+//     * disclaimer in the documentation and/or other materials provided
 //       with the distribution.
 //     * Neither the name of Google Inc. nor the names of its
 //       contributors may be used to endorse or promote products derived
@@ -3373,6 +3373,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Save callee-saved registers
   __ push(pr);
   __ pushm(kCalleeSaved);
+
+  // TDOO(STM)
+  // if (CpuFeatures::IsSupported(VFP3))
 
   // Move the registers to use ARM ABI (and JS ABI)
   __ mov(r0, r4);

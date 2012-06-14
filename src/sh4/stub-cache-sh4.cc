@@ -916,7 +916,7 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCells(
 
 // Convert and store int passed in register ival to IEEE 754 single precision
 // floating point value at memory location (dst + 4 * wordoffset)
-// If VFP3 is available use it for conversion.
+// If FPU is available use it for conversion.
 static void StoreIntAsFloat(MacroAssembler* masm,
                             Register dst,
                             Register wordoffset,
