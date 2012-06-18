@@ -1338,7 +1338,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
     Label interceptor_failed;
     __ LoadRoot(scratch1, Heap::kNoInterceptorResultSentinelRootIndex);
     __ cmp(r0, scratch1);
-    __ b(eq, &interceptor_failed);
+    __ b(eq, &interceptor_failed, Label::kNear);
     __ LeaveInternalFrame();
     __ Ret();
 
@@ -1596,7 +1596,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // Check if we could survive without allocation.
       __ cmpgt(r0, r4);
-      __ bt(&attempt_to_grow_elements);
+      __ bt_near(&attempt_to_grow_elements);
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -2120,7 +2120,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   // just return it.
   Label negative_sign;
   __ tst(r1, Operand(HeapNumber::kSignMask));
-  __ b(ne, &negative_sign);
+  __ b(ne, &negative_sign, Label::kNear);
   __ Drop(argc + 1);
   __ Ret();
 
@@ -3244,11 +3244,11 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
       // Check if the argument assigned to the property is actually passed.
       int arg_number = shared->GetThisPropertyAssignmentArgument(i);
       __ cmpgt(r0, Operand(arg_number));
-      __ b(f, &not_passed);
+      __ b(f, &not_passed, Label::kNear);
       // Argument passed - find it on the stack.
       __ ldr(r2, MemOperand(r1, (arg_number + 1) * -kPointerSize));
       __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
-      __ b(&next);
+      __ b_near(&next);
       __ bind(&not_passed);
       // Set the property to undefined.
       __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
@@ -3529,7 +3529,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // Check whether unsigned integer fits into smi.
       Label box_int_0, box_int_1, done;
       __ tst(value, Operand(0x80000000));
-      __ b(ne, &box_int_0);
+      __ b(ne, &box_int_0, Label::kNear);
       __ tst(value, Operand(0x40000000));
       __ b(ne, &box_int_1);
       // Tag integer as smi and return it.
@@ -4289,7 +4289,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ mov(scratch, Operand(kNaNOrInfinityLowerBoundUpper32));
   __ ldr(exponent_reg, FieldMemOperand(value_reg, HeapNumber::kExponentOffset));
   __ cmpge(exponent_reg, scratch);
-  __ bt(&maybe_nan);
+  __ bt_near(&maybe_nan);
 
   __ ldr(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
 
