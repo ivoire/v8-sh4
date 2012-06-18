@@ -935,8 +935,9 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample.sp = reinterpret_cast<Address>(mcontext.gregs[29]);
   sample.fp = reinterpret_cast<Address>(mcontext.gregs[30]);
 #elif defined(V8_HOST_ARCH_SH4)
-  UNIMPLEMENTED();
-  (void)mcontext;
+  sample->pc = reinterpret_cast<Address>(mcontext.pc);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[R15]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[R14]);
 #endif
 #ifdef ENABLE_LOGGING_AND_PROFILING
   sampler->SampleStack(sample);
