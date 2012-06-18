@@ -4067,7 +4067,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi.
-  __ JumpIfNotSmi(r0, &miss_force_generic);
+  __ JumpIfNotSmi(r0, &miss_force_generic, Label::kNear);
 
   // Get the elements array.
   __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
@@ -4076,7 +4076,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // Check that the key is within bounds.
   __ ldr(r3, FieldMemOperand(r2, FixedArray::kLengthOffset));
   __ cmphs(r0, r3);
-  __ bt(&miss_force_generic);
+  __ bt_near(&miss_force_generic);
 
   // Load the result and make sure it's not the hole.
   __ add(r3, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4085,7 +4085,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   __ ldr(r4, MemOperand(r3, r4));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
   __ cmp(r4, ip);
-  __ b(eq, &miss_force_generic);
+  __ b(eq, &miss_force_generic, Label::kNear);
   __ mov(r0, r4);
   __ Ret();
 
