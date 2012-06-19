@@ -1389,6 +1389,10 @@ def PostprocessOptions(options, os):
     # Print a warning if profiling is enabled without profiling support
     print "Warning: forcing profilingsupport on when prof is on"
     options['profilingsupport'] = 'on'
+  if (options['prof'] != 'off') and (options['logging'] == 'off'):
+    # Print a warning if profiling is enabled without logging
+    print "Warning: forcing logging on when prof is on"
+    options['logging'] = 'on'
   if os == 'win32' and options['pgo'] != 'off' and options['msvcltcg'] == 'off':
     if 'msvcltcg' in ARGUMENTS:
       print "Warning: forcing msvcltcg on as it is required for pgo (%s)" % options['pgo']
