@@ -5150,22 +5150,8 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   __ cmpeq(count, Operand(0));
   __ bt_near(&done);
 
-  // Assume that you cannot read (or write) unaligned.
-  Label byte_loop;
-  __ add(count, dest, count);
-  Register limit = count;
-  // TODO(stm): SH4 implementation is not optimized, always copy byte per byte.
-  // See ARM version for example of optimized code.
-
-  // Copy bytes from src to dst until dst hits limit.
-  __ bind(&byte_loop);
-  __ ldrb(scratch1, MemOperand(src));
-  __ add(src, src, Operand(1));
-  __ strb(scratch1, MemOperand(dest));
-  __ add(dest, dest, Operand(1));
-  __ cmpge(dest, limit);
-  __ bf(&byte_loop);
-
+  // Use an optimized version for sh4
+  __ memcpy(dest, src, count, scratch1, scratch2, scratch3, scratch4);
   __ bind(&done);
 }
 
