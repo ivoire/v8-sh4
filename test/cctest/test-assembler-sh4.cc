@@ -2115,3 +2115,24 @@ TEST(from_arm_12) {
   __ nop();
 }
 
+TEST(memcpy) {
+  BEGIN();
+
+  __ memcpy(r4, r5, r6, r1, r2, r3, r7);
+  __ mov(r0, Operand(0));
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  const char *psz_buffer = "this string will be copied to the second buffer";
+  char psz_dest[47 + 1] = { 0 };
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, (int)psz_dest, (int)psz_buffer, 47 + 1, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+  CHECK_EQ(0, strcmp(psz_buffer, psz_dest));
+}

@@ -954,6 +954,12 @@ class Assembler : public AssemblerBase {
   inline int align();
   inline int misalign();
 
+  // Copy some bytes
+  // The count argument is scratched
+  void memcpy(Register dst, Register src, Register count,
+              Register scratch1, Register scratch2,
+              Register scratch3, Register scratch4);
+
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).

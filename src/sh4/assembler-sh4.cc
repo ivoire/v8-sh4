@@ -122,6 +122,43 @@ Operand::Operand(Handle<Object> handle) {
 }
 
 
+void Assembler::memcpy(Register dst, Register src, Register count, Register scratch1, Register scratch2,
+                       Register scratch3, Register scratch4) {
+  align();
+  mov_(r0, scratch4);
+
+  mov_(dst, r0);
+  add_(count, r0);
+
+  sub_(dst, src);
+  add_imm_(-1, src);
+
+  mov_(src, scratch3);
+  shlr_(count);
+
+  movb_dispR0Rs_(src, scratch1);
+  bfs_(8);  // odd
+
+    add_imm_(-1, scratch3);
+  tst_(count, count);
+
+  bts_(12);  // end
+    movb_decRd_(scratch1, r0);
+
+  // even:
+  movb_dispR0Rs_(src, scratch1);
+  // odd:
+  movb_dispR0Rs_(scratch3, scratch2);
+  dt_(count);
+
+  movb_decRd_(scratch1, r0);
+  bfs_(-12);  // even
+    movb_decRd_(scratch2, r0);
+
+  mov_(scratch4, r0);
+}
+
+
 void Assembler::Align(int m) {
   ASSERT(m >= 4 && IsPowerOf2(m));
   while ((pc_offset() & (m - 1)) != 0) {
