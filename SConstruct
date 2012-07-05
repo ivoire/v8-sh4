@@ -48,16 +48,7 @@ if ARM_TARGET_LIB:
 else:
   ARM_LINK_FLAGS = []
 
-# SH4_TARGET_ROOT is the path to the dynamic library to use on the target
-# machine while cross-compiling.
-# You must also set the appropriate cross-compiling environment variables
-SH4_TARGET_ROOT = os.environ.get('SH4_TARGET_ROOT')
-if SH4_TARGET_ROOT:
-  SH4_LINK_FLAGS = ['-Wl,-rpath=' + SH4_TARGET_ROOT + '/lib:' +
-                     SH4_TARGET_ROOT + '/usr/lib',
-                    '-Wl,--dynamic-linker=/lib/ld-linux.so.2']
-else:
-  SH4_LINK_FLAGS = []
+SH4_LINK_FLAGS = []
 
 GCC_EXTRA_CCFLAGS = []
 GCC_DTOA_EXTRA_CCFLAGS = []
