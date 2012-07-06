@@ -48,8 +48,6 @@ if ARM_TARGET_LIB:
 else:
   ARM_LINK_FLAGS = []
 
-SH4_LINK_FLAGS = []
-
 GCC_EXTRA_CCFLAGS = []
 GCC_DTOA_EXTRA_CCFLAGS = []
 
@@ -463,9 +461,6 @@ CCTEST_EXTRA_FLAGS = {
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS
     },
-    'arch:sh4': {
-      'LINKFLAGS':   SH4_LINK_FLAGS
-    },
   },
   'msvc': {
     'all': {
@@ -545,9 +540,6 @@ SAMPLE_FLAGS = {
           'CCFLAGS':     ['-mfloat-abi=hard'],
         }
       }
-    },
-    'arch:sh4': {
-      'LINKFLAGS':   SH4_LINK_FLAGS
     },
     'arch:ia32': {
       'CCFLAGS':      ['-m32'],
@@ -857,9 +849,6 @@ D8_FLAGS = {
     },
     'arch:arm': {
       'LINKFLAGS':   ARM_LINK_FLAGS
-    },
-    'arch:sh4': {
-      'LINKFLAGS':   SH4_LINK_FLAGS
     },
     'compress_startup_data:bz2': {
       'CPPDEFINES':   ['COMPRESS_STARTUP_DATA_BZ2'],
