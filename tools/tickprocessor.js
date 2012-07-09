@@ -601,10 +601,11 @@ CppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function UnixCppEntriesProvider(nmExec) {
+function UnixCppEntriesProvider(nmExec, targetRootFS) {
   this.symbols = [];
   this.parsePos = 0;
   this.nmExec = nmExec;
+  this.targetRootFS = targetRootFS;
   this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
 };
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
@@ -612,6 +613,7 @@ inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
+  libName = this.targetRootFS + libName;
   try {
     this.symbols = [
       os.system(this.nmExec, ['-C', '-n', '-S', libName], -1, -1),
@@ -776,6 +778,8 @@ function ArgumentsProcessor(args) {
         'Specify that we are running on Mac OS X platform'],
     '--nm': ['nm', 'nm',
         'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
+    '--target': ['targetRootFS', '',
+        'Specify the target root directory for cross environment'],
     '--snapshot-log': ['snapshotLogFileName', 'snapshot.log',
         'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)']
   };
@@ -794,6 +798,7 @@ ArgumentsProcessor.DEFAULTS = {
   stateFilter: null,
   ignoreUnknown: false,
   separateIc: false,
+  targetRootFS: '',
   nm: 'nm'
 };
 

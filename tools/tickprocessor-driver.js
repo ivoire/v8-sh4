@@ -50,7 +50,7 @@ if (params.snapshotLogFileName) {
   snapshotLogProcessor.processLogFile(params.snapshotLogFileName);
 }
 var tickProcessor = new TickProcessor(
-  new (entriesProviders[params.platform])(params.nm),
+  new (entriesProviders[params.platform])(params.nm, params.targetRootFS),
   params.separateIc,
   params.ignoreUnknown,
   params.stateFilter,
