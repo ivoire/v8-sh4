@@ -29,6 +29,7 @@
 #define V8_SH4_ASSEMBLER_SH4_INL_H_
 
 #include "sh4/assembler-sh4.h"
+#include "sh4/checks-sh4.h"
 #include "cpu.h"
 #include "debug.h"
 
@@ -330,8 +331,12 @@ void Assembler::cmp(Condition *cond, Register Rd, Register Rs) {
 
 
 void Assembler::cmpeq(Register Rd, const Operand& imm, Register rtmp) {
-  mov(rtmp, imm);
-  cmpeq_(rtmp, Rd);
+  if (Rd.is(r0) && FITS_SH4_cmpeq_imm_R0(imm.imm32_)) {
+    cmpeq_imm_R0_(imm.imm32_);
+  } else {
+    mov(rtmp, imm);
+    cmpeq_(rtmp, Rd);
+  }
 }
 
 
