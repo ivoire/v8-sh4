@@ -705,8 +705,7 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
     __ bind(&init_loop);
     __ str(r0, MemOperand(r1));
     __ add(r1, r1, Operand(-kPointerSize));
-    __ sub(r2, r2, Operand(1));
-    __ tst(r2, r2);
+    __ dt(r2);
     __ b(ne, &init_loop);
   }
 

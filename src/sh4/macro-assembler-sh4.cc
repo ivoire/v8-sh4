@@ -2135,8 +2135,7 @@ void MacroAssembler::CopyBytes(Register src,
   add(src, src, Operand(1));
   strb(scratch, MemOperand(dst));
   add(dst, dst, Operand(1));
-  sub(length, length, Operand(1));
-  tst(length, length);
+  dt(length);
   b(ne, &byte_loop_1, Label::kNear);
 
   // Copy bytes in word size chunks.
@@ -2177,8 +2176,7 @@ void MacroAssembler::CopyBytes(Register src,
   add(src, src, Operand(1));
   strb(scratch, MemOperand(dst));
   add(dst, dst, Operand(1));
-  sub(length, length, Operand(1));
-  tst(length, length);
+  dt(length);
   b(ne, &byte_loop_1, Label::kNear);
   bind(&done);
 }

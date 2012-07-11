@@ -702,8 +702,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       MemOperand constructor_count =
           FieldMemOperand(r3, SharedFunctionInfo::kConstructionCountOffset);
       __ ldrb(r4, constructor_count);
-      __ sub(r4, r4, Operand(1));
-      __ tst(r4, r4);
+      __ dt(r4);
       __ strb(r4, constructor_count);
       __ b(ne, &allocate);
 

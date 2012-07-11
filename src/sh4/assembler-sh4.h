@@ -736,6 +736,8 @@ class Assembler : public AssemblerBase {
   int fits_raw_immediate(int raw_immediate)
         { return (raw_immediate & ~0xFF) == 0; }
 
+  void dt(Register Rd)  { dt_(Rd); }
+
   // FPU support
   // Load float
   void fldr(SwVfpRegister dst, const MemOperand& src, Register rtmp = sh4_rtmp);

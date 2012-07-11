@@ -4178,8 +4178,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ ldr(r3, MemOperand(r2));
   // Post-increment r4 with kPointerSize on each iteration.
   __ str(r3, MemOperand(r4, kPointerSize, PostIndex));
-  __ sub(r1, r1, Operand(1));
-  __ cmp(r1, Operand(0, RelocInfo::NONE));
+  __ dt(r1);
   __ b(ne, &loop);
 
   // Return and remove the on-stack parameters.
