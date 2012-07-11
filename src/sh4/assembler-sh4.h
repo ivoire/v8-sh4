@@ -960,6 +960,10 @@ class Assembler : public AssemblerBase {
               Register scratch1, Register scratch2,
               Register scratch3, Register scratch4);
 
+  // Compare some bytes using a loop
+  void memcmp(Register left, Register right, Register length,
+              Register scratch1, Register scratch2, Label *not_equal);
+
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).

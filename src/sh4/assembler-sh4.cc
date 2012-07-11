@@ -158,6 +158,17 @@ void Assembler::memcpy(Register dst, Register src, Register count, Register scra
   mov_(scratch4, r0);
 }
 
+void Assembler::memcmp(Register left, Register right, Register length,
+                       Register scratch1, Register scratch2, Label *not_equal) {
+  Label loop;
+  bind(&loop);
+   movb_incRs_(left, scratch1);
+   movb_incRs_(right, scratch2);
+   cmpeq(scratch1, scratch2);
+   bf(not_equal);
+   dt_(length);
+  bf(&loop);
+}
 
 void Assembler::Align(int m) {
   ASSERT(m >= 4 && IsPowerOf2(m));
