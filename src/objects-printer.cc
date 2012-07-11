@@ -632,10 +632,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   PrintF(out, "\n - code = ");
   code()->ShortPrint(out);
   PrintF(out, "\n - source code = ");
+#ifdef DEBUG
   if (GetHeap()->IsAllocationAllowed())
     GetSourceCode()->ShortPrint(out);
   else
     PrintF(out, "Ommited (no allocation allowed)\n");
+#endif
   // Script files are often large, hard to read.
   // PrintF(out, "\n - script =");
   // script()->Print(out);
