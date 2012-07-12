@@ -921,7 +921,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
 // An undefined macro evaluates to 0, so this applies to Android's Bionic also.
-#if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3) && !defined(__UCLIBC__))
   sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
   sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
