@@ -39,7 +39,7 @@ mode=${mode:-release}
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
 library=${library:-shared}
-[ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+[ "$library" = shared ] && export LD_LIBRARY_PATH=${pdir}/../../:$LD_LIBRARY_PATH
 profile_gcov=${profile_gcov:-off}
 [ "$profile_gcov" = on ] && jobs=1 && find . -name '*.gcda' -exec rm {} \;
 
