@@ -133,8 +133,8 @@ void Assembler::memcpy(Register dst, Register src, Register count, Register scra
   sub_(dst, src);
   add_imm_(-1, src);
 
-  mov_(src, scratch3);
   shlr_(count);
+  mov_(src, scratch3);
 
   movb_dispR0Rs_(src, scratch1);
   bfs_(8);  // odd
