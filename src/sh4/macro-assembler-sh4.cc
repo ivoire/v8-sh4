@@ -278,9 +278,19 @@ void MacroAssembler::ConvertToInt32(Register source,
          !dest.is(scratch) && !dest.is(scratch2) && !scratch.is(scratch2));
 
   // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    sub(scratch, source, Operand(kHeapObjectTag));
+    dldr(double_scratch, MemOperand(scratch, HeapNumber::kValueOffset));
+    idouble(dest, double_scratch);
+    // Signed vcvt instruction will saturate to the minimum (0x80000000) or
+    // maximun (0x7fffffff) signed 32bits integer when the double is out of
+    // range. When substracting one, the minimum signed integer becomes the
+    // maximun signed integer.
+    sub(scratch, dest, Operand(1));
+    cmpge(scratch, Operand(LONG_MAX - 1));
+    // If equal then dest was LONG_MAX, if greater dest was LONG_MIN.
+    bt(not_int32);
+  } else {
     // This code is faster for doubles that are in the ranges -0x7fffffff to
     // -0x40000000 or 0x40000000 to 0x7fffffff. This corresponds almost to
     // the range of signed int32 values that are not Smis.  Jumps to the label

@@ -1923,7 +1923,7 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
 
   EmitCheckForHeapNumber(masm, r0, r1, r6, slow);
   // Convert the heap number is r0 to an untagged integer in r1.
-  __ ConvertToInt32(r0, r1, r2, r3, /*d0*/no_dreg, slow);
+  __ ConvertToInt32(r0, r1, r2, r3, dr0, slow);
 
   // Do the bitwise operation and check if the result fits in a smi.
   Label try_float;
@@ -1956,7 +1956,7 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     // Convert the heap number in r0 to an untagged integer in r1.
     // This can't go slow-case because it's the same number we already
     // converted once again.
-    __ ConvertToInt32(r0, r1, r3, r4, /*d0*/no_dreg, &impossible);
+    __ ConvertToInt32(r0, r1, r3, r4, dr0, &impossible);
     __ mvn(r1, r1);
 
     __ bind(&heapnumber_allocated);
