@@ -755,6 +755,8 @@ class Assembler : public AssemblerBase {
 
   // Interger conversion from double: Rs = (int)Dd
   void idouble(Register Rd, DwVfpRegister Ds);
+  // Interger conversion from dingle: Rs = (int)Frs
+  void isingle(Register Rd, SwVfpRegister Frs);
 
   // Conversion from simple to double
   void fcnvsd(DwVfpRegister Dd, SwVfpRegister Fs)   { flds_FPUL_(Fs); fcnvsd_FPUL_double_(Dd); }
@@ -929,6 +931,9 @@ class Assembler : public AssemblerBase {
 
   void ldrpr(Register Rd) { lds_PR_(Rd); }
   void strpr(Register Rs) { sts_PR_(Rs); }
+
+  void ldr_fpscr(Register Rs) { lds_FPSCR_(Rs); }
+  void str_fpscr(Register Rd) { sts_FPSCR_(Rd); }
 
   void mul(Register Rd, Register Rs, Register Rt);
   void dmuls(Register dstL, Register dstH, Register src1, Register src2);

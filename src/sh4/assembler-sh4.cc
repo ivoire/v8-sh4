@@ -1369,6 +1369,12 @@ void Assembler::idouble(Register Rd, DwVfpRegister Ds)
 }
 
 
+void Assembler::isingle(Register Rd, SwVfpRegister Fs) {
+  flds_FPUL_(Fs);
+  sts_FPUL_(Rd);
+}
+
+
 void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
   if (dst.rn_.is_valid()) {
