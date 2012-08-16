@@ -311,6 +311,14 @@ enum AddrMode {
 };
 
 
+// We use the cause fields bcause they are set to 1 or 0 depending on the
+// action. So they don't need to be reseted but they mist be use immediately
+static const uint32_t kFPUInexactExceptionBit    = 1 << 12;
+static const uint32_t kFPUUnderflowExceptionBit  = 1 << 13;
+static const uint32_t kFPUOverflowExceptionBit   = 1 << 14;
+static const uint32_t kFPUDividezeroExceptionBit = 1 << 15;
+static const uint32_t kFPUInvalidExceptionBit    = 1 << 16;
+
 // Returns the equivalent of !cc.
 // Negation of the default no_condition (-1) results in a non-default
 // no_condition value (-2). As long as tests for no_condition check

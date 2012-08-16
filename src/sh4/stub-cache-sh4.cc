@@ -3806,8 +3806,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // The WebGL specification leaves the behavior of storing NaN and
     // +/-Infinity into integer arrays basically undefined. For more
     // reproducible behavior, convert these to zero.
-    if (CpuFeatures::IsSupported(FPU) &&
-        (elements_kind == EXTERNAL_FLOAT_ELEMENTS || elements_kind == EXTERNAL_DOUBLE_ELEMENTS)) {
+    if (CpuFeatures::IsSupported(FPU)) {
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         // vldr requires offset to be a multiple of 4 so we can not
         // include -kHeapObjectTag into it.
@@ -3826,19 +3825,17 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ add(r5, r3, r5);
         __ dstr(dr0, MemOperand(r5, 0), r5);
       } else {
-        UNIMPLEMENTED();
-#if 0
         // Hoisted load.  vldr requires offset to be a multiple of 4 so we can
         // not include -kHeapObjectTag into it.
         __ sub(r5, value, Operand(kHeapObjectTag));
         __ dldr(dr0, MemOperand(r5, HeapNumber::kValueOffset));
-        __ EmitECMATruncate(r5, dr0, no_freg, r6, r7, r9);
+        __ EmitECMATruncate(r5, dr0, fr2, r6, r7, r9);
 
         switch (elements_kind) {
           case EXTERNAL_BYTE_ELEMENTS:
           case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-            __ lsr(r6, key, Operand(1));
-            __ strb(r5, MemOperand(r3, r6));
+            __ lsr(ip, key, Operand(1));
+            __ strb(r5, MemOperand(r3, ip));
             break;
           case EXTERNAL_SHORT_ELEMENTS:
           case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
@@ -3846,8 +3843,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
             break;
           case EXTERNAL_INT_ELEMENTS:
           case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-            __ lsl(r6, key, Operand(1));
-            __ str(r5, MemOperand(r3, r6));
+            __ lsl(ip, key, Operand(1));
+            __ str(r5, MemOperand(r3, ip));
             break;
           case EXTERNAL_PIXEL_ELEMENTS:
           case EXTERNAL_FLOAT_ELEMENTS:
@@ -3859,7 +3856,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
             UNREACHABLE();
             break;
         }
-#endif
       }
 
       // Entry registers are intact, r0 holds the value which is the return

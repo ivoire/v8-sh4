@@ -727,6 +727,13 @@ class MacroAssembler: public Assembler {
   //   index - holds the overwritten index on exit.
   void IndexFromHash(Register hash, Register index);
 
+  void EmitECMATruncate(Register result,
+                        DwVfpRegister double_input,
+                        SwVfpRegister single_scratch,
+                        Register scratch,
+                        Register input_high,
+                        Register input_low) ;
+
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
   void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);

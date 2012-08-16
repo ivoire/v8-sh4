@@ -495,6 +495,46 @@ void MacroAssembler::Call(Handle<Code> code,
 }
 
 
+void MacroAssembler::EmitECMATruncate(Register result,
+                                      DwVfpRegister double_input,
+                                      SwVfpRegister single_scratch,
+                                      Register scratch,
+                                      Register input_high,
+                                      Register input_low) {
+  ASSERT(CpuFeatures::IsSupported(FPU));
+  ASSERT(!input_high.is(result));
+  ASSERT(!input_low.is(result));
+  ASSERT(!input_low.is(input_high));
+  ASSERT(!scratch.is(result) &&
+         !scratch.is(input_high) &&
+         !scratch.is(input_low));
+  ASSERT(!single_scratch.is(double_input.low()) &&
+         !single_scratch.is(double_input.high()));
+
+  Label done;
+
+  // Do the conversion
+  idouble(result, double_input);
+  // Retrieve the FPSCR.
+  str_fpscr(scratch);
+  // Check for overflow and NaNs.
+  tst(scratch, Operand(kFPUOverflowExceptionBit |
+                       kFPUUnderflowExceptionBit |
+                       kFPUInvalidExceptionBit |
+                       kFPUInexactExceptionBit));
+  // If we had no exceptions we are done.
+  b(eq, &done);
+
+  // Load the double value and perform a manual truncation.
+  movd(input_low, input_high, double_input);
+  EmitOutOfInt32RangeTruncate(result,
+                              input_high,
+                              input_low,
+                              scratch);
+  bind(&done);
+}
+
+
 void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
