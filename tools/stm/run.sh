@@ -44,7 +44,7 @@ profile_gcov=${profile_gcov:-off}
 [ "$profile_gcov" = on ] && jobs=1 && find . -name '*.gcda' -exec rm {} \;
 
 export LANG=
-export TZ=:Europe/London
+export TZ=Europe/London
 if [ "$QEMU" != "" ]; then
     if [ "$PROOT" = "" ]; then
 	    QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
