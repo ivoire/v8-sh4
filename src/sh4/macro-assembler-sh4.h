@@ -457,6 +457,19 @@ class MacroAssembler: public Assembler {
                       DwVfpRegister double_scratch,
                       Label *not_int32);
 
+  // Truncates a double using a specific rounding mode.
+  // Clears the z flag (ne condition) if an overflow occurs.
+  // If exact_conversion is true, the z flag is also cleared if the conversion
+  // was inexact, ie. if the double value could not be converted exactly
+  // to a 32bit integer.
+  void EmitFPUTruncate(FPURoundingMode rounding_mode,
+                       SwVfpRegister result,
+                       DwVfpRegister double_input,
+                       Register scratch1,
+                       Register scratch2,
+                       CheckForInexactConversion check
+                           = kDontCheckForInexactConversion);
+
   // Helper for EmitECMATruncate.
   // This will truncate a floating-point value outside of the singed 32bit
   // integer range to a 32bit signed integer.

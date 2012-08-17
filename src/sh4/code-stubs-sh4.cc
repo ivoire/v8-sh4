@@ -631,9 +631,6 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Register scratch2,
                                                   SwVfpRegister single_scratch,
                                                   Label* not_int32) {
-  // TODO(stm): remove these asserts when the FPU is used
-  ASSERT(single_scratch.is(no_freg));
-
   ASSERT(!scratch1.is(object) && !scratch2.is(object));
   ASSERT(!scratch1.is(scratch2));
   ASSERT(!heap_number_map.is(object) &&
@@ -657,10 +654,25 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
   __ JumpIfNotHeapNumber(object, heap_number_map, scratch1, not_int32);
 
   // Load the number.
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    // Load the double value.
+    __ sub(scratch1, object, Operand(kHeapObjectTag));
+    __ dldr(double_dst, MemOperand(scratch1, HeapNumber::kValueOffset));
+
+    __ EmitFPUTruncate(kRoundToZero,
+                       single_scratch,
+                       double_dst,
+                       scratch1,
+                       scratch2,
+                       kCheckForInexactConversion);
+
+    // Jump to not_int32 if the operation did not succeed.
+    __ b(ne, not_int32);
+
+    if (destination == kCoreRegisters) {
+      __ movd(dst1, dst2, double_dst);
+    }
+  } else {
     ASSERT(!scratch1.is(object) && !scratch2.is(object));
     // Load the double value in the destination registers..
     __ Ldrd(dst1, dst2, FieldMemOperand(object, HeapNumber::kValueOffset));
@@ -2578,7 +2590,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       // Load both operands and check that they are 32-bit integer.
       // Jump to type transition if they are not. The registers r0 and r1 (right
       // and left) are preserved for the runtime call.
-      // TODO(STM): for the moment we only use core registers
       FloatingPointHelper::Destination destination =
 /*          (CpuFeatures::IsSupported(FPU) && op_ != Token::MOD)
               ? FloatingPointHelper::kVFPRegisters
@@ -2593,7 +2604,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    heap_number_map,
                                                    scratch1,
                                                    scratch2,
-                                                   no_freg,
+                                                   fr4,
                                                    &transition);
       FloatingPointHelper::LoadNumberAsInt32Double(masm,
                                                    left,
@@ -2604,7 +2615,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    heap_number_map,
                                                    scratch1,
                                                    scratch2,
-                                                   no_freg,
+                                                   fr4,
                                                    &transition);
 
     // TODO(stm): FPU
