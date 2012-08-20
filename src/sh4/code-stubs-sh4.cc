@@ -2602,9 +2602,9 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       // Jump to type transition if they are not. The registers r0 and r1 (right
       // and left) are preserved for the runtime call.
       FloatingPointHelper::Destination destination =
-/*          (CpuFeatures::IsSupported(FPU) && op_ != Token::MOD)
+          (CpuFeatures::IsSupported(FPU) && op_ != Token::MOD)
               ? FloatingPointHelper::kVFPRegisters
-              : */FloatingPointHelper::kCoreRegisters;
+              : FloatingPointHelper::kCoreRegisters;
 
       FloatingPointHelper::LoadNumberAsInt32Double(masm,
                                                    right,
@@ -2629,10 +2629,86 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    fr4,
                                                    &transition);
 
-    // TODO(stm): FPU
-    // if (destination == FloatingPointHelper::kVFPRegisters) {
-    // } else
-    {
+    if (destination == FloatingPointHelper::kVFPRegisters) {
+        Label return_heap_number;
+        switch (op_) {
+          case Token::ADD:
+            __ fadd(dr0, dr2);
+            break;
+          case Token::SUB:
+            __ fsub(dr0, dr2);
+            break;
+          case Token::MUL:
+            __ fmul(dr0, dr2);
+            break;
+          case Token::DIV:
+            __ fdiv(dr0, dr2);
+            break;
+          default:
+            UNREACHABLE();
+        }
+
+        if (op_ != Token::DIV) {
+          // These operations produce an integer result.
+          // Try to return a smi if we can.
+          // Otherwise return a heap number if allowed, or jump to type
+          // transition.
+
+          __ EmitFPUTruncate(kRoundToZero,
+                             scratch2,
+                             dr0,
+                             scratch1);
+
+          if (result_type_ <= BinaryOpIC::INT32) {
+            // If the ne condition is set, result does
+            // not fit in a 32-bit integer.
+            __ b(ne, &transition);
+          }
+
+          // Check if the result fits in a smi.
+          __ add(scratch2, scratch1, Operand(0x40000000));
+          __ cmpge(scratch2, Operand(0));
+          // If not try to return a heap number.
+          __ bt(&return_heap_number);
+          // Check for minus zero. Return heap number for minus zero.
+          Label not_zero;
+          __ cmp(scratch1, Operand(0));
+          __ b(ne, &not_zero);
+          __ isingle(scratch2, dr0.high());
+          __ tst(scratch2, Operand(HeapNumber::kSignMask));
+          __ b(ne, &return_heap_number);
+          __ bind(&not_zero);
+
+          // Tag the result and return.
+          __ SmiTag(r0, scratch1);
+          __ Ret();
+        } else {
+          // DIV just falls through to allocating a heap number.
+        }
+
+        __ bind(&return_heap_number);
+        // Return a heap number, or fall through to type transition or runtime
+        // call if we can't.
+        if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::HEAP_NUMBER
+                                                 : BinaryOpIC::INT32)) {
+          // We are using vfp registers so r5 is available.
+          heap_number_result = r5;
+          GenerateHeapResultAllocation(masm,
+                                       heap_number_result,
+                                       heap_number_map,
+                                       scratch1,
+                                       scratch2,
+                                       &call_runtime);
+          __ sub(r0, heap_number_result, Operand(kHeapObjectTag));
+          __ dstr(dr0, MemOperand(r0, HeapNumber::kValueOffset));
+          __ mov(r0, heap_number_result);
+          __ Ret();
+        }
+
+        // A DIV operation expecting an integer result falls through
+        // to type transition.
+
+    } else {
         // We preserved r0 and r1 to be able to call runtime.
         // Save the left value on the stack.
         __ Push(r5, r4);
