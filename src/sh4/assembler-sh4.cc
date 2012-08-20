@@ -1362,9 +1362,11 @@ void Assembler::dfloat(DwVfpRegister Dd, Register Rs)
 }
 
 
-void Assembler::idouble(Register Rd, DwVfpRegister Ds)
+void Assembler::idouble(Register Rd, DwVfpRegister Ds, Register fpscr)
 {
   ftrc_double_FPUL_(Ds);
+  if(!fpscr.is(no_reg))
+    sts_FPSCR_(fpscr);
   sts_FPUL_(Rd);
 }
 

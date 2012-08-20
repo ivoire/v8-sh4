@@ -781,7 +781,7 @@ class Assembler : public AssemblerBase {
   void dfloat(DwVfpRegister Dd, const Operand &imm, Register rtmp = sh4_rtmp);
 
   // Interger conversion from double: Rs = (int)Dd
-  void idouble(Register Rd, DwVfpRegister Ds);
+  void idouble(Register Rd, DwVfpRegister Ds, Register fpscr = no_reg);
   // Interger conversion from dingle: Rs = (int)Frs
   void isingle(Register Rd, SwVfpRegister Frs);
 
