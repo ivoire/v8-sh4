@@ -463,10 +463,9 @@ class MacroAssembler: public Assembler {
   // was inexact, ie. if the double value could not be converted exactly
   // to a 32bit integer.
   void EmitFPUTruncate(FPURoundingMode rounding_mode,
-                       SwVfpRegister result,
+                       Register result,
                        DwVfpRegister double_input,
-                       Register scratch1,
-                       Register scratch2,
+                       Register scratch,
                        CheckForInexactConversion check
                            = kDontCheckForInexactConversion);
 

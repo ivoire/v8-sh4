@@ -370,30 +370,16 @@ void MacroAssembler::ConvertToInt32(Register source,
 
 
 void MacroAssembler::EmitFPUTruncate(FPURoundingMode rounding_mode,
-                                     SwVfpRegister result,
+                                     Register result,
                                      DwVfpRegister double_input,
-                                     Register scratch1,
-                                     Register scratch2,
+                                     Register scratch,
                                      CheckForInexactConversion check_inexact) {
-  Register prev_fpscr = scratch1;
-  Register scratch = scratch2;
-
+  ASSERT(rounding_mode == kRoundToZero);
   int32_t check_inexact_conversion =
     (check_inexact == kCheckForInexactConversion) ? kFPUInexactExceptionBit : 0;
 
-  // Set custom FPCSR:
-  //  - Set rounding mode.
-  str_fpscr(prev_fpscr);
-  land(scratch, prev_fpscr, Operand(~kFPURoundingModeMask));
-  orr(scratch, scratch, Operand(rounding_mode));
-  ldr_fpscr(scratch);
+  idouble(result, double_input, scratch);
 
-  fcnvds(result, double_input);
-
-  // Retrive FPSCR
-  str_fpscr(scratch);
-  // restore FPSCR
-  ldr_fpscr(prev_fpscr);
   // Check for FPU exceptions
   tst(scratch, Operand(kFPUExceptionMask | check_inexact_conversion));
 }
