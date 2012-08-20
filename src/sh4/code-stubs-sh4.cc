@@ -549,8 +549,6 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
                                              Register dst2,
                                              Register scratch2,
                                              SwVfpRegister single_scratch) {
-  ASSERT(single_scratch.is(no_freg));
-
   ASSERT(!int_scratch.is(scratch2));
   ASSERT(!int_scratch.is(dst1));
   ASSERT(!int_scratch.is(dst2));
@@ -631,6 +629,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Register scratch2,
                                                   SwVfpRegister single_scratch,
                                                   Label* not_int32) {
+  ASSERT(destination == FloatingPointHelper::kCoreRegisters);
   ASSERT(!scratch1.is(object) && !scratch2.is(object));
   ASSERT(!scratch1.is(scratch2));
   ASSERT(!heap_number_map.is(object) &&
@@ -660,9 +659,8 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     __ dldr(double_dst, MemOperand(scratch1, HeapNumber::kValueOffset));
 
     __ EmitFPUTruncate(kRoundToZero,
-                       single_scratch,
-                       double_dst,
                        scratch1,
+                       double_dst,
                        scratch2,
                        kCheckForInexactConversion);
 
@@ -672,6 +670,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     if (destination == kCoreRegisters) {
       __ movd(dst1, dst2, double_dst);
     }
+
   } else {
     ASSERT(!scratch1.is(object) && !scratch2.is(object));
     // Load the double value in the destination registers..
@@ -704,8 +703,6 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
                                             Register scratch3,
                                             DwVfpRegister double_scratch,
                                             Label* not_int32) {
-  // TODO(stm): remove these asserts when the FPU is used
-  ASSERT(double_scratch.is(no_dreg));
   ASSERT(!dst.is(object));
   ASSERT(!scratch1.is(object) && !scratch2.is(object) && !scratch3.is(object));
   ASSERT(!scratch1.is(scratch2) &&
@@ -728,10 +725,24 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
 
   // Object is a heap number.
   // Convert the floating point value to a 32-bit integer.
-  // TODO(stm): FPU
-  // if (CpuFeatures::IsSupported(VFP3)) {
-  // } else
-  {
+  if (CpuFeatures::IsSupported(FPU)) {
+    SwVfpRegister single_scratch = double_scratch.low();
+    // Load the double value.
+    __ sub(scratch1, object, Operand(kHeapObjectTag));
+    __ dldr(double_scratch, MemOperand(scratch1, HeapNumber::kValueOffset));
+
+    __ EmitFPUTruncate(kRoundToZero,
+                       scratch2,
+                       double_scratch,
+                       scratch1,
+                       kCheckForInexactConversion);
+
+    // Jump to not_int32 if the operation did not succeed.
+    __ b(ne, not_int32);
+    // Get the result in the destination register.
+    __ mov(dst, scratch2);
+
+  } else {
     // Load the double value in the destination registers.
     __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
     __ ldr(scratch2, FieldMemOperand(object, HeapNumber::kMantissaOffset));
@@ -1237,7 +1248,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
     Label first_non_object;
     // Get the type of the first operand into r2 and compare it with
-    // FIRST_JS_OBJECT_TYPE.
+    // FIRST_SPEC_OBJECT_TYPE.
     __ CompareObjectType(rhs, r2, r2, FIRST_SPEC_OBJECT_TYPE, ge);
     __ bf_near(&first_non_object);
 
@@ -2673,7 +2684,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                              scratch1,
                                              scratch2,
                                              scratch3,
-                                             no_dreg/*TODO:d0*/,
+                                             dr0,
                                              &transition);
       FloatingPointHelper::LoadNumberAsInt32(masm,
                                              right,
@@ -2682,7 +2693,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                              scratch1,
                                              scratch2,
                                              scratch3,
-                                             no_dreg/*TODO:d0*/,
+                                             dr0,
                                              &transition);
 
       // The ECMA-262 standard specifies that, for shift operations, only the
@@ -2711,10 +2722,11 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // The non vfp3 code does not support this special case, so jump to
           // runtime if we don't support it.
           __ cmpge(r2, Operand(0));
-          // TODO(stm): FPU
-          // if (CpuFeatures::IsSupported(VFP3)) {
-          // } else
-          {
+          if (CpuFeatures::IsSupported(FPU)) {
+            __ b(f, (result_type_ <= BinaryOpIC::INT32)
+                      ? &transition
+                      : &return_heap_number);
+          } else {
             __ b(f, (result_type_ <= BinaryOpIC::INT32)
                       ? &transition
                       : &call_runtime);
