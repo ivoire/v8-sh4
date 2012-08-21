@@ -2571,8 +2571,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Register right = r0;
   Register scratch1 = r7;
   Register scratch2 = r9;
-  // DwVfpRegister double_scratch = no_dreg/*d0*/;         // TODO(stm): FPU
-  // SwVfpRegister single_scratch = no_freg/*s3*/;         // TODO(stm): FPU
+  DwVfpRegister double_scratch = dr0;
 
   Register heap_number_result = no_reg;
   Register heap_number_map = r6;
@@ -2833,10 +2832,21 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                    scratch1,
                                    scratch2,
                                    &call_runtime);
-      // TODO(stm): FPU
-      // if (CpuFeatures::IsSupported(VFP3)) {
-      // } else
-      {
+
+      if (CpuFeatures::IsSupported(FPU) && op_ != Token::SHR) {
+        if ((op_ != Token::SHR)) {
+          // Convert the result to a floating point value.
+          __ dfloat(double_scratch, r2);
+        } else {
+          // TODO(STM): using int to float
+        }
+
+        // Store the result.
+        __ sub(r0, heap_number_result, Operand(kHeapObjectTag));
+        __ dstr(double_scratch, MemOperand(r0, HeapNumber::kValueOffset));
+        __ mov(r0, heap_number_result);
+        __ Ret();
+      } else {
         // Tail call that writes the int32 in r2 to the heap number in r0, using
         // r3 as scratch. r0 is preserved and returned.
         __ mov(r0, r5);
