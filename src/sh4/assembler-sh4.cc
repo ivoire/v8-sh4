@@ -1374,9 +1374,14 @@ void Assembler::dufloat(DwVfpRegister Dd, Register Rs, DwVfpRegister drtmp, Regi
   float_FPUL_double_(Dd);
   b(&end);
 
-  // Do some correction to handle the sign bit as 2^32
+  // Do some correction to convert the unsigned to a floating point value
   bind(&too_large);
-  bkpt();
+  dfloat(drtmp, Operand(0x7fffffff), rtmp);
+  dfloat(Dd, Operand(1), rtmp);
+  fadd(drtmp, Dd);
+  fadd(drtmp, drtmp);
+  dfloat(Dd, Rs);
+  fadd(Dd, drtmp);
 
   bind(&end);
 }
