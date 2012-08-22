@@ -367,7 +367,7 @@ void FullCodeGenerator::PrepareForBailoutForId(int id, State state) {
   if (!FLAG_deopt || !info_->HasDeoptimizationSupport()) return;
   unsigned pc_and_state =
       StateField::encode(state) | PcField::encode(masm_->pc_offset());
-  BailoutEntry entry = { id, pc_and_state };
+  BailoutEntry entry = { static_cast<unsigned int>(id), pc_and_state };
 #ifdef DEBUG
   // Assert that we don't have multiple bailout entries for the same node.
   for (int i = 0; i < bailout_entries_.length(); i++) {
@@ -385,7 +385,7 @@ void FullCodeGenerator::PrepareForBailoutForId(int id, State state) {
 void FullCodeGenerator::RecordStackCheck(int ast_id) {
   // The pc offset does not need to be encoded and packed together with a
   // state.
-  BailoutEntry entry = { ast_id, masm_->pc_offset() };
+  BailoutEntry entry = { static_cast<unsigned int>(ast_id), static_cast<unsigned int>(masm_->pc_offset()) };
   stack_checks_.Add(entry);
 }
 
