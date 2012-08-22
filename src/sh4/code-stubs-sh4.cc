@@ -2403,10 +2403,9 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
           // The code below for writing into heap numbers isn't capable of
           // writing the register as an unsigned int so we go to slow case if we
           // hit this case.
-          // TODO(stm): FPU
-          // if (CpuFeatures::IsSupported(VFP3)) {
-          // } else
-          {
+          if (CpuFeatures::IsSupported(FPU)) {
+            __ bf(&result_not_a_smi);
+          } else {
             __ bf(not_numbers);
           }
           break;
