@@ -780,6 +780,9 @@ class Assembler : public AssemblerBase {
   // Double conversion from int operand: Dd = (double)imm
   void dfloat(DwVfpRegister Dd, const Operand &imm, Register rtmp = sh4_rtmp);
 
+  // Double conversion from unsigned int register: Dd = (double)Rs(unsigned)
+  void dufloat(DwVfpRegister Dd, Register Rs, DwVfpRegister drtmp, Register rtmp);
+
   // Interger conversion from double: Rs = (int)Dd
   void idouble(Register Rd, DwVfpRegister Ds, Register fpscr = no_reg);
   // Interger conversion from dingle: Rs = (int)Frs

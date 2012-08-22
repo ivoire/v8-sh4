@@ -1362,6 +1362,26 @@ void Assembler::dfloat(DwVfpRegister Dd, Register Rs)
 }
 
 
+void Assembler::dufloat(DwVfpRegister Dd, Register Rs, DwVfpRegister drtmp, Register rtmp) {
+  Label too_large, end;
+
+  // Test the sign bit to see if the conversion from unsigned to signed is safe
+  tst(Rs, Operand(0x80000000), rtmp);
+  bf(&too_large);
+
+  // The unsigned integer is smal enough to be a signed one
+  lds_FPUL_(Rs);
+  float_FPUL_double_(Dd);
+  b(&end);
+
+  // Do some correction to handle the sign bit as 2^32
+  bind(&too_large);
+  bkpt();
+
+  bind(&end);
+}
+
+
 void Assembler::idouble(Register Rd, DwVfpRegister Ds, Register fpscr)
 {
   ftrc_double_FPUL_(Ds);
