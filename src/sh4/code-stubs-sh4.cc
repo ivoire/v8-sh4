@@ -2444,10 +2444,12 @@ void BinaryOpStub::GenerateFPOperation(MacroAssembler* masm,
       // result.
       __ mov(r0, r5);       //TODO(stm): look at this: it should be better
 
-      if (CpuFeatures::IsSupported(FPU) && op_ != Token::SHR) {
-        // TODO(STM): we should take also care of SHR: it needs a way to
-        // convert to double and keeping the result positiv only
-        __ dfloat(dr0, r2);
+      if (CpuFeatures::IsSupported(FPU)) {
+        if (op_ == Token::SHR) {
+            __ dufloat(dr0, r2, dr2, sh4_rtmp);
+        } else {
+          __ dfloat(dr0, r2);
+        }
         __ sub(r3, r0, Operand(kHeapObjectTag - HeapNumber::kValueOffset));
         __ dstr(dr0, MemOperand(r3, 0), r3);
         __ Ret();
@@ -2831,12 +2833,12 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                    scratch2,
                                    &call_runtime);
 
-      if (CpuFeatures::IsSupported(FPU) && op_ != Token::SHR) {
+      if (CpuFeatures::IsSupported(FPU)) {
         if ((op_ != Token::SHR)) {
           // Convert the result to a floating point value.
           __ dfloat(double_scratch, r2);
         } else {
-          // TODO(STM): using int to float
+          __ dufloat(double_scratch, r2, dr2, sh4_rtmp);
         }
 
         // Store the result.
