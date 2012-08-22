@@ -629,7 +629,6 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Register scratch2,
                                                   SwVfpRegister single_scratch,
                                                   Label* not_int32) {
-  ASSERT(destination == FloatingPointHelper::kCoreRegisters);
   ASSERT(!scratch1.is(object) && !scratch2.is(object));
   ASSERT(!scratch1.is(scratch2));
   ASSERT(!heap_number_map.is(object) &&
@@ -726,7 +725,6 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
   // Object is a heap number.
   // Convert the floating point value to a 32-bit integer.
   if (CpuFeatures::IsSupported(FPU)) {
-    SwVfpRegister single_scratch = double_scratch.low();
     // Load the double value.
     __ sub(scratch1, object, Operand(kHeapObjectTag));
     __ dldr(double_scratch, MemOperand(scratch1, HeapNumber::kValueOffset));
