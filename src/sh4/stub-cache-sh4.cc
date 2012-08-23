@@ -3522,10 +3522,29 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     // The test is different for unsigned int values. Since we need
     // the value to be in the range of a positive smi, we can't
     // handle either of the top two bits being set in the value.
-    // TODO(stm): FPU
-    // if (CpuFeatures::IsSupported(VFP3)) {
-    // } else
-    {
+    if (CpuFeatures::IsSupported(FPU)) {
+      Label box_int, done;
+      __ tst(value, Operand(0xC0000000));
+      __ b(ne, &box_int);
+      // Tag integer as smi and return it.
+      __ lsl(r0, value, Operand(kSmiTagSize));
+      __ Ret();
+
+      __ bind(&box_int);
+      __ dufloat(dr0, value, dr2, sh4_rtmp);
+      // Allocate a HeapNumber for the result and perform int-to-double
+      // conversion. Don't use r0 and r1 as AllocateHeapNumber clobbers all
+      // registers - also when jumping due to exhausted young space.
+      __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(r2, r3, r4, r6, &slow);
+
+      __ sub(r1, r2, Operand(kHeapObjectTag));
+      __ dstr(dr0, MemOperand(r1, HeapNumber::kValueOffset));
+
+      __ mov(r0, r2);
+      __ Ret();
+
+    } else {
       // Check whether unsigned integer fits into smi.
       Label box_int_0, box_int_1, done;
       __ tst(value, Operand(0x80000000));
