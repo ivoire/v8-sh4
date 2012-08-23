@@ -3575,8 +3575,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ push(pr);
   __ pushm(kCalleeSaved);
 
-  // TDOO(STM)
-  // if (CpuFeatures::IsSupported(VFP3))
+  // We don't need to save the callee saved double registers: we only use the
+  // caller saved ones.
 
   // Move the registers to use ARM ABI (and JS ABI)
   __ mov(r0, r4);

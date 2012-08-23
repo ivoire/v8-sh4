@@ -276,8 +276,8 @@ const DwVfpRegister dr4   = {  4  };
 const DwVfpRegister dr6   = {  6  };
 const DwVfpRegister dr8   = {  8  };
 const DwVfpRegister dr10  = {  10 };
-const DwVfpRegister dr12  = {  12 };
-const DwVfpRegister dr14  = {  14 };
+//const DwVfpRegister dr12  = {  12 };
+//const DwVfpRegister dr14  = {  14 };
 
 enum Condition {
   // any value < 0 is considered no_condition
