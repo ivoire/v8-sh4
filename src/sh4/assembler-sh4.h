@@ -264,11 +264,16 @@ const SwVfpRegister fr8  = {  8 };
 const SwVfpRegister fr9  = {  9 };
 const SwVfpRegister fr10 = { 10 };
 const SwVfpRegister fr11 = { 11 };
-const SwVfpRegister fr12 = { 12 };
-const SwVfpRegister fr13 = { 13 };
-const SwVfpRegister fr14 = { 14 };
-const SwVfpRegister fr15 = { 15 };
+// Callee saved registers
+// Using these registers is forbidden for the moment as we do not save/restaure
+// them on ABI frontiers.
+//const SwVfpRegister fr12 = { 12 };
+//const SwVfpRegister fr13 = { 13 };
+//const SwVfpRegister fr14 = { 14 };
+//const SwVfpRegister fr15 = { 15 };
 
+
+// Caller saved registers
 const DwVfpRegister no_dreg = { -1 };
 const DwVfpRegister dr0   = {  0  };
 const DwVfpRegister dr2   = {  2  };
@@ -276,6 +281,9 @@ const DwVfpRegister dr4   = {  4  };
 const DwVfpRegister dr6   = {  6  };
 const DwVfpRegister dr8   = {  8  };
 const DwVfpRegister dr10  = {  10 };
+// Callee saved registers.
+// The uses of theses registers is forbidden for the moment as we do not
+// save/restaure them on ABI frontiers.
 //const DwVfpRegister dr12  = {  12 };
 //const DwVfpRegister dr14  = {  14 };
 
