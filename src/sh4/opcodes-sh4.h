@@ -459,39 +459,37 @@ void fmov_incRs_(Register Rs, SwVfpRegister Rd);
 
 void fmov_decRd_(SwVfpRegister Rs, Register Rd);
 
-void fmov_Xdouble_decRd_(Register Rs, Register Rd);
-
 void fmov_dispR0Rs_(Register Rs, SwVfpRegister Rd);
 
 void fmov_dispR0Rs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-void fmov_dispR0Rd_(Register Rs, Register Rd);
+void fmov_dispR0Rd_(SwVfpRegister Rs, Register Rd);
 
-void fmov_Xdouble_dispR0Rd_(Register Rs, Register Rd);
+void fmov_Xdouble_dispR0Rd_(DwVfpRegister Rs, Register Rd);
 
 void fmovd_indRs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-void fmovd_Xdouble_indRd_(Register Rs, Register Rd);
+void fmovd_Xdouble_indRd_(DwVfpRegister Rs, Register Rd);
 
 void fmovd_incRs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-void fmovd_Xdouble_decRd_(Register Rs, Register Rd);
+void fmovd_Xdouble_decRd_(DwVfpRegister Rs, Register Rd);
 
 void fmovd_dispR0Rs_Xdouble_(Register Rs, DwVfpRegister Rd);
 
-void fmovd_Xdouble_dispR0Rd_(Register Rs, Register Rd);
+void fmovd_Xdouble_dispR0Rd_(DwVfpRegister Rs, Register Rd);
 
 void fmovs_indRs_(Register Rs, SwVfpRegister Rd);
 
-void fmovs_indRd_(Register Rs, Register Rd);
+void fmovs_indRd_(SwVfpRegister Rs, Register Rd);
 
 void fmovs_incRs_(Register Rs, SwVfpRegister Rd);
 
-void fmovs_decRd_(Register Rs, Register Rd);
+void fmovs_decRd_(SwVfpRegister Rs, Register Rd);
 
 void fmovs_dispR0Rs_(Register Rs, SwVfpRegister Rd);
 
-void fmovs_dispR0Rd_(Register Rs, Register Rd);
+void fmovs_dispR0Rd_(SwVfpRegister Rs, Register Rd);
 
 void fmul_(SwVfpRegister Rs, SwVfpRegister Rd);
 
