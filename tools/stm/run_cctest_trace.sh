@@ -61,7 +61,7 @@ fi
 [ "$profile_gcov" = on ] && echo "Cleaning profiling files..." && find . -name '*.gcda' -exec rm {} \;
 
 CCTEST=${CCTEST:-./obj/test/${mode}/cctest}
-CCTEST_OPTS=${CCTEST_OPTS-"-debug_code $XCCTEST_OPTS"}
+CCTEST_OPTS=${CCTEST_OPTS-"-debug_code $V8_EXTRA_ARGS"}
 CCTEST_LOG_OPTS=${CCTEST_LOG_OPTS-"-print_code -print_code_stubs -print_builtin_code -code_comments $XCCTEST_LOG_OPTS"}
 
 rm -f codegen_${mode}.trace run_cctest_trace_${mode}.log

@@ -72,7 +72,7 @@ fi
 
 CCTEST=${CCTEST:-./obj/test/${mode}/cctest}
 $RUN_PREFIX $CCTEST --list >$tmpfile || error "cannot list the tests: cctest --list failed"
-CCTEST_OPTS=${CCTEST_OPTS-"-debug_code $XCCTEST_OPTS"}
+CCTEST_OPTS=${CCTEST_OPTS-"-debug_code $V8_EXTRA_ARGS"}
 
 [ "$profile_gcov" = on ] && find . -name '*.gcda' -exec rm {} \;
 
