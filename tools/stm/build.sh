@@ -31,6 +31,7 @@ set -e
 [ "$DEBUG" = "" ] || set -x
 
 pdir=`dirname $0`
+srcdir=${srcdir:-.}
 arch=${arch:-""} # if not defined, build in native mode
 site=${site:-default}
 mode=${mode:-release}
@@ -58,6 +59,6 @@ fi
 [ "$library" = shared ] && export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 [ "$profile_gcov" = on ] && export CXXFLAGS="-fprofile-arcs -ftest-coverage -fno-inline -fno-default-inline -fno-inline-functions -fno-early-inlining" && export LIBS="gcov"
 
-scons ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} -j ${jobs}
-scons ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} -j ${jobs} sample=shell
-tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S snapshot=${snapshot} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S backtracesupport=${backtracesupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -S prof=${prof} -S gpl_disassembler=${gpl_disassembler} -j ${jobs} ${tests}
+scons -Y ${srcdir} ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} -j ${jobs}
+scons -Y ${srcdir} ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} -j ${jobs} sample=shell
+${srcdir}/tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S snapshot=${snapshot} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S backtracesupport=${backtracesupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -S prof=${prof} -S gpl_disassembler=${gpl_disassembler} -j ${jobs} ${tests}
