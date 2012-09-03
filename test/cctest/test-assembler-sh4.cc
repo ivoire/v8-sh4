@@ -753,10 +753,11 @@ TEST(15) {
   __ b(cond, target);  \
   } while (0);
 
+// Saves sh4_rtmp (r11) and sh4_ip (r10) which are calle saved
 #define PROLOGUE() \
-  __ push(r10)
+  __ push(r10); __ push(r11)
 #define EPILOGUE() \
-  __ pop(r10)
+  __ pop(r11); __ pop(r10)
 
 // Test logical and, or, xor
 TEST(16) {
@@ -1785,6 +1786,7 @@ TEST(30) {
   t.b = 0.1348714347684218;
 
   BEGIN();
+  PROLOGUE();
   __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, a)), r6);
   __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, b)), r6);
 
@@ -1792,6 +1794,7 @@ TEST(30) {
   __ dstr(dr2, MemOperand(r4, OFFSET_OF(T, a)), r6);
 
   __ mov(r0, r5);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -1812,6 +1815,7 @@ TEST(31) {
   Label end;
 
   BEGIN();
+  PROLOGUE();
   __ dfloat(dr0, Operand(123));
   __ mov(r0, Operand(0));
 
@@ -1819,9 +1823,11 @@ TEST(31) {
   __ bt(&end);
 
   __ mov(r0, Operand(1));
+  EPILOGUE();
   __ rts();
 
   __ bind(&end);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -1927,6 +1933,7 @@ TEST(from_arm_2) {
   BEGIN();
   Label L, C;
 
+  PROLOGUE();
   __ mov(r1, r4);
   __ mov(r0, Operand(1));
   __ b(&C);
@@ -1938,7 +1945,7 @@ TEST(from_arm_2) {
   __ bind(&C);
   __ teq(r1, Operand(0, RelocInfo::NONE));
   __ b(ne, &L);
-
+  EPILOGUE();
   __ rts();
 
   // some relocated stuff here, not executed
@@ -1972,7 +1979,7 @@ TEST(from_arm_3) {
   T t;
 
   Label L, C;
-
+  PROLOGUE();
   __ mov(r0, r4);
   __ push(pr); __ push(fp);
   __ sub(fp, sp, Operand(4));
@@ -1992,6 +1999,7 @@ TEST(from_arm_3) {
   __ strh(r2, MemOperand(r4, OFFSET_OF(T, s)), r5);
 
   __ pop(fp); __ pop(pr);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -2031,7 +2039,7 @@ TEST(from_arm_4) {
   T t;
 
   Label L, C;
-
+  PROLOGUE();
   __ mov(r0, sp);
   __ push(pr); __ push(fp); __ push(r4);
   __ sub(fp, r0, Operand(4));
@@ -2072,6 +2080,7 @@ TEST(from_arm_4) {
   __ dstr(dr4, MemOperand(r4, OFFSET_OF(T,g)));
 
   __ pop(r4); __ pop(fp); __ pop(pr);
+  EPILOGUE();
   __ rts();
 
     JIT();
@@ -2117,9 +2126,10 @@ TEST(from_arm_12) {
 
 TEST(memcpy) {
   BEGIN();
-
+  PROLOGUE();
   __ memcpy(r4, r5, r6, r1, r2, r3, r7);
   __ mov(r0, Operand(0));
+  EPILOGUE();
   __ rts();
 
   JIT();
