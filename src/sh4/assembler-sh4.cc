@@ -220,7 +220,6 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   pc_ = buffer_;
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
 
-  last_pc_ = NULL;
   ClearRecordedAstId();
 }
 
@@ -282,9 +281,6 @@ void Assembler::GrowBuffer() {
   buffer_ = desc.buffer;
   buffer_size_ = desc.buffer_size;
   pc_ += pc_delta;
-  if (last_pc_ != NULL) {
-    last_pc_ += pc_delta;
-  }
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 }
