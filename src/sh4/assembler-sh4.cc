@@ -278,12 +278,7 @@ void Assembler::GrowBuffer() {
           reloc_info_writer.pos(), desc.reloc_size);
 
   // Switch buffers.
-  if (isolate()->assembler_spare_buffer() == NULL &&
-      buffer_size_ == kMinimalBufferSize) {
-    isolate()->set_assembler_spare_buffer(buffer_);
-  } else {
-    DeleteArray(buffer_);
-  }
+  DeleteArray(buffer_);
   buffer_ = desc.buffer;
   buffer_size_ = desc.buffer_size;
   pc_ += pc_delta;
@@ -292,20 +287,6 @@ void Assembler::GrowBuffer() {
   }
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
-
-  // Relocate runtime entries.
-  for (RelocIterator it(desc); !it.done(); it.next()) {
-    RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::RUNTIME_ENTRY) {
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
-      *p -= pc_delta;  // relocate entry
-    } else if (rmode == RelocInfo::INTERNAL_REFERENCE) {
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
-      if (*p != 0) {  // 0 means uninitialized.
-        *p += pc_delta;
-      }
-    }
-  }
 }
 
 
