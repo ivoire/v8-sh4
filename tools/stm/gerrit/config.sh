@@ -5,5 +5,5 @@
 protocol=ssh
 server=gnx5855.gnb.st.com:29418
 project=v8
-reviewers="remi.duraffort@st.com christophe.guillon@st.com"
+reviewers="remi.duraffort@st.com christophe.guillon@st.com alexander.jordan@st.com"
 remote=gerrit
