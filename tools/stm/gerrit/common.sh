@@ -22,8 +22,22 @@ forge_reviewer_options() {
 # Echoes the result parameter.
 forge_remote_parameter() {
     local remote="${1?}"
-    local default="${2?}"
-    git remote show "$remote" >/dev/null 2>&1 || remote="$default"
-    echo "$remote"
+    local protocol="${2?}"
+    local default="${3?}"
+    local gerrit_user=`git config gerrit.name`
+    [ "$gerrit_user" != "" ] && gerrit_user="$gerrit_user@"
+    local default_repos="${protocol}://${gerrit_user}${default}"
+    git remote show "$remote" >/dev/null 2>&1 || remote="$default_repos"
+    echo "$default_repos"
 }
 
+# Take the given remote and branch argument and verify
+# whether the remote branch exists.
+# Returns "" if no remote branch is available with this name.
+forge_remote_branch() {
+    local remote="${1?}"
+    local branch="${2?}"
+    remote_branch=`git ls-remote --heads "${remote}" "${branch}"`
+    [ "$remote_branch" != "" ] || return 0
+    echo "$branch"
+}

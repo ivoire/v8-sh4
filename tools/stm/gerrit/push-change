@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 #
-# Usage: push-change [ref]
+# Usage: push-change [ref] [branch]
 #
-# Push a ref for review (default: HEAD).
-# This will create a new patchset for review on gerrit.
+# Push a list of changes up to ref (default: HEAD) to the
+# reviewed branch (default: master).
+# This will create a set of new changeset for review on gerrit.
+#
+# Be careful that for pushing a single patch set, your ref
+# must be a direct descendant of a revision known to gerrit.
+# Otherwise all the changes up to your ref will be pushed as
+# distinct changesets.
 #
 # If the gerrit remote is defined, use it, otherwise
 # push directly to the server defined in config.sh.
@@ -13,6 +19,7 @@
 
 set -e
 ref=${1:-HEAD}
+branch=${2:-master}
 
 source `dirname $0`/common.sh
 source `dirname $0`/config.sh
@@ -22,9 +29,14 @@ source `dirname $0`/config.sh
 reviewer_options=`forge_reviewer_options "$reviewers"`
 
 # Forge actual remote if the first one does not exits
-remote=`forge_remote_parameter $remote $server/$project`
+remote=`forge_remote_parameter $remote $protocol $server/$project`
 
-# Update patchset
-echo "Pushing new changes on ref $ref to remote $remote."
+# Forge default remote tracking branch from local branch name or take specified branch
+branch=`forge_remote_branch "$remote" "$branch"`
+[ "$branch" != "" ] || echo "error: cannot determine remote branch, you may use: push-change $ref <branch>." >&2
+[ "$branch" != "" ] || exit 1
+
+# Push new changesets
+echo "Pushing new changes up to $ref for branch $branch of gerrit remote $remote."
 echo "Executing: git push --receive-pack=\"git receive-pack $reviewer_options\" $remote $ref:refs/for/$branch"
 git push --receive-pack="git receive-pack $reviewer_options" $remote $ref:refs/for/$branch
