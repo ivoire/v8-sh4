@@ -111,8 +111,8 @@ class JumpPatchSite BASE_EMBEDDED {
       int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
       ASSERT(delta_to_patch_site >= 0);
       // Ensure that the delta fits into the raw immediate.
-      ASSERT(masm_->fits_raw_immediate(delta_to_patch_site));
-      __ cmpeq_r0_raw_immediate(delta_to_patch_site);
+      ASSERT(masm_->fits_cmp_unsigned_imm(delta_to_patch_site));
+      __ cmpeq_r0_unsigned_imm(delta_to_patch_site);
 #ifdef DEBUG
       info_emitted_ = true;
 #endif

@@ -1582,7 +1582,7 @@ void PatchInlinedSmiCode(Address address) {
 
   // The delta to the start of the map check instruction and the
   // condition code uses at the patched jump.
-  int delta = Assembler::GetCmpImmediateRawImmediate(instr);
+  int delta = Assembler::GetCmpImmediateAsUnsigned(instr);
   // TODO(stm): is this needed for ST40 ?
   // delta += Assembler::GetCmpImmediateRegister(instr).code() * kOff12Mask
 

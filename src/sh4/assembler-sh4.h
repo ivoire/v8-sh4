@@ -766,10 +766,10 @@ class Assembler : public AssemblerBase {
     cmp(cond, Rd, rtmp);
   }
 
-  void cmpeq_r0_raw_immediate(int raw_immediate) {
-        cmpeq_imm_R0_((int8_t)raw_immediate); }
-  int fits_raw_immediate(int raw_immediate)
-        { return (raw_immediate & ~0xFF) == 0; }
+  void cmpeq_r0_unsigned_imm(int imm) {
+    ASSERT(is_uint8(imm));
+    cmpeq_imm_R0_((int8_t)imm); }
+  bool fits_cmp_unsigned_imm(int imm) { return is_uint8(imm); }
 
   void dt(Register Rd)  { dt_(Rd); }
 
@@ -823,7 +823,7 @@ class Assembler : public AssemblerBase {
   static bool IsCmpRegister(Instr instr);
   static bool IsCmpImmediate(Instr instr);
   static Register GetCmpImmediateRegister(Instr instr);
-  static int GetCmpImmediateRawImmediate(Instr instr);
+  static int GetCmpImmediateAsUnsigned(Instr instr);
   static bool IsMovImmediate(Instr instr);
 
   void sub(Register Rd, Register Rs, const Operand& imm,

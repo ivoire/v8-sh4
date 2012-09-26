@@ -762,10 +762,10 @@ Register Assembler::GetCmpImmediateRegister(Instr instr) {
 }
 
 
-int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
+int Assembler::GetCmpImmediateAsUnsigned(Instr instr) {
   ASSERT(IsCmpImmediate(instr));
-  // The instruction is cmpeq #ii, r0, return #ii
-  return (int8_t)(instr & 0xFF);
+  // The instruction is cmpeq #ii, r0, return 8-bit #ii as unsigned
+  return (instr & 0xFF);
 }
 
 

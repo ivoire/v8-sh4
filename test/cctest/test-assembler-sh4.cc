@@ -1219,6 +1219,7 @@ TEST(20) {
   CHECK_EQ(0, res);
 }
 
+// test storing uint8 value in the cmp immediate
 TEST(21) {
   BEGIN();
 
@@ -1226,7 +1227,7 @@ TEST(21) {
   __ bind(&top);
   __ cmpeq(r0, r1);
   __ cmpgt(r0, r1);
-  __ cmpeq_r0_raw_immediate(73);
+  __ cmpeq_r0_unsigned_imm(173); // > 127, ie. would normally exceed signed range
   __ bt(&top);
   __ bf(&top);
   __ mov(r0, Operand(12));
@@ -1243,7 +1244,7 @@ TEST(21) {
   CHECK_EQ(true, __ IsCmpImmediate(reinterpret_cast<Instr*>(desc.buffer)[2]));
   CHECK_EQ(true, (__ GetCmpImmediateRegister(
                         reinterpret_cast<Instr*>(desc.buffer)[2])).is(r0));
-  CHECK_EQ(73, __ GetCmpImmediateRawImmediate(
+  CHECK_EQ(173, __ GetCmpImmediateAsUnsigned(
                         reinterpret_cast<Instr*>(desc.buffer)[2]));
 
   CHECK_EQ(true, (__ GetRn((reinterpret_cast<Instr*>(desc.buffer)[0])).is(r0)));
