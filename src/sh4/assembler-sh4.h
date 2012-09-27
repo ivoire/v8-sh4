@@ -825,6 +825,8 @@ class Assembler : public AssemblerBase {
   static Register GetCmpImmediateRegister(Instr instr);
   static int GetCmpImmediateAsUnsigned(Instr instr);
   static bool IsMovImmediate(Instr instr);
+  static bool IsMovlPcRelative(Instr instr)
+      { return (instr & (0xf << 12)) == 0xd000; }
 
   void sub(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
