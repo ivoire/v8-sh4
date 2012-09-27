@@ -615,14 +615,17 @@ class Assembler : public AssemblerBase {
   inline static Address target_address_at(Address pc);
   inline static void set_target_address_at(Address pc, Address target);
 
-  // This sets the branch destination (which is in the instruction on x86).
+  // This sets the branch destination (which is the constant pool on SH4)
   // This is for calls and branches within generated code.
   inline static void set_target_at(Address instruction_payload,
                                    Address target) {
-    set_target_address_at(instruction_payload, target);
+    // When deserializing, the address is the one of the constant pool.
+    // The code expect the address to be the one of the mov.l instruction 4
+    // instructions before the constant pool.
+    set_target_address_at(instruction_payload - 4 * kInstrSize, target);
   }
 
-  // This sets the branch destination (which is in the instruction on x86).
+  // This sets the branch destination (which is the constant pool on SH4)
   // This is for calls and branches to runtime code.
   inline static void set_external_target_at(Address instruction_payload,
                                             Address target) {
