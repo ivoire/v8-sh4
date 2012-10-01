@@ -46,5 +46,9 @@ export QEMU=${SH4_QEMU}
 export PROOT=${SH4_PROOT}
 export V8_EXTRA_ARGS="-stack_size=128 $V8_EXTRA_ARGS" # for QEMU we use a 128kb stack size (default is 512)
 
+# PRoot is needed to build with snapshots
+export PROOT_FOR_SNAPSHOTS=${SH4_PROOT_FOR_SNAPSHOTS}
+export QEMU_FOR_SNAPSHOTS=${SH4_QEMU_FOR_SNAPSHOTS}
+
 # Default v8 settings for sh4
 debuggersupport=off

@@ -46,3 +46,6 @@ export QEMU=${ARM_QEMU}
 export PROOT=${ARM_PROOT}
 export V8_EXTRA_ARGS="-stack_size=128 $V8_EXTRA_ARGS" # for QEMU we use a 128kb stack size (default is 512)
 
+# PRoot is needed to build with snapshots
+export PROOT_FOR_SNAPSHOTS=${ARM_PROOT_FOR_SNAPSHOTS}
+export QEMU_FOR_SNAPSHOTS=${ARM_QEMU_FOR_SNAPSHOTS}

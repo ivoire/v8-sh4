@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+guess_path=`/sw/st/gnu_compil/gnu/scripts/guess-path`
+
 #
 # Site host tools specifications for STM GNB site
 #
@@ -42,9 +44,13 @@ export SH4_TOOL_PREFIX=${SH4_TOOL_PREFIX:-/sw/st/gnu_compil/comp/st40/st40-linux
 export SH4_TARGET_ROOT=${SH4_TARGET_ROOT:-/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target}
 export SH4_QEMU=${SH4_QEMU:-"/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4 -R"}
 export QEMU_ASSUME_KERNEL=2.6.30
+export SH4_PROOT_FOR_SNAPSHOTS=${SH4_PROOT_FOR_SNAPSHOTS:-"$guess_path/proot -b /sw"}
+export SH4_QEMU_FOR_SNAPSHOTS=${SH4_QEMU_FOR_SNAPSHOTS:-/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4}
 
 export ARM_TOOL_PREFIX=${ARM_TOOL_PREFIX:-/home/compwork/projects/stlinux/opt/STM/STLinux-2.4/devkit/armv7/bin/armv7-linux}
 export ARM_TARGET_ROOT=${ARM_TARGET_ROOT:-/home/compwork/projects/stlinux/opt/STM/STLinux-2.4/devkit/armv7/target}
 export ARM_QEMU=${ARM_QEMU:-"/home/compwork/guillon/qemu-stm/build-next-x86_64/devimage/bin/qemu-arm -cpu cortex-a9"}
 export armeabi=${armeabi:-hard}
-export ARM_PROOT=${ARM_PROOT:-/home/compwork/guillon/proot/build-x86_64/devimage/bin/proot}
+export ARM_PROOT=${ARM_PROOT:-"$guess_path/proot"}
+export ARM_PROOT_FOR_SNAPSHOTS=${ARM_PROOT_FOR_SNAPSHOTS:-"$ARM_PROOT -b /home"}
+export ARM_QEMU_FOR_SNAPSHOTS=${ARM_QEMU_FOR_SNAPSHOTS:-"/home/compwork/guillon/qemu-stm/build-next-x86_64/devimage/bin/qemu-arm"}
