@@ -42,7 +42,8 @@ export TIMEOUT=${TIMEOUT:-/sw/st/gnu_compil/gnu/linux-rh-ws-4/bin/timeout}
 # Still use lagacy qemu on STLinux-2.3
 export SH4_TOOL_PREFIX=${SH4_TOOL_PREFIX:-/sw/st/gnu_compil/comp/st40/st40-linux/4.5.3-96/bin/sh4-linux}
 export SH4_TARGET_ROOT=${SH4_TARGET_ROOT:-/home/compwork/projects/stlinux/opt/STM/STLinux-2.3/devkit/sh4/target}
-export SH4_QEMU=${SH4_QEMU:-"/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4 -R"}
+export SH4_QEMU=${SH4_QEMU:-"/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4"}
+export SH4_PROOT=${SH4_PROOT:-"$guess_path/proot"}
 export QEMU_ASSUME_KERNEL=2.6.30
 export SH4_PROOT_FOR_SNAPSHOTS=${SH4_PROOT_FOR_SNAPSHOTS:-"$guess_path/proot -b /sw"}
 export SH4_QEMU_FOR_SNAPSHOTS=${SH4_QEMU_FOR_SNAPSHOTS:-/home/compwork/guillon/qemu-stm/build-x86_64/devimage/bin/qemu-sh4}
