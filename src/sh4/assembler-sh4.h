@@ -615,21 +615,24 @@ class Assembler : public AssemblerBase {
   inline static Address target_address_at(Address pc);
   inline static void set_target_address_at(Address pc, Address target);
 
-  // This sets the branch destination (which is the constant pool on SH4)
+  // This sets the branch destination (which is in the constant pool on SH4).
   // This is for calls and branches within generated code.
-  inline static void set_target_at(Address instruction_payload,
+  inline static void set_target_at(Address constant_pool_entry,
                                    Address target) {
-    // When deserializing, the address is the one of the constant pool.
-    // The code expect the address to be the one of the mov.l instruction 4
-    // instructions before the constant pool.
-    set_target_address_at(instruction_payload - 4 * kInstrSize, target);
+    // When serializing, the object visitor resolves the target_address_address
+    // and stops processing there to recursively serialize another object (or
+    // a reference to it).
+    // Thus when deserializing, the rewriting of targets directly uses the
+    // constant pool address. (same as on ARM)
+    Memory::Address_at(constant_pool_entry) = target;
   }
 
-  // This sets the branch destination (which is the constant pool on SH4)
+  // This sets the branch destination (which is in the constant pool on SH4).
   // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address instruction_payload,
+  inline static void set_external_target_at(Address constant_pool_entry,
                                             Address target) {
-    set_target_address_at(instruction_payload, target);
+    // same as above, this function is currently not used anywhere.
+    set_target_at(constant_pool_entry, target);
   }
 
   static const int kCallTargetSize = kPointerSize;
