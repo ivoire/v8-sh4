@@ -632,6 +632,7 @@ class Assembler : public AssemblerBase {
   inline static void set_external_target_at(Address constant_pool_entry,
                                             Address target) {
     // same as above, this function is currently not used anywhere.
+    UNREACHABLE();
     set_target_at(constant_pool_entry, target);
   }
 
