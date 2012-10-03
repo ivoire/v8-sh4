@@ -37,3 +37,6 @@ export ARM_TOOL_PREFIX=""
 export ARM_TARGET_ROOT=""
 export ARM_QEMU=""
 export ARM_PROOT=""
+
+# Most boards are not able to run many tests in parallel
+export jobs=1
