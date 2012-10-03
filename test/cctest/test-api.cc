@@ -13218,7 +13218,13 @@ THREADED_TEST(QuietSignalingNaNs) {
     } else {
       uint64_t stored_bits = DoubleToBits(stored_number);
       // Check if quiet nan (bits 51..62 all set).
+#if defined(V8_TARGET_ARCH_SH4)
+      // Most significant fraction bit for quiet nan is set to 0
+      // on SH4 architecture. Allowed by IEEE-754.
+      CHECK_EQ(0xffe, static_cast<int>((stored_bits >> 51) & 0xfff));
+#else
       CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
+#endif
     }
 
     // Check that Date::New preserves non-NaNs in the date range and
@@ -13231,7 +13237,13 @@ THREADED_TEST(QuietSignalingNaNs) {
     } else {
       uint64_t stored_bits = DoubleToBits(stored_date);
       // Check if quiet nan (bits 51..62 all set).
+#if defined(V8_TARGET_ARCH_SH4)
+      // Most significant fraction bit for quiet nan is set to 0
+      // on SH4 architecture. Allowed by IEEE-754.
+      CHECK_EQ(0xffe, static_cast<int>((stored_bits >> 51) & 0xfff));
+#else
       CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
+#endif
     }
   }
 }
