@@ -744,6 +744,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   // fp: frame pointer
 
   // Actual clobbers: r3 and ip
+  // r4 should be preserved: see the end of RegExpExecStub::Generate
 
   RECORD_LINE();
   if (save_doubles) {

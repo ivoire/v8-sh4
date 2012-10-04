@@ -4515,8 +4515,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // All checks done. Now push arguments for native regexp code.
   __ IncrementCounter(isolate->counters()->regexp_entry_native(), 1, r0, r2);
 
-  // Save r4-r7 as they are going to be used afterward in the C code
-  __ Push(r4, r5, r6, r7);
+  // Save r5-r7 as they are going to be used afterward in the C code
+  // r4 is restored by a load on the right place in the same frame
+  __ Push(r5, r6, r7);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
   static const int kRegExpExecuteArguments = 8;
@@ -4556,8 +4557,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // frame. Therefore we have to use fp, which points exactly to two pointer
   // sizes below the previous sp. (Because creating a new stack frame pushes
   // the previous fp onto the stack and moves up sp by 2 * kPointerSize.)
-  // We also have to take into account the 4 registers pushed on the stack [r4, r7]
-  __ ldr(subject, MemOperand(fp, kSubjectOffset + 2 * kPointerSize + 4 * kPointerSize));
+  // We also have to take into account the 3 registers pushed on the stack [r5, r7]
+  __ ldr(subject, MemOperand(fp, kSubjectOffset + 2 * kPointerSize + 3 * kPointerSize));
   // If slice offset is not 0, load the length from the original sliced string.
   // Argument 4, r3: End of string data
   // Argument 3, r2: Start of string data
@@ -4589,8 +4590,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   DirectCEntryStub stub(r2);
   stub.GenerateCall(masm, r0, r3);
 
+  // Get back the subject from the previous frame: r4 will not be scratched by a call to LeaveExitFrame
+  __ ldr(r4, MemOperand(fp, kSubjectOffset + 2 * kPointerSize + 3 * kPointerSize));
   __ LeaveExitFrame(false, no_reg);
-  __ Pop(r4, r5, r6, r7);
+  __ Pop(r5, r6, r7);
 
   // r0: result
   // subject: subject string (callee saved)
