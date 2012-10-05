@@ -6477,16 +6477,16 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ExternalReference function,
-				    Register scratch1,
-				    Register scratch2) {
+                                    Register scratch1,
+                                    Register scratch2) {
   __ mov(scratch1, Operand(function));
   GenerateCall(masm, scratch1, scratch2);
 }
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-				    Register target,
-				    Register scratch1) {
+                                    Register target,
+                                    Register scratch1) {
 
   ASSERT(!target.is(scratch_));
   ASSERT(!target.is(scratch1));

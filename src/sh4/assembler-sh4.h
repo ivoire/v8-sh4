@@ -751,15 +751,15 @@ class Assembler : public AssemblerBase {
   void cmphs(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmphs_(Rs, Rd); }    // is Rd u>= Rs ?
 
   inline void cmpeq(Register Rd, const Operand& imm,
-		    Register rtmp = sh4_rtmp);
+                    Register rtmp = sh4_rtmp);
   inline void cmpgt(Register Rd, const Operand& imm,
-		    Register rtmp = sh4_rtmp);
+                    Register rtmp = sh4_rtmp);
   inline void cmpge(Register Rd, const Operand& imm,
-                     Register rtmp = sh4_rtmp);
+                    Register rtmp = sh4_rtmp);
   inline void cmphi(Register Rd, const Operand& imm,
-		    Register rtmp = sh4_rtmp);
+                    Register rtmp = sh4_rtmp);
   inline void cmphs(Register Rd, const Operand& imm,
-		    Register rtmp = sh4_rtmp);
+                    Register rtmp = sh4_rtmp);
 
   // ALiases for cmpeq
   void cmp(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }

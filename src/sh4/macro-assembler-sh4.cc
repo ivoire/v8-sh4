@@ -1821,7 +1821,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   ASSERT(!result.is(scratch1) && !result.is(scratch2) &&
          !scratch1.is(scratch2));
   ASSERT(!result.is(sh4_ip) && !scratch1.is(sh4_ip) &&
-	 !scratch2.is(sh4_ip));
+         !scratch2.is(sh4_ip));
   ASSERT(!result.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
          !scratch2.is(sh4_rtmp));
 
@@ -2584,7 +2584,7 @@ void MacroAssembler::RecordWrite(Register object,
 void MacroAssembler::RecordWrite(Register object,
                                  Register offset,
                                  Register scratch0,
-				 Register scratch1) {
+                                 Register scratch1) {
   // The compiled code assumes that record write doesn't change the
   // context register, so we check that none of the clobbered
   // registers are cp.

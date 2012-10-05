@@ -4234,7 +4234,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
          MemOperand(scratch, key_reg));
   __ RecordWrite(scratch,
                  key_reg,
-		 receiver_reg , elements_reg);
+                 receiver_reg , elements_reg);
 
   // value_reg (r0) is preserved.
   // Done.
