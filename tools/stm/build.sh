@@ -49,7 +49,12 @@ tests=${tests:-""}
 vfp3=${vfp3:-on}
 logging=${logging:-off}
 prof=${prof:-off}
+
+# Enable the GPL disassembler in debug mode if the user does not disable it
+# explicitly
+[ -z "$gpl_disassembler" -a "$mode" = debug ] && gpl_disassembler=on
 gpl_disassembler=${gpl_disassembler:-off}
+
 jobs=${jobs:-4}
 profile_gcov=${profile_gcov:-off}
 if [ "$profile_gcov" = on -a "$mode" = release ]; then
