@@ -190,6 +190,10 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-mieee', '-fno-strict-aliasing'],
       'CPPDEFINES':   ['V8_TARGET_ARCH_SH4']
     },
+    'simulator:sh4': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32'],
+    },
     'arch:mips': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_MIPS'],
       'mips_arch_variant:mips32r2': {
@@ -584,6 +588,10 @@ SAMPLE_FLAGS = {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
     },
+    'simulator:sh4': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
+    },
     'mode:release': {
       'CCFLAGS':      ['-O2']
     },
@@ -741,6 +749,10 @@ PREPARSER_FLAGS = {
       'mipsabi:hardfloat': {
         'CPPDEFINES':    ['__mips_hard_float=1'],
       }
+    },
+    'simulator:sh4': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
     },
     'mode:release': {
       'CCFLAGS':      ['-O2']
@@ -1058,7 +1070,7 @@ SIMPLE_OPTIONS = {
     'help': 'use Microsoft Visual C++ link-time code generation'
   },
   'simulator': {
-    'values': ['arm', 'mips', 'none'],
+    'values': ['arm', 'mips', 'sh4', 'none'],
     'default': 'none',
     'help': 'build with simulator'
   },

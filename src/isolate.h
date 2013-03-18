@@ -92,7 +92,8 @@ class DebuggerAgent;
 #endif
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
-    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS) || \
+    !defined(__sh4__) && defined(V8_TARGET_ARCH_SH4)
 class Redirection;
 class Simulator;
 #endif
@@ -240,7 +241,8 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address handler_;   // try-blocks are chained through the stack
 
 #ifdef USE_SIMULATOR
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) || \
+    defined(V8_TARGET_ARCH_SH4)
   Simulator* simulator_;
 #endif
 #endif  // USE_SIMULATOR
@@ -264,7 +266,8 @@ class ThreadLocalTop BASE_EMBEDDED {
   Address try_catch_handler_address_;
 };
 
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS)
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) || \
+    defined(V8_TARGET_ARCH_SH4)
 
 #define ISOLATE_PLATFORM_INIT_LIST(V)                                          \
   /* VirtualFrame::SpilledScope state */                                       \
@@ -376,7 +379,8 @@ class Isolate {
           stack_limit_(0),
           thread_state_(NULL),
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
-    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS) || \
+    !defined(__sh4__) && defined(V8_TARGET_ARCH_SH4)
           simulator_(NULL),
 #endif
           next_(NULL),
@@ -389,7 +393,8 @@ class Isolate {
     void set_thread_state(ThreadState* value) { thread_state_ = value; }
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
-    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS) || \
+    !defined(__sh4__) && defined(V8_TARGET_ARCH_SH4)
     Simulator* simulator() const { return simulator_; }
     void set_simulator(Simulator* simulator) {
       simulator_ = simulator;
@@ -407,7 +412,8 @@ class Isolate {
     ThreadState* thread_state_;
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
-    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS)
+    !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS) || \
+    !defined(__sh4__) && defined(V8_TARGET_ARCH_SH4)
     Simulator* simulator_;
 #endif
 
@@ -925,7 +931,8 @@ class Isolate {
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
-    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
+    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__) || \
+    defined(V8_TARGET_ARCH_SH4) && !defined(__ssh4__)
   bool simulator_initialized() { return simulator_initialized_; }
   void set_simulator_initialized(bool initialized) {
     simulator_initialized_ = initialized;
@@ -1151,7 +1158,8 @@ class Isolate {
   void* embedder_data_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
-    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)
+    defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__) || \
+    defined(V8_TARGET_ARCH_SH4) && !defined(__sh4__)
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
   Redirection* simulator_redirection_;

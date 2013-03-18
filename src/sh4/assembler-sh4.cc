@@ -1520,8 +1520,13 @@ void Assembler::popm(RegList src, bool doubles) {
 // Stops with a non-negative code less than kNumOfWatchedStops support
 // enabling/disabling and a counter feature. See simulator-arm.h .
 void Assembler::stop(const char* msg) {
-  // TODO(stm): handle simulator based stuff (ref to ARM code)
+#ifndef __sh4__
+  dw(kStoppoint);
+  dd(reinterpret_cast<uint32_t>(msg));
+#else
+  // Generate an privileged instruction
   bkpt();
+#endif // __sh4__
 }
 
 

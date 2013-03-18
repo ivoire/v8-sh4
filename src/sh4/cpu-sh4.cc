@@ -26,15 +26,19 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <unistd.h>
-#include <sys/syscall.h>
-#include <asm/cachectl.h>
 
 #include "v8.h"
+
+#if !defined(USE_SIMULATOR)
+#include <sys/syscall.h>
+#include <asm/cachectl.h>
+#endif
 
 #if defined(V8_TARGET_ARCH_SH4)
 
 #include "cpu.h"
 #include "macro-assembler.h"
+#include "simulator.h"  // for cache flushing.
 
 namespace v8 {
 namespace internal {
@@ -45,18 +49,26 @@ void CPU::Setup() {
 
 
 bool CPU::SupportsCrankshaft() {
-  return true;
+  return false;
 }
 
 
 void CPU::FlushICache(void* start, size_t size) {
+#if defined(USE_SIMULATOR)
+  Simulator::FlushICache(Isolate::Current()->simulator_i_cache(), start, size);
+#else
   // Invalidate the instruction and the data cache
   syscall(__NR_cacheflush, start, size, CACHEFLUSH_D_WB | CACHEFLUSH_I);
+#endif
 }
 
 
 void CPU::DebugBreak() {
+#if defined(__sh4__)
   asm("ldtlb");
+#else
+  UNIMPLEMENTED();
+#endif
 }
 
 } }  // namespace v8::internal

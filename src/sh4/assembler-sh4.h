@@ -31,6 +31,7 @@
 #define V8_SH4_ASSEMBLER_SH4_H_
 
 #include "assembler.h"
+#include "constants-sh4.h"
 #include "serialize.h"
 
 namespace v8 {
@@ -316,33 +317,6 @@ enum AddrMode {
   PreIndex,
   PostIndex,
   Offset
-};
-
-
-// We use the cause fields bcause they are set to 1 or 0 depending on the
-// action. So they don't need to be reseted but they mist be use immediately
-static const uint32_t kFPUExceptionMask          = 0x1f << 12;
-static const uint32_t kFPUInexactExceptionBit    = 1 << 12;
-static const uint32_t kFPUUnderflowExceptionBit  = 1 << 13;
-static const uint32_t kFPUOverflowExceptionBit   = 1 << 14;
-static const uint32_t kFPUDividezeroExceptionBit = 1 << 15;
-static const uint32_t kFPUInvalidExceptionBit    = 1 << 16;
-
-// FPU rounding modes.
-enum FPURoundingMode {
-  RN = 0,   // Round to Nearest.
-  RZ = 1,   // Round towards zero.
-
-  // Aliases.
-  kRoundToNearest = RN,
-  kRoundToZero = RZ
-};
-
-static const uint32_t kFPURoundingModeMask = 1;
-
-enum CheckForInexactConversion {
-  kCheckForInexactConversion,
-  kDontCheckForInexactConversion
 };
 
 

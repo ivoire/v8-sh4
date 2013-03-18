@@ -129,8 +129,9 @@ namespace internal {
     !(defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_MIPS)))
 #error Target architecture mips is only supported on mips and ia32 host
 #endif
-#if defined(V8_TARGET_ARCH_SH4) && !defined(V8_HOST_ARCH_SH4)
-#error Target architecture sh4 is only supported on sh4 host
+#if (defined(V8_TARGET_ARCH_SH4) && \
+    !(defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_SH4)))
+#error Target architecture sh4 is only supported on sh4 and ia32 host
 #endif
 
 
@@ -142,6 +143,9 @@ namespace internal {
 #define USE_SIMULATOR 1
 #endif
 #if (defined(V8_TARGET_ARCH_MIPS) && !defined(V8_HOST_ARCH_MIPS))
+#define USE_SIMULATOR 1
+#endif
+#if (defined(V8_TARGET_ARCH_SH4) && !defined(V8_HOST_ARCH_SH4))
 #define USE_SIMULATOR 1
 #endif
 #endif

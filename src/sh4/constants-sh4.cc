@@ -62,6 +62,45 @@ const char* Registers::Name(int reg) {
 }
 
 
+// Support for FPU registers fr0 to fr15 (dr0 to dr14).
+// Note that "frN:frM" is the same as "drN/2"
+const char* FPURegisters::names_[kNumFPURegisters] = {
+    "fr0", "fr1", "fr2", "fr3", "fr4", "fr5", "fr6", "fr7",
+    "fr8", "fr9", "fr10", "fr11", "fr12", "fr13", "fr14", "fr15",
+    "dr0", "dr2", "dr4", "dr6", "dr8", "dr10", "dr12", "dr14",
+};
+
+
+const char* FPURegisters::Name(int reg, bool is_double) {
+  ASSERT((0 <= reg) && (reg < kNumFPURegisters));
+  if (is_double) {
+    ASSERT(reg % 2 == 0);
+    return names_[kNumFPUSingleRegisters + reg / 2];
+   } else {
+    return names_[reg];
+  }
+}
+
+
+int FPURegisters::Number(const char* name, bool* is_double) {
+  for (int i = 0; i < kNumFPURegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      if (i < kNumFPUSingleRegisters) {
+        *is_double = false;
+        return i;
+      } else {
+        *is_double = true;
+        return (i - kNumFPUSingleRegisters) * 2;
+      }
+    }
+  }
+
+  // No register with the requested name found.
+  return kNoRegister;
+}
+
+
+
 int Registers::Number(const char* name) {
   // Look through the canonical names.
   for (int i = 0; i < kNumRegisters; i++) {

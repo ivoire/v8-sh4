@@ -309,10 +309,16 @@ DEFINE_bool(strict_mode, true, "allow strict mode directives")
 
 // simulator-arm.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")
+DEFINE_bool(print_sim_trace, false, "Print the code that the simulator runs")
 DEFINE_bool(check_icache, false, "Check icache flushes in ARM simulator")
 DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
+#if defined(V8_TARGET_ARCH_SH4)
+DEFINE_int(sim_stack_alignment, 4,
+           "Stack alingment in bytes in simulator (4 or 8, 4 is default)")
+#else
 DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
+#endif
 
 // isolate.cc
 DEFINE_bool(trace_exception, false,

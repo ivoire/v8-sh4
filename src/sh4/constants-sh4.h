@@ -32,7 +32,10 @@ namespace v8 {
 namespace internal {
 
 // Number of registers in normal SH4 mode.
-static const int kNumRegisters = 16;
+const int kNumRegisters = 16;
+const int kNumFPUSingleRegisters = 16;
+const int kNumFPUDoubleRegisters = 8;
+const int kNumFPURegisters = kNumFPUDoubleRegisters + kNumFPUSingleRegisters;
 
 // Marker for end of register list.
 static const int kNoRegister = -1;
@@ -45,6 +48,54 @@ static const int kNoRegister = -1;
 // Instruction objects are pointers to 32bit values, and provide methods to
 // access the various ISA fields.
 typedef uint16_t Instr;
+
+
+// -----------------------------------------------------------------------------
+// Supervisor Call (svc) specific support.
+
+// Special Software Interrupt codes when used in the presence of the SH4
+// simulator.
+enum SoftwareInterruptCodes {
+  // illegal instruction
+  kIllegalInstruction = 0,
+  // unsupported instruction
+  kUnsupportedInstruction = 1,
+  // forbidden instruction in a delay slot
+  kDelaySlot = 2,
+  // transition to C code
+  kCallRtRedirected = 0xf00,
+  // break point
+  kBreakpoint = 0xf01,
+  // stop instruction
+  kStoppoint = 0xf02
+};
+
+
+// We use the cause fields bcause they are set to 1 or 0 depending on the
+// action. So they don't need to be reseted but they mist be use immediately
+static const uint32_t kFPUExceptionMask          = 0x1f << 12;
+static const uint32_t kFPUInexactExceptionBit    = 1 << 12;
+static const uint32_t kFPUUnderflowExceptionBit  = 1 << 13;
+static const uint32_t kFPUOverflowExceptionBit   = 1 << 14;
+static const uint32_t kFPUDividezeroExceptionBit = 1 << 15;
+static const uint32_t kFPUInvalidExceptionBit    = 1 << 16;
+
+// FPU rounding modes.
+enum FPURoundingMode {
+  RN = 0,   // Round to Nearest.
+  RZ = 1,   // Round towards zero.
+
+  // Aliases.
+  kRoundToNearest = RN,
+  kRoundToZero = RZ
+};
+
+static const uint32_t kFPURoundingModeMask = 1;
+
+enum CheckForInexactConversion {
+  kCheckForInexactConversion,
+  kDontCheckForInexactConversion
+};
 
 
 // -----------------------------------------------------------------------------
@@ -157,6 +208,23 @@ class Registers {
   static const char* names_[kNumRegisters];
   static const RegisterAlias aliases_[];
 };
+
+
+// Helper functions for converting between FPU register numbers and names.
+class FPURegisters {
+ public:
+  // Return the name of the register.
+  static const char* Name(int reg, bool is_double);
+
+  // Lookup the register number for the name provided.
+  // Set flag pointed by is_double to true if register
+  // is double-precision.
+  static int Number(const char* name, bool* is_double);
+
+ private:
+  static const char* names_[kNumFPURegisters];
+};
+
 
 
 } }  // namespace v8::internal

@@ -236,6 +236,7 @@ SOURCES = {
     """),
   'simulator:arm': ['arm/simulator-arm.cc'],
   'simulator:mips': ['mips/simulator-mips.cc'],
+  'simulator:sh4': ['sh4/simulator-sh4.cc'],
   'os:freebsd': ['platform-freebsd.cc', 'platform-posix.cc'],
   'os:openbsd': ['platform-openbsd.cc', 'platform-posix.cc'],
   'os:linux':   ['platform-linux.cc', 'platform-posix.cc'],
