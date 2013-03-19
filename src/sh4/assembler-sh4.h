@@ -629,7 +629,7 @@ class Assembler : public AssemblerBase {
   // jsr rx
   // nop
   // ...                      @ return address (put in pr by the jsr)
-  static const int kCallTargetAddressOffset = 2 * kInstrSize + 4 +
+  static const int kCallTargetAddressOffset = 2 * kInstrSize + 2 * kInstrSize +
                                               4 * kInstrSize;
 
   // Distance between start of patched return sequence and the emitted address
