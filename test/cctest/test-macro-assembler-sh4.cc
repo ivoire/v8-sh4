@@ -31,6 +31,7 @@
 #include "factory.h"
 #include "platform.h"
 #include "serialize.h"
+#include "sh4/simulator-sh4.h"
 #include "cctest.h"
 
 using namespace v8::internal;
@@ -120,6 +121,11 @@ static void InitializeVM() {
     } \
   } while (0);
 
+#if defined(USE_SIMULATOR)
+# define CAST(a) reinterpret_cast<int>((a))
+#else
+# define CAST(a) (a)
+#endif
 
 // Test Move(...)
 TEST(sh4_ma_0) {
@@ -168,7 +174,8 @@ TEST(sh4_ma_0) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -289,7 +296,8 @@ TEST(sh4_ma_1) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -318,7 +326,8 @@ TEST(sh4_ma_2) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -395,7 +404,8 @@ TEST(sh4_ma_3) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -472,7 +482,8 @@ TEST(sh4_ma_4) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -611,7 +622,8 @@ TEST(sh4_ma_5) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -850,7 +862,8 @@ TEST(sh4_ma_6) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -906,7 +919,8 @@ TEST(sh4_ma_7) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -1038,7 +1052,8 @@ TEST(sh4_ma_8) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
@@ -1145,7 +1160,8 @@ TEST(sh4_ma_9) {
   Code::cast(code)->Print();
 #endif
 
-  int res = FUNCTION_CAST<F0>(Code::cast(code)->entry())();
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
 }
