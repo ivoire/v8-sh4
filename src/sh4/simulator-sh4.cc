@@ -137,8 +137,7 @@ bool Sh4Debugger::GetFPUDoubleValue(const char* desc, double* value) {
   bool is_double;
   int regnum = FPURegisters::Number(desc, &is_double);
   if (regnum != kNoRegister && is_double) {
-    ASSERT(regnum % 2 == 0);
-    *value = sim_->get_dregister(regnum / 2);
+    *value = sim_->get_dregister(regnum);
     return true;
   }
   return false;
@@ -256,7 +255,7 @@ void Sh4Debugger::Debug() {
               PrintF("%3s: 0x%08x %10d\n", Registers::Name(i), value, value);
             }
             for (int i = 0; i < kNumFPUDoubleRegisters; i++) {
-              dvalue = GetFPUDoubleRegisterValue(i);
+              dvalue = GetFPUDoubleRegisterValue(i * 2);
               uint64_t as_words = BitCast<uint64_t>(dvalue);
               PrintF("%3s: %f 0x%08x %08x\n",
                      FPURegisters::Name(i * 2, true),
@@ -835,22 +834,24 @@ int32_t Simulator::get_fregister(int reg) const {
 
 
 void Simulator::set_dregister(int reg, double value) {
-  ASSERT((reg >= 0) && (reg < num_dregisters));
+  int register_num = reg / 2;
+  ASSERT((reg % 2 == 0) && (register_num >= 0) && (register_num < num_dregisters));
   // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
-  if (reg >= num_dregisters) return;
+  if (register_num >= num_dregisters) return;
   // End stupid code.
 
-  fpu_registers_[reg].d = value;
+  fpu_registers_[register_num].d = value;
 }
 
 
 double Simulator::get_dregister(int reg) const {
-  ASSERT((reg >= 0) && (reg < num_dregisters));
+  int register_num = reg / 2;
+  ASSERT((reg % 2 == 0) && (register_num >= 0) && (register_num < num_dregisters));
   // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
-  if (reg >= num_dregisters) return 0;
+  if (register_num >= num_dregisters) return 0;
   // End stupid code.
 
-  return fpu_registers_[reg].d;
+  return fpu_registers_[register_num].d;
 }
 
 
