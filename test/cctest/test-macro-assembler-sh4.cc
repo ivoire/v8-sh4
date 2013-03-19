@@ -37,7 +37,7 @@
 using namespace v8::internal;
 
 
-typedef int (*F0)();
+typedef int (*F0)(int p0, int p1, int p2, int p3, int p4);
 
 
 static v8::Persistent<v8::Context> env;
