@@ -62,6 +62,12 @@ static void InitializeVM() {
   v8::HandleScope scope;                                \
   Assembler assm(Isolate::Current(), NULL, 0);
 
+// Saves sh4_rtmp (r11) and sh4_ip (r10) which are calle saved
+#define PROLOGUE() \
+  __ push(r10); __ push(r11)
+#define EPILOGUE() \
+  __ pop(r11); __ pop(r10)
+
 #define JIT()                                                           \
   CodeDesc desc;                                                        \
   assm.GetCode(&desc);                                                  \
@@ -337,12 +343,15 @@ TEST(6c) {
 TEST(7) {
   BEGIN();
 
+  PROLOGUE();
   __ lsr(r0, r4, r5);
   __ mov(r1, Operand(1));
   __ lsr(r0, r0, r1, false, r3);
   __ lsr(r4, r0, Operand(1));
   __ lsr(r4, r4, Operand(2));
   __ lsr(r0, r4, Operand(3));
+
+ EPILOGUE();
   __ rts();
 
   JIT();
@@ -439,13 +448,17 @@ TEST(9) {
 
   Label top, middle, bottom;
 
+  PROLOGUE();
+
   __ cmpeq(r5, Operand(12), r1);
   __ bt(&bottom);
   __ mov(r0, Operand(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&top);
   __ mov(r0, r4);
+  EPILOGUE();
   __ rts();
 
   __ bind(&middle);
@@ -471,6 +484,8 @@ TEST(10) {
   BEGIN();
 
   Label end;
+
+  PROLOGUE();
   __ mov(r0, r4);
 
   for (int i = 0; i < 2000; i++)
@@ -492,6 +507,7 @@ TEST(10) {
     __ add(r0, r0, Operand(1));
 
   __ bind(&end);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -511,6 +527,7 @@ TEST(11) {
 
   Label error;
 
+  PROLOGUE();
   __ mov(r0, Operand(0));
   __ cmpeq(r4, Operand(-27), r1);     // true
   __ bf(&error);
@@ -540,10 +557,12 @@ TEST(11) {
   __ bt(&error);
 
   __ mov(r0, Operand(1));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
   __ mov(r0, Operand(1));
+  EPILOGUE();
   __ rts();
 
 
@@ -665,6 +684,7 @@ TEST(14) {
 
   Label begin, end;
 
+  PROLOGUE();
   __ mov(r0, Operand(0));
   __ bind(&begin);
   __ cmpeq(r0, Operand(0), r1);
@@ -676,6 +696,7 @@ TEST(14) {
   __ jmp(&begin);
 
   __ bind(&end);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -694,6 +715,7 @@ TEST(15) {
 
   Label error;
 
+  PROLOGUE();
   __ mov(r1, Operand(1));
   __ mov(r4, Operand(2147483647));
   __ addv(r1, r1, r4);          // set the T bit
@@ -727,10 +749,12 @@ TEST(15) {
 
 
   __ mov(r0, Operand(1));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
   __ mov(r0, Operand(0));
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -752,12 +776,6 @@ TEST(15) {
   __ mov(r10, Operand(__LINE__)); \
   __ b(cond, target);  \
   } while (0);
-
-// Saves sh4_rtmp (r11) and sh4_ip (r10) which are calle saved
-#define PROLOGUE() \
-  __ push(r10); __ push(r11)
-#define EPILOGUE() \
-  __ pop(r11); __ pop(r10)
 
 // Test logical and, or, xor
 TEST(16) {
@@ -1227,7 +1245,8 @@ TEST(21) {
   __ bind(&top);
   __ cmpeq(r0, r1);
   __ cmpgt(r0, r1);
-  __ cmpeq_r0_unsigned_imm(173); // > 127, ie. would normally exceed signed range
+  // > 127, ie. would normally exceed signed range
+  __ cmpeq_r0_unsigned_imm(173);
   __ bt(&top);
   __ bf(&top);
   __ mov(r0, Operand(12));
@@ -1262,12 +1281,14 @@ TEST(22) {
 
   Label function, end_function;
 
+  PROLOGUE();
   __ mov(r5, Operand(1));
   __ mov(r0, r4);
   __ add(r0, Operand(1), r1);
   __ push(pr);
   __ jsr(&function);
   __ pop(pr);
+  EPILOGUE();
   __ rts();
 
   __ bind(&function);
@@ -1303,6 +1324,7 @@ TEST(22_bis) {
 
   Label function, label;
 
+  PROLOGUE();
   __ mov(r0, Operand(0));
   __ bind(&function);
   __ tst(r0, r0);
@@ -1315,6 +1337,7 @@ TEST(22_bis) {
   __ push(pr);
   __ jsr(&function);
   __ pop(pr);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -1334,6 +1357,7 @@ TEST(23) {
   BEGIN();
   Label error;
 
+  PROLOGUE();
   __ mov(r0, Operand(0));
   __ cmpeq(r0, Operand(0), r4);
   __ mov(r1, Operand(0x00ff00ff));
@@ -1364,10 +1388,12 @@ TEST(23) {
 
 
   __ mov(r0, Operand(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
   __ mov(r0, Operand(1));
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -1388,6 +1414,7 @@ TEST(24) {
 
   Label error;
 
+  PROLOGUE();
   __ dmuls(r1, r0, r4, r5);
   __ cmpeq(r0, r6);
   __ bf(&error);
@@ -1395,6 +1422,7 @@ TEST(24) {
   __ bf(&error);
 
   __ mov(r0, Operand(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
@@ -1425,6 +1453,7 @@ TEST(25) {
 
   Label function;
 
+  PROLOGUE();
   __ mov(r0, Operand(0));
   __ push(pr);
 
@@ -1435,6 +1464,7 @@ TEST(25) {
   __ add(r0, r0, Operand(1), r2);
 
   __ pop(pr);
+  EPILOGUE();
   __ rts();
 
   __ bind(&function);
@@ -1982,7 +2012,8 @@ TEST(from_arm_3) {
   Label L, C;
   PROLOGUE();
   __ mov(r0, r4);
-  __ push(pr); __ push(fp);
+  __ push(pr);
+  __ push(fp);
   __ sub(fp, sp, Operand(4));
 
   __ ldr(r0, MemOperand(r4, OFFSET_OF(T, i)), r5);
@@ -1999,7 +2030,8 @@ TEST(from_arm_3) {
   __ asr(r2, r2, Operand(3));
   __ strh(r2, MemOperand(r4, OFFSET_OF(T, s)), r5);
 
-  __ pop(fp); __ pop(pr);
+  __ pop(fp);
+  __ pop(pr);
   EPILOGUE();
   __ rts();
 
@@ -2042,7 +2074,9 @@ TEST(from_arm_4) {
   Label L, C;
   PROLOGUE();
   __ mov(r0, sp);
-  __ push(pr); __ push(fp); __ push(r4);
+  __ push(pr);
+  __ push(fp);
+  __ push(r4);
   __ sub(fp, r0, Operand(4));
 
   __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, a)));
@@ -2078,9 +2112,11 @@ TEST(from_arm_4) {
   __ dldr(dr4, MemOperand(r4, OFFSET_OF(T, g)));
   __ dldr(dr6, MemOperand(r4, OFFSET_OF(T, h)));
   __ fsub(dr4, dr6);
-  __ dstr(dr4, MemOperand(r4, OFFSET_OF(T,g)));
+  __ dstr(dr4, MemOperand(r4, OFFSET_OF(T, g)));
 
-  __ pop(r4); __ pop(fp); __ pop(pr);
+  __ pop(r4);
+  __ pop(fp);
+  __ pop(pr);
   EPILOGUE();
   __ rts();
 
@@ -2142,7 +2178,8 @@ TEST(memcpy) {
   char psz_dest[47 + 1] = { 0 };
 
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, (int)psz_dest, (int)psz_buffer, 47 + 1, 0, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, (int)psz_dest,
+                                    (int)psz_buffer, 47 + 1, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
   CHECK_EQ(0, strcmp(psz_buffer, psz_dest));
