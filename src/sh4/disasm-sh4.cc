@@ -68,6 +68,8 @@ class Decoder {
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(byte* instruction);
 
+  static int ConstantPoolSizeAt(byte* instr_ptr);
+
 #ifndef USE_KERNEL_DISASM
   // All Decode... function are decoding the set of instructions
   // from the tables defined in thhe architecture manual.
@@ -123,6 +125,11 @@ void Decoder::Format(const char *format, ...) {
   va_start(args, format);
   out_buffer_pos_ += OS::VSNPrintF(out_buffer_ + out_buffer_pos_, format, args);
   va_end(args);
+}
+
+
+int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
+  return -1;
 }
 
 
@@ -694,6 +701,18 @@ const char* NameConverter::NameInCode(byte* addr) const {
 }
 
 
+int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+                                    byte* instruction) {
+  v8::internal::Decoder d(buffer);
+  return d.InstructionDecode(instruction);
+}
+
+
+int Disassembler::ConstantPoolSizeAt(byte* instruction) {
+  return v8::internal::Decoder::ConstantPoolSizeAt(instruction);
+}
+
+
 //------------------------------------------------------------------------------
 
 class DisassemblerSH4: public DisassemblerInterface {
@@ -799,11 +818,20 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
   delete d;
 }
 
+Disassembler::Disassembler(const NameConverter& converter)
+    : converter_(converter) {}
+
+
+Disassembler::~Disassembler() {}
+
+class DisassemblerSH4;
 
 /*static*/ DisassemblerInterface *
 DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
   return new DisassemblerSH4();
 }
+
+
 
 }  // namespace disasm
 

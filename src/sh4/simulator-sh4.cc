@@ -211,13 +211,13 @@ void Sh4Debugger::Debug() {
 
   while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
-      //disasm::NameConverter converter;
-      //disasm::DisassemblerSH4 dasm(converter);
-      //// use a reasonably large buffer
-      //v8::internal::EmbeddedVector<char, 256> buffer;
-      //dasm.InstructionDecode(buffer,
-      //                       reinterpret_cast<byte*>(sim_->get_pc()));
-      //PrintF("  0x%08x  %s\n", sim_->get_pc(), buffer.start());
+      disasm::NameConverter converter;
+      disasm::Disassembler dasm(converter);
+      // use a reasonably large buffer
+      v8::internal::EmbeddedVector<char, 256> buffer;
+      dasm.InstructionDecode(buffer,
+                             reinterpret_cast<byte*>(sim_->get_pc()));
+      PrintF("  0x%08x  %s\n", sim_->get_pc(), buffer.start());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -349,12 +349,12 @@ void Sh4Debugger::Debug() {
           cur++;
         }
       } else if (strcmp(cmd, "disasm") == 0 || strcmp(cmd, "di") == 0) {
-        //disasm::NameConverter converter;
-        //disasm::Disassembler dasm(converter);
-        //// use a reasonably large buffer
-        //v8::internal::EmbeddedVector<char, 256> buffer;
+        disasm::NameConverter converter;
+        disasm::Disassembler dasm(converter);
+        // use a reasonably large buffer
+        v8::internal::EmbeddedVector<char, 256> buffer;
 
-        //byte* prev = NULL;
+        byte* prev = NULL;
         byte* cur = NULL;
         byte* end = NULL;
 
@@ -389,12 +389,12 @@ void Sh4Debugger::Debug() {
           }
         }
 
-        //while (cur < end) {
-        //  prev = cur;
-        //  cur += dasm.InstructionDecode(buffer, cur);
-        //  PrintF("  0x%08x  %s\n",
-        //         reinterpret_cast<intptr_t>(prev), buffer.start());
-        //}
+        while (cur < end) {
+          prev = cur;
+          cur += dasm.InstructionDecode(buffer, cur);
+          PrintF("  0x%08x  %s\n",
+                 reinterpret_cast<intptr_t>(prev), buffer.start());
+        }
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("relinquishing control to gdb\n");
         v8::internal::OS::DebugBreak();
@@ -1253,11 +1253,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
     case kUnsupportedInstruction:
     case kDelaySlot: {
         // Disassemble the current instruction
-        //disasm::NameConverter converter;
-        //DisassemblerSH4 dasm(converter);
-        //v8::internal::EmbeddedVector<char, 256> buffer;
-        //dasm.InstructionDecode(buffer,
-        //                       reinterpret_cast<byte*>(get_pc()));
+        disasm::NameConverter converter;
+        disasm::Disassembler dasm(converter);
+        v8::internal::EmbeddedVector<char, 256> buffer;
+        dasm.InstructionDecode(buffer,
+                               reinterpret_cast<byte*>(get_pc()));
 
         // Print the signal state
         switch (signal) {
@@ -1344,13 +1344,13 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
   pc_modified_ = false;
   if (::v8::internal::FLAG_print_sim_trace) {
-    //disasm::NameConverter converter;
-    //disasm::Disassembler dasm(converter);
-    //// use a reasonably large buffer
-    //v8::internal::EmbeddedVector<char, 256> buffer;
-    //dasm.InstructionDecode(buffer,
-    //                       reinterpret_cast<byte*>(instr));
-    //PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
+    disasm::NameConverter converter;
+    disasm::Disassembler dasm(converter);
+    // use a reasonably large buffer
+    v8::internal::EmbeddedVector<char, 256> buffer;
+    dasm.InstructionDecode(buffer,
+                           reinterpret_cast<byte*>(instr));
+    PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
   }
 
   uint16_t iword = instr->InstructionBits();
