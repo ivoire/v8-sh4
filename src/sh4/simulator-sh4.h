@@ -208,7 +208,7 @@ enum Register {
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
   // which sets up the simulator state and grabs the result on return.
-  int32_t Call(byte* entry, int argument_count, ...);
+  int32_t Call(byte* entry, int int_args, int double_args, ...);
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -328,11 +328,14 @@ enum Register {
 // point.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
   reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
-      FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
+      FUNCTION_ADDR(entry), 5, 0, p0, p1, p2, p3, p4))
+#define CALL_GENERATED_FPU_CODE(entry, p0, p1) \
+  reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
+      FUNCTION_ADDR(entry), 4, 2, 0, 0, 0, 0, p0, p1))
 
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
   Simulator::current(Isolate::Current())->Call( \
-      entry, 9, p0, p1, p2, p3, NULL, p4, p5, p6, p7)
+      entry, 9, 0, p0, p1, p2, p3, NULL, p4, p5, p6, p7)
 
 #define TRY_CATCH_FROM_ADDRESS(try_catch_address)                              \
   try_catch_address == NULL ?                                                  \

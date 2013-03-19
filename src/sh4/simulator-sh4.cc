@@ -1464,13 +1464,13 @@ void Simulator::CallInternal(byte* entry) {
 }
 
 
-int32_t Simulator::Call(byte* entry, int argument_count, ...) {
+int32_t Simulator::Call(byte* entry, int int_args, int double_args, ...) {
   va_list parameters;
-  va_start(parameters, argument_count);
+  va_start(parameters, double_args);
   // Set up arguments
 
   // First four arguments passed in registers.
-  ASSERT(argument_count >= 4);
+  ASSERT(int_args >= 4);
   set_register(r4, va_arg(parameters, int32_t));
   set_register(r5, va_arg(parameters, int32_t));
   set_register(r6, va_arg(parameters, int32_t));
@@ -1479,16 +1479,24 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   // Remaining arguments passed on stack.
   int original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
-  int entry_stack = (original_stack - (argument_count - 4) * sizeof(int32_t));
+  int entry_stack = (original_stack - (int_args - 4) * sizeof(int32_t));
   if (OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -OS::ActivationFrameAlignment();
   }
 
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  for (int i = 4; i < argument_count; i++) {
+  for (int i = 4; i < int_args; i++) {
     stack_argument[i - 4] = va_arg(parameters, int32_t);
   }
+
+  // Next arguments on double registers
+  if(double_args > 0) {
+    ASSERT(double_args == 2);
+    set_dregister(dr4, va_arg(parameters, double));
+    set_dregister(dr6, va_arg(parameters, double));
+  }
+
   va_end(parameters);
   set_register(sp, entry_stack);
 
