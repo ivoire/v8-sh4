@@ -1867,7 +1867,11 @@ TEST(31) {
 #endif
 
   F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+#if defined(USE_SIMULATOR)
+  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 123, 0));
+#else
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123, 0, 0, 0, 0));
+#endif
   CHECK_EQ(0, res);
 }
 
@@ -1918,7 +1922,11 @@ TEST(32) {
 #endif
 
   F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+#if defined(USE_SIMULATOR)
+  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 456, 0));
+#else
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 456, 0, 0, 0, 0));
+#endif
   CHECK_EQ(0, res);
 }
 
@@ -1954,7 +1962,11 @@ TEST(33) {
 #endif
 
   F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+#if defined(USE_SIMULATOR)
+  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 4212, 0));
+#else
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 4212, 0, 0, 0, 0));
+#endif
   CHECK_EQ(0, res);
 }
 
