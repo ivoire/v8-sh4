@@ -134,8 +134,8 @@ enum Register {
     num_registers,
     fp = 14,
     sp = 15,
-    dr0 = 0, dr2 = 1, dr4 = 2, dr6 = 3, dr8 = 4, dr10 = 5, dr12 = 6, dr14 = 7,
-    num_dregisters = 8,
+    dr0 = 0, dr2 = 2, dr4 = 4, dr6 = 6, dr8 = 8, dr10 = 10, dr12 = 12, dr14 = 14,
+    num_dregisters = 14,
     fr0 = 0, fr1 = 1, fr2 = 2, fr3 = 3, fr4 = 4, fr5 = 5, fr6 = 6, fr7 = 7, fr8 = 8,
     fr9 = 9, fr10 = 10, fr11 = 11, fr12 = 12, fr13 = 13, fr14 = 14, fr15 = 15,
     num_fregisters = 16
