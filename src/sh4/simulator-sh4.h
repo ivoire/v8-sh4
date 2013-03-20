@@ -331,7 +331,7 @@ enum Register {
       FUNCTION_ADDR(entry), 5, 0, p0, p1, p2, p3, p4))
 #define CALL_GENERATED_FPU_CODE(entry, p0, p1) \
   reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
-      FUNCTION_ADDR(entry), 4, 2, 0, 0, 0, 0, p0, p1))
+      FUNCTION_ADDR(entry), 4, 2, 0, 0, 0, 0, (double)p0, (double)p1))
 
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
   Simulator::current(Isolate::Current())->Call( \
