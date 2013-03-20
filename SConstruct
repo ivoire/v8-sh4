@@ -187,7 +187,10 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['-m32'],
     },
     'arch:sh4': {
-      'CCFLAGS':      ['-mieee', '-fno-strict-aliasing'],
+      'simulator:none': {
+        'CCFLAGS':    [ '-mieee']
+      },
+      'CCFLAGS':      ['-fno-strict-aliasing'],
       'CPPDEFINES':   ['V8_TARGET_ARCH_SH4']
     },
     'simulator:sh4': {
