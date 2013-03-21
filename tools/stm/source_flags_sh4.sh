@@ -28,8 +28,8 @@
 
 # Default v8 settings for sh4
 profilingsupport=${profilingsupport:-off}
-debuggersupport=${debuggersupport-off}
-backtracesupport=${backtracesupport-off}
-regexp=${regexp-native}
-snapshot=${snapshot-on}
-logging=${logging-off}
+debuggersupport=${debuggersupport:-off}
+backtracesupport=${backtracesupport:-off}
+regexp=${regexp:-native}
+snapshot=${snapshot:-on}
+logging=${logging:-off}
