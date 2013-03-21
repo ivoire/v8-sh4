@@ -1529,7 +1529,11 @@ THREADED_TEST(UndefinedIsNotEnumerable) {
 
 
 v8::Handle<Script> call_recursively_script;
+#if defined(USE_SIMULATOR)
+static const int kTargetRecursionDepth = 75;  // near maximum
+#else
 static const int kTargetRecursionDepth = 200;  // near maximum
+#endif
 
 
 static v8::Handle<Value> CallScriptRecursivelyCall(const v8::Arguments& args) {
