@@ -33,7 +33,6 @@ set -e
 pdir=`dirname $0`
 arch=${arch:-""} # if not defined, assume build in native mode
 site=${site:-default}
-mode=${mode:-release}
 
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
@@ -45,18 +44,23 @@ profile_gcov=${profile_gcov:-off}
 
 export LANG=
 export TZ=Europe/London
-if [ "$QEMU" != "" ]; then
-    if [ "$PROOT" = "" ]; then
-	    QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
-	    RUN_PREFIX=${RUN_PREFIX:-"$QEMU $QEMU_OPTS"}
-        echo Running $RUN_PREFIX ${1+"$@"}
-        exec $RUN_PREFIX ${1+"$@"}
-    else
-        echo Running $PROOT -b $PWD -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
-        exec $PROOT -W -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
-    fi
+
+if [ "$simulator" = on ]; then
+  exec ${1+"$@"}
 else
+  if [ "$QEMU" != "" ]; then
+    if [ "$PROOT" = "" ]; then
+      QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
+	  RUN_PREFIX=${RUN_PREFIX:-"$QEMU $QEMU_OPTS"}
+      echo Running $RUN_PREFIX ${1+"$@"}
+      exec $RUN_PREFIX ${1+"$@"}
+    else
+      echo Running $PROOT -b $PWD -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
+      exec $PROOT -W -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
+    fi
+  else
     RUN_PREFIX="${RUN_PREFIX}"
     echo Running $RUN_PREFIX ${1+"$@"}
     exec $RUN_PREFIX ${1+"$@"}
+  fi
 fi
