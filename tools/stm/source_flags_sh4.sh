@@ -31,5 +31,4 @@ profilingsupport=${profilingsupport:-off}
 debuggersupport=${debuggersupport:-off}
 backtracesupport=${backtracesupport:-off}
 regexp=${regexp:-native}
-snapshot=${snapshot:-on}
 logging=${logging:-off}
