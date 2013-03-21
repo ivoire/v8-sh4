@@ -32,23 +32,34 @@ set -e
 
 pdir=`dirname $0`
 srcdir=${srcdir:-.}
-arch=${arch:-""} # if not defined, build in native mode
+
+# Default architecture: native one
+arch=${arch:-""}
 site=${site:-default}
-mode=${mode:-release}
-snapshot=${snapshot:-off}
+
+# Load the global flags (local and site)
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
+# Load default flags for this arch
+[ -f ${pdir}/source_flags_${arch}.sh ] && . ${pdir}/source_flags_${arch}.sh
+# Load the CCFLAGS and other arch specific
 [ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
+
+
+# Define build flags
+mode=${mode:-release}
+snapshot=${snapshot:-off}
 regexp=${regexp:-native}
 profilingsupport=${profilingsupport:-off}
 debuggersupport=${debuggersupport:-on}
 backtracesupport=${backtracesupport:-off}
 library=${library:-shared}
 armeabi=${armeabi:-soft}
-tests=${tests:-""}
 vfp3=${vfp3:-on}
 logging=${logging:-off}
 prof=${prof:-off}
+tests=${tests:-""}
+
 
 # Enable the GPL disassembler in debug mode if the user does not disable it
 # explicitly

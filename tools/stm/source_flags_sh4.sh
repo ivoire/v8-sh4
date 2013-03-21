@@ -25,28 +25,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#
-# sh4 cross build specification
-#
 
-# Cross compilation tools
-export TOOL_PREFIX=${SH4_TOOL_PREFIX}
-export CXX=$TOOL_PREFIX-g++
-export AR=$TOOL_PREFIX-ar
-export RANLIB=$TOOL_PREFIX-ranlib
-export CC=$TOOL_PREFIX-cc
-export LD=$TOOL_PREFIX-ld
-export CCFLAGS="$CCFLAGS"
-
-# Target file system
-export TARGET_ROOT=${SH4_TARGET_ROOT}
-
-# Emulation tools
-export QEMU=${SH4_QEMU}
-export PROOT=${SH4_PROOT}
-export V8_EXTRA_ARGS="-stack_size=128 $V8_EXTRA_ARGS" # for QEMU we use a 128kb stack size (default is 512)
-
-# PRoot is needed to build with snapshots
-export PROOT_FOR_SNAPSHOTS=${SH4_PROOT_FOR_SNAPSHOTS}
-export QEMU_FOR_SNAPSHOTS=${SH4_QEMU_FOR_SNAPSHOTS}
-
+# Default v8 settings for sh4
+profilingsupport=${profilingsupport:-off}
+debuggersupport=${debuggersupport-off}
+backtracesupport=${backtracesupport-off}
+regexp=${regexp-native}
+snapshot=${snapshot-on}
+logging=${logging-off}
