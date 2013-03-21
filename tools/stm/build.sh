@@ -42,9 +42,13 @@ site=${site:-default}
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
 # Load default flags for this arch
 [ -f ${pdir}/source_flags_${arch}.sh ] && . ${pdir}/source_flags_${arch}.sh
-# Load the CCFLAGS and other arch specific
-[ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
 
+# Load the CCFLAGS and other arch specific only if not using the simulator
+simulator=${simulator:-""}
+[ -f ${pdir}/source_${arch}.sh  -a "$simulator" = "" ] && . ${pdir}/source_${arch}.sh
+
+# If acivated the simulator should be set to the arch
+[ "${simulator}" = on ] && simulator="simulator=${arch}"
 
 # Define build flags
 mode=${mode:-release}
@@ -76,9 +80,9 @@ fi
 [ "$profile_gcov" = on ] && export CXXFLAGS="-fprofile-arcs -ftest-coverage -fno-inline -fno-default-inline -fno-inline-functions -fno-early-inlining" && export LIBS="gcov"
 
 PROOT_ENV=''
-[ "$snapshot" = on -a \( "$arch" = sh4 -o "$arch" = arm \) ] && PROOT_ENV="$PROOT_FOR_SNAPSHOTS -Q $QEMU_FOR_SNAPSHOTS -b $PWD -b /usr/bin/env $TARGET_ROOT env PATH=/host-rootfs/usr/bin:$PATH "
+[ "$snapshot" = on -a \( "$arch" = sh4 -o "$arch" = arm \) -a "simulator" = "" ] && PROOT_ENV="$PROOT_FOR_SNAPSHOTS -Q $QEMU_FOR_SNAPSHOTS -b $PWD -b /usr/bin/env $TARGET_ROOT env PATH=/host-rootfs/usr/bin:$PATH "
 
 
-$PROOT_ENV scons -Y ${srcdir} ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} -j ${jobs}
-$PROOT_ENV scons -Y ${srcdir} ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} -j ${jobs} sample=shell
-${srcdir}/tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S snapshot=${snapshot} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S backtracesupport=${backtracesupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -S prof=${prof} -S gpl_disassembler=${gpl_disassembler} -j ${jobs} ${tests}
+$PROOT_ENV scons -Y ${srcdir} ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} ${simulator} -j ${jobs}
+$PROOT_ENV scons -Y ${srcdir} ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} ${simulator} -j ${jobs} sample=shell
+${srcdir}/tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S snapshot=${snapshot} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S backtracesupport=${backtracesupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -S prof=${prof} -S gpl_disassembler=${gpl_disassembler} -S ${simulator} -j ${jobs} ${tests}
