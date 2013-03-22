@@ -38,7 +38,11 @@ namespace internal {
 
 Address IC::address() {
   // Get the address of the call.
+#if defined(V8_TARGET_ARCH_SH4)
+  Address result = pc() - Assembler::ResolveCallTargetAddressOffset(pc());
+#else
   Address result = pc() - Assembler::kCallTargetAddressOffset;
+#endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = Isolate::Current()->debug();

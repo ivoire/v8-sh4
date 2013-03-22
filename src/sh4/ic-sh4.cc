@@ -1570,8 +1570,16 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 
 void PatchInlinedSmiCode(Address address) {
-  Address cmp_instruction_address =
-      address + Assembler::kCallTargetAddressOffset;
+  Address cmp_instruction_address;
+  Instr movl = Assembler::instr_at(address);
+  ASSERT((movl & 0xf000) == 0xd000);
+  if ((movl & kOff8Mask) == 0x1) {
+    // load from an inlined constant pool
+    cmp_instruction_address = address + Assembler::kOldStyleCallTargetAddressOffset;
+  } else {
+    // constant pools are optimized
+    cmp_instruction_address = address + Assembler::kNewStyleCallTargetAddressOffset;
+  }
 
   // If the instruction following the call is not a cmp #ii, rx, nothing
   // was inlined.

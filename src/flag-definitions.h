@@ -348,6 +348,9 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
               "file in which to serialize heap")
 #endif
 
+// SH4
+DEFINE_bool(poolx, false, "use experimental constant pools")
+
 //
 // Dev shell flags
 //

@@ -682,17 +682,34 @@ TEST(13) {
 TEST(14) {
   BEGIN();
 
-  Label begin, end;
+  Label begin, middle, end;
 
   PROLOGUE();
   __ mov(r0, Operand(0));
+  __ b_near(&middle); // jump over landing area
+
+  // make it a difficult landing for the backward jump
+  __ misalign();
+  __ bkpt();
+  __ bkpt();
+  __ bkpt();
+  __ bkpt();
   __ bind(&begin);
+  __ b_near(&middle); // branch wants to be misaligned
+  __ bkpt();
+  __ bkpt();
+  __ bkpt();
+  __ bkpt();
+
+  __ bind(&middle);
+
   __ cmpeq(r0, Operand(0), r1);
-  __ bf(&end);
+  __ bf(&end); // not taken
 
   for (int i = 0; i < 10000; i++)
     __ add(r0, r0, Operand(1), r1);
 
+  // good luck
   __ jmp(&begin);
 
   __ bind(&end);
@@ -701,7 +718,7 @@ TEST(14) {
 
   JIT();
 #ifdef DEBUG
-//  Code::cast(code)->Print();
+  Code::cast(code)->Print();
 #endif
 
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
@@ -1343,7 +1360,7 @@ TEST(22_bis) {
   JIT();
 
 #ifdef DEBUG
-//  Code::cast(code)->Print();
+  Code::cast(code)->Print();
 #endif
 
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
@@ -1699,7 +1716,6 @@ TEST(27) {
   __ mov(r0, Operand(0));
   EPILOGUE();
   __ rts();
-
   __ bind(&error);
   __ mov(sp, r3);
   __ mov(r0, r10);
@@ -2196,3 +2212,88 @@ TEST(memcpy) {
   CHECK_EQ(0, res);
   CHECK_EQ(0, strcmp(psz_buffer, psz_dest));
 }
+
+TEST(cp_0) {
+  BEGIN();
+
+  __ mov(r0, Operand(0));
+  __ mov(r1, Operand(123456789));
+  for (int i = 0; i < 512; i++)
+    __ add(r0, Operand(1));
+  __ add(r0, r1, r0);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 1, -10, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(123456789 + 512, res);
+}
+
+TEST(cp_1) {
+  BEGIN();
+  i::FLAG_code_comments = true;
+
+  __ mov(r0, Operand(0));
+  __ RecordComment("constant pool mov");
+  __ mov(r0, Operand(0xf00d));
+  __ RecordComment("3rd mov");
+  __ RecordComment("2nd comment");
+  __ mov(r1, Operand(0x0d060000));
+  __ add(r0, r0, r1);
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 1, -10, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0x0d06f00d, res);
+}
+
+TEST(cp_2) {
+  // Tests conditional far backward branch (and far forward jump)
+  BEGIN();
+
+  Label begin, end;
+
+  PROLOGUE();
+
+  __ mov(r0, Operand(0));
+  __ jmp(&end);
+
+  __ bkpt();
+  __ bkpt();
+  __ bkpt();
+  __ bkpt();
+
+  __ bind(&begin);
+  for (int i = 0; i < 10000; i++)
+    __ add(r0, r0, Operand(1), r1);
+
+  __ bind(&end);
+
+  __ cmpeq(r0, Operand(0));
+  __ b(t, &begin);
+
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(10000, res);
+}
+

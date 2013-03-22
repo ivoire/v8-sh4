@@ -30,6 +30,7 @@
 
 #include "sh4/assembler-sh4.h"
 #include "sh4/checks-sh4.h"
+#include "sh4/constants-sh4.h"
 #include "cpu.h"
 #include "debug.h"
 
@@ -40,7 +41,10 @@ void Assembler::CheckBuffer() {
   if (buffer_space() <= kGap) {
     GrowBuffer();
   }
-  // FIXME(STM): check if we must emit the constant pool
+
+  if (pc_offset() >= next_buffer_check_) {
+    CheckConstPool(false, true);
+  }
 }
 
 
@@ -263,14 +267,26 @@ Address Assembler::target_address_address_at(Address pc) {
   // Ref to functions that call Assembler::RecordRelocInfo()
   // such as Assembler::mov(), Assembler::jmp(), such as Assembler::jsr().
 
-  // All sequences for jmp/jsr/mov uses the same sequence as mov(), i.e.:
+  // With inline constant pools, all sequences for jmp/jsr/mov uses the same
+  // sequence as mov(), i.e.:
   // align 4;
   // movl pc+4 => R; nop; bra pc+4; nop; pool[0..32]
-  // We compute the address of pool[0] given the pc address after the align
-  Address pool_address = pc;
-  ASSERT(IsMovlPcRelative(instr_at(pc))); // check if 'movl disp, pc'
-  ASSERT(reinterpret_cast<uint32_t>(pc) % 4 == 0);  // check after align
-  pool_address += 4 * kInstrSize;
+  //
+  // New style (delayed) constant pool uses look like this:
+  // (aligned or unaligned)
+  // movl pc+disp => R;
+  // (disp + 1 instructions later, aligned)
+  // pool entry [0..32]
+  //
+  // Note1: It should be sufficient to identify an unpatched constant pool load
+  // by its disp == 0. That is, unless we would employ an undelayed branch for
+  // jumping over the pool, which we currently do not do.
+  Instr instr = instr_at(pc);
+  ASSERT(IsMovlPcRelative(instr)); // check if 'movl disp, pc'
+  ASSERT((instr & kOff8Mask) != 0x0); // check if load was patched (see note1)
+  Address pool_address = Address(reinterpret_cast<uint32_t>(pc + 4) & ~0x3);
+  pool_address += (instr & kOff8Mask) << 2;
+  ASSERT(reinterpret_cast<uint32_t>(pool_address) % 4 == 0); // pool is aligned
   return pool_address;
 }
 

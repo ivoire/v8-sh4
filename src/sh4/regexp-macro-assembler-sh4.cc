@@ -127,6 +127,7 @@ RegExpMacroAssemblerSH4::RegExpMacroAssemblerSH4(
       backtrack_label_(),
       exit_label_() {
   ASSERT_EQ(0, registers_to_save % 2);
+  masm_->SwitchConstantPoolMode(false);
   __ jmp(&entry_label_);   // We'll write the entry code later.
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -905,9 +906,13 @@ void RegExpMacroAssemblerSH4::PopRegister(int register_index) {
 
 void RegExpMacroAssemblerSH4::PushBacktrack(Label* label) {
   if (label->is_bound()) {
+    // XXX constant pool optimization is currently disabled in regexp assembler
+    //Assembler::BlockConstPoolScope block_const_pool(masm_);
     int target = label->pos();
     __ mov(r0, Operand(target + Code::kHeaderSize - kHeapObjectTag));
   } else {
+    // XXX constant pool optimization is currently disabled in regexp assembler
+    Assembler::BlockConstPoolScope block_const_pool(masm_);
     masm_->load_label(label);
   }
   Push(r0);

@@ -49,6 +49,11 @@ static const int kNoRegister = -1;
 // access the various ISA fields.
 typedef uint16_t Instr;
 
+// Instruction encoding bits and masks.
+enum {
+  kOff8Mask  = (1 << 8) - 1
+};
+
 
 // -----------------------------------------------------------------------------
 // Supervisor Call (svc) specific support.

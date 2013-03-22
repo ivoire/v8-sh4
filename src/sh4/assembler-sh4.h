@@ -629,9 +629,20 @@ class Assembler : public AssemblerBase {
   // jsr rx
   // nop
   // ...                      @ return address (put in pr by the jsr)
-  static const int kCallTargetAddressOffset = 2 * kInstrSize + 2 * kInstrSize +
-                                              4 * kInstrSize;
+  static const int kOldStyleCallTargetAddressOffset = 2 * kInstrSize +
+                                                      2 * kInstrSize +
+                                                      4 * kInstrSize;
+  static const int kNewStyleCallTargetAddressOffset = 3 * kInstrSize;
 
+  int GetCallTargetAddressOffset() const {
+    // constant_pool_poolx_ is not meant to be switched mid-flight
+    if (constant_pool_poolx_)
+      return kNewStyleCallTargetAddressOffset; // mov.l; jsr; nop
+    else
+      return kOldStyleCallTargetAddressOffset; // see above
+  }
+
+  static int ResolveCallTargetAddressOffset(byte *address);
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = 0 * kInstrSize;
@@ -640,9 +651,12 @@ class Assembler : public AssemblerBase {
   // to jump to.
   static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
 
+  // Difference between address of current opcode and value read from pc
+  // register.
+  static const int kPcLoadDelta = 2;
+
   // The debug break slot must be able to contain a call instruction.
   static const int kDebugBreakSlotLength = kInstrSize;
-
 
   // branch type
   enum branch_type {
@@ -799,6 +813,7 @@ class Assembler : public AssemblerBase {
         { *reinterpret_cast<Instr*>(pc) = instr; }
   static Condition GetCondition(Instr instr);
   static bool IsBranch(Instr instr);
+  static bool IsJsr(Instr instr);
   static Register GetRn(Instr instr);
   static Register GetRm(Instr instr);
   static bool IsCmpRegister(Instr instr);
@@ -914,6 +929,7 @@ class Assembler : public AssemblerBase {
   // This one allows pr as src or dst.
   void mov(Register Rd, Register Rs, Condition cond = al);
   void mov(Register Rd, const Operand& src, bool force = false);
+  void mov_poolx(Register Rd, const Operand& imm, bool force);
   void mov(Register Rd, const Operand& imm, Condition cond);
 
   // load op.
@@ -1001,6 +1017,22 @@ class Assembler : public AssemblerBase {
 
   inline void emit(Instr x);
 
+  // Class for scoping postponing the constant pool generation.
+  class BlockConstPoolScope {
+   public:
+    explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
+      assem_->StartBlockConstPool();
+    }
+    ~BlockConstPoolScope() {
+      assem_->EndBlockConstPool();
+    }
+
+   private:
+    Assembler* assem_;
+
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
+  };
+
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
 
@@ -1028,6 +1060,11 @@ class Assembler : public AssemblerBase {
   void dw(uint16_t data);
   void dd(uint32_t data);
 
+  void ddLegacyBranchConst(uint32_t data);
+  void emitPatchableNearBranch(uint16_t data);
+
+  void emitConstPool(uint32_t data);
+
   int pc_offset() const { return pc_ - buffer_; }
 
   // Return in Rd the value of pc_after + offset.
@@ -1045,6 +1082,27 @@ class Assembler : public AssemblerBase {
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
+  // Constants in pools are accessed via pc relative addressing, which can
+  // reach +1KB thereby defining a maximum distance between the instruction
+  // and the accessed constant.
+  static const int kMaxDistToPool = 1*KB;
+
+  // XXX Different to ARM the SH4 pc relative branch has a larger offset than
+  // the pc relative load. With kMaxDistToPool always being triggered first,
+  // I don't see how we can hit the following limit.
+  static const int kMaxJumpOverDist = 8*KB;
+  static const int kPoolEntrySize = 4;
+  static const int kMaxNumPendingRelocInfo = kMaxJumpOverDist/kPoolEntrySize;
+
+  // Postpone the generation of the constant pool for the specified number of
+  // instructions.
+  void BlockConstPoolFor(int instructions);
+
+  // Check if is time to emit a constant pool.
+  void CheckConstPool(bool force_emit, bool require_jump);
+  int GetFirstConstPoolUse() const { return first_const_pool_use_; }
+  void AssertDataEmit(const char *str);
+  void SwitchConstantPoolMode(bool enabled) { constant_pool_poolx_ = enabled; }
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1056,14 +1114,48 @@ class Assembler : public AssemblerBase {
 
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
+  // Prevent contant pool emission until EndBlockConstPool is called.
+  // Call to this function can be nested but must be followed by an equal
+  // number of call to EndBlockConstpool.
+  void StartBlockConstPool() {
+    if (const_pool_blocked_nesting_++ == 0) {
+      // Prevent constant pool checks happening by setting the next check to
+      // the biggest possible offset.
+      next_buffer_check_ = kMaxInt;
+    }
+  }
+
+  // Resume constant pool emission. Need to be called as many time as
+  // StartBlockConstPool to have an effect.
+  void EndBlockConstPool() {
+    if (--const_pool_blocked_nesting_ == 0) {
+      // Check the constant pool hasn't been blocked for too long.
+      ASSERT((num_pending_reloc_info_ == 0) ||
+             (pc_offset() < (first_const_pool_use_ + kMaxDistToPool)));
+      // Two cases:
+      //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
+      //    still blocked
+      //  * no_const_pool_before_ < next_buffer_check_ and the next emit will
+      //    trigger a check.
+      next_buffer_check_ = no_const_pool_before_;
+    }
+  }
+
+  bool is_const_pool_blocked() const {
+    return (const_pool_blocked_nesting_ > 0) ||
+           (pc_offset() < no_const_pool_before_);
+  }
 
  private:
   // code generation wrappers
   void branch(Label* L, Register rtmp, branch_type type, Label::Distance distance = Label::kFar);
   void branch(int offset, Register rtmp, branch_type type, Label::Distance distance, bool patched_later);
   void conditional_branch(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
+  void conditional_branch_poolx(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
   void jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later);
+  void jmp_poolx(int offset, Register rtmp, Label::Distance distance, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
+  void jsr_poolx(int offset, Register rtmp, bool patched_later);
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos, int is_near_linked);
@@ -1079,9 +1171,11 @@ class Assembler : public AssemblerBase {
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
+  void RecordRelocInfo_poolx(RelocInfo::Mode rmode, intptr_t data = 0);
 
   friend class CodePatcher;
   friend class EnsureSpace;
+  friend class BlockConstPoolScope;
 
   // Code buffer:
   // The buffer into which code and relocation info are generated.
@@ -1089,6 +1183,8 @@ class Assembler : public AssemblerBase {
   int buffer_size_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
+
+  int next_buffer_check_;  // pc offset of next buffer check
 
   // code generation
   // The relocation writer's position is at least kGap bytes below the end of
@@ -1099,9 +1195,37 @@ class Assembler : public AssemblerBase {
   byte* pc_;  // the program counter; moves forward
   RelocInfoWriter reloc_info_writer;
 
+  // XXX these were taken verbatim from ARM
+  static const int kCheckPoolIntervalInst = 32;
+  static const int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
+
+
+  // Average distance beetween a constant pool and the first instruction
+  // accessing the constant pool. Longer distance should result in less I-cache
+  // pollution.
+  // In practice the distance will be smaller since constant pool emission is
+  // forced after function return and sometimes after unconditional branches.
+  static const int kAvgDistToPool = kMaxDistToPool - kCheckPoolInterval;
+
+  // Emission of the constant pool may be blocked in some code sequences.
+  int const_pool_blocked_nesting_;  // Block emission if this is not zero.
+  int no_const_pool_before_;  // Block emission before this pc offset.
+
+  // the buffer of pending relocation info
+  RelocInfo pending_reloc_info_[kMaxNumPendingRelocInfo];
+
+  // number of pending reloc info entries in the buffer
+  int num_pending_reloc_info_;
+
+  // XXX this will have to interact with the scheduler
+  int first_const_pool_use_;
+
   PositionsRecorder positions_recorder_;
 
   bool emit_debug_code_;
+
+  // XXX transient impl helper
+  bool constant_pool_poolx_;
 
   friend class PositionsRecorder;
 

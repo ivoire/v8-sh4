@@ -313,10 +313,9 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   }
   EmitReturnSequence();
 
-  // TODO(stm): implement this when const pool are active
   // Force emit the constant pool, so it doesn't get emitted in the middle
   // of the stack check table.
-  // masm()->CheckConstPool(true, false);
+  masm()->CheckConstPool(true, false);
 }
 
 
@@ -368,8 +367,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     // Make sure that the constant pool is not emitted inside of the return
     // sequence.
     {
-      // SH4: removed
-      // Assembler::BlockConstPoolScope block_const_pool(masm_);
+      Assembler::BlockConstPoolScope block_const_pool(masm_);
       // Here we use masm_-> instead of the __ macro to avoid the code coverage
       // tool from instrumenting as we rely on the code size here.
       int32_t sp_delta = (info_->scope()->num_parameters() + 1) * kPointerSize;

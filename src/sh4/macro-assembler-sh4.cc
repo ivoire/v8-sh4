@@ -493,6 +493,9 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
 void MacroAssembler::Call(Handle<Code> code,
                           RelocInfo::Mode rmode,
                           unsigned ast_id) {
+  // XXX Block constant pool when emitting call (might be redundant)
+  BlockConstPoolScope block_const_pool(this);
+
   // TODO(stm): check whether this is necessary
   // Label start;
   // bind(&start);
@@ -1145,6 +1148,9 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
 #endif
 
+  {
+  // XXX Block constant pool when emitting call (might be redundant)
+  BlockConstPoolScope block_const_pool(this);
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
@@ -1155,6 +1161,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
   RECORD_LINE();
   jsr(function);
+  }
 
   int stack_passed_arguments = CalculateStackPassedWords(num_reg_arguments,
                                                          num_double_arguments);
@@ -1790,9 +1797,12 @@ void MacroAssembler::Abort(const char* msg) {
   push(r0);
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
-  // TODO(stm): implement this when const pool manager is active
-  // if (is_const_pool_blocked()) {
-  // }
+  if (is_const_pool_blocked()) {
+    UNIMPLEMENTED();
+    // XXX ARM and MIPS pad the number of instructions in the abort block to
+    // 10 and 14 respectively. The reason for this and how it relates to the
+    // constant pool (being blocked) is not given.
+  }
 }
 
 
@@ -2413,6 +2423,10 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
+
+  // XXX Block constant pool when emitting call (might be redundant)
+  BlockConstPoolScope block_const_pool(this);
+
   RECORD_LINE();
   mov(r0, Operand(num_arguments));
   JumpToExternalReference(ext);
@@ -2425,6 +2439,10 @@ MaybeObject* MacroAssembler::TryTailCallExternalReference(
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
+
+  // XXX Block constant pool when emitting call (might be redundant)
+  BlockConstPoolScope block_const_pool(this);
+
   RECORD_LINE();
   mov(r0, Operand(num_arguments));
   return TryJumpToExternalReference(ext);
