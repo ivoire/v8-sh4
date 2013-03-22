@@ -34,9 +34,11 @@ pdir=`dirname $0`
 arch=${arch:-""} # if not defined, assume build in native mode
 site=${site:-default}
 mode=${mode:-release}
+simulator=${simulator:-off}
+
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
 [ -f ${pdir}/source_site_${site}.sh ] && . ${pdir}/source_site_${site}.sh
-[ -f ${pdir}/source_${arch}.sh ] && . ${pdir}/source_${arch}.sh
+[ -f ${pdir}/source_${arch}.sh -a "$simulator" = off ] && . ${pdir}/source_${arch}.sh
 jobs=${jobs:-4}
 profile_gcov=${profile_gcov:-off}
 library=${library:-shared}
@@ -44,7 +46,7 @@ library=${library:-shared}
 # For gcov we need to run in sequencial mode
 [ "$profile_gcov" = on ] && jobs=1 && find . -name '*.gcda' -exec rm {} \;
 
-if [ "$QEMU" != "" ]; then
+if [ "$QEMU" != "" -a "$simulator" = off ]; then
     if [ "$PROOT" = "" ]; then
 	QEMU_OPTS="-distro -L $TARGET_ROOT -x $PWD -x /tmp -cwd $PWD"
 	RUN_PREFIX=${RUN_PREFIX:-"$QEMU $QEMU_OPTS"}
