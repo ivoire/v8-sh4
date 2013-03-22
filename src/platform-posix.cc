@@ -147,7 +147,7 @@ double modulo(double x, double y) {
 double OS::nan_value() {
   // NAN from math.h is defined in C99 and not in POSIX.
 
-#if defined(V8_TARGET_ARCH_SH4)
+#if defined(V8_TARGET_ARCH_SH4) && !defined(USE_SIMULATOR)
   // return a qNaN as exepcted by the v8 core. In sh4 tool chain, the NAN macro
   // is defined to be an sNaN while the C specifications require a qNaN.
   union {
