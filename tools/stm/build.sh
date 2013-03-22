@@ -47,8 +47,10 @@ site=${site:-default}
 simulator=${simulator:-""}
 [ -f ${pdir}/source_${arch}.sh  -a "$simulator" = "" ] && . ${pdir}/source_${arch}.sh
 
-# If acivated the simulator should be set to the arch
-[ "${simulator}" = on ] && simulator="simulator=${arch}"
+# If activated the simulator should be set to the arch
+test_simulator=""
+[ "${simulator}" = on ] && simulator="simulator=${arch}" && test_simulator="-S simulator=${arch}"
+
 
 # Define build flags
 mode=${mode:-release}
@@ -85,4 +87,4 @@ PROOT_ENV=''
 
 $PROOT_ENV scons -Y ${srcdir} ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} ${simulator} -j ${jobs}
 $PROOT_ENV scons -Y ${srcdir} ${arch:+arch=${arch}} snapshot=${snapshot} mode=${mode} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtracesupport=${backtracesupport} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} gpl_disassembler=${gpl_disassembler} ${simulator} -j ${jobs} sample=shell
-${srcdir}/tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S snapshot=${snapshot} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S backtracesupport=${backtracesupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -S prof=${prof} -S gpl_disassembler=${gpl_disassembler} -S ${simulator} -j ${jobs} ${tests}
+${srcdir}/tools/test.py -v ${arch:+--arch=${arch}} --build-only --mode=${mode} -S snapshot=${snapshot} -S regexp=${regexp} -S profilingsupport=${profilingsupport} -S debuggersupport=${debuggersupport} -S backtracesupport=${backtracesupport} -S library=${library} -S armeabi=${armeabi} -S vfp3=${vfp3} -S logging=${logging} -S prof=${prof} -S gpl_disassembler=${gpl_disassembler} ${test_simulator} -j ${jobs} ${tests}
