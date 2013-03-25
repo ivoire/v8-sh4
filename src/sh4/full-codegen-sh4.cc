@@ -293,7 +293,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       Label ok;
       __ LoadRoot(ip, Heap::kStackLimitRootIndex);
       __ cmphs(sp, ip);
-      __ bt_near(&ok);
+      __ bt(&ok);
       StackCheckStub stub;
       __ CallStub(&stub);
       __ bind(&ok);
