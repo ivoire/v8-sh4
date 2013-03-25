@@ -93,7 +93,7 @@ class DebuggerAgent;
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
     !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS) || \
-    !defined(__sh4__) && defined(V8_TARGET_ARCH_SH4)
+    !defined(__sh__) && defined(V8_TARGET_ARCH_SH4)
 class Redirection;
 class Simulator;
 #endif
@@ -380,7 +380,7 @@ class Isolate {
           thread_state_(NULL),
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
     !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS) || \
-    !defined(__sh4__) && defined(V8_TARGET_ARCH_SH4)
+    !defined(__sh__) && defined(V8_TARGET_ARCH_SH4)
           simulator_(NULL),
 #endif
           next_(NULL),
@@ -394,7 +394,7 @@ class Isolate {
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
     !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS) || \
-    !defined(__sh4__) && defined(V8_TARGET_ARCH_SH4)
+    !defined(__sh__) && defined(V8_TARGET_ARCH_SH4)
     Simulator* simulator() const { return simulator_; }
     void set_simulator(Simulator* simulator) {
       simulator_ = simulator;
@@ -413,7 +413,7 @@ class Isolate {
 
 #if !defined(__arm__) && defined(V8_TARGET_ARCH_ARM) || \
     !defined(__mips__) && defined(V8_TARGET_ARCH_MIPS) || \
-    !defined(__sh4__) && defined(V8_TARGET_ARCH_SH4)
+    !defined(__sh__) && defined(V8_TARGET_ARCH_SH4)
     Simulator* simulator_;
 #endif
 
@@ -932,7 +932,7 @@ class Isolate {
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__) || \
-    defined(V8_TARGET_ARCH_SH4) && !defined(__ssh4__)
+    defined(V8_TARGET_ARCH_SH4) && !defined(__sh__)
   bool simulator_initialized() { return simulator_initialized_; }
   void set_simulator_initialized(bool initialized) {
     simulator_initialized_ = initialized;
@@ -1159,7 +1159,7 @@ class Isolate {
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__) || \
-    defined(V8_TARGET_ARCH_SH4) && !defined(__sh4__)
+    defined(V8_TARGET_ARCH_SH4) && !defined(__sh__)
   bool simulator_initialized_;
   HashMap* simulator_i_cache_;
   Redirection* simulator_redirection_;

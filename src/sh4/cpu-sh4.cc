@@ -64,7 +64,7 @@ void CPU::FlushICache(void* start, size_t size) {
 
 
 void CPU::DebugBreak() {
-#if defined(__sh4__)
+#if defined(__sh__)
   asm("ldtlb");
 #else
   UNIMPLEMENTED();
