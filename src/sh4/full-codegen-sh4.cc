@@ -612,6 +612,9 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_false,
                                Label* fall_through) {
   if (CpuFeatures::IsSupported(FPU)) {
+    // XXX block between call & tst
+    Assembler::BlockConstPoolScope block_const_pool(masm_);
+
     ToBooleanStub stub(result_register());
     __ CallStub(&stub);
     __ tst(result_register(), result_register());
@@ -619,6 +622,9 @@ void FullCodeGenerator::DoTest(Expression* condition,
   {
     // Call the runtime to find the boolean value of the source and then
     // translate it into control flow to the pair of labels.
+    // XXX block between call & tst
+    Assembler::BlockConstPoolScope block_const_pool(masm_);
+
     __ push(result_register());
     __ CallRuntime(Runtime::kToBool, 1);
     __ LoadRoot(ip, Heap::kFalseValueRootIndex);
@@ -862,6 +868,9 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     __ ldr(r1, MemOperand(sp, 0));  // Switch value.
     bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
     JumpPatchSite patch_site(masm_);
+    // XXX JumpPatchSite must not be interrupted by constant pool
+    masm_->FlushConstPool();
+
     if (inline_smi_code) {
       Label slow_case;
       __ orr(r2, r1, r0);
@@ -1321,6 +1330,8 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
 
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
+  // XXX workaround: flush constant before _near label use
+  masm_->FlushConstPool();
   Comment cmnt(masm_, "[ RegExpLiteral");
   Label materialized;
   // Registers will be used as follows:
@@ -1696,6 +1707,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   __ orr(scratch1, left, right);
   STATIC_ASSERT(kSmiTag == 0);
   JumpPatchSite patch_site(masm_);
+  // XXX JumpPatchSite must not be interrupted by constant pool
+  masm_->FlushConstPool();
+
   patch_site.EmitJumpIfSmi(scratch1, &smi_case);
 
   __ bind(&stub_call);
@@ -1782,6 +1796,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
+  // XXX it seems reasonable to block the constant pool here
+  Assembler::BlockConstPoolScope block_const_pool(masm_);
+
   __ pop(r1);
   BinaryOpStub stub(op, mode);
   JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
@@ -3831,6 +3848,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   Label stub_call;
   Label done;
   JumpPatchSite patch_site(masm_);
+  // XXX JumpPatchSite must not be interrupted by constant pool
+  masm_->FlushConstPool();
 
   int count_value = expr->op() == Token::INC ? 1 : -1;
   if (ShouldInlineSmiCase(expr->op())) {
@@ -4065,6 +4084,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       break;
 
     case Token::INSTANCEOF: {
+      // XXX block between call & tst
+      Assembler::BlockConstPoolScope block_const_pool(masm_);
       VisitForStackValue(expr->right());
       InstanceofStub stub(InstanceofStub::kNoFlags);
       __ CallStub(&stub);
@@ -4112,6 +4133,9 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
       bool inline_smi_code = ShouldInlineSmiCase(op);
       JumpPatchSite patch_site(masm_);
+      // XXX JumpPatchSite must not be interrupted by constant pool
+      masm_->FlushConstPool();
+
       if (inline_smi_code) {
         Label slow_case;
         __ orr(r2, r0, r1);

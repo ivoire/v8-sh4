@@ -1745,6 +1745,7 @@ void Assembler::popm(RegList src, bool doubles) {
 // enabling/disabling and a counter feature. See simulator-arm.h .
 void Assembler::stop(const char* msg) {
 #ifndef __sh4__
+  FlushConstPool();
   dw(kStoppoint);
   dd(reinterpret_cast<uint32_t>(msg));
 #else
@@ -1924,10 +1925,15 @@ int Assembler::ResolveCallTargetAddressOffset(byte *pc) {
   ASSERT(IsJsr(instr));
   instr = instr_at(pc - 6);
   // if it's the constant pool load here, then we found what we were looking for
-  if ((instr & 0xf000) == 0xd000)
+  if ((instr & 0xf000) == 0xd000) {
     return kNewStyleCallTargetAddressOffset;
-  else
+  } else {
+    instr = instr_at(pc - 10);
+    ASSERT(instr == 0x9);
+    instr = instr_at(pc - 12);
+    ASSERT(instr >> 12 == 0xa); // bra
     return kOldStyleCallTargetAddressOffset;
+  }
 }
 
 } }  // namespace v8::internal
