@@ -1114,15 +1114,15 @@ void Assembler::conditional_branch_poolx(int offset, Register rtmp,
                                    bool type) {
   if (patched_later) {
     if (distance == Label::kNear) {
-      align();
       BlockConstPoolScope block_const_pool(this);
+      align();
       // Use the 2 least significant bits to store the type of branch
       // We assume (and assert) that they always are null
       ASSERT((offset % 4) == 0);
       emitPatchableNearBranch(offset + (type ? 0x1 : 0x2));
     } else {
-      align();
       BlockConstPoolScope block_const_pool(this);
+      align();
       type ? bf_(12) : bt_(12);
       nop_();
       movl_dispPC_(4, rtmp);
@@ -1193,7 +1193,7 @@ void Assembler::jmp_poolx(int offset, Register rtmp, Label::Distance distance, b
   // Is it going to be pacthed later on
   if (patched_later) {
     if (distance == Label::kNear) {
-      // XXX a misalign may be undone by const pool emission
+      // a misalign may be undone by const pool emission
       BlockConstPoolScope block_const_pool(this);
       misalign();
       nop();
@@ -1201,8 +1201,8 @@ void Assembler::jmp_poolx(int offset, Register rtmp, Label::Distance distance, b
       emitPatchableNearBranch(offset + 0x3);
     } else {
       // There is no way to know the size of the offset: take the worst case
-      align();
       BlockConstPoolScope block_const_pool(this);
+      align();
       movl_dispPC_(4, rtmp);
       nop();
       braf_(rtmp);
@@ -1263,8 +1263,8 @@ void Assembler::jsr_poolx(int offset, Register rtmp, bool patched_later) {
   // Is it going to be patched later on ?
   if (patched_later) {
     // There is no way to know the size of the offset: take the worst case
-    align();
     BlockConstPoolScope block_const_pool(this);
+    align();
     movl_dispPC_(8, rtmp);
     nop();
     bsrf_(rtmp);
