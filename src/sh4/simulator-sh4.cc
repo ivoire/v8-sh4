@@ -1272,6 +1272,10 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
         for (int i = 0; i < num_registers; i++)
             PrintF(" R%01d: 0x%08x %10d\n", i, get_register(i), get_register(i));
 
+        // launch the debugger
+        Sh4Debugger dbg(this);
+        dbg.Debug();
+
         // Abort
         v8::internal::OS::DebugBreak();
         break;
