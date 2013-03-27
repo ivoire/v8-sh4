@@ -2376,15 +2376,15 @@ void MacroAssembler::Ret(Condition cond) {
     RECORD_LINE();
     rts();
   } else {
+    // TODO: block constant pool
     RECORD_LINE();
-    Label skip;
     if (cond == eq) {
-      bf_near(&skip);
+      bf_(2);
     } else {
-      bt_near(&skip);
+      bt_(2);
     }
     rts();
-    bind(&skip);
+    // bt/bf destination
   }
 }
 

@@ -1230,7 +1230,7 @@ class Assembler : public AssemblerBase {
   bool constant_pool_poolx_;
 
   friend class PositionsRecorder;
-
+  friend class MacroAssembler;
 
   // ---------------------------------------------------------------------------
   // low level code generation (opcodes)
