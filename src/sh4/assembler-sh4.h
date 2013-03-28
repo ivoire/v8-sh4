@@ -1085,14 +1085,15 @@ class Assembler : public AssemblerBase {
   // Constants in pools are accessed via pc relative addressing, which can
   // reach +1KB thereby defining a maximum distance between the instruction
   // and the accessed constant.
-  static const int kMaxDistToPool = 1*KB;
+  // However, the branch, alignement and potential nops can decrease it a bit.
+  // Be conservative and lower it more.
+  static const int kMaxDistToPool = 1 * KB - 5 * kInstrSize;
 
   // XXX Different to ARM the SH4 pc relative branch has a larger offset than
   // the pc relative load. With kMaxDistToPool always being triggered first,
-  // I don't see how we can hit the following limit.
-  static const int kMaxJumpOverDist = 8*KB;
-  static const int kPoolEntrySize = 4;
-  static const int kMaxNumPendingRelocInfo = kMaxJumpOverDist/kPoolEntrySize;
+  // However, some dummy code only doing "mov @(disp, PC), Rn" can trigger this
+  // limit first
+  static const int kMaxNumPendingRelocInfo = 254;
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
