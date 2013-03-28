@@ -1838,11 +1838,13 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   //  * the distance to the first instruction accessing the constant pool is
   //    kAvgDistToPool or more.
   //  * no jump is required and the distance to the first instruction accessing
-  //    the constant pool is at least kMaxDistToPool / 2.
+  //    the constant pool is at least kMaxDistToPool / 2
+  //  * the number of constants is higher enough.
   ASSERT(GetFirstConstPoolUse() >= 0);
   int dist = pc_offset() - GetFirstConstPoolUse();
   if (!force_emit && dist < kAvgDistToPool &&
-      (require_jump || (dist < (kMaxDistToPool / 2)))) {
+      (require_jump || (dist < (kMaxDistToPool / 2))) &&
+      num_pending_reloc_info_ < kMaxNumPendingRelocInfo) {
     return;
   }
 
