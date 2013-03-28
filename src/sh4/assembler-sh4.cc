@@ -1868,7 +1868,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
 
     // Emit jump over constant pool if necessary.
-    Label after_pool;
     if (require_jump) {
       // TODO: pool emission might be triggered by a nop_() that should fill a branch
       // delay slot. to avoid ILLSLOT, we lead the pool with a nop. (unless the pool
@@ -1876,11 +1875,17 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       // there are smarter ways to handle this
       if (!force_emit)
         nop_();
-      b_near(&after_pool);
-    }
 
-    // align constant pool start
-    align();
+      // align constant pool start
+      align();
+
+      // Jump over the constant pool
+      bra_((num_pending_reloc_info_ * 2 + 2) * kInstrSize);
+      nop_();
+    } else {
+      // align constant pool start
+      align();
+    }
 
     for (int i = 0; i < num_pending_reloc_info_; i++) {
       RelocInfo& rinfo = pending_reloc_info_[i];
@@ -1913,11 +1918,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     first_const_pool_use_ = -1;
 
     emitConstPool(0x001b001b); // sleep; sleep (privileged)
-
-    // XXX bind label
-    if (after_pool.is_linked()) {
-      bind(&after_pool);
-    }
+    // Jump destination
   }
 
   // Since a constant pool was just emitted, move the check offset forward by
