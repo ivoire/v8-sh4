@@ -2297,3 +2297,30 @@ TEST(cp_2) {
   CHECK_EQ(10000, res);
 }
 
+
+TEST(cp_3) {
+  // Test for utterly big constant pool and see if everything is still ok
+
+  const int loops = 10000;
+
+  BEGIN();
+
+  PROLOGUE();
+
+  for (int i = 0; i < loops; i++) {
+    __ mov(r0, Operand(i));
+  }
+
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(loops - 1, res);
+}
