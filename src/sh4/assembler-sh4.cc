@@ -1799,7 +1799,7 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 
-void Assembler::BlockConstPoolFor(int instructions) {
+void Assembler::BlockConstPoolFor(unsigned instructions) {
   // If the constant pool as to be emited, emit it right now and not after as
   // it won't be possible anymore.
   CheckConstPool(false, true);

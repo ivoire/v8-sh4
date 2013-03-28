@@ -1097,7 +1097,7 @@ class Assembler : public AssemblerBase {
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
-  void BlockConstPoolFor(int instructions);
+  void BlockConstPoolFor(unsigned instructions);
 
   // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
