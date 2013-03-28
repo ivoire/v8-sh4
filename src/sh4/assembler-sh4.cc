@@ -326,10 +326,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 void Assembler::RecordRelocInfo_poolx(RelocInfo::Mode rmode, intptr_t data) {
-  // XXX we also handle constant pool entries here that have no reloc info
-  //ASSERT(rmode != RelocInfo::NONE);
-
-  RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
+  // Contrary to RecordRelocInfo, we also handle constant pool entries here
+  // that have no reloc info.
 
   if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
     // Adjust code for new modes.
@@ -339,19 +337,20 @@ void Assembler::RecordRelocInfo_poolx(RelocInfo::Mode rmode, intptr_t data) {
            || RelocInfo::IsPosition(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
+    // Make sure the constant pool is not emitted in place of the next
+    // instruction for which we must record relocation info.
+    BlockConstPoolFor(1);
 
+    // we do not try to reuse pool constants
     ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
     if (num_pending_reloc_info_ == 0) {
       first_const_pool_use_ = pc_offset();
     }
-    pending_reloc_info_[num_pending_reloc_info_++] = rinfo;
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we just recorded relocation info.
-    BlockConstPoolFor(1);
+    pending_reloc_info_[num_pending_reloc_info_++] = RelocInfo(pc_, rmode, data);
   }
 
-  // XXX constant pool handling complete
-  if (rinfo.rmode() == RelocInfo::NONE)
+  // Constant pool handling complete
+  if (rmode == RelocInfo::NONE)
     return;
 
   // Don't record external references unless the heap will be serialized.
@@ -370,6 +369,7 @@ void Assembler::RecordRelocInfo_poolx(RelocInfo::Mode rmode, intptr_t data) {
     ClearRecordedAstId();
     reloc_info_writer.Write(&reloc_info_with_ast_id);
   } else {
+    RelocInfo rinfo(pc_, rmode, data);
     reloc_info_writer.Write(&rinfo);
   }
 }
@@ -1800,6 +1800,10 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 void Assembler::BlockConstPoolFor(int instructions) {
+  // If the constant pool as to be emited, emit it right now and not after as
+  // it won't be possible anymore.
+  CheckConstPool(false, true);
+
   int pc_limit = pc_offset() + instructions * kInstrSize;
   if (no_const_pool_before_ < pc_limit) {
     // If there are some pending entries, the constant pool cannot be blocked
@@ -1813,6 +1817,7 @@ void Assembler::BlockConstPoolFor(int instructions) {
     next_buffer_check_ = no_const_pool_before_;
   }
 }
+
 
 void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // Some short sequence of instruction mustn't be broken up by constant pool
@@ -1865,7 +1870,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     // Emit jump over constant pool if necessary.
     Label after_pool;
     if (require_jump) {
-      // XXX pool emission might be triggered by a nop_() that should fill a branch
+      // TODO: pool emission might be triggered by a nop_() that should fill a branch
       // delay slot. to avoid ILLSLOT, we lead the pool with a nop. (unless the pool
       // was forced, then we assume someone knows what is going on.)
       // there are smarter ways to handle this
