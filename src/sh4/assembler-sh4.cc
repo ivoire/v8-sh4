@@ -904,6 +904,11 @@ void Assembler::bind(Label* L) {
   // before a bound label.
   if (pc_offset() > last_bound_pos_)
     last_bound_pos_ = pc_offset();
+
+  // Unblock only for near branches
+  if (is_near_linked) {
+    EndBlockConstPool();
+  }
 }
 
 
@@ -942,6 +947,11 @@ void Assembler::load_label(Label* L) {
 
 void Assembler::branch(Label* L, Register rtmp, branch_type type,
                        Label::Distance distance) {
+  // Block the constant pool at the first near branch
+  if (distance == Label::kNear && !L->is_near_linked() && !L->is_bound()) {
+    StartBlockConstPool();
+  }
+
   // when bound both near and far labels are represented the same way
   if (L->is_bound()) {
     ASSERT(L->pos() != kEndOfChain);
