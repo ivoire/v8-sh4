@@ -226,6 +226,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
   first_const_pool_use_ = -1;
+  last_const_pool_use_ = -1;
   ClearRecordedAstId();
 }
 
@@ -346,6 +347,7 @@ void Assembler::RecordRelocInfo_poolx(RelocInfo::Mode rmode, intptr_t data) {
     if (num_pending_reloc_info_ == 0) {
       first_const_pool_use_ = pc_offset();
     }
+    last_const_pool_use_ = pc_offset();
     pending_reloc_info_[num_pending_reloc_info_++] = RelocInfo(pc_, rmode, data);
   }
 
@@ -1929,11 +1931,14 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   //  * no jump is required and the distance to the first instruction accessing
   //    the constant pool is at least kMaxDistToPool / 2
   //  * the number of constants is higher enough.
+  //  * the distance to the last constant is higher enough
   ASSERT(GetFirstConstPoolUse() >= 0);
-  int dist = pc_offset() - GetFirstConstPoolUse();
-  if (!force_emit && dist < kAvgDistToPool &&
-      (require_jump || (dist < (kMaxDistToPool / 2))) &&
-      num_pending_reloc_info_ < kMaxNumPendingRelocInfo) {
+  int dist_first = pc_offset() - GetFirstConstPoolUse();
+  int dist_last = pc_offset() - last_const_pool_use_;
+  if (!force_emit && dist_first < kAvgDistToPool &&
+      (require_jump || (dist_first < (kMaxDistToPool / 2))) &&
+      num_pending_reloc_info_ < kMaxNumPendingRelocInfo &&
+      kMaxDistToPool - num_pending_reloc_info_ * 4 >= dist_last) {
     return;
   }
 
@@ -1999,6 +2004,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
     num_pending_reloc_info_ = 0;
     first_const_pool_use_ = -1;
+    last_const_pool_use_ = -1;
 
     emitConstPool(0x001b001b); // sleep; sleep (privileged)
     // Jump destination

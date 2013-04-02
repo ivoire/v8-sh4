@@ -1220,8 +1220,10 @@ class Assembler : public AssemblerBase {
   // number of pending reloc info entries in the buffer
   int num_pending_reloc_info_;
 
-  // XXX this will have to interact with the scheduler
+  // Record the first and last positions of constants
+  // In fact the distance between both is bounded
   int first_const_pool_use_;
+  int last_const_pool_use_;
 
   PositionsRecorder positions_recorder_;
 
