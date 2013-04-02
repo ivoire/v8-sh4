@@ -2300,7 +2300,6 @@ TEST(cp_2) {
 
 TEST(cp_3) {
   // Test for utterly big constant pool and see if everything is still ok
-
   const int loops = 10000;
 
   BEGIN();
@@ -2323,4 +2322,70 @@ TEST(cp_3) {
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(loops - 1, res);
+}
+
+
+TEST(cp_4) {
+  // Test for constant pool emission before the backward branch.
+  // This is forbidden due to the layout of the current code
+ Label begin, end;
+  int loops = 252;
+
+  BEGIN();
+
+  PROLOGUE();
+  __ mov(r0, Operand(0));
+
+  __ bind(&begin);
+  __ cmpeq(r0, Operand(0));
+  __ bf(&end);
+
+  for(int i = 1024; i < 1024 + loops; i++) {
+    __ mov(r0, Operand(i));
+  }
+  __ cmpeq(r0, Operand(0));
+  __ bt(&begin);
+
+  __ bind(&end);
+  EPILOGUE();
+  __ rts();
+
+ JIT();
+
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(1024 + loops - 1, res);
+}
+
+
+TEST(cp_5) {
+  int loops = 200;
+
+  BEGIN();
+
+  PROLOGUE();
+  __ mov(r0, Operand(0));
+
+  for(int i = 1024; i < 1024 + loops; i++)
+    __ mov(r0, Operand(i));
+
+  for(int i = 0; i < 2000; i++)
+    __ nop();
+
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
 }
