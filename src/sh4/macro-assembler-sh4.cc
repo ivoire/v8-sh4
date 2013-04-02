@@ -1805,7 +1805,6 @@ void MacroAssembler::Abort(const char* msg) {
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
   if (is_const_pool_blocked()) {
-    UNIMPLEMENTED();
     // XXX ARM and MIPS pad the number of instructions in the abort block to
     // 10 and 14 respectively. The reason for this and how it relates to the
     // constant pool (being blocked) is not given.
