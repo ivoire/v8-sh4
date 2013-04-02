@@ -493,7 +493,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
 void MacroAssembler::Call(Handle<Code> code,
                           RelocInfo::Mode rmode,
                           unsigned ast_id) {
-  // XXX Block constant pool when emitting call (might be redundant)
+  // Block constant pool when emitting call (might be redundant)
   BlockConstPoolScope block_const_pool(this);
 
   // TODO(stm): check whether this is necessary
@@ -1149,8 +1149,12 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 #endif
 
   {
-  // XXX Block constant pool when emitting call (might be redundant)
-  BlockConstPoolScope block_const_pool(this);
+  // Block constant pool when emitting call (might be redundant)
+  BlockConstPoolFor(3);
+#ifdef DEBUG
+  Label begin;
+  bind(&begin);
+#endif
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
@@ -1161,6 +1165,8 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
   RECORD_LINE();
   jsr(function);
+  ASSERT(pc_offset() - begin.pos() == 2 * kInstrSize ||
+         pc_offset() - begin.pos() == 3 * kInstrSize);
   }
 
   int stack_passed_arguments = CalculateStackPassedWords(num_reg_arguments,
@@ -2424,7 +2430,7 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
 
-  // XXX Block constant pool when emitting call (might be redundant)
+  // Block constant pool when emitting call (might be redundant)
   BlockConstPoolScope block_const_pool(this);
 
   RECORD_LINE();
