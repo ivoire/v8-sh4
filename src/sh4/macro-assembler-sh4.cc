@@ -1165,8 +1165,9 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
   RECORD_LINE();
   jsr(function);
-  ASSERT(pc_offset() - begin.pos() == 2 * kInstrSize ||
-         pc_offset() - begin.pos() == 3 * kInstrSize);
+  ASSERT(!constant_pool_poolx_ ||
+         (pc_offset() - begin.pos() == 2 * kInstrSize ||
+          pc_offset() - begin.pos() == 3 * kInstrSize));
   }
 
   int stack_passed_arguments = CalculateStackPassedWords(num_reg_arguments,
