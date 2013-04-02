@@ -936,7 +936,7 @@ void Assembler::next(Label* L, Label::Distance distance) {
 
 
 void Assembler::load_label(Label* L) {
-  BlockConstPoolScope block_const_pool(this);
+  BlockConstPoolFor(1);
   ASSERT(!L->is_bound());
   int offset = L->is_linked() ? L->pos() : kEndOfChain;
   ASSERT((offset % 4) == 0);
@@ -1124,14 +1124,24 @@ void Assembler::conditional_branch_poolx(int offset, Register rtmp,
                                    bool type) {
   if (patched_later) {
     if (distance == Label::kNear) {
-      BlockConstPoolScope block_const_pool(this);
+      BlockConstPoolFor(2);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       align();
       // Use the 2 least significant bits to store the type of branch
       // We assume (and assert) that they always are null
       ASSERT((offset % 4) == 0);
       emitPatchableNearBranch(offset + (type ? 0x1 : 0x2));
+      ASSERT(pc_offset() - begin.pos() == kInstrSize ||
+             pc_offset() - begin.pos() == 2 * kInstrSize);
     } else {
-      BlockConstPoolScope block_const_pool(this);
+      BlockConstPoolFor(9);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       align();
       type ? bf_(12) : bt_(12);
       nop_();
@@ -1140,22 +1150,33 @@ void Assembler::conditional_branch_poolx(int offset, Register rtmp,
       braf_(rtmp);
       nop_();
       ddLegacyBranchConst(offset);
+      ASSERT(pc_offset() - begin.pos() == 8 * kInstrSize ||
+             pc_offset() - begin.pos() == 9 * kInstrSize);
     }
   } else {
     if (FITS_SH4_bt(offset - 4)) {
-      BlockConstPoolScope block_const_pool(this);
+      BlockConstPoolFor(2);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       type ? bt_(offset - 4) : bf_(offset - 4);
       nop_();
+      ASSERT(pc_offset() - begin.pos() == 2 * kInstrSize);
     } else {
-      BlockConstPoolScope block_const_pool(this);
+      BlockConstPoolFor(5);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       mov_poolx(rtmp, Operand(offset - 4 - 4 - 2), false);
       type ? bfs_(2) : bts_(2);
       nop();
       braf_(rtmp);
       nop_();
+      ASSERT(pc_offset() - begin.pos() == 5 * kInstrSize);
     }
   }
-
 }
 
 void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
@@ -1204,30 +1225,54 @@ void Assembler::jmp_poolx(int offset, Register rtmp, Label::Distance distance, b
   if (patched_later) {
     if (distance == Label::kNear) {
       // a misalign may be undone by const pool emission
-      BlockConstPoolScope block_const_pool(this);
+      BlockConstPoolFor(3);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       misalign();
       nop();
       ASSERT((offset % 4) == 0);
       emitPatchableNearBranch(offset + 0x3);
+      ASSERT(pc_offset() - begin.pos() == 2 * kInstrSize ||
+             pc_offset() - begin.pos() == 3 * kInstrSize);
     } else {
       // There is no way to know the size of the offset: take the worst case
-      BlockConstPoolScope block_const_pool(this);
+      BlockConstPoolFor(7);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       align();
       movl_dispPC_(4, rtmp);
       nop();
       braf_(rtmp);
       nop_();
       ddLegacyBranchConst(offset);
+      ASSERT(pc_offset() - begin.pos() == 6 * kInstrSize ||
+             pc_offset() - begin.pos() == 7 * kInstrSize);
     }
   } else {
     // Does it fits in a bra offset
     if (FITS_SH4_bra(offset - 4)) {
+      BlockConstPoolFor(2);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       bra_(offset - 4);
       nop_();
+      ASSERT(pc_offset() - begin.pos() == 2 * kInstrSize);
     } else {
+      BlockConstPoolFor(3);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       mov_poolx(rtmp, Operand(offset - 4 - kInstrSize), false);
       braf_(rtmp);
       nop_();
+      ASSERT(pc_offset() - begin.pos() == 3 * kInstrSize);
     }
   }
 }
@@ -1273,7 +1318,11 @@ void Assembler::jsr_poolx(int offset, Register rtmp, bool patched_later) {
   // Is it going to be patched later on ?
   if (patched_later) {
     // There is no way to know the size of the offset: take the worst case
-    BlockConstPoolScope block_const_pool(this);
+    BlockConstPoolFor(9);
+#ifdef DEBUG
+    Label begin;
+    bind(&begin);
+#endif
     align();
     movl_dispPC_(8, rtmp);
     nop();
@@ -1282,15 +1331,29 @@ void Assembler::jsr_poolx(int offset, Register rtmp, bool patched_later) {
     bra_(4);
     nop_();
     ddLegacyBranchConst(offset);
+    ASSERT(pc_offset() - begin.pos() == 8 * kInstrSize ||
+           pc_offset() - begin.pos() == 9 * kInstrSize);
   } else {
     // Does it fits in a bsr offset
     if (FITS_SH4_bsr(offset - 4)) {
+      BlockConstPoolFor(2);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       bsr_(offset - 4);
       nop_();
+      ASSERT(pc_offset() - begin.pos() == 2 * kInstrSize);
     } else {
+      BlockConstPoolFor(3);
+#ifdef DEBUG
+      Label begin;
+      bind(&begin);
+#endif
       mov_poolx(rtmp, Operand(offset - 4 - kInstrSize), false);
       bsrf_(rtmp);
       nop_();
+      ASSERT(pc_offset() - begin.pos() == 3 * kInstrSize);
     }
   }
 }
@@ -1875,7 +1938,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   {
     // Block recursive calls to CheckConstPool.
     BlockConstPoolScope block_const_pool(this);
-
 
     // Emit jump over constant pool if necessary.
     if (require_jump) {
