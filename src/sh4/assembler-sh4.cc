@@ -1910,8 +1910,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursiv
   // Check that a recursive call only happen inside a first call to
   // StartBlockConstPool
   ASSERT(!recursive || (recursive &&
-                        const_pool_blocked_nesting_ == 1 &&
-                        num_pending_reloc_info_ > 0));
+                        const_pool_blocked_nesting_ == 1));
 
   // Some short sequence of instruction mustn't be broken up by constant pool
   // emission, such sequences are protected by calls to BlockConstPoolFor and
