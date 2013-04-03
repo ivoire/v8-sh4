@@ -1889,7 +1889,7 @@ bool RelocInfo::IsCodedSpecially() {
 void Assembler::BlockConstPoolFor(unsigned instructions) {
   // If the constant pool as to be emited, emit it right now and not after as
   // it won't be possible anymore.
-  CheckConstPool(false, true);
+  CheckConstPool(false, true, false, instructions);
 
   int pc_limit = pc_offset() + instructions * kInstrSize;
   if (no_const_pool_before_ < pc_limit) {
@@ -1906,7 +1906,7 @@ void Assembler::BlockConstPoolFor(unsigned instructions) {
 }
 
 
-void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursive) {
+void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursive, int hint) {
   // Check that a recursive call only happen inside a first call to
   // StartBlockConstPool
   ASSERT(!recursive || (recursive &&
@@ -1940,8 +1940,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursiv
   //  * the number of constants is higher enough.
   //  * the distance to the last constant is higher enough
   ASSERT(GetFirstConstPoolUse() >= 0);
-  int dist_first = pc_offset() - GetFirstConstPoolUse();
-  int dist_last = pc_offset() - last_const_pool_use_;
+  int dist_first = pc_offset() + hint * kInstrSize - GetFirstConstPoolUse();
+  int dist_last = pc_offset() + hint * kInstrSize - last_const_pool_use_;
   if (!force_emit && dist_first < kAvgDistToPool &&
       (require_jump || (dist_first < (kMaxDistToPool / 2))) &&
       num_pending_reloc_info_ < kMaxNumPendingRelocInfo &&

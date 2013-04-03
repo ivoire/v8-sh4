@@ -1108,7 +1108,7 @@ class Assembler : public AssemblerBase {
    *                   are blocked (this can only happen on the first call to
    *                   StartBlockConstPool
   */
-  void CheckConstPool(bool force_emit, bool require_jump, bool recursive = false);
+  void CheckConstPool(bool force_emit, bool require_jump, bool recursive = false, int hint = 0);
   int GetFirstConstPoolUse() const { return first_const_pool_use_; }
   void AssertDataEmit(const char *str);
   void SwitchConstantPoolMode(bool enabled) { constant_pool_poolx_ = enabled; }
