@@ -225,6 +225,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   next_buffer_check_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
+  emiting_const_pool_ = false;
   first_const_pool_use_ = -1;
   last_const_pool_use_ = -1;
   ClearRecordedAstId();
@@ -1942,6 +1943,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursiv
     return;
   }
 
+  // Set the emiting flag. This block more calls to CheckConstPool
+  emiting_const_pool_ = true;
+
   // Check that the code buffer is large enough before emitting the constant
   // pool (include the jump over the pool and the constant pool marker and
   // the gap to the relocation information).
@@ -2013,6 +2017,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursiv
     if (!recursive)
       EndBlockConstPool();
   }
+
+  // Reset the flag, to allows constant pool checks
+  emiting_const_pool_ = false;
 
   // Since a constant pool was just emitted, move the check offset forward by
   // the standard interval.

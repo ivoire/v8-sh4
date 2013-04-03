@@ -1221,6 +1221,7 @@ class Assembler : public AssemblerBase {
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
   int no_const_pool_before_;  // Block emission before this pc offset.
+  bool emiting_const_pool_;  // True while emiting the constant pool
 
   // the buffer of pending relocation info
   RelocInfo pending_reloc_info_[kMaxNumPendingRelocInfo];
