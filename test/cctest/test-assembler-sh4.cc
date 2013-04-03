@@ -2328,7 +2328,7 @@ TEST(cp_3) {
 TEST(cp_4) {
   // Test for constant pool emission before the backward branch.
   // This is forbidden due to the layout of the current code
- Label begin, end;
+  Label begin, end;
   int loops = 252;
 
   BEGIN();
