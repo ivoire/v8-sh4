@@ -1099,8 +1099,16 @@ class Assembler : public AssemblerBase {
   // instructions.
   void BlockConstPoolFor(unsigned instructions);
 
-  // Check if is time to emit a constant pool.
-  void CheckConstPool(bool force_emit, bool require_jump);
+  /**
+   * Check if is time to emit a constant pool.
+   * @param force_emit: dump the constant pool right now
+   * @param require_jump: true if a jump over the constant pool as to be
+   *                      emited
+   * @param recursive: true if the function is called while constant pools
+   *                   are blocked (this can only happen on the first call to
+   *                   StartBlockConstPool
+  */
+  void CheckConstPool(bool force_emit, bool require_jump, bool recursive = false);
   int GetFirstConstPoolUse() const { return first_const_pool_use_; }
   void AssertDataEmit(const char *str);
   void SwitchConstantPoolMode(bool enabled) { constant_pool_poolx_ = enabled; }

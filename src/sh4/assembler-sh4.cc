@@ -1905,11 +1905,11 @@ void Assembler::BlockConstPoolFor(unsigned instructions) {
 }
 
 
-void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
+void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursive) {
   // Some short sequence of instruction mustn't be broken up by constant pool
   // emission, such sequences are protected by calls to BlockConstPoolFor and
   // BlockConstPoolScope.
-  if (is_const_pool_blocked()) {
+  if (is_const_pool_blocked() && !recursive) {
     // Something is wrong if emission is forced and blocked at the same time.
     ASSERT(!force_emit);
     return;
@@ -1953,7 +1953,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   {
     // Block recursive calls to CheckConstPool.
-    BlockConstPoolScope block_const_pool(this);
+    if (!recursive)
+      StartBlockConstPool();
 
     // Emit jump over constant pool if necessary.
     if (require_jump) {
@@ -2008,6 +2009,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     emitConstPool(0x001b001b); // sleep; sleep (privileged)
     // Jump destination
+
+    if (!recursive)
+      EndBlockConstPool();
   }
 
   // Since a constant pool was just emitted, move the check offset forward by
