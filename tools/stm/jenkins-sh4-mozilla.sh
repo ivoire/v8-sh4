@@ -49,9 +49,14 @@ env site=$site arch=$arch mode=$mode regexp=$regexp tools/stm/build.sh
 (cd test/mozilla && rm -rf data && tar xzf /home/compwork/duraffort/pub/mozilla-test-2010-06-29.tar.gz)
 
 rm -f /dev/shm/sem.qemu-user.acicecmg
+
 # Use 272k stack size for mjsunit in release mode, seems ok with QEMU/sh4
 # Note that with a 256kb only stack string-indexof-1 fails.
-env V8_EXTRA_ARGS="-stack-size 272" site=$site arch=$arch mode=$mode regexp=$regexp tools/stm/run_test.sh --progress=verbose --timeout-scale=15 ${tests} || true
+# Keeping the previous given extra arguments
+V8_EXTRA_ARGS=${V8_EXTRA_ARGS:-""}
+V8_EXTRA_ARGS="$V8_EXTRA_ARGS -stack-size 272"
+
+env V8_EXTRA_ARGS="$V8_EXTRA_ARGS" site=$site arch=$arch mode=$mode regexp=$regexp tools/stm/run_test.sh --progress=verbose --timeout-scale=15 ${tests} || true
 
 # Generate JUnit test output
 wget -O v8test_to_junit.pl -q ${HUDSON_URL}/job/aci-utils-master/lastStableBuild/artifact/utils/v8test_to_junit.pl
