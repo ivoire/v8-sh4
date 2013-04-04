@@ -1130,6 +1130,11 @@ class Assembler : public AssemblerBase {
   // number of call to EndBlockConstpool.
   void StartBlockConstPool() {
     if (const_pool_blocked_nesting_++ == 0) {
+      // Check that the constant pool has to be emited before
+      // By default we block for 256 instructions (a near jump)
+      if (!emiting_const_pool_) {
+        CheckConstPool(false, true, true, 256);
+      }
       // Prevent constant pool checks happening by setting the next check to
       // the biggest possible offset.
       next_buffer_check_ = kMaxInt;
