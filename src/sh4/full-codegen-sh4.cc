@@ -867,9 +867,11 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Perform the comparison as if via '==='.
     __ ldr(r1, MemOperand(sp, 0));  // Switch value.
     bool inline_smi_code = ShouldInlineSmiCase(Token::EQ_STRICT);
+
+    // JumpPatchSite must not be interrupted by constant pool
+    {
+    Assembler::BlockConstPoolScope scope(masm_);
     JumpPatchSite patch_site(masm_);
-    // XXX JumpPatchSite must not be interrupted by constant pool
-    masm_->FlushConstPool();
 
     if (inline_smi_code) {
       Label slow_case;
@@ -888,6 +890,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
     __ Call(ic, RelocInfo::CODE_TARGET, clause->CompareId());
     patch_site.EmitPatchInfo();
+    }
 
     __ cmp(r0, Operand(0));
     __ b(ne, &next_test);
@@ -1330,8 +1333,6 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
 
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  // XXX workaround: flush constant before _near label use
-  masm_->FlushConstPool();
   Comment cmnt(masm_, "[ RegExpLiteral");
   Label materialized;
   // Registers will be used as follows:
@@ -1706,9 +1707,11 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   // Perform combined smi check on both operands.
   __ orr(scratch1, left, right);
   STATIC_ASSERT(kSmiTag == 0);
+
+  // JumpPatchSite must not be interrupted by constant pool
+  {
+  Assembler::BlockConstPoolScope scope(masm_);
   JumpPatchSite patch_site(masm_);
-  // XXX JumpPatchSite must not be interrupted by constant pool
-  masm_->FlushConstPool();
 
   patch_site.EmitJumpIfSmi(scratch1, &smi_case);
 
@@ -1717,6 +1720,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   __ Call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   patch_site.EmitPatchInfo();
   __ jmp(&done);
+  }
 
   __ bind(&smi_case);
   // Smi case. This code works the same way as the smi-smi case in the type
@@ -3847,9 +3851,11 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Inline smi case if we are in a loop.
   Label stub_call;
   Label done;
+
+  // JumpPatchSite must not be interrupted by constant pool
+  {
+  Assembler::BlockConstPoolScope scope(masm_);
   JumpPatchSite patch_site(masm_);
-  // XXX JumpPatchSite must not be interrupted by constant pool
-  masm_->FlushConstPool();
 
   int count_value = expr->op() == Token::INC ? 1 : -1;
   if (ShouldInlineSmiCase(expr->op())) {
@@ -3872,6 +3878,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   __ Call(stub.GetCode(), RelocInfo::CODE_TARGET, expr->CountId());
   patch_site.EmitPatchInfo();
   __ bind(&done);
+  }
 
   // Store the value returned in r0.
   switch (assign_type) {
@@ -4132,9 +4139,11 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       }
 
       bool inline_smi_code = ShouldInlineSmiCase(op);
+
+      // JumpPatchSite must not be interrupted by constant pool
+      {
+      Assembler::BlockConstPoolScope scope(masm_);
       JumpPatchSite patch_site(masm_);
-      // XXX JumpPatchSite must not be interrupted by constant pool
-      masm_->FlushConstPool();
 
       if (inline_smi_code) {
         Label slow_case;
@@ -4151,6 +4160,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Handle<Code> ic = CompareIC::GetUninitialized(op);
       __ Call(ic, RelocInfo::CODE_TARGET, expr->id());
       patch_site.EmitPatchInfo();
+      }
+
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       __ cmp(&cond, r0, Operand(0));
       Split(cond, if_true, if_false, fall_through);

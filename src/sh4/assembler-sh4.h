@@ -1113,8 +1113,6 @@ class Assembler : public AssemblerBase {
   void AssertDataEmit(const char *str);
   void SwitchConstantPoolMode(bool enabled) { constant_pool_poolx_ = enabled; }
 
-  inline void FlushConstPool();
-
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to

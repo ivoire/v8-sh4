@@ -1832,7 +1832,7 @@ void Assembler::popm(RegList src, bool doubles) {
 // enabling/disabling and a counter feature. See simulator-arm.h .
 void Assembler::stop(const char* msg) {
 #ifndef __sh__
-  FlushConstPool();
+  CheckConstPool(true, true);
   dw(kStoppoint);
   dd(reinterpret_cast<uint32_t>(msg));
 #else

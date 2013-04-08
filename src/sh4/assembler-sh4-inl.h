@@ -463,13 +463,6 @@ void Assembler::str(Register Rs, const MemOperand& dst, Register rtmp) {
   }
 }
 
-// XXX As a temporary solution, forcing the constant pool can help with near
-// branch offsets going out of range. But in the end, this neither performs
-// well, nor is it guaranteed to work in all  cases.
-void Assembler::FlushConstPool() {
-  CheckConstPool(true, true);
-}
-
 } }  // namespace v8::internal
 
 #endif  // V8_SH4_ASSEMBLER_SH4_INL_H_
