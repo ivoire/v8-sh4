@@ -958,6 +958,8 @@ void Assembler::branch(Label* L, Register rtmp, branch_type type,
   // when bound both near and far labels are represented the same way
   if (L->is_bound()) {
     ASSERT(L->pos() != kEndOfChain);
+    // Block the constant pool giving the right hint (max of every possible blocks)
+    BlockConstPoolScope scope(this, 5);
     branch(L->pos() - pc_offset(), rtmp, type, distance, false);
   } else {
     // The only difference between Near and far label is in the
