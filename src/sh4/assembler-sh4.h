@@ -1020,8 +1020,8 @@ class Assembler : public AssemblerBase {
   // Class for scoping postponing the constant pool generation.
   class BlockConstPoolScope {
    public:
-    explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
-      assem_->StartBlockConstPool();
+    explicit BlockConstPoolScope(Assembler* assem, int hint = 256) : assem_(assem) {
+      assem_->StartBlockConstPool(hint);
     }
     ~BlockConstPoolScope() {
       assem_->EndBlockConstPool();
@@ -1126,12 +1126,12 @@ class Assembler : public AssemblerBase {
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
   // number of call to EndBlockConstpool.
-  void StartBlockConstPool() {
+  void StartBlockConstPool(int hint = 256) {
     if (const_pool_blocked_nesting_++ == 0) {
       // Check that the constant pool has to be emited before
       // By default we block for 256 instructions (a near jump)
       if (!emiting_const_pool_) {
-        CheckConstPool(false, true, true, 256);
+        CheckConstPool(false, true, true, hint);
       }
       // Prevent constant pool checks happening by setting the next check to
       // the biggest possible offset.
