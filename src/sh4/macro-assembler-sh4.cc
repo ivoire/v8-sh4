@@ -1805,7 +1805,7 @@ void MacroAssembler::Abort(const char* msg) {
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
   if (is_const_pool_blocked()) {
-    // XXX ARM and MIPS pad the number of instructions in the abort block to
+    // ARM and MIPS pad the number of instructions in the abort block to
     // 10 and 14 respectively. The reason for this and how it relates to the
     // constant pool (being blocked) is not given.
   }
@@ -2446,7 +2446,7 @@ MaybeObject* MacroAssembler::TryTailCallExternalReference(
   // should remove this need and make the runtime routine entry code
   // smarter.
 
-  // XXX Block constant pool when emitting call (might be redundant)
+  // Block constant pool when emitting call (might be redundant)
   BlockConstPoolScope block_const_pool(this);
 
   RECORD_LINE();

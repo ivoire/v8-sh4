@@ -612,7 +612,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_false,
                                Label* fall_through) {
   if (CpuFeatures::IsSupported(FPU)) {
-    // XXX block between call & tst
+    // Block between call & tst
     Assembler::BlockConstPoolScope block_const_pool(masm_);
 
     ToBooleanStub stub(result_register());
@@ -622,7 +622,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
   {
     // Call the runtime to find the boolean value of the source and then
     // translate it into control flow to the pair of labels.
-    // XXX block between call & tst
+    // Block between call & tst
     Assembler::BlockConstPoolScope block_const_pool(masm_);
 
     __ push(result_register());
@@ -1800,7 +1800,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
                                      Token::Value op,
                                      OverwriteMode mode) {
-  // XXX it seems reasonable to block the constant pool here
+  // It seems reasonable to block the constant pool here
   Assembler::BlockConstPoolScope block_const_pool(masm_);
 
   __ pop(r1);
@@ -4091,7 +4091,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       break;
 
     case Token::INSTANCEOF: {
-      // XXX block between call & tst
+      // Block between call & tst
       Assembler::BlockConstPoolScope block_const_pool(masm_);
       VisitForStackValue(expr->right());
       InstanceofStub stub(InstanceofStub::kNoFlags);

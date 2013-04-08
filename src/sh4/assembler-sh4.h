@@ -1089,7 +1089,7 @@ class Assembler : public AssemblerBase {
   // Be conservative and lower it more.
   static const int kMaxDistToPool = 1 * KB - 5 * kInstrSize;
 
-  // XXX Different to ARM the SH4 pc relative branch has a larger offset than
+  // Different to ARM the SH4 pc relative branch has a larger offset than
   // the pc relative load. With kMaxDistToPool always being triggered first,
   // However, some dummy code only doing "mov @(disp, PC), Rn" can trigger this
   // limit first
@@ -1209,7 +1209,8 @@ class Assembler : public AssemblerBase {
   byte* pc_;  // the program counter; moves forward
   RelocInfoWriter reloc_info_writer;
 
-  // XXX these were taken verbatim from ARM
+  // These were taken verbatim from ARM
+  // TODO: find the right interval
   static const int kCheckPoolIntervalInst = 32;
   static const int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
 
@@ -1241,7 +1242,7 @@ class Assembler : public AssemblerBase {
 
   bool emit_debug_code_;
 
-  // XXX transient impl helper
+  // Transient impl helper
   bool constant_pool_poolx_;
 
   friend class PositionsRecorder;

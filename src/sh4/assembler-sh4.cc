@@ -788,7 +788,7 @@ void Assembler::emitPatchableNearBranch(uint16_t data) {
   pc_ += sizeof(uint16_t);
 }
 
-// XXX the branch offsets emitted through this should move to the constant pool
+// The branch offsets emitted through this should move to the constant pool
 void Assembler::ddLegacyBranchConst(uint32_t data) {
   // must not emit the constant pool here. caller has to BlockConstPoolFor()
   ASSERT(pc_offset() < next_buffer_check_);
@@ -1378,7 +1378,7 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
   // FIXME(STM): Internal ref not handled
   ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE);
 
-  // XXX delayed constant pool emitting (experimental)
+  // Delayed constant pool emitting (experimental)
   if (constant_pool_poolx_)
     return Assembler::mov_poolx(Rd, imm, force);
 

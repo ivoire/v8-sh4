@@ -906,12 +906,12 @@ void RegExpMacroAssemblerSH4::PopRegister(int register_index) {
 
 void RegExpMacroAssemblerSH4::PushBacktrack(Label* label) {
   if (label->is_bound()) {
-    // XXX constant pool optimization is currently disabled in regexp assembler
-    //Assembler::BlockConstPoolScope block_const_pool(masm_);
+    // Constant pool optimization is currently disabled in regexp assembler
+    // Assembler::BlockConstPoolScope block_const_pool(masm_);
     int target = label->pos();
     __ mov(r0, Operand(target + Code::kHeaderSize - kHeapObjectTag));
   } else {
-    // XXX constant pool optimization is currently disabled in regexp assembler
+    // Constant pool optimization is currently disabled in regexp assembler
     Assembler::BlockConstPoolScope block_const_pool(masm_);
     masm_->load_label(label);
   }
