@@ -56,7 +56,7 @@ else
       exec $RUN_PREFIX ${1+"$@"}
     else
       echo Running $PROOT -b $PWD -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
-      exec $PROOT -W -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
+      exec $PROOT -b $PWD -Q "$QEMU" $TARGET_ROOT ${1+"$@"}
     fi
   else
     RUN_PREFIX="${RUN_PREFIX}"
