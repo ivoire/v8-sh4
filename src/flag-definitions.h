@@ -349,7 +349,7 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 #endif
 
 // SH4
-DEFINE_bool(poolx, false, "use experimental constant pools")
+DEFINE_bool(pool, true, "use constant pools")
 
 //
 // Dev shell flags

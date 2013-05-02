@@ -1165,7 +1165,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
   RECORD_LINE();
   jsr(function);
-  ASSERT(!constant_pool_poolx_ ||
+  ASSERT(!constant_pool_pool_ ||
          (pc_offset() - begin.pos() == 2 * kInstrSize ||
           pc_offset() - begin.pos() == 3 * kInstrSize));
   }

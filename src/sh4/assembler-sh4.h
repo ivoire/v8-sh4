@@ -635,8 +635,8 @@ class Assembler : public AssemblerBase {
   static const int kNewStyleCallTargetAddressOffset = 3 * kInstrSize;
 
   int GetCallTargetAddressOffset() const {
-    // constant_pool_poolx_ is not meant to be switched mid-flight
-    if (constant_pool_poolx_)
+    // constant_pool_pool_ is not meant to be switched mid-flight
+    if (constant_pool_pool_)
       return kNewStyleCallTargetAddressOffset; // mov.l; jsr; nop
     else
       return kOldStyleCallTargetAddressOffset; // see above
@@ -929,7 +929,7 @@ class Assembler : public AssemblerBase {
   // This one allows pr as src or dst.
   void mov(Register Rd, Register Rs, Condition cond = al);
   void mov(Register Rd, const Operand& src, bool force = false);
-  void mov_poolx(Register Rd, const Operand& imm, bool force);
+  void mov_pool(Register Rd, const Operand& imm, bool force);
   void mov(Register Rd, const Operand& imm, Condition cond);
 
   // load op.
@@ -1111,7 +1111,7 @@ class Assembler : public AssemblerBase {
   void CheckConstPool(bool force_emit, bool require_jump, bool recursive = false, int hint = 0);
   int GetFirstConstPoolUse() const { return first_const_pool_use_; }
   void AssertDataEmit(const char *str);
-  void SwitchConstantPoolMode(bool enabled) { constant_pool_poolx_ = enabled; }
+  void SwitchConstantPoolMode(bool enabled) { constant_pool_pool_ = enabled; }
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1165,11 +1165,11 @@ class Assembler : public AssemblerBase {
   void branch(Label* L, Register rtmp, branch_type type, Label::Distance distance = Label::kFar);
   void branch(int offset, Register rtmp, branch_type type, Label::Distance distance, bool patched_later);
   void conditional_branch(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
-  void conditional_branch_poolx(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
+  void conditional_branch_pool(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
   void jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later);
-  void jmp_poolx(int offset, Register rtmp, Label::Distance distance, bool patched_later);
+  void jmp_pool(int offset, Register rtmp, Label::Distance distance, bool patched_later);
   void jsr(int offset, Register rtmp, bool patched_later);
-  void jsr_poolx(int offset, Register rtmp, bool patched_later);
+  void jsr_pool(int offset, Register rtmp, bool patched_later);
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos, int is_near_linked);
@@ -1185,7 +1185,7 @@ class Assembler : public AssemblerBase {
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
-  void RecordRelocInfo_poolx(RelocInfo::Mode rmode, intptr_t data = 0);
+  void RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data = 0);
 
   friend class CodePatcher;
   friend class EnsureSpace;
@@ -1243,7 +1243,7 @@ class Assembler : public AssemblerBase {
   bool emit_debug_code_;
 
   // Transient impl helper
-  bool constant_pool_poolx_;
+  bool constant_pool_pool_;
 
   friend class PositionsRecorder;
   friend class MacroAssembler;

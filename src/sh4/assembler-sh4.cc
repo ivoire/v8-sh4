@@ -184,7 +184,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
       positions_recorder_(this),
       emit_debug_code_(FLAG_debug_code),
-      constant_pool_poolx_(FLAG_poolx) {
+      constant_pool_pool_(FLAG_pool) {
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -327,7 +327,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
 }
 
-void Assembler::RecordRelocInfo_poolx(RelocInfo::Mode rmode, intptr_t data) {
+void Assembler::RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data) {
   // Contrary to RecordRelocInfo, we also handle constant pool entries here
   // that have no reloc info.
 
@@ -752,7 +752,7 @@ void Assembler::call(Label* L) {
 }
 
 void Assembler::AssertDataEmit(const char *str) {
-  if (constant_pool_poolx_ && num_pending_reloc_info_ > 0) {
+  if (constant_pool_pool_ && num_pending_reloc_info_ > 0) {
     i::OS::PrintError("data emit while constants pending (%s)\n", str);
     i::OS::Abort();
   }
@@ -1086,8 +1086,8 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant, int is_n
 void Assembler::conditional_branch(int offset, Register rtmp,
                                    Label::Distance distance, bool patched_later,
                                    bool type) {
-  if (constant_pool_poolx_)
-    return conditional_branch_poolx(offset, rtmp, distance, patched_later, type);
+  if (constant_pool_pool_)
+    return conditional_branch_pool(offset, rtmp, distance, patched_later, type);
 
   if (patched_later) {
     if (distance == Label::kNear) {
@@ -1124,7 +1124,7 @@ void Assembler::conditional_branch(int offset, Register rtmp,
 
 }
 
-void Assembler::conditional_branch_poolx(int offset, Register rtmp,
+void Assembler::conditional_branch_pool(int offset, Register rtmp,
                                    Label::Distance distance, bool patched_later,
                                    bool type) {
   if (patched_later) {
@@ -1139,7 +1139,7 @@ void Assembler::conditional_branch_poolx(int offset, Register rtmp,
       // We assume (and assert) that they always are null
       ASSERT((offset % 4) == 0);
       emitPatchableNearBranch(offset + (type ? 0x1 : 0x2));
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              (pc_offset() - begin.pos() == kInstrSize ||
               pc_offset() - begin.pos() == 2 * kInstrSize));
     } else {
@@ -1156,7 +1156,7 @@ void Assembler::conditional_branch_poolx(int offset, Register rtmp,
       braf_(rtmp);
       nop_();
       ddLegacyBranchConst(offset);
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              (pc_offset() - begin.pos() == 8 * kInstrSize ||
               pc_offset() - begin.pos() == 9 * kInstrSize));
     }
@@ -1169,7 +1169,7 @@ void Assembler::conditional_branch_poolx(int offset, Register rtmp,
 #endif
       type ? bt_(offset - 4) : bf_(offset - 4);
       nop_();
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              pc_offset() - begin.pos() == 2 * kInstrSize);
     } else {
       BlockConstPoolFor(5);
@@ -1177,20 +1177,20 @@ void Assembler::conditional_branch_poolx(int offset, Register rtmp,
       Label begin;
       bind(&begin);
 #endif
-      mov_poolx(rtmp, Operand(offset - 4 - 4 - 2), false);
+      mov_pool(rtmp, Operand(offset - 4 - 4 - 2), false);
       type ? bfs_(2) : bts_(2);
       nop();
       braf_(rtmp);
       nop_();
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              pc_offset() - begin.pos() == 5 * kInstrSize);
     }
   }
 }
 
 void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
-  if (constant_pool_poolx_)
-    return jmp_poolx(offset, rtmp, distance, patched_later);
+  if (constant_pool_pool_)
+    return jmp_pool(offset, rtmp, distance, patched_later);
 
   positions_recorder()->WriteRecordedPositions();
 
@@ -1227,7 +1227,7 @@ void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool pa
 }
 
 
-void Assembler::jmp_poolx(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
+void Assembler::jmp_pool(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
   positions_recorder()->WriteRecordedPositions();
 
   // Is it going to be pacthed later on
@@ -1243,7 +1243,7 @@ void Assembler::jmp_poolx(int offset, Register rtmp, Label::Distance distance, b
       nop();
       ASSERT((offset % 4) == 0);
       emitPatchableNearBranch(offset + 0x3);
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              (pc_offset() - begin.pos() == 2 * kInstrSize ||
               pc_offset() - begin.pos() == 3 * kInstrSize));
     } else {
@@ -1259,7 +1259,7 @@ void Assembler::jmp_poolx(int offset, Register rtmp, Label::Distance distance, b
       braf_(rtmp);
       nop_();
       ddLegacyBranchConst(offset);
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              (pc_offset() - begin.pos() == 6 * kInstrSize ||
               pc_offset() - begin.pos() == 7 * kInstrSize));
     }
@@ -1273,7 +1273,7 @@ void Assembler::jmp_poolx(int offset, Register rtmp, Label::Distance distance, b
 #endif
       bra_(offset - 4);
       nop_();
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              pc_offset() - begin.pos() == 2 * kInstrSize);
     } else {
       BlockConstPoolFor(3);
@@ -1281,18 +1281,18 @@ void Assembler::jmp_poolx(int offset, Register rtmp, Label::Distance distance, b
       Label begin;
       bind(&begin);
 #endif
-      mov_poolx(rtmp, Operand(offset - 4 - kInstrSize), false);
+      mov_pool(rtmp, Operand(offset - 4 - kInstrSize), false);
       braf_(rtmp);
       nop_();
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              pc_offset() - begin.pos() == 3 * kInstrSize);
     }
   }
 }
 
 void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
-  if (constant_pool_poolx_)
-    return jsr_poolx(offset, rtmp, patched_later);
+  if (constant_pool_pool_)
+    return jsr_pool(offset, rtmp, patched_later);
 
   positions_recorder()->WriteRecordedPositions();
 
@@ -1325,7 +1325,7 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
   }
 }
 
-void Assembler::jsr_poolx(int offset, Register rtmp, bool patched_later) {
+void Assembler::jsr_pool(int offset, Register rtmp, bool patched_later) {
   positions_recorder()->WriteRecordedPositions();
 
   // Is it going to be patched later on ?
@@ -1344,7 +1344,7 @@ void Assembler::jsr_poolx(int offset, Register rtmp, bool patched_later) {
     bra_(4);
     nop_();
     ddLegacyBranchConst(offset);
-    ASSERT(!constant_pool_poolx_ ||
+    ASSERT(!constant_pool_pool_ ||
            (pc_offset() - begin.pos() == 8 * kInstrSize ||
             pc_offset() - begin.pos() == 9 * kInstrSize));
   } else {
@@ -1357,7 +1357,7 @@ void Assembler::jsr_poolx(int offset, Register rtmp, bool patched_later) {
 #endif
       bsr_(offset - 4);
       nop_();
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              pc_offset() - begin.pos() == 2 * kInstrSize);
     } else {
       BlockConstPoolFor(3);
@@ -1365,10 +1365,10 @@ void Assembler::jsr_poolx(int offset, Register rtmp, bool patched_later) {
       Label begin;
       bind(&begin);
 #endif
-      mov_poolx(rtmp, Operand(offset - 4 - kInstrSize), false);
+      mov_pool(rtmp, Operand(offset - 4 - kInstrSize), false);
       bsrf_(rtmp);
       nop_();
-      ASSERT(!constant_pool_poolx_ ||
+      ASSERT(!constant_pool_pool_ ||
              pc_offset() - begin.pos() == 3 * kInstrSize);
     }
   }
@@ -1379,8 +1379,8 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
   ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE);
 
   // Delayed constant pool emitting (experimental)
-  if (constant_pool_poolx_)
-    return Assembler::mov_poolx(Rd, imm, force);
+  if (constant_pool_pool_)
+    return Assembler::mov_pool(Rd, imm, force);
 
   // Move based on immediates can only be 8 bits long
   if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE)) {
@@ -1415,13 +1415,13 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
   }
 }
 
-void Assembler::mov_poolx(Register Rd, const Operand& imm, bool force) {
+void Assembler::mov_pool(Register Rd, const Operand& imm, bool force) {
 
   // Move based on immediates can only be 8 bits long
   if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE)) {
     mov_imm_(imm.imm32_, Rd);
   } else {
-    RecordRelocInfo_poolx(imm.rmode_, imm.imm32_);
+    RecordRelocInfo_pool(imm.rmode_, imm.imm32_);
     movl_dispPC_(0, Rd);
   }
 }
@@ -1930,7 +1930,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursiv
     return;
   }
 
-  ASSERT(constant_pool_poolx_);
+  ASSERT(constant_pool_pool_);
 
   // We emit a constant pool when:
   //  * requested to do so by parameter force_emit (e.g. after each function).
