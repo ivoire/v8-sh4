@@ -122,6 +122,9 @@ namespace internal {
 #if (V8_TARGET_ARCH_MIPS && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_MIPS))
 #error Target architecture mips is only supported on mips and ia32 host
 #endif
+#if (V8_TARGET_ARCH_SH4 && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_SH4))
+#error Target architecture sh4 is only supported on sh4 and ia32 host
+#endif
 
 // Determine whether we are running in a simulated environment.
 // Setting USE_SIMULATOR explicitly from the build script will force
@@ -131,6 +134,9 @@ namespace internal {
 #define USE_SIMULATOR 1
 #endif
 #if (V8_TARGET_ARCH_MIPS && !V8_HOST_ARCH_MIPS)
+#define USE_SIMULATOR 1
+#endif
+#if (V8_TARGET_ARCH_SH4 && !V8_HOST_ARCH_SH4)
 #define USE_SIMULATOR 1
 #endif
 #endif
@@ -143,6 +149,8 @@ namespace internal {
 #elif V8_TARGET_ARCH_ARM
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_MIPS
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_SH4
 #define V8_TARGET_LITTLE_ENDIAN 1
 #else
 #error Unknown target architecture endiannes

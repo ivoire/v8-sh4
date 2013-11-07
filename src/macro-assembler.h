@@ -86,6 +86,13 @@ const int kInvalidProtoDepth = -1;
 #include "mips/assembler-mips-inl.h"
 #include "code.h"  // must be after assembler_*.h
 #include "mips/macro-assembler-mips.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/constants-sh4.h"
+#include "assembler.h"
+#include "sh4/assembler-sh4.h"
+#include "sh4/assembler-sh4-inl.h"
+#include "code.h"  // must be after assembler_*.h
+#include "sh4/macro-assembler-sh4.h"
 #else
 #error Unsupported target architecture.
 #endif
