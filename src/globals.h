@@ -95,7 +95,7 @@ namespace internal {
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && \
-    !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS
+    !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_SH4
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
 #elif defined(_M_IX86) || defined(__i386__)

@@ -1806,7 +1806,8 @@ Isolate::Isolate()
   thread_manager_->isolate_ = this;
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
-    V8_TARGET_ARCH_MIPS && !defined(__mips__)
+    V8_TARGET_ARCH_MIPS && !defined(__mips__) || \
+    V8_TARGET_ARCH_SH4 && !defined(__sh__)
   simulator_initialized_ = false;
   simulator_i_cache_ = NULL;
   simulator_redirection_ = NULL;
@@ -2195,7 +2196,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_SH4
   Simulator::Initialize(this);
 #endif
 #endif
