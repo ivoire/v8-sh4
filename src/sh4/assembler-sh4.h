@@ -480,7 +480,7 @@ class Operand BASE_EMBEDDED {
   explicit Operand(Handle<Object> handle);
 
   bool is_int8() const {
-    return -128 <= imm32_ && imm32_ < 128 && rmode_ == RelocInfo::NONE;
+    return -128 <= imm32_ && imm32_ < 128 && rmode_ == RelocInfo::NONE32;
   }
 
  private:

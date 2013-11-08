@@ -287,7 +287,7 @@ Operand::Operand(const ExternalReference& f) {
 
 Operand::Operand(Smi* value) {
   imm32_ = reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE;
+  rmode_ = RelocInfo::NONE32;
 }
 
 
@@ -436,7 +436,7 @@ void Assembler::emit(Instr x) {
 
 void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
-  if (imm.imm32_ == 0 && imm.rmode_ == RelocInfo::NONE) {
+  if (imm.imm32_ == 0 && imm.rmode_ == RelocInfo::NONE32) {
     neg_(Rs, Rd);
   } else {
     mov(rtmp, imm);
@@ -452,7 +452,7 @@ void Assembler::rsb(Register Rd, Register Rs, Register Rt) {
 void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
                     Condition cond, Register rtmp) {
   ASSERT(cond == ne || cond == eq);
-  if (imm.imm32_ == 0 && imm.rmode_ == RelocInfo::NONE) {
+  if (imm.imm32_ == 0 && imm.rmode_ == RelocInfo::NONE32) {
     if (cond == eq)
       bf_(0);           // Jump after sequence if T bit is false
     else

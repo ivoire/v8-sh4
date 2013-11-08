@@ -2827,7 +2827,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
     // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
     __ movd(dr2, r0, r1);
     // Move 0x4130000000000000 to VFP.
-    __ mov(r0, Operand(0, RelocInfo::NONE));
+    __ mov(r0, Operand(0, RelocInfo::NONE32));
     __ movd(dr4, r0, r1);
     // Subtract and store the result in the heap number.
     __ fsub(dr2, dr4);

@@ -131,7 +131,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ LoadRoot(scratch1, Heap::kEmptyFixedArrayRootIndex);
   __ str(scratch1, FieldMemOperand(result, JSArray::kPropertiesOffset));
   // Field JSArray::kElementsOffset is initialized later.
-  __ mov(scratch3,  Operand(0, RelocInfo::NONE));
+  __ mov(scratch3,  Operand(0, RelocInfo::NONE32));
   __ str(scratch3, FieldMemOperand(result, JSArray::kLengthOffset));
 
   // Calculate the location of the elements array and set elements array member
@@ -319,7 +319,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   Label argc_one_or_more, argc_two_or_more;
 
   // Check for array construction with zero arguments or one.
-  __ cmp(r0, Operand(0, RelocInfo::NONE));
+  __ cmp(r0, Operand(0, RelocInfo::NONE32));
   __ b(ne, &argc_one_or_more);
 
   // Handle construction of an empty array.
@@ -508,7 +508,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   // Load the first arguments in r0 and get rid of the rest.
   Label no_arguments;
-  __ cmp(r0, Operand(0, RelocInfo::NONE));
+  __ cmp(r0, Operand(0, RelocInfo::NONE32));
   __ b(eq, &no_arguments);
   // First args = sp[(argc - 1) * 4].
   __ sub(r0, r0, Operand(1));
@@ -553,7 +553,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
     __ cmp(r4, Operand(JSValue::kSize >> kPointerSizeLog2));
     __ Assert(eq, "Unexpected string wrapper instance size");
     __ ldrb(r4, FieldMemOperand(map, Map::kUnusedPropertyFieldsOffset));
-    __ cmp(r4, Operand(0, RelocInfo::NONE));
+    __ cmp(r4, Operand(0, RelocInfo::NONE32));
     __ Assert(eq, "Unexpected unused properties of string wrapper");
   }
   __ str(map, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -641,7 +641,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // r1: called object
   __ bind(&non_function_call);
   // Set expected number of arguments to zero (not changing r0).
-  __ mov(r2, Operand(0, RelocInfo::NONE));
+  __ mov(r2, Operand(0, RelocInfo::NONE32));
   // r3: builtin entry
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ SetCallKind(r5, CALL_AS_METHOD);
@@ -1014,7 +1014,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r5-r7, cp may be clobbered
 
   // Clear the context before we push it when entering the JS frame.
-  __ mov(cp, Operand(0, RelocInfo::NONE));
+  __ mov(cp, Operand(0, RelocInfo::NONE32));
 
   // Enter an internal frame.
   __ EnterInternalFrame();
@@ -1296,7 +1296,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ add(r2, sp, r2);
   __ str(r1, MemOperand(r2, -kPointerSize));
   // Clear r1 to indicate a non-function being called.
-  __ mov(r1, Operand(0, RelocInfo::NONE));
+  __ mov(r1, Operand(0, RelocInfo::NONE32));
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -1328,7 +1328,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ tst(r1, r1);
     __ b(ne, &function, Label::kNear);
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
-    __ mov(r2, Operand(0, RelocInfo::NONE));
+    __ mov(r2, Operand(0, RelocInfo::NONE32));
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
     __ SetCallKind(r5, CALL_AS_METHOD);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
@@ -1397,7 +1397,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Push current limit and index.
   __ bind(&okay);
   __ push(r0);  // limit
-  __ mov(r1, Operand(0, RelocInfo::NONE));  // initial index
+  __ mov(r1, Operand(0, RelocInfo::NONE32));  // initial index
   __ push(r1);
 
   // Change context eagerly to get the right global object if necessary.

@@ -756,7 +756,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   }
 
   // Clear top frame.
-  mov(r3, Operand(0, RelocInfo::NONE));
+  mov(r3, Operand(0, RelocInfo::NONE32));
   mov(sh4_ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(r3, MemOperand(sh4_ip));
 
@@ -1335,7 +1335,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     ExternalReference external_caught(
         Isolate::kExternalCaughtExceptionAddress, isolate());
     RECORD_LINE();
-    mov(r0, Operand(false, RelocInfo::NONE));
+    mov(r0, Operand(false, RelocInfo::NONE32));
     mov(r2, Operand(external_caught));
     str(r0, MemOperand(r2));
 
@@ -1380,7 +1380,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   ldr(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
-  cmp(scratch, Operand(0, RelocInfo::NONE));
+  cmp(scratch, Operand(0, RelocInfo::NONE32));
   Check(ne, "we should not have an empty lexical context");
 #endif
 

@@ -1145,7 +1145,7 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond) {
   __ lsl(r4, lhs_exponent, Operand(HeapNumber::kNonMantissaBitsInTopWord));
   __ cmpeq(r4, Operand(0));
   __ b(ne, &one_is_nan, Label::kNear);
-  __ cmp(lhs_mantissa, Operand(0, RelocInfo::NONE));
+  __ cmp(lhs_mantissa, Operand(0, RelocInfo::NONE32));
   __ b(ne, &one_is_nan, Label::kNear);
 
   __ bind(lhs_not_nan);
@@ -1157,7 +1157,7 @@ void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cond) {
   __ cmp(r4, Operand(-1));
   __ b(ne, &neither_is_nan, Label::kNear);
   __ lsl(r4, rhs_exponent, Operand(HeapNumber::kNonMantissaBitsInTopWord));
-  __ cmpeq(r4, Operand(0, RelocInfo::NONE));
+  __ cmpeq(r4, Operand(0, RelocInfo::NONE32));
   __ b(ne, &one_is_nan, Label::kNear);
   __ cmp(rhs_mantissa, Operand(0));
   __ b(eq, &neither_is_nan, Label::kNear);
@@ -1685,7 +1685,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
       // Undetectable -> false.
       Label skip;
       __ bt_near(&skip);
-      __ mov(tos_, Operand(0, RelocInfo::NONE));
+      __ mov(tos_, Operand(0, RelocInfo::NONE32));
       __ rts();
       __ bind(&skip);
     }
@@ -1719,9 +1719,9 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
     __ dfloat(dr2, Operand(0));
     __ dcmpeq(dr0, dr2);
-    __ mov(tos_, Operand(0, RelocInfo::NONE), eq);  // for FP_ZERO
+    __ mov(tos_, Operand(0, RelocInfo::NONE32), eq);  // for FP_ZERO
     __ dcmpeq(dr0, dr0);
-    __ mov(tos_, Operand(0, RelocInfo::NONE), ne);  // for FP_NAN (dr0 != dr0 iff isnan(dr0))
+    __ mov(tos_, Operand(0, RelocInfo::NONE32), ne);  // for FP_NAN (dr0 != dr0 iff isnan(dr0))
     __ Ret();
     __ bind(&not_heap_number);
   }
@@ -1742,7 +1742,7 @@ void ToBooleanStub::CheckOddball(MacroAssembler* masm,
     // The value of a root is never NULL, so we can avoid loading a non-null
     // value into tos_ when we want to return 'true'.
     if (!result) {
-      __ mov(tos_, Operand(0, RelocInfo::NONE), eq);
+      __ mov(tos_, Operand(0, RelocInfo::NONE32), eq);
     }
     __ Ret(eq);
   }
@@ -1853,7 +1853,7 @@ void UnaryOpStub::GenerateSmiCodeSub(MacroAssembler* masm,
   __ b(eq, slow);
 
   // Return '0 - value'.
-  __ rsb(r0, r0, Operand(0, RelocInfo::NONE));
+  __ rsb(r0, r0, Operand(0, RelocInfo::NONE32));
   __ Ret();
 }
 
@@ -3111,7 +3111,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ ldr(cache_entry, MemOperand(cache_entry, cache_array_index));
     // r0 points to the cache for the type type_.
     // If NULL, the cache hasn't been initialized yet, so go through runtime.
-    __ cmp(cache_entry, Operand(0, RelocInfo::NONE));
+    __ cmp(cache_entry, Operand(0, RelocInfo::NONE32));
     __ b(eq, &invalid_cache);
 
 #ifdef DEBUG
@@ -4226,7 +4226,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // of the arguments object and the elements array in words.
   Label add_arguments_object;
   __ bind(&try_allocate);
-  __ cmp(r1, Operand(0, RelocInfo::NONE));
+  __ cmp(r1, Operand(0, RelocInfo::NONE32));
   __ b(eq, &add_arguments_object, Label::kNear);
   __ lsr(r1, r1, Operand(kSmiTagSize));
   __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
@@ -4259,7 +4259,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // If there are no actual arguments, we're done.
   Label done;
-  __ cmp(r1, Operand(0, RelocInfo::NONE));
+  __ cmp(r1, Operand(0, RelocInfo::NONE32));
   __ b(eq, &done, Label::kNear);
 
   // Get the parameters pointer from the stack.
@@ -4858,7 +4858,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // of the original receiver from the call site).
   __ str(r1, MemOperand(sp, argc_ * kPointerSize));
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
-  __ mov(r2, Operand(0, RelocInfo::NONE));
+  __ mov(r2, Operand(0, RelocInfo::NONE32));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
   __ SetCallKind(r5, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),

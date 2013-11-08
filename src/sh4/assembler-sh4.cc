@@ -117,7 +117,7 @@ Operand::Operand(Handle<Object> handle) {
   } else {
     // no relocation needed
     imm32_ =  reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE;
+    rmode_ = RelocInfo::NONE32;
   }
 }
 
@@ -306,7 +306,7 @@ void Assembler::GrowBuffer() {
 }
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  ASSERT(rmode != RelocInfo::NONE);
+  ASSERT(rmode != RelocInfo::NONE32);
   // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
@@ -354,7 +354,7 @@ void Assembler::RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data) {
   }
 
   // Constant pool handling complete
-  if (rmode == RelocInfo::NONE)
+  if (rmode == RelocInfo::NONE32)
     return;
 
   // Don't record external references unless the heap will be serialized.
@@ -1384,7 +1384,7 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
     return Assembler::mov_pool(Rd, imm, force);
 
   // Move based on immediates can only be 8 bits long
-  if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE)) {
+  if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE32)) {
     mov_imm_(imm.imm32_, Rd);
   } else {
     // Use a tiny constant pool and jump above
@@ -1397,13 +1397,13 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
     // though the target address is encoded in the constant pool below.
     // If the code sequence changes, one must update
     // Assembler::target_address_address_at().
-    if (imm.rmode_ != RelocInfo::NONE) RecordRelocInfo(imm.rmode_);
+    if (imm.rmode_ != RelocInfo::NONE32) RecordRelocInfo(imm.rmode_);
     movl_dispPC_(4, Rd);
     nop_();
     bra_(4);
     nop_();
 #ifdef DEBUG
-    if (imm.rmode_ != RelocInfo::NONE) {
+    if (imm.rmode_ != RelocInfo::NONE32) {
       Address target_address = pc_;
       // Verify that target_address_address_at() is actually returning
       // the address where the target address for the instruction is stored.
@@ -1419,7 +1419,7 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
 void Assembler::mov_pool(Register Rd, const Operand& imm, bool force) {
 
   // Move based on immediates can only be 8 bits long
-  if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE)) {
+  if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE32)) {
     mov_imm_(imm.imm32_, Rd);
   } else {
     RecordRelocInfo_pool(imm.rmode_, imm.imm32_);
