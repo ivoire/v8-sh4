@@ -450,12 +450,6 @@ inline Condition NegateCondition(Condition cc) {
 }
 
 
-// Corresponds to transposing the operands of a comparison.
-inline Condition ReverseCondition(Condition cc) {
-  UNIMPLEMENTED();
-}
-
-
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
@@ -597,7 +591,6 @@ class Assembler : public AssemblerBase {
                                             Address target) {
     // same as above, this function is currently not used anywhere.
     UNREACHABLE();
-    set_target_at(constant_pool_entry, target);
   }
 
   static const int kSpecialTargetSize = kPointerSize;
@@ -1032,7 +1025,7 @@ class Assembler : public AssemblerBase {
     recorded_ast_id_ = ast_id;
   }
 
-  unsigned RecordedAstId() {
+  TypeFeedbackId RecordedAstId() {
     ASSERT(!recorded_ast_id_.IsNone());
     return recorded_ast_id_;
   }
@@ -1127,8 +1120,6 @@ class Assembler : public AssemblerBase {
   // member variable is a way to pass the information from the call site to
   // the relocation info.
   TypeFeedbackId recorded_ast_id_;
-
-  bool emit_debug_code() const { return emit_debug_code_; }
 
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
