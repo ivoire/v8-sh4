@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_SH4)
+#if V8_TARGET_ARCH_SH4
 
 #include "codegen.h"
 #include "debug.h"
@@ -36,16 +36,19 @@ namespace v8 {
 namespace internal {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+bool BreakLocationIterator::IsDebugBreakAtReturn() {
+  UNIMPLEMENTED();
+  return false;
+}
 
 
-#define __ ACCESS_MASM(masm)
-
-void BreakLocationIterator::ClearDebugBreakAtReturn() {
+void BreakLocationIterator::SetDebugBreakAtReturn() {
   UNIMPLEMENTED();
 }
 
 
-void BreakLocationIterator::ClearDebugBreakAtSlot() {
+// Restore the JS frame exit code.
+void BreakLocationIterator::ClearDebugBreakAtReturn() {
   UNIMPLEMENTED();
 }
 
@@ -58,19 +61,9 @@ bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
 }
 
 
-bool BreakLocationIterator::IsDebugBreakAtReturn() {
-  return Debug::IsDebugBreakAtReturn(rinfo());
-}
-
-
 bool BreakLocationIterator::IsDebugBreakAtSlot() {
   UNIMPLEMENTED();
   return false;
-}
-
-
-void BreakLocationIterator::SetDebugBreakAtReturn() {
-  UNIMPLEMENTED();
 }
 
 
@@ -79,17 +72,24 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
 }
 
 
-void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
+void BreakLocationIterator::ClearDebugBreakAtSlot() {
+  UNIMPLEMENTED();
+}
+
+const bool Debug::FramePaddingLayout::kIsSupported = false;
+
+
+#define __ ACCESS_MASM(masm)
+
+}
+
+
+void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
-  __ UNIMPLEMENTED_BREAK();
-}
-
-
-void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
+void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
@@ -104,17 +104,37 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
+void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
+void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
+  __ UNIMPLEMENTED_BREAK();
+}
+
+
+void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
+  __ UNIMPLEMENTED_BREAK();
+}
+
+
+void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
+  __ UNIMPLEMENTED_BREAK();
+}
+
+
+void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
+  __ UNIMPLEMENTED_BREAK();
+}
+
+
+void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
@@ -129,18 +149,20 @@ void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
+void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
 
-void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
+void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
 }
 
-const bool Debug::kFrameDropperSupported = true;
+const bool Debug::kFrameDropperSupported = false;
 
 #undef __
+
+
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
