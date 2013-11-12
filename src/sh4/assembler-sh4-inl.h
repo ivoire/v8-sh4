@@ -38,6 +38,16 @@ namespace v8 {
 namespace internal {
 
 
+int Register::NumAllocatableRegisters() {
+  return kMaxNumAllocatableRegisters;
+}
+
+
+int DwVfpRegister::NumAllocatableRegisters() {
+  return kMaxNumAllocatableRegisters;
+}
+
+
 void RelocInfo::apply(intptr_t delta) {
   if (RelocInfo::IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.

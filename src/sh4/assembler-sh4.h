@@ -149,8 +149,10 @@ const int kRegister_pr_Code = -2;
 // Core register
 struct Register {
   static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 8;
+  static const int kMaxNumAllocatableRegisters = 8;
   static const int kSizeInBytes = 4;
+
+  inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
     ASSERT(reg.code() < kNumAllocatableRegisters);
@@ -271,7 +273,13 @@ struct SwVfpRegister {
 // Double word VFP register.
 struct DwVfpRegister {
   static const int kMaxNumRegisters = 8;
-  static const int kNumAllocatableRegisters = 8;
+  static const int kMaxNumAllocatableRegisters = 8;
+
+  // Note: the number of registers can be different at snapshot and run-time.
+  // Any code included in the snapshot must be able to run both with 16 or 32
+  // registers.
+  inline static int NumRegisters();
+  inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(DwVfpRegister reg) {
     ASSERT(reg.code() != 0);
@@ -635,6 +643,8 @@ class Assembler : public AssemblerBase {
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
   static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
+
+  static const int kPatchDebugBreakSlotReturnOffset = 0 * kInstrSize;
 
   // Difference between address of current opcode and value read from pc
   // register.
