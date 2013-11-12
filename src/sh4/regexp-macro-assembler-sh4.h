@@ -30,22 +30,16 @@
 
 #include "sh4/assembler-sh4.h"
 #include "sh4/assembler-sh4-inl.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 
 
-#ifdef V8_INTERPRETED_REGEXP
-class RegExpMacroAssemblerSH4: public RegExpMacroAssembler {
- public:
-  RegExpMacroAssemblerSH4();
-  virtual ~RegExpMacroAssemblerSH4();
-};
-
-#else  // V8_INTERPRETED_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerSH4(Mode mode, int registers_to_save);
+  RegExpMacroAssemblerSH4(Mode mode, int registers_to_save, Zone* zone);
   virtual ~RegExpMacroAssemblerSH4();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
@@ -59,10 +53,6 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
                                       Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
-  virtual void CheckCharacters(Vector<const uc16> str,
-                               int cp_offset,
-                               Label* on_failure,
-                               bool check_end_of_string);
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
@@ -70,7 +60,6 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
-  virtual void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal);
   virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(unsigned c,
                                          unsigned mask,
@@ -79,6 +68,14 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
                                               uc16 minus,
                                               uc16 mask,
                                               Label* on_not_equal);
+  virtual void CheckCharacterInRange(uc16 from,
+                                     uc16 to,
+                                     Label* on_in_range);
+  virtual void CheckCharacterNotInRange(uc16 from,
+                                        uc16 to,
+                                        Label* on_not_in_range);
+  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
+
   // Checks whether the given offset from the current position is before
   // the end of the string.
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);
@@ -105,10 +102,11 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetCurrentPositionFromEnd(int by);
   virtual void SetRegister(int register_index, int to);
-  virtual void Succeed();
+  virtual bool Succeed();
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
+  virtual bool CanReadUnaligned();
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
@@ -129,7 +127,8 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
   static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
   // Stack parameters placed by caller.
   static const int kRegisterOutput = kSecondaryReturnAddress + kPointerSize;
-  static const int kStackHighEnd = kRegisterOutput + kPointerSize;
+  static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
+  static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
 
@@ -141,10 +140,10 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
   static const int kInputString = kStartIndex - kPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kInputStartMinusOne = kInputString - kPointerSize;
-  static const int kAtStart = kInputStartMinusOne - kPointerSize;
+  static const int kSuccessfulCaptures = kInputString - kPointerSize;
+  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kAtStart - kPointerSize;
+  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
@@ -158,6 +157,7 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
+
 
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);
@@ -207,14 +207,7 @@ class RegExpMacroAssemblerSH4: public NativeRegExpMacroAssembler {
   // and increments it by a word size.
   inline void Pop(Register target);
 
-  // Calls a C function and cleans up the frame alignment done by
-  // by FrameAlign. The called function *is* allowed to trigger a garbage
-  // collection, but may not take more than four arguments (no arguments
-  // passed on the stack), and the first argument will be a pointer to the
-  // return address.
-  inline void CallCFunctionUsingStub(ExternalReference function,
-                                     int num_arguments);
-
+  Isolate* isolate() const { return masm_->isolate(); }
 
   MacroAssembler* masm_;
 
