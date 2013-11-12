@@ -356,6 +356,12 @@ Address Assembler::target_pointer_at(Address pc) {
 }
 
 
+Address Assembler::target_address_from_return_address(Address pc) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
 void Assembler::set_target_pointer_at(Address pc, Address target) {
   UNIMPLEMENTED();
 }

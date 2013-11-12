@@ -964,6 +964,10 @@ class MacroAssembler: public Assembler {
                          Register source,
                          Register scratch);
 
+  // Does a runtime check for 16/32 FP registers. Either way, pushes 32 double
+  // values to location, saving [d0..(d15|d31)].
+  void SaveFPRegs(Register location, Register scratch);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 

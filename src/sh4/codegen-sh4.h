@@ -29,7 +29,6 @@
 #define V8_SH4_CODEGEN_SH4_H_
 
 #include "ast.h"
-#include "code-stubs-sh4.h"
 #include "ic-inl.h"
 
 namespace v8 {

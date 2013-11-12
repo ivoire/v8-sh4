@@ -117,11 +117,23 @@ namespace internal {
 #define CODE_STUB_LIST_MIPS(V)
 #endif
 
+// List of code stubs only used on ARM platforms.
+#if V8_TARGET_ARCH_SH4
+#define CODE_STUB_LIST_SH4(V) \
+  V(GetProperty)              \
+  V(SetProperty)              \
+  V(InvokeBuiltin)            \
+  V(DirectCEntry)
+#else
+#define CODE_STUB_LIST_SH4(V)
+#endif
+
 // Combined list of code stubs.
 #define CODE_STUB_LIST(V)            \
   CODE_STUB_LIST_ALL_PLATFORMS(V)    \
   CODE_STUB_LIST_ARM(V)              \
-  CODE_STUB_LIST_MIPS(V)
+  CODE_STUB_LIST_MIPS(V)             \
+  CODE_STUB_LIST_SH4(V)
 
 // Mode to overwrite BinaryExpression values.
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
@@ -418,6 +430,8 @@ enum StringAddFlags {
 #include "arm/code-stubs-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/code-stubs-mips.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/code-stubs-sh4.h"
 #else
 #error Unsupported target architecture.
 #endif

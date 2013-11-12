@@ -36,6 +36,8 @@
 #include "arm/simulator-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/simulator-mips.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/simulator-sh4.h"
 #else
 #error Unsupported target architecture.
 #endif
