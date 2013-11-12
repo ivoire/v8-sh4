@@ -36,11 +36,11 @@ namespace internal {
 
 // Register lists
 // Note that the bit values must match those used in actual instruction encoding
-static const int kNumRegs = 16;
+const int kNumRegs = 16;
 
 
 // Caller-saved registers
-static const RegList kJSCallerSaved =
+const RegList kJSCallerSaved =
   1 << 0 |      // r0
   1 << 1 |      // r1
   1 << 2 |      // r2
@@ -50,10 +50,17 @@ static const RegList kJSCallerSaved =
   1 << 6 |      // r6
   1 << 7;       // r7
 
-static const int kNumJSCallerSaved = 8;
+const int kNumJSCallerSaved = 8;
+
+typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
+
+// Return the code of the n-th caller-saved register available to JavaScript
+// e.g. JSCallerSavedReg(0) returns r0.code() == 0
+int JSCallerSavedCode(int n);
+
 
 // Callee-saved registers preserved when switching from C to JavaScript
-static const RegList kCalleeSaved =
+const RegList kCalleeSaved =
   1 <<  8  |  //  r8
   1 <<  9  |  //  r9
   1 <<  10 |  //  r10
@@ -62,28 +69,14 @@ static const RegList kCalleeSaved =
   1 <<  13 |  //  r13 (cp in JS)
   1 <<  14;   //  r14 (fp in JS)
 
-static const int kNumCalleeSaved = 7;
+int kNumCalleeSaved = 7;
 
 
-typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
-
-
-// Number of registers for which space is reserved in safepoints.
-static const int kNumSafepointRegisters = 16;
+// Number of registers for which space is reserved in safepoints. Must be a
+// multiple of 8.
+const int kNumSafepointRegisters = 16;
 
 // ----------------------------------------------------
-
-
-class StackHandlerConstants : public AllStatic {
- public:
-  static const int kNextOffset    = 0 * kPointerSize;
-  static const int kStateOffset   = 1 * kPointerSize;
-  static const int kContextOffset = 2 * kPointerSize;
-  static const int kFPOffset      = 3 * kPointerSize;
-  static const int kPCOffset      = 4 * kPointerSize;
-
-  static const int kSize = kPCOffset + kPointerSize;
-};
 
 
 class EntryFrameConstants : public AllStatic {
@@ -108,17 +101,6 @@ class ExitFrameConstants : public AllStatic {
 };
 
 
-class StandardFrameConstants : public AllStatic {
- public:
-  static const int kExpressionsOffset = -3 * kPointerSize;
-  static const int kMarkerOffset      = -2 * kPointerSize;
-  static const int kContextOffset     = -1 * kPointerSize;
-  static const int kCallerFPOffset    =  0 * kPointerSize;
-  static const int kCallerPCOffset    =  1 * kPointerSize;
-  static const int kCallerSPOffset    =  2 * kPointerSize;
-};
-
-
 class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
@@ -134,12 +116,30 @@ class JavaScriptFrameConstants : public AllStatic {
 
 class ArgumentsAdaptorFrameConstants : public AllStatic {
  public:
+  // FP-relative.
   static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
+
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + kPointerSize;
+};
+
+
+class ConstructFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kImplicitReceiverOffset = -6 * kPointerSize;
+  static const int kConstructorOffset      = -5 * kPointerSize;
+  static const int kLengthOffset           = -4 * kPointerSize;
+  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
+
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
 };
 
 
 class InternalFrameConstants : public AllStatic {
  public:
+  // FP-relative.
   static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
 };
 
@@ -147,6 +147,11 @@ class InternalFrameConstants : public AllStatic {
 inline Object* JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
   return Memory::Object_at(fp() + offset);
+}
+
+
+inline void StackHandler::SetFp(Address slot, Address fp) {
+  Memory::Address_at(slot) = fp;
 }
 
 

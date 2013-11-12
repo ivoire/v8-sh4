@@ -37,18 +37,7 @@
 namespace v8 {
 namespace internal {
 
-void Assembler::CheckBuffer() {
-  if (buffer_space() <= kGap) {
-    GrowBuffer();
-  }
 
-  if (pc_offset() >= next_buffer_check_) {
-    CheckConstPool(false, true);
-  }
-}
-
-
-// The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
   if (RelocInfo::IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
@@ -166,11 +155,13 @@ static const int kNoCodeAgeSequenceLength = -1;
 
 Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
   UNIMPLEMENTED();
+  return Handle<Object>();
 }
 
 
 Code* RelocInfo::code_age_stub() {
   UNIMPLEMENTED();
+  return NULL;
 }
 
 
@@ -181,6 +172,7 @@ void RelocInfo::set_code_age_stub(Code* stub) {
 
 Address RelocInfo::call_address() {
   UNIMPLEMENTED();
+  return NULL;
 }
 
 
@@ -201,16 +193,19 @@ void RelocInfo::set_call_object(Object* target) {
 
 Object** RelocInfo::call_object_address() {
   UNIMPLEMENTED();
+  return NULL;
 }
 
 
 bool RelocInfo::IsPatchedReturnSequence() {
   UNIMPLEMENTED();
+  return false;
 }
 
 
 bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
   UNIMPLEMENTED();
+  return false;
 }
 
 
@@ -307,7 +302,24 @@ MemOperand::MemOperand(Register Rd, Register offset) {
 }
 
 
-Address Assembler::target_address_address_at(Address pc) {
+void Assembler::CheckBuffer() {
+  if (buffer_space() <= kGap) {
+    GrowBuffer();
+  }
+  if (pc_offset() >= next_buffer_check_) {
+    CheckConstPool(false, true);
+  }
+}
+
+
+void Assembler::emit(Instr x) {
+  CheckBuffer();
+  *reinterpret_cast<Instr*>(pc_) = x;
+  pc_ += kInstrSize;
+}
+
+
+Address Assembler::target_pointer_address_at(Address pc) {
   // Compute the actual address in the code where the address of the
   // jump/call/mov instruction is stored given the instruction pc.
   // Ref to functions that call Assembler::RecordRelocInfo()
@@ -337,13 +349,27 @@ Address Assembler::target_address_address_at(Address pc) {
 }
 
 
+Address Assembler::target_pointer_at(Address pc) {
+  UNIMPLEMENTED();
+  // TODO: handle moves !
+  return Memory::Address_at(target_pointer_address_at(pc));
+}
+
+
+void Assembler::set_target_pointer_at(Address pc, Address target) {
+  UNIMPLEMENTED();
+}
+
+
 Address Assembler::target_address_at(Address pc) {
-  return Memory::Address_at(target_address_address_at(pc));
+  return target_pointer_at(pc);
 }
 
 
 void Assembler::set_target_address_at(Address pc, Address target) {
-  Memory::Address_at(target_address_address_at(pc)) = target;
+  UNIMPLEMENTED();
+  // TODO(ivoire): handle moves.
+  Memory::Address_at(target_pointer_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to flush the instruction cache
   // after patching a target address in the code as follows:
   //   CPU::FlushICache(pc, sizeof(target));
@@ -424,13 +450,6 @@ void Assembler::cmphi(Register Rd, const Operand& imm, Register rtmp) {
 void Assembler::cmphs(Register Rd, const Operand& imm, Register rtmp) {
   mov(rtmp, imm);
   cmphs_(rtmp, Rd);
-}
-
-
-void Assembler::emit(Instr x) {
-  CheckBuffer();
-  *reinterpret_cast<uint16_t*>(pc_) = x;
-  pc_ += sizeof(uint16_t);
 }
 
 

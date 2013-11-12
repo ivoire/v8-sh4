@@ -37,7 +37,6 @@
 namespace v8 {
 namespace internal {
 
-
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a CpuFeatureScope before use.
 class CpuFeatures : public AllStatic {
@@ -271,7 +270,7 @@ struct SwVfpRegister {
 
 // Double word VFP register.
 struct DwVfpRegister {
-  static const int kNumRegisters = 8;
+  static const int kMaxNumRegisters = 8;
   static const int kNumAllocatableRegisters = 8;
 
   static int ToAllocationIndex(DwVfpRegister reg) {
@@ -571,6 +570,10 @@ class Assembler : public AssemblerBase {
   // Read/Modify the pointer in the branch/call/move instruction at pc.
   INLINE(static Address target_pointer_at(Address pc));
   INLINE(static void set_target_pointer_at(Address pc, Address target));
+
+  // Read/Modify the code target address in the branch/call instruction at pc.
+  INLINE(static Address target_address_at(Address pc));
+  INLINE(static void set_target_address_at(Address pc, Address target));
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
