@@ -71,6 +71,8 @@
 #include "arm/lithium-codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-codegen-mips.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/lithium-codegen-sh4.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -6377,7 +6379,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     return false;
   }
 
-#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS
+#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_SH4
   // Target must be able to use caller's context.
   CompilationInfo* outer_info = current_info();
   if (target->context() != outer_info->closure()->context() ||
@@ -6526,7 +6528,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
                                      undefined,
                                      function_state()->inlining_kind(),
                                      undefined_receiver);
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_SH4
   // IA32, ARM and MIPS only, overwrite the caller's context in the
   // deoptimization environment with the correct one.
   //
