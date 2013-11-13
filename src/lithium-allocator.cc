@@ -39,6 +39,8 @@
 #include "arm/lithium-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/lithium-sh4.h"
 #else
 #error "Unknown architecture."
 #endif
