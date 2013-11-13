@@ -229,7 +229,11 @@ DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_bool(string_slices, true, "use string slices")
 
 // Flags for Crankshaft.
+#if defined(V8_TARGET_ARCH_SH4)
+DEFINE_bool(crankshaft, false, "use crankshaft")
+#else
 DEFINE_bool(crankshaft, true, "use crankshaft")
+#endif
 DEFINE_string(hydrogen_filter, "*", "optimization filter")
 DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
@@ -399,6 +403,10 @@ DEFINE_bool(enable_32dregs, ENABLE_32DREGS_DEFAULT,
             "enable use of d16-d31 registers on ARM - this requires VFP3")
 DEFINE_bool(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
+#if defined(V8_TARGET_ARCH_SH4)
+DEFINE_bool(enable_fpu, true,
+            "enable use of FPU instructions if available (MIPS and SH4 only)")
+#endif
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
@@ -635,6 +643,9 @@ DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
 // code-stubs-hydrogen.cc
 DEFINE_bool(profile_hydrogen_code_stub_compilation, false,
             "Print the time it takes to lazily compile hydrogen code stubs.")
+
+// SH4
+DEFINE_bool(pool, true, "use constant pools")
 
 //
 // Dev shell flags
