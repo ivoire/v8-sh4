@@ -1045,9 +1045,9 @@ class Assembler : public AssemblerBase {
 
   void ClearRecordedAstId() { recorded_ast_id_ = TypeFeedbackId::None(); }
 
-  // Use -code_comments to enable, or provide "force = true" flag to always
-  // write a comment.
-  void RecordComment(const char* msg, bool force = false);
+  // Record a comment relocation entry that can be used by a disassembler.
+  // Use --code-comments to enable.
+  void RecordComment(const char* msg);
 
   // Record the emission of a constant pool.
   //

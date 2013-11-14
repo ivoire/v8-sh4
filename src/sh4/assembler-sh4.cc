@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_SH4)
+#if V8_TARGET_ARCH_SH4
 
 #include "sh4/assembler-sh4-inl.h"
 #include "disassembler.h"
@@ -43,15 +43,15 @@ namespace internal {
 bool CpuFeatures::initialized_ = false;
 #endif
 unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::found_by_runtime_probing_ = 0;
-
+unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
+unsigned CpuFeatures::cross_compile_ = 0;
 
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
 // can be defined to enable FPU instructions when building the
 // snapshot.
-static uint64_t CpuFeaturesImpliedByCompiler() {
-  uint64_t answer = 0;
+static unsigned CpuFeaturesImpliedByCompiler() {
+  unsigned answer = 0;
 #ifdef CAN_USE_FPU_INSTRUCTIONS
   answer |= 1u << FPU;
 #endif  // def CAN_USE_FPU_INSTRUCTIONS
@@ -70,7 +70,9 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 
 
 void CpuFeatures::Probe() {
-  ASSERT(!initialized_);
+  uint64_t standard_features = static_cast<unsigned>(
+      OS::CpuFeaturesImpliedByPlatform()) | CpuFeaturesImpliedByCompiler();
+  ASSERT(supported_ == 0 || supported_ == standard_features);
 #ifdef DEBUG
   initialized_ = true;
 #endif
@@ -78,11 +80,12 @@ void CpuFeatures::Probe() {
   // Get the features implied by the OS and the compiler settings. This is the
   // minimal set of features which is also alowed for generated code in the
   // snapshot.
-  supported_ |= OS::CpuFeaturesImpliedByPlatform();
-  supported_ |= CpuFeaturesImpliedByCompiler();
+  supported_ |= standard_features;
 
   if (Serializer::enabled()) {
     // No probing for features if we might serialize (generate snapshot).
+    printf("   ");
+    PrintFeatures();
     return;
   }
 
@@ -97,9 +100,52 @@ void CpuFeatures::Probe() {
     // This implementation also sets the FPU flags if runtime
     // detection of FPU returns true.
     supported_ |= 1u << FPU;
-    found_by_runtime_probing_ |= 1u << FPU;
+    found_by_runtime_probing_only_ |= 1u << FPU;
   }
 #endif
+}
+
+
+void CpuFeatures::PrintTarget() {
+  const char* sh4_arch = "";
+  const char* sh4_fpu = "";
+
+#ifdef __sh__
+  sh4_arch = " simulator";
+#else  // __sh__
+#endif  // __sh__
+
+  printf("target%s %s\n", sh4_arch, sh4_fpu);
+}
+
+
+void CpuFeatures::PrintFeatures() {
+  printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
+}
+
+
+// -----------------------------------------------------------------------------
+// Implementation of RelocInfo
+
+const int RelocInfo::kApplyMask = 0;
+
+
+bool RelocInfo::IsCodedSpecially() {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
+  UNIMPLEMENTED();
+}
+
+
+// Patch the code at the current PC with a call to the target address.
+// Additional guard instructions can be added if required.
+void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
+  // Patch the code at the current address with a call to the target.
+  UNIMPLEMENTED();
 }
 
 
@@ -110,13 +156,13 @@ void CpuFeatures::Probe() {
 Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!HEAP->InNewSpace(obj));
   if (obj->IsHeapObject()) {
+    ASSERT(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm32_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     // no relocation needed
-    imm32_ =  reinterpret_cast<intptr_t>(obj);
+    imm32_ = reinterpret_cast<intptr_t>(obj);
     rmode_ = RelocInfo::NONE32;
   }
 }
@@ -170,57 +216,13 @@ void Assembler::memcmp(Register left, Register right, Register length,
   bf(&loop);
 }
 
-void Assembler::Align(int m) {
-  ASSERT(m >= 4 && IsPowerOf2(m));
-  while ((pc_offset() & (m - 1)) != 0) {
-    nop_();
-  }
-}
 
-
-static const int kMinimalBufferSize = 4*KB;
-
-Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
-    : AssemblerBase(arg_isolate),
+Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
+    : AssemblerBase(isolate, buffer, buffer_size),
+      recorded_ast_id_(TypeFeedbackId::None()),
       positions_recorder_(this),
-      emit_debug_code_(FLAG_debug_code),
       constant_pool_pool_(FLAG_pool) {
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-
-      if (isolate()->assembler_spare_buffer() != NULL) {
-        buffer = isolate()->assembler_spare_buffer();
-        isolate()->set_assembler_spare_buffer(NULL);
-      }
-    }
-    if (buffer == NULL) {
-      buffer_ = NewArray<byte>(buffer_size);
-    } else {
-      buffer_ = static_cast<byte*>(buffer);
-    }
-    buffer_size_ = buffer_size;
-    own_buffer_ = true;
-
-  } else {
-    // Use externally provided buffer instead.
-    ASSERT(buffer_size > 0);
-    buffer_ = static_cast<byte*>(buffer);
-    buffer_size_ = buffer_size;
-    own_buffer_ = false;
-  }
-
-  // Fill the buffer with 0 so it will normally crash if we jump into it
-  if (own_buffer_) {
-    memset(buffer_, 0x00, buffer_size);
-  }
-
-  // Setup buffer pointers.
-  ASSERT(buffer_ != NULL);
-  pc_ = buffer_;
-  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
-
+  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   num_pending_reloc_info_ = 0;
   next_buffer_check_ = 0;
   const_pool_blocked_nesting_ = 0;
@@ -233,149 +235,98 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
 }
 
 
+Assembler::~Assembler() {
+  ASSERT(const_pool_blocked_nesting_ == 0);
+}
+
+
 void Assembler::GetCode(CodeDesc* desc) {
-  // Emit the constant pool if needed
+  // Emit constant pool if necessary.
   CheckConstPool(true, false);
   ASSERT(num_pending_reloc_info_ == 0);
 
+  // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
-  desc->origin = this;
 }
 
-// Debugging.
-void Assembler::RecordJSReturn() {
-  positions_recorder()->WriteRecordedPositions();
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::JS_RETURN);
-}
 
-void Assembler::RecordComment(const char* msg, bool force) {
-  if (FLAG_code_comments) {
-    CheckBuffer();
-    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
+void Assembler::Align(int m) {
+  ASSERT(m >= 4 && IsPowerOf2(m));
+  while ((pc_offset() & (m - 1)) != 0) {
+    nop_();
   }
 }
 
-void Assembler::GrowBuffer() {
-  if (!own_buffer_) FATAL("external code buffer is too small");
 
-  // Compute new buffer size.
-  CodeDesc desc;  // the new buffer
-  if (buffer_size_ < 4*KB) {
-    desc.buffer_size = 4*KB;
-  } else if (buffer_size_ < 1*MB) {
-    desc.buffer_size = 2*buffer_size_;
-  } else {
-    desc.buffer_size = buffer_size_ + 1*MB;
-  }
-  CHECK_GT(desc.buffer_size, 0);  // no overflow
-
-  // Setup new buffer.
-  desc.buffer = NewArray<byte>(desc.buffer_size);
-
-  desc.instr_size = pc_offset();
-  desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
-
-  // Copy the data.
-  int pc_delta = desc.buffer - buffer_;
-  int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
-  memmove(desc.buffer, buffer_, desc.instr_size);
-  memmove(reloc_info_writer.pos() + rc_delta,
-          reloc_info_writer.pos(), desc.reloc_size);
-
-  // Switch buffers.
-  DeleteArray(buffer_);
-  buffer_ = desc.buffer;
-  buffer_size_ = desc.buffer_size;
-  pc_ += pc_delta;
-  reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
-                               reloc_info_writer.last_pc() + pc_delta);
-
-  // Relocate pending relocation entries.
-  for (int i = 0; i < num_pending_reloc_info_; i++) {
-    RelocInfo& rinfo = pending_reloc_info_[i];
-    ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
-           rinfo.rmode() != RelocInfo::POSITION);
-    if (rinfo.rmode() != RelocInfo::JS_RETURN) {
-      rinfo.set_pc(rinfo.pc() + pc_delta);
-    }
-  }
+Condition Assembler::GetCondition(Instr instr) {
+  ASSERT(IsBranch(instr));
+  return (instr & 0x200) == 0x200 ?
+    ne :        // bf| bf/s
+    eq;         // bt|bt/s
 }
 
-void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  ASSERT(rmode != RelocInfo::NONE32);
-  // Don't record external references unless the heap will be serialized.
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
-#endif
-    if (!Serializer::enabled() && !emit_debug_code()) {
-      return;
-    }
-  }
-  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-    RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId());
-    ClearRecordedAstId();
-    reloc_info_writer.Write(&reloc_info_with_ast_id);
-  } else {
-    RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
-    reloc_info_writer.Write(&rinfo);
-  }
+
+bool Assembler::IsBranch(Instr instr) {
+  // bt|bf|bt/s|bf/s instrs.
+  return (instr & 0xF900) == 0x8900;
 }
 
-void Assembler::RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data) {
-  // Contrary to RecordRelocInfo, we also handle constant pool entries here
-  // that have no reloc info.
 
-  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
-    // Adjust code for new modes.
-    ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsJSReturn(rmode)
-           || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsPosition(rmode));
-    // These modes do not need an entry in the constant pool.
-  } else {
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we must record relocation info.
-    BlockConstPoolFor(1);
+Register Assembler::GetRn(Instr instr) {
+  ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
+  Register reg;
+  // extract Rn from cmp/xx Rm, Rn
+  reg.code_ = (instr & 0x0F00) >> 8;
+  return reg;
+}
 
-    // we do not try to reuse pool constants
-    ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
-    if (num_pending_reloc_info_ == 0) {
-      first_const_pool_use_ = pc_offset();
-    }
-    last_const_pool_use_ = pc_offset();
-    pending_reloc_info_[num_pending_reloc_info_++] = RelocInfo(pc_, rmode, data);
-  }
 
-  // Constant pool handling complete
-  if (rmode == RelocInfo::NONE32)
-    return;
+Register Assembler::GetRm(Instr instr) {
+  ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
+  Register reg;
+  // extract Rn from cmp/xx Rm, Rn
+  reg.code_ = (instr & 0x00F0) >> 4;
+  return reg;
+}
 
-  // Don't record external references unless the heap will be serialized.
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
-#endif
-    if (!Serializer::enabled() && !emit_debug_code()) {
-      return;
-    }
-  }
-  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-    RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId());
-    ClearRecordedAstId();
-    reloc_info_writer.Write(&reloc_info_with_ast_id);
-  } else {
-    RelocInfo rinfo(pc_, rmode, data);
-    reloc_info_writer.Write(&rinfo);
-  }
+
+bool Assembler::IsMovImmediate(Instr instr) {
+  // mov #ii, Rn
+  return (instr & 0xF000) == 0xE000;
+}
+
+
+bool Assembler::IsJsr(Instr instr) {
+  return (instr & 0xF0FF) == 0x400B;
+}
+
+
+bool Assembler::IsCmpRegister(Instr instr) {
+  // cmp/eq Rm, Rn
+  return (instr & 0xF00F) == 0x3000;
+}
+
+
+bool Assembler::IsCmpImmediate(Instr instr) {
+  // cmp/eq #ii, R0
+  return (instr & 0xFF00) == 0x8800;
+}
+
+
+Register Assembler::GetCmpImmediateRegister(Instr instr) {
+  ASSERT(IsCmpImmediate(instr));
+  // The instruction is cmpeq #ii, r0, return r0
+  return r0;
+}
+
+
+int Assembler::GetCmpImmediateAsUnsigned(Instr instr) {
+  ASSERT(IsCmpImmediate(instr));
+  // The instruction is cmpeq #ii, r0, return 8-bit #ii as unsigned
+  return (instr & 0xFF);
 }
 
 
@@ -759,27 +710,6 @@ void Assembler::AssertDataEmit(const char *str) {
   }
 }
 
-void Assembler::db(uint8_t data) {
-  AssertDataEmit("db");
-  CheckBuffer();
-  *reinterpret_cast<uint8_t*>(pc_) = data;
-  pc_ += sizeof(uint8_t);
-}
-
-
-void Assembler::dw(uint16_t data) {
-  AssertDataEmit("dw");
-  CheckBuffer();
-  *reinterpret_cast<uint16_t*>(pc_) = data;
-  pc_ += sizeof(uint16_t);
-}
-
-void Assembler::dd(uint32_t data) {
-  AssertDataEmit("dd");
-  CheckBuffer();
-  *reinterpret_cast<uint32_t*>(pc_) = data;
-  pc_ += sizeof(uint32_t);
-}
 
 void Assembler::emitPatchableNearBranch(uint16_t data) {
   // must not emit the constant pool here. caller has to BlockConstPoolFor()
@@ -798,80 +728,12 @@ void Assembler::ddLegacyBranchConst(uint32_t data) {
   pc_ += sizeof(uint32_t);
 }
 
+
 void Assembler::emitConstPool(uint32_t data) {
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
-
-Register Assembler::GetRn(Instr instr) {
-  ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
-  Register reg;
-  // extract Rn from cmp/xx Rm, Rn
-  reg.code_ = (instr & 0x0F00) >> 8;
-  return reg;
-}
-
-
-Register Assembler::GetRm(Instr instr) {
-  ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
-  Register reg;
-  // extract Rn from cmp/xx Rm, Rn
-  reg.code_ = (instr & 0x00F0) >> 4;
-  return reg;
-}
-
-
-bool Assembler::IsMovImmediate(Instr instr) {
-  // mov #ii, Rn
-  return (instr & 0xF000) == 0xE000;
-}
-
-
-bool Assembler::IsBranch(Instr instr) {
-  // bt|bf|bt/s|bf/s instrs.
-  return (instr & 0xF900) == 0x8900;
-}
-
-bool Assembler::IsJsr(Instr instr) {
-  return (instr & 0xF0FF) == 0x400B;
-}
-
-
-Condition Assembler::GetCondition(Instr instr) {
-  ASSERT(IsBranch(instr));
-  return (instr & 0x200) == 0x200 ?
-    ne :        // bf| bf/s
-    eq;         // bt|bt/s
-}
-
-
-bool Assembler::IsCmpRegister(Instr instr) {
-  // cmp/eq Rm, Rn
-  return (instr & 0xF00F) == 0x3000;
-}
-
-
-bool Assembler::IsCmpImmediate(Instr instr) {
-  // cmp/eq #ii, R0
-  return (instr & 0xFF00) == 0x8800;
-}
-
-
-Register Assembler::GetCmpImmediateRegister(Instr instr) {
-  ASSERT(IsCmpImmediate(instr));
-  // The instruction is cmpeq #ii, r0, return r0
-  return r0;
-}
-
-
-int Assembler::GetCmpImmediateAsUnsigned(Instr instr) {
-  ASSERT(IsCmpImmediate(instr));
-  // The instruction is cmpeq #ii, r0, return 8-bit #ii as unsigned
-  return (instr & 0xFF);
-}
-
-
 void Assembler::bind(Label* L) {
   // label can only be bound once
   ASSERT(!L->is_bound());
@@ -1188,6 +1050,14 @@ void Assembler::conditional_branch_pool(int offset, Register rtmp,
     }
   }
 }
+
+
+void Assembler::bkpt() {
+  // Use a privileged instruction.
+  // Will generate an illegal instruction exception code: 0x180.
+  ldtlb_();
+}
+
 
 void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
   if (constant_pool_pool_)
@@ -1804,7 +1674,7 @@ void Assembler::pushm(RegList dst, bool doubles) {
       }
     }
   } else {
-    for (int16_t i = DwVfpRegister::kNumRegisters - 1; i >= 0; i -= 2) {
+    for (int16_t i = DwVfpRegister::kMaxNumRegisters - 1; i >= 0; i -= 2) {
       if ((dst & (1 << i)) != 0) {
         push(DwVfpRegister::from_code(i));
       }
@@ -1845,47 +1715,187 @@ void Assembler::stop(const char* msg) {
 }
 
 
-void Assembler::bkpt() {
-  // Use a privileged instruction.
-  // Will generate an illegal instruction exception code: 0x180.
-  ldtlb_();
+// Debugging.
+void Assembler::RecordJSReturn() {
+  positions_recorder()->WriteRecordedPositions();
+  CheckBuffer();
+  RecordRelocInfo(RelocInfo::JS_RETURN);
 }
 
 
-#ifdef SH4_DUMP_BUFFER
-static int buffer_count = 0;
-#endif
-
-Assembler::~Assembler() {
-#ifdef SH4_DUMP_BUFFER
-  // dump the buffer on the disk
-  printf("dumping a buffer %i\n", buffer_count++);
-  char *psz_filename;
-  asprintf(&psz_filename, "buffer-%d.st40", buffer_count);
-  FILE *dump = fopen(psz_filename, "w");
-  if (dump) {
-    fwrite(buffer_, buffer_size_, 1, dump);
-    fclose(dump);
+void Assembler::RecordComment(const char* msg) {
+  if (FLAG_code_comments) {
+    CheckBuffer();
+    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
-  free(psz_filename);
-#endif
+}
 
-  if (own_buffer_) {
-    if (isolate()->assembler_spare_buffer() == NULL &&
-        buffer_size_ == kMinimalBufferSize) {
-      isolate()->set_assembler_spare_buffer(buffer_);
-    } else {
-      DeleteArray(buffer_);
+
+void Assembler::GrowBuffer() {
+  if (!own_buffer_) FATAL("external code buffer is too small");
+
+  // Compute new buffer size.
+  CodeDesc desc;  // the new buffer
+  if (buffer_size_ < 4*KB) {
+    desc.buffer_size = 4*KB;
+  } else if (buffer_size_ < 1*MB) {
+    desc.buffer_size = 2*buffer_size_;
+  } else {
+    desc.buffer_size = buffer_size_ + 1*MB;
+  }
+  CHECK_GT(desc.buffer_size, 0);  // no overflow
+
+  // Set up new buffer.
+  desc.buffer = NewArray<byte>(desc.buffer_size);
+
+  desc.instr_size = pc_offset();
+  desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+
+  // Copy the data.
+  int pc_delta = desc.buffer - buffer_;
+  int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
+  OS::MemMove(desc.buffer, buffer_, desc.instr_size);
+  OS::MemMove(reloc_info_writer.pos() + rc_delta,
+              reloc_info_writer.pos(), desc.reloc_size);
+
+  // Switch buffers.
+  DeleteArray(buffer_);
+  buffer_ = desc.buffer;
+  buffer_size_ = desc.buffer_size;
+  pc_ += pc_delta;
+  reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
+                               reloc_info_writer.last_pc() + pc_delta);
+
+  // None of our relocation types are pc relative pointing outside the code
+  // buffer nor pc absolute pointing inside the code buffer, so there is no need
+  // to relocate any emitted relocation entries.
+
+  // Relocate pending relocation entries.
+  for (int i = 0; i < num_pending_reloc_info_; i++) {
+    RelocInfo& rinfo = pending_reloc_info_[i];
+    ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
+           rinfo.rmode() != RelocInfo::POSITION);
+    if (rinfo.rmode() != RelocInfo::JS_RETURN) {
+      rinfo.set_pc(rinfo.pc() + pc_delta);
     }
   }
 }
 
 
-const int RelocInfo::kApplyMask = 0;
+void Assembler::db(uint8_t data) {
+  // No relocation info should be pending while using db. db is used
+  // to write pure data with no pointers and the constant pool should
+  // be emitted before using db.
+  ASSERT(num_pending_reloc_info_ == 0);
+  AssertDataEmit("db");
+  CheckBuffer();
+  *reinterpret_cast<uint8_t*>(pc_) = data;
+  pc_ += sizeof(uint8_t);
+}
 
-bool RelocInfo::IsCodedSpecially() {
+
+void Assembler::dw(uint16_t data) {
+  // No relocation info should be pending while using dd. dd is used
+  // to write pure data with no pointers and the constant pool should
+  // be emitted before using dd.
+  ASSERT(num_pending_reloc_info_ == 0);
+  AssertDataEmit("dw");
+  CheckBuffer();
+  *reinterpret_cast<uint16_t*>(pc_) = data;
+  pc_ += sizeof(uint16_t);
+}
+
+void Assembler::dd(uint32_t data) {
+  // No relocation info should be pending while using dd. dd is used
+  // to write pure data with no pointers and the constant pool should
+  // be emitted before using dd.
+  ASSERT(num_pending_reloc_info_ == 0);
+  AssertDataEmit("dd");
+  CheckBuffer();
+  *reinterpret_cast<uint32_t*>(pc_) = data;
+  pc_ += sizeof(uint32_t);
+}
+
+
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   UNIMPLEMENTED();
-  return false;
+  ASSERT(rmode != RelocInfo::NONE32);
+  // Don't record external references unless the heap will be serialized.
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+#ifdef DEBUG
+    if (!Serializer::enabled()) {
+      Serializer::TooLateToEnableNow();
+    }
+#endif
+    if (!Serializer::enabled() && !emit_debug_code()) {
+      return;
+    }
+  }
+  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
+      RelocInfo reloc_info_with_ast_id(pc_,
+                                       rmode,
+                                       RecordedAstId().ToInt(),
+                                       NULL);
+    ClearRecordedAstId();
+    reloc_info_writer.Write(&reloc_info_with_ast_id);
+  } else {
+    RelocInfo rinfo(pc_, rmode, data, NULL);  // we do not try to reuse pool constants
+    reloc_info_writer.Write(&rinfo);
+  }
+}
+
+
+void Assembler::RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data) {
+  // Contrary to RecordRelocInfo, we also handle constant pool entries here
+  // that have no reloc info.
+
+  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
+    // Adjust code for new modes.
+    ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
+           || RelocInfo::IsJSReturn(rmode)
+           || RelocInfo::IsComment(rmode)
+           || RelocInfo::IsPosition(rmode));
+    // These modes do not need an entry in the constant pool.
+  } else {
+    // Make sure the constant pool is not emitted in place of the next
+    // instruction for which we must record relocation info.
+    BlockConstPoolFor(1);
+
+    // we do not try to reuse pool constants
+    ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
+    if (num_pending_reloc_info_ == 0) {
+      first_const_pool_use_ = pc_offset();
+    }
+    last_const_pool_use_ = pc_offset();
+    pending_reloc_info_[num_pending_reloc_info_++] = RelocInfo(pc_, rmode, data, NULL);
+  }
+
+  // Constant pool handling complete
+  if (rmode == RelocInfo::NONE32)
+    return;
+
+  // Don't record external references unless the heap will be serialized.
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+#ifdef DEBUG
+    if (!Serializer::enabled()) {
+      Serializer::TooLateToEnableNow();
+    }
+#endif
+    if (!Serializer::enabled() && !emit_debug_code()) {
+      return;
+    }
+  }
+  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
+    RelocInfo reloc_info_with_ast_id(pc_,
+                                     rmode,
+                                     RecordedAstId().ToInt(),
+                                     NULL);
+    ClearRecordedAstId();
+    reloc_info_writer.Write(&reloc_info_with_ast_id);
+  } else {
+    RelocInfo rinfo(pc_, rmode, data, NULL);
+    reloc_info_writer.Write(&rinfo);
+  }
 }
 
 

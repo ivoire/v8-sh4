@@ -207,6 +207,11 @@ Object** RelocInfo::call_object_address() {
 }
 
 
+void RelocInfo::WipeOut() {
+  UNIMPLEMENTED();
+}
+
+
 bool RelocInfo::IsPatchedReturnSequence() {
   UNIMPLEMENTED();
   return false;
@@ -369,6 +374,12 @@ Address Assembler::target_pointer_at(Address pc) {
 Address Assembler::target_address_from_return_address(Address pc) {
   UNIMPLEMENTED();
   return NULL;
+}
+
+
+void Assembler::deserialization_set_special_target_at(
+    Address constant_pool_entry, Address target) {
+  UNIMPLEMENTED();
 }
 
 
