@@ -573,6 +573,11 @@ class MacroAssembler: public Assembler {
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 
+  // Test if the register contains a smi ((eq) if true).
+  inline void SmiTst(Register value) {
+    tst(value, Operand(kSmiTagMask));
+  }
+
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label, Label::Distance distance = Label::kFar) {
     tst(value, Operand(kSmiTagMask));

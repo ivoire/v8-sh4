@@ -478,6 +478,9 @@ class Operand BASE_EMBEDDED {
                           RelocInfo::Mode rmode = RelocInfo::NONE32);
   inline explicit Operand(const ExternalReference& f);
   inline explicit Operand(Smi* value);
+  inline static Operand Zero() {
+    return Operand(static_cast<int32_t>(0));
+  }
   explicit Operand(Handle<Object> handle);
 
   bool is_int8() const {
