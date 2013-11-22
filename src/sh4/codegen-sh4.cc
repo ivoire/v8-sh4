@@ -27,26 +27,151 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_SH4)
+#if V8_TARGET_ARCH_SH4
 
 #include "codegen.h"
+#include "macro-assembler.h"
+#include "simulator-sh4.h"
 
 namespace v8 {
 namespace internal {
+
+
+UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
+  switch (type) {
+    case TranscendentalCache::SIN: return &sin;
+    case TranscendentalCache::COS: return &cos;
+    case TranscendentalCache::TAN: return &tan;
+    case TranscendentalCache::LOG: return &log;
+    default: UNIMPLEMENTED();
+  }
+  return NULL;
+}
+
+
+#define __ masm.
+
+
+#if defined(USE_SIMULATOR)
+byte* fast_exp_arm_machine_code = NULL;
+double fast_exp_simulator(double x) {
+  UNIMPLEMENTED();
+  return 0.0;
+}
+#endif
+
+
+UnaryMathFunction CreateExpFunction() {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+#if defined(V8_HOST_ARCH_SH4)
+OS::MemCopyUint8Function CreateMemCopyUint8Function(
+      OS::MemCopyUint8Function stub) {
+ UNIMPLEMENTED();
+}
+
+
+// Convert 8 to 16. The number of character to copy must be at least 8.
+OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
+      OS::MemCopyUint16Uint8Function stub) {
+  UNIMPLEMENTED();
+}
+#endif
+
+#undef __
+
+
+UnaryMathFunction CreateSqrtFunction() {
+  return &sqrt;
+}
+
 
 // -------------------------------------------------------------------------
 // Platform-specific RuntimeCallHelper functions.
 
 void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
-  masm->EnterInternalFrame();
+  masm->EnterFrame(StackFrame::INTERNAL);
+  ASSERT(!masm->has_frame());
+  masm->set_has_frame(true);
 }
 
 
 void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
-  masm->LeaveInternalFrame();
+  masm->LeaveFrame(StackFrame::INTERNAL);
+  ASSERT(masm->has_frame());
+  masm->set_has_frame(false);
+}
+
+
+// -------------------------------------------------------------------------
+// Code generators
+
+#define __ ACCESS_MASM(masm)
+
+void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+    MacroAssembler* masm, AllocationSiteMode mode,
+    Label* allocation_memento_found) {
+  UNIMPLEMENTED();
+}
+
+
+void ElementsTransitionGenerator::GenerateSmiToDouble(
+    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
+  UNIMPLEMENTED();
+}
+
+
+void ElementsTransitionGenerator::GenerateDoubleToObject(
+    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
+  UNIMPLEMENTED();
+}
+
+
+void StringCharLoadGenerator::Generate(MacroAssembler* masm,
+                                       Register string,
+                                       Register index,
+                                       Register result,
+                                       Label* call_runtime) {
+  UNIMPLEMENTED();
+}
+
+
+void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
+                                   DwVfpRegister input,
+                                   DwVfpRegister result,
+                                   DwVfpRegister double_scratch1,
+                                   DwVfpRegister double_scratch2,
+                                   Register temp1,
+                                   Register temp2,
+                                   Register temp3) {
+  UNIMPLEMENTED();
+}
+
+#undef __
+
+
+bool Code::IsYoungSequence(byte* sequence) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+                               MarkingParity* parity) {
+  UNIMPLEMENTED();
+}
+
+
+void Code::PatchPlatformCodeAge(Isolate* isolate,
+                                byte* sequence,
+                                Code::Age age,
+                                MarkingParity parity) {
+  UNIMPLEMENTED();
 }
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_SH4
