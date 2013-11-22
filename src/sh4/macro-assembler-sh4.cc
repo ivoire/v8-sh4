@@ -2323,29 +2323,9 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
 // Copies a fixed number of fields of heap objects from src to dst.
 void MacroAssembler::CopyFields(Register dst,
                                 Register src,
-                                RegList temps,
+                                DwVfpRegister double_scratch,
                                 int field_count) {
-  // At least one bit set in the first 15 registers.
-  ASSERT((temps & ((1 << 15) - 1)) != 0);
-  ASSERT((temps & dst.bit()) == 0);
-  ASSERT((temps & src.bit()) == 0);
-
-  // Primitive implementation using only one temporary register.
-  Register tmp = no_reg;
-  // Find a temp register in temps list.
-  for (int i = 0; i < 15; i++) {
-    if ((temps & (1 << i)) != 0) {
-      tmp.set_code(i);
-      break;
-    }
-  }
-  ASSERT(!tmp.is(no_reg));
-  RECORD_LINE();
-  for (int i = 0; i < field_count; i++) {
-    RECORD_LINE();
-    mov(tmp, FieldMemOperand(src, i * kPointerSize));
-    mov(FieldMemOperand(dst, i * kPointerSize), tmp);
-  }
+  UNIMPLEMENTED();
 }
 
 
@@ -2779,6 +2759,22 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
   b(ne, on_not_both_smi, distance);
   tst(reg2, Operand(kSmiTagMask));
   b(ne, on_not_both_smi, distance);
+}
+
+
+void MacroAssembler::UntagAndJumpIfSmi(
+    Register dst, Register src, Label* smi_case) {
+  STATIC_ASSERT(kSmiTag == 0);
+  SmiUntag(dst, src);
+  b(ne, smi_case);  // Shifter carry is not set for a smi.
+}
+
+
+void MacroAssembler::UntagAndJumpIfNotSmi(
+    Register dst, Register src, Label* non_smi_case) {
+  STATIC_ASSERT(kSmiTag == 0);
+  SmiUntag(dst, src);
+  b(eq, non_smi_case);  // Shifter carry is set for a non-smi.
 }
 
 

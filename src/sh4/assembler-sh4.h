@@ -385,6 +385,9 @@ const DwVfpRegister dr10  = {  10 };
 //const DwVfpRegister dr12  = {  12 };
 //const DwVfpRegister dr14  = {  14 };
 
+// TODO(ivoire): is it ok ?
+#define kScratchDoubleReg dr10
+
 enum Condition {
   // any value < 0 is considered no_condition
   kNoCondition = -1,

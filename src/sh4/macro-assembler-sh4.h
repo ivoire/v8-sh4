@@ -573,6 +573,14 @@ class MacroAssembler: public Assembler {
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 
+  // Untag the source value into destination and jump if source is a smi.
+  // Souce and destination can be the same register.
+  void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
+
+  // Untag the source value into destination and jump if source is not a smi.
+  // Souce and destination can be the same register.
+  void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
+
   // Test if the register contains a smi ((eq) if true).
   inline void SmiTst(Register value) {
     tst(value, Operand(kSmiTagMask));
@@ -793,7 +801,10 @@ class MacroAssembler: public Assembler {
                                    Label* gc_required);
 
   // Copies a fixed number of fields of heap objects from src to dst.
-  void CopyFields(Register dst, Register src, RegList temps, int field_count);
+  void CopyFields(Register dst,
+                  Register src,
+                  DwVfpRegister double_scratch,
+                  int field_count);
 
   // Copy memory, byte-by-byte, from source to destination.  Not optimized for
   // long or aligned copies.
@@ -930,11 +941,20 @@ class MacroAssembler: public Assembler {
   // and the passed-in condition passed. If the passed-in condition failed
   // then flags remain unchanged.
   Condition IsObjectStringType(Register obj,
-                               Register type) {
+                               Register type,
+                               Condition cond = al) {
+    ASSERT(cond == al || cond == eq || cond == ne);
+    Label skip;
+    if (cond == eq || cond == ne)
+      b(NegateCondition(cond), &skip);
+
     ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset));
     ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
     tst(type, Operand(kIsNotStringMask));
     ASSERT_EQ(0, kStringTag);
+    if (cond == eq || cond == ne)
+      bind(&skip);
+
     return eq;
   }
 
