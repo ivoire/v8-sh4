@@ -25,14 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <unistd.h>
-
-#include "v8.h"
-
+// CPU specific code for sh4 independent of OS goes here.
 #ifdef __sh__
 #include <sys/syscall.h>
 #include <asm/cachectl.h>
 #endif
+
+#include <unistd.h>
+
+#include "v8.h"
 
 #if V8_TARGET_ARCH_SH4
 
@@ -43,7 +44,7 @@
 namespace v8 {
 namespace internal {
 
-void CPU::Setup() {
+void CPU::SetUp() {
   CpuFeatures::Probe();
 }
 
@@ -58,16 +59,7 @@ void CPU::FlushICache(void* start, size_t size) {
   Simulator::FlushICache(Isolate::Current()->simulator_i_cache(), start, size);
 #else
   // Invalidate the instruction and the data cache
-  syscall(__NR_cacheflush, start, size, CACHEFLUSH_D_WB | CACHEFLUSH_I);
-#endif
-}
-
-
-void CPU::DebugBreak() {
-#if defined(__sh__)
-  asm("ldtlb");
-#else
-  UNIMPLEMENTED();
+ syscall(__NR_cacheflush, start, size, CACHEFLUSH_D_WB | CACHEFLUSH_I);
 #endif
 }
 
