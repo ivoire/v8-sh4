@@ -81,8 +81,6 @@ const bool Debug::FramePaddingLayout::kIsSupported = false;
 
 #define __ ACCESS_MASM(masm)
 
-}
-
 
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   __ UNIMPLEMENTED_BREAK();
@@ -168,4 +166,4 @@ const bool Debug::kFrameDropperSupported = false;
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_SH4
