@@ -27,8 +27,6 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_SH4)
-
 #include "codegen.h"
 #include "deoptimizer.h"
 #include "full-codegen.h"
@@ -37,51 +35,39 @@
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::table_entry_size_ = 16;
+const int Deoptimizer::table_entry_size_ = 12;
 
 
 int Deoptimizer::patch_size() {
   UNIMPLEMENTED();
+  return 0;
 }
 
 
-void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
-                                        Code* check_code,
-                                        Code* replacement_code) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
-                                         Code* check_code,
-                                         Code* replacement_code) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DoComputeOsrOutputFrame() {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
-                                 int frame_index) {
+void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   UNIMPLEMENTED();
 }
 
 
 void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::SetPlatformCompiledStubRegisters(
+    FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
+  UNIMPLEMENTED();
+}
+
+
+void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
+  UNIMPLEMENTED();
+}
+
+
+bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+  UNIMPLEMENTED();
+  return false;
 }
 
 
@@ -99,6 +85,16 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
 }
 
 
-} }  // namespace v8::internal
+void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
+  UNIMPLEMENTED();
+}
 
-#endif  // V8_TARGET_ARCH_SH4
+
+void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
+  UNIMPLEMENTED();
+}
+
+
+#undef __
+
+} }  // namespace v8::internal
