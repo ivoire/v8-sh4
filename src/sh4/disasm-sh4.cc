@@ -27,7 +27,7 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_SH4)
+#if V8_TARGET_ARCH_SH4
 
 #include "disasm.h"
 #include "constants-sh4.h"
@@ -701,6 +701,15 @@ const char* NameConverter::NameInCode(byte* addr) const {
 }
 
 
+//------------------------------------------------------------------------------
+
+Disassembler::Disassembler(const NameConverter& converter)
+    : converter_(converter) {}
+
+
+Disassembler::~Disassembler() {}
+
+
 int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
                                     byte* instruction) {
   v8::internal::Decoder d(buffer);
@@ -713,124 +722,9 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) {
 }
 
 
-//------------------------------------------------------------------------------
-
-class DisassemblerSH4: public DisassemblerInterface {
- public:
-  explicit DisassemblerSH4() : start_pc_(0) {
-    memset(pools_locs_, 9, sizeof(pools_locs_));
-  }
-
-  virtual ~DisassemblerSH4() {}
-
-  virtual int InstructionDecode(v8::internal::Vector<char> buffer,
-                                byte* instruction);
-
-  virtual int ConstantPoolSizeAt(byte* instruction);
-
- private:
-  // Management of pool references.
-  void SetPoolAt(int offset, int size);
-  void ClearPoolAt(int offset, int size);
-  int HasPoolAt(int offset, int size);
-
-  uint32_t start_pc_;
-  static const int pools_locs_count_ = 1024;
-  uint32_t pools_locs_[pools_locs_count_/sizeof(uint32_t)];
-};
-
-
-int DisassemblerSH4::InstructionDecode(v8::internal::Vector<char> buffer,
-                                       byte* instruction) {
-  if (start_pc_ == 0)
-    start_pc_ = (uint32_t)instruction;
-  v8::internal::Decoder d(buffer);
-  int n = d.InstructionDecode(instruction);
-  int offset = d.LastPoolReference();
-  int size = d.LastPoolSize();
-  if (offset > 0)
-    SetPoolAt((uint32_t)instruction - start_pc_ + offset, size);
-  return n;
-}
-
-
-int DisassemblerSH4::ConstantPoolSizeAt(byte* instruction) {
-  // Constant pool size is a multiple of 4 from caller point of view,
-  // we make this a post condition.
-  // Though SH4 does not support misaligned pools, hence we
-  // proceed by steps of 2.
-  int size = 0;
-  if (start_pc_ == 0)
-    return -1;
-  for (int offset = (uint32_t)instruction - start_pc_;
-       HasPoolAt(offset, 2);
-       offset += 2) {
-    size += 2;
-    ClearPoolAt(offset, 2);
-  }
-  ASSERT(size % 4 == 0);
-  return size/4 - 1;
-}
-
-
-void DisassemblerSH4::SetPoolAt(int offset, int size) {
-  ASSERT(size >= 1 && size <= 4);
-  ASSERT(offset/4 == (offset+size-1)/4);
-  int elt = (offset % pools_locs_count_)/(sizeof(*pools_locs_)*8);
-  int pos = (offset % pools_locs_count_)%(sizeof(*pools_locs_)*8);
-  uint32_t mask = ((uint32_t)1<<size)-1;
-  pools_locs_[elt] |= mask<<pos;
-}
-
-
-void DisassemblerSH4::ClearPoolAt(int offset, int size) {
-  ASSERT(size >= 1 && size <= 4);
-  ASSERT(offset/4 == (offset+size-1)/4);
-  int elt = (offset % pools_locs_count_)/(sizeof(*pools_locs_)*8);
-  int pos = (offset % pools_locs_count_)%(sizeof(*pools_locs_)*8);
-  uint32_t mask = ((uint32_t)1<<size)-1;
-  pools_locs_[elt] &= ~(mask<<pos);
-}
-
-
-int DisassemblerSH4::HasPoolAt(int offset, int size) {
-  ASSERT(size >= 1 && size <= 4);
-  ASSERT(offset/4 == (offset+size-1)/4);
-  int elt = (offset % pools_locs_count_)/(sizeof(*pools_locs_)*8);
-  int pos = (offset % pools_locs_count_)%(sizeof(*pools_locs_)*8);
-  uint32_t mask = ((uint32_t)1<<size)-1;
-  return (pools_locs_[elt] & (mask<<pos)) == (mask<<pos);
-}
-
-
 void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
-  NameConverter converter;
-  DisassemblerInterface *d = DisassemblerFactory::NewDisassembler(converter);
-  for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
-    buffer[0] = '\0';
-    byte* prev_pc = pc;
-    pc += d->InstructionDecode(buffer, pc);
-    v8::internal::OS::FPrint(f, "%p    %02x %02x      %s\n",
-           prev_pc, *reinterpret_cast<const uint8_t*>(prev_pc),
-           *reinterpret_cast<const uint8_t*>(prev_pc+1), buffer.start());
-  }
-  delete d;
+  UNIMPLEMENTED();
 }
-
-Disassembler::Disassembler(const NameConverter& converter)
-    : converter_(converter) {}
-
-
-Disassembler::~Disassembler() {}
-
-class DisassemblerSH4;
-
-/*static*/ DisassemblerInterface *
-DisassemblerFactory::NewDisassembler(const NameConverter& converter) {
-  return new DisassemblerSH4();
-}
-
 
 
 }  // namespace disasm
