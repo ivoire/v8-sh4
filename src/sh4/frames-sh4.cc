@@ -34,7 +34,7 @@
 #include "assembler-sh4-inl.h"
 #include "frames.h"
 #include "macro-assembler.h"
-#include "macro-assembler-arm.h"
+#include "macro-assembler-sh4.h"
 
 namespace v8 {
 namespace internal {
