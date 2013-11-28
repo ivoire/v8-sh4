@@ -34,10 +34,9 @@ namespace v8 {
 namespace internal {
 
 static const Register kSavedValueRegister = { 9 };
-static const DoubleRegister kSavedDoubleValueRegister = { 0 };
 
 LGapResolver::LGapResolver(LCodeGen* owner)
-    : cgen_(owner), moves_(32), root_index_(0), in_cycle_(false),
+    : cgen_(owner), moves_(32, owner->zone()), root_index_(0), in_cycle_(false),
       saved_destination_(NULL) { }
 
 
@@ -60,6 +59,7 @@ void LGapResolver::Verify() {
   UNIMPLEMENTED();
 }
 
+#define __ ACCESS_MASM(cgen_->masm())
 
 void LGapResolver::BreakCycle(int index) {
   UNIMPLEMENTED();
@@ -76,5 +76,7 @@ void LGapResolver::EmitMove(int index) {
   UNIMPLEMENTED();
 }
 
+
+#undef __
 
 } }  // namespace v8::internal
