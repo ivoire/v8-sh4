@@ -377,6 +377,12 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 
+Address Assembler::return_address_from_call_start(Address pc) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
 void Assembler::deserialization_set_special_target_at(
     Address constant_pool_entry, Address target) {
   UNIMPLEMENTED();
