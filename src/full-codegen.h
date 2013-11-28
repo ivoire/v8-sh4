@@ -135,6 +135,8 @@ class FullCodeGenerator: public AstVisitor {
   static const int kCodeSizeMultiplier = 142;
 #elif V8_TARGET_ARCH_MIPS
   static const int kCodeSizeMultiplier = 142;
+#elif V8_TARGET_ARCH_SH4
+  static const int kCodeSizeMultiplier = 142;
 #else
 #error Unsupported target architecture.
 #endif
