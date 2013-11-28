@@ -585,6 +585,9 @@ class MacroAssembler: public Assembler {
   inline void SmiTst(Register value) {
     tst(value, Operand(kSmiTagMask));
   }
+  inline void NonNegativeSmiTst(Register value) {
+    tst(value, Operand(kSmiTagMask | kSmiSignMask));
+  }
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label, Label::Distance distance = Label::kFar) {
@@ -1171,9 +1174,11 @@ class MacroAssembler: public Assembler {
   // the original value and jump to not_a_smi. Destroys scratch and
   // sets flags.
   void TrySmiTag(Register reg, Label* not_a_smi, Register scratch) {
-    addv(scratch, reg, reg);
-    b(t, not_a_smi);
-    mov(reg, scratch);
+      // TODO(ivoire): the semantic is not the same as ARM one !
+      UNIMPLEMENTED();
+//    addv(scratch, reg, reg);
+//    b(t, not_a_smi);
+//    mov(reg, scratch);
   }
 
   void SmiUntag(Register reg) {
@@ -1253,9 +1258,17 @@ class MacroAssembler: public Assembler {
 
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
 
+
+  void EnumLength(Register dst, Register map);
+  void NumberOfOwnDescriptors(Register dst, Register map);
+
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
+
+  // Expects object in r0 and returns map with validated enum cache
+  // in r0.  Assumes that any other register can be used as a scratch.
+  void CheckEnumCache(Register null_value, Label* call_runtime);
 
  private:
   void CallCFunctionHelper(Register function,

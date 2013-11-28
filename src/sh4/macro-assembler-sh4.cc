@@ -3145,14 +3145,26 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  ldr(descriptors,
-      FieldMemOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
-  Label not_smi;
-  JumpIfNotSmi(descriptors, &not_smi, Label::kNear);
-  mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
-  bind(&not_smi);
+  ldr(descriptors, FieldMemOperand(map, Map::kDescriptorsOffset));
 }
 
+
+void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
+  ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
+  DecodeField<Map::NumberOfOwnDescriptorsBits>(dst);
+}
+
+
+void MacroAssembler::EnumLength(Register dst, Register map) {
+  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+  ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
+  land(dst, dst, Operand(Smi::FromInt(Map::EnumLengthBits::kMask)));
+}
+
+
+void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
+  UNIMPLEMENTED();
+}
 
 CodePatcher::CodePatcher(byte* address, int instructions)
     : address_(address),
