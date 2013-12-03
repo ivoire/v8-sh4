@@ -92,9 +92,9 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
-  void Jump(Register target, Condition cond = al);
-  void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Register target);
+  void Jump(Address target, RelocInfo::Mode rmode);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode);
   static int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
@@ -102,24 +102,21 @@ class MacroAssembler: public Assembler {
                                             RelocInfo::Mode rmode,
                                             Condition cond = al);
   void Call(Address target, RelocInfo::Mode rmode,
-            Condition cond = al,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
   int CallSize(Handle<Code> code,
                RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-               TypeFeedbackId ast_id = TypeFeedbackId::None(),
-               Condition cond = al);
+               TypeFeedbackId ast_id = TypeFeedbackId::None());
   void Call(Handle<Code> code,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             TypeFeedbackId ast_id = TypeFeedbackId::None(),
-            Condition cond = al,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
   void Ret(Condition cond = al);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
-  void Drop(int count, Condition cond = al);
+  void Drop(int count);
 
-  void Ret(int drop, Condition cond = al);
+  void Ret(int drop);
 
   // Swap two registers.  If the scratch register is omitted then a slightly
   // less efficient form using xor instead of mov is emitted.
@@ -1004,7 +1001,7 @@ class MacroAssembler: public Assembler {
                 TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // Call a code stub.
-  void TailCallStub(CodeStub* stub, Condition cond = al);
+  void TailCallStub(CodeStub* stub);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f,

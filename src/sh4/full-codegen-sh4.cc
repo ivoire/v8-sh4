@@ -2643,7 +2643,7 @@ void FullCodeGenerator::CallIC(Handle<Code> code,
   ic_total_count_++;
   // All calls must have a predictable size in full-codegen code to ensure that
   // the debugger can patch them correctly.
-  __ Call(code, rmode, ast_id, al, NEVER_INLINE_TARGET_ADDRESS);
+  __ Call(code, rmode, ast_id, NEVER_INLINE_TARGET_ADDRESS);
 }
 
 void FullCodeGenerator::EmitCallWithIC(Call* expr,

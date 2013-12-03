@@ -25,13 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <limits.h>  // For LONG_MIN, LONG_MAX.
+
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_SH4)
+#if V8_TARGET_ARCH_SH4
 
 #include "bootstrapper.h"
 #include "codegen.h"
+#include "cpu-profiler.h"
 #include "debug.h"
+#include "isolate-inl.h"
 #include "runtime.h"
 
 namespace v8 {
@@ -44,205 +48,34 @@ namespace internal {
 #endif
 
 
-void MacroAssembler::TryGetFunctionPrototype(Register function,
-                                             Register result,
-                                             Register scratch,
-                                             Label* miss) {
-  ASSERT(!function.is(sh4_ip) && !result.is(sh4_ip) && !scratch.is(sh4_ip));
-  ASSERT(!function.is(sh4_rtmp) && !result.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
-
-  RECORD_LINE();
-  // Check that the receiver isn't a smi.
-  JumpIfSmi(function, miss);
-
-  // Check that the function really is a function.  Load map into result reg.
-  CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE, eq);
-  bf(miss);
-
-  RECORD_LINE();
-  // Make sure that the function has an instance prototype.
-  Label non_instance;
-  ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
-  tst(scratch, Operand(1 << Map::kHasNonInstancePrototype));
-  bf_near(&non_instance);
-
-  RECORD_LINE();
-  // Get the prototype or initial map from the function.
-  mov(result,
-      FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and
-  // simply miss the cache instead. This will allow us to allocate a
-  // prototype object on-demand in the runtime system.
-  LoadRoot(sh4_ip, Heap::kTheHoleValueRootIndex);
-  cmpeq(result, sh4_ip);
-  bt(miss);
-
-  RECORD_LINE();
-  // If the function does not have an initial map, we're done.
-  Label done;
-  CompareObjectType(result, scratch, scratch, MAP_TYPE, eq);
-  bf_near(&done);
-
-  RECORD_LINE();
-  // Get the prototype from the initial map.
-  mov(result, FieldMemOperand(result, Map::kPrototypeOffset));
-  jmp_near(&done);
-
-  RECORD_LINE();
-  // Non-instance prototype: Fetch prototype from constructor field
-  // in initial map.
-  bind(&non_instance);
-  mov(result, FieldMemOperand(result, Map::kConstructorOffset));
-
-  // All done.
-  bind(&done);
-}
-
-
-void MacroAssembler::CallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
-  RECORD_LINE();
-  jsr(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
-  Object* result;
-  { MaybeObject* maybe_result = stub->TryGetCode();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
+    : Assembler(arg_isolate, buffer, size),
+      generating_stub_(false),
+      allow_stub_calls_(true),
+      has_frame_(false) {
+  if (isolate() != NULL) {
+    code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
+                                  isolate());
   }
-  Handle<Code> code(Code::cast(result));
-  Call(code, RelocInfo::CODE_TARGET, kNoASTId);
-  return result;
+}
+
+
+void MacroAssembler::CallStub(CodeStub* stub,
+                              TypeFeedbackId ast_id) {
+  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  RECORD_LINE();
+  Call(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, ast_id);
 }
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
-  jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
-  Object* result;
-  { MaybeObject* maybe_result = stub->TryGetCode();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
-  return result;
+  jmp(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
 }
 
 
 static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
   return ref0.address() - ref1.address();
-}
-
-
-MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
-    ExternalReference function, int stack_space) {
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address();
-  const int kNextOffset = 0;
-  const int kLimitOffset = AddressOffset(
-      ExternalReference::handle_scope_limit_address(),
-      next_address);
-  const int kLevelOffset = AddressOffset(
-      ExternalReference::handle_scope_level_address(),
-      next_address);
-
-  mov(r4, r0);
-  mov(r5, r1);
-
-  // Allocate HandleScope in callee-save registers.
-  // TODO(stm): use of r10 and r11 is dangerous here (ip and rtmp)
-  // We must be sure to not have them clobbered until the actual call.
-  mov(r11, Operand(next_address));
-  ldr(r8, MemOperand(r11, kNextOffset), r0);
-  ldr(r9, MemOperand(r11, kLimitOffset), r0);
-  ldr(r10, MemOperand(r11, kLevelOffset), r0);
-  add(r10, r10, Operand(1), r0);
-  str(r10, MemOperand(r11, kLevelOffset), r0);
-
-  // Native call returns to the DirectCEntry stub which redirects to the
-  // return address pushed on stack (could have moved after GC).
-  // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(r2); // This scratch register must not be the return value
-  stub.GenerateCall(this, function, r0, r1);
-
-  // Move back the registers [r8, r11] => [r4, r7]
-  mov(r4, r8);
-  mov(r5, r9);
-  mov(r6, r10);
-  mov(r7, r11);
-
-  Label promote_scheduled_exception;
-  Label delete_allocated_handles;
-  Label leave_exit_frame;
-
-  // If result is non-zero, dereference to get the result value
-  // otherwise set it to undefined.
-  Label ltrue, lfalse;
-  cmp(r0, Operand(0));
-  bf_near(&lfalse);
-  LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-  jmp_near(&ltrue);
-  bind(&lfalse);
-  ldr(r0, MemOperand(r0));
-  bind(&ltrue);
-
-  // No more valid handles (the result handle was the last one). Restore
-  // previous handle scope.
-  str(r4, MemOperand(r7, kNextOffset));
-  if (emit_debug_code()) {
-    ldr(r1, MemOperand(r7, kLevelOffset));
-    cmp(r1, r6);
-    Check(eq, "Unexpected level after return from api call");
-  }
-  sub(r6, r6, Operand(1));
-  str(r6, MemOperand(r7, kLevelOffset));
-  ldr(sh4_ip, MemOperand(r7, kLimitOffset));
-  cmp(r5, sh4_ip);
-  b(ne, &delete_allocated_handles);
-
-  // Check if the function scheduled an exception.
-  bind(&leave_exit_frame);
-  LoadRoot(r4, Heap::kTheHoleValueRootIndex);
-  mov(sh4_ip,
-      Operand(ExternalReference::scheduled_exception_address(isolate())));
-  ldr(r5, MemOperand(sh4_ip));
-  cmp(r4, r5);
-  b(ne, &promote_scheduled_exception);
-
-  // LeaveExitFrame expects unwind space to be in a register.
-  mov(r4, Operand(stack_space));
-  LeaveExitFrame(false, r4);
-  rts();
-
-  bind(&promote_scheduled_exception);
-  MaybeObject* result
-      = TryTailCallExternalReference(
-          ExternalReference(Runtime::kPromoteScheduledException, isolate()),
-          0,
-          1);
-  if (result->IsFailure()) {
-    return result;
-  }
-
-  // HandleScope limit has changed. Delete allocated extensions.
-  bind(&delete_allocated_handles);
-  str(r9, MemOperand(r7, kLimitOffset)); // use r9 instead of r5 for making PrepareCallCFunction() happy
-  mov(r8, r0); // preserve in calle-saved the result (r0)
-  PrepareCallCFunction(1, r9);
-  mov(r4, Operand(ExternalReference::isolate_address())); // C-ABI paramater
-  CallCFunction(
-      ExternalReference::delete_handle_scope_extensions(isolate()), 1);
-  mov(r0, r8);  // restore result (r0)
-  jmp(&leave_exit_frame);
-
-  return result;
 }
 
 
@@ -492,25 +325,18 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
 
 void MacroAssembler::Call(Handle<Code> code,
                           RelocInfo::Mode rmode,
-                          unsigned ast_id) {
+                          TypeFeedbackId ast_id,
+                          TargetAddressStorageMode mode) {
   // Block constant pool when emitting call (might be redundant)
   BlockConstPoolScope block_const_pool(this);
 
-  // TODO(stm): check whether this is necessary
-  // Label start;
-  // bind(&start);
-
   RECORD_LINE();
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
+  if (rmode == RelocInfo::CODE_TARGET && ast_id.IsNone()) {
     SetRecordedAstId(ast_id);
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
-  jsr(code, rmode, sh4_ip);
-
-  // TODO(stm): check whether this is necessary
-  // ASSERT_EQ(CallSize(code, rmode, ast_id, cond),
-  //           SizeOfCodeGeneratedSince(&start));
+  Call(reinterpret_cast<Address>(code.location()), rmode, mode);
 }
 
 
@@ -570,7 +396,9 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst,
 
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+                                 int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
+  ASSERT(save_doubles == kDontSaveFPRegs);
   // No register conventions on entry.
   // All parameters are on stack.
   // Return value in r0 after call.
@@ -599,11 +427,6 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   CallStub(&stub);
 }
 
-void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
-  RECORD_LINE();
-  CallRuntime(Runtime::FunctionForId(fid), num_arguments);
-}
-
 
 void MacroAssembler::IsObjectJSStringType(Register object,
                                           Register scratch,
@@ -627,11 +450,11 @@ void MacroAssembler::DebugBreak() {
 #endif
 
 
-void MacroAssembler::Drop(int stack_elements) {
+void MacroAssembler::Drop(int count) {
   RECORD_LINE();
-  if (stack_elements > 0) {
+  if (count > 0) {
     RECORD_LINE();
-    add(sp, sp, Operand(stack_elements * kPointerSize));
+    add(sp, sp, Operand(count * kPointerSize));
   }
 }
 
@@ -738,7 +561,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space, Register
 
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles,
-                                    Register argument_count) {
+                                    Register argument_count,
+                                    bool restore_context) {
   ASSERT(!argument_count.is(sh4_ip));
   ASSERT(!argument_count.is(sh4_rtmp));
   // input: argument_count
@@ -756,20 +580,22 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   }
 
   // Clear top frame.
-  mov(r3, Operand(0, RelocInfo::NONE32));
+  mov(r3, Operand::Zero());
   mov(sh4_ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(r3, MemOperand(sh4_ip));
 
   // Restore current context from top and clear it in debug mode.
-  mov(sh4_ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
-  ldr(cp, MemOperand(sh4_ip));
+  if (restore_context) {
+    mov(sh4_ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
+    ldr(cp, MemOperand(sh4_ip));
+  }
 #ifdef DEBUG
+  mov(sh4_ip, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
   str(r3, MemOperand(sh4_ip));
 #endif
 
   // Tear down the exit frame, pop the arguments, and return.
   mov(sp, fp);
-
   Pop(pr, fp);
   if (argument_count.is_valid()) {
     ASSERT(!argument_count.is(r3));
@@ -798,12 +624,14 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Handle<Code> code_constant,
                                     Register code_reg,
                                     Label* done,
+                                    bool* definitely_mismatches,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
   ASSERT(!code_reg.is(sh4_ip));
   ASSERT(!code_reg.is(sh4_rtmp));
   bool definitely_matches = false;
+  *definitely_mismatches = false;
   Label regular_invoke;
 
   // Check whether the expected and actual arguments count match. If not,
@@ -836,6 +664,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         // arguments.
         definitely_matches = true;
       } else {
+        *definitely_mismatches = true;
         mov(r2, Operand(expected.immediate()));
       }
     }
@@ -856,6 +685,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       mov(r3, Operand(code_constant));
       add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
     }
+
     Handle<Code> adaptor =
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
@@ -863,7 +693,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       SetCallKind(r5, call_kind);
       Call(adaptor);
       call_wrapper.AfterCall();
-      b(done);
+      if (!*definitely_mismatches) {
+        b(done);
+      }
     } else {
       SetCallKind(r5, call_kind);
       Jump(adaptor, RelocInfo::CODE_TARGET);
@@ -879,30 +711,34 @@ void MacroAssembler::InvokeCode(Register code,
                                 InvokeFlag flag,
                                 const CallWrapper& call_wrapper,
                                 CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   Label done;
-  // r1: must hold function pointer
-  // actual: must be r0 if register
-  ASSERT(actual.is_immediate() || actual.reg().is(r0));
+  bool definitely_mismatches = false;
   ASSERT(!code.is(sh4_ip) && !code.is(sh4_rtmp) && !code.is(r5));
 
   RECORD_LINE();
-  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
+  InvokePrologue(expected, actual, Handle<Code>::null(), code,
+                 &done, &definitely_mismatches, flag,
                  call_wrapper, call_kind);
   RECORD_LINE();
-  if (flag == CALL_FUNCTION) {
-    call_wrapper.BeforeCall(2 * kInstrSize);
-    SetCallKind(r5, call_kind);
-    jsr(code);
-    call_wrapper.AfterCall();
-  } else {
-    ASSERT(flag == JUMP_FUNCTION);
-    SetCallKind(r5, call_kind);
-    jmp(code);
-  }
+  if (!definitely_mismatches) {
+    if (flag == CALL_FUNCTION) {
+      call_wrapper.BeforeCall(2 * kInstrSize);
+      SetCallKind(r5, call_kind);
+      jsr(code);
+      call_wrapper.AfterCall();
+    } else {
+      ASSERT(flag == JUMP_FUNCTION);
+      SetCallKind(r5, call_kind);
+      Jump(code);
+    }
 
-  // Continue here if InvokePrologue does handle the invocation due to
-  // mismatched parameter counts.
-  bind(&done);
+    // Continue here if InvokePrologue does handle the invocation due to
+    // mismatched parameter counts.
+    bind(&done);
+  }
 }
 
 
@@ -912,21 +748,27 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
                                 CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   Label done;
-
-  InvokePrologue(expected, actual, code, no_reg, &done, flag,
+  bool definitely_mismatches = false;
+  InvokePrologue(expected, actual, code, no_reg,
+                 &done, &definitely_mismatches, flag,
                  NullCallWrapper(), call_kind);
-  if (flag == CALL_FUNCTION) {
-    SetCallKind(r5, call_kind);
-    Call(code, rmode);
-  } else {
-    SetCallKind(r5, call_kind);
-    Jump(code, rmode);
-  }
+  if (!definitely_mismatches) {
+    if (flag == CALL_FUNCTION) {
+      SetCallKind(r5, call_kind);
+      Call(code, rmode);
+    } else {
+      SetCallKind(r5, call_kind);
+      Jump(code, rmode);
+    }
 
-  // Continue here if InvokePrologue does handle the invocation due to
-  // mismatched parameter counts.
-  bind(&done);
+    // Continue here if InvokePrologue does handle the invocation due to
+    // mismatched parameter counts.
+    bind(&done);
+  }
 }
 
 
@@ -935,8 +777,10 @@ void MacroAssembler::InvokeFunction(Register fun,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   // Contract with called JS functions requires that function is passed in r1.
-  // Also enforce that actual is passed in r0 if not immediate
   ASSERT(fun.is(r1));
   ASSERT(actual.is_immediate() || actual.reg().is(r0));
 
@@ -949,7 +793,7 @@ void MacroAssembler::InvokeFunction(Register fun,
   ldr(expected_reg,
       FieldMemOperand(code_reg,
                       SharedFunctionInfo::kFormalParameterCountOffset));
-  asr(expected_reg, expected_reg, Operand(kSmiTagSize));
+  SmiUntag(expected_reg);
   ldr(code_reg,
       FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
 
@@ -958,28 +802,24 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
-void MacroAssembler::InvokeFunction(JSFunction* function,
+void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
+                                    const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
+                                    const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
-  ASSERT(function->is_compiled());
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  mov(r1, Operand(Handle<JSFunction>(function)));
+  Move(r1, function);
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
-  // Invoke the cached code.
-  Handle<Code> code(function->code());
-  ParameterCount expected(function->shared()->formal_parameter_count());
-  if (V8::UseCrankshaft()) {
-    // TODO(kasperl): For now, we always call indirectly through the
-    // code field in the function to allow recompilation to take effect
-    // without changing any of the call sites.
-    ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
-    InvokeCode(r3, expected, actual, flag, NullCallWrapper(), call_kind);
-  } else {
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag, call_kind);
-  }
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+  InvokeCode(r3, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
@@ -3137,6 +2977,75 @@ void MacroAssembler::DispatchMap(Register obj,
 }
 
 
+void MacroAssembler::TryGetFunctionPrototype(Register function,
+                                             Register result,
+                                             Register scratch,
+                                             Label* miss,
+                                             bool miss_on_bound_function) {
+  ASSERT(!function.is(sh4_ip) && !result.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!function.is(sh4_rtmp) && !result.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
+
+  RECORD_LINE();
+  // Check that the receiver isn't a smi.
+  JumpIfSmi(function, miss);
+
+  // Check that the function really is a function.  Load map into result reg.
+  CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE, eq);
+  bf(miss);
+
+  if (miss_on_bound_function) {
+    RECORD_LINE();
+    ldr(scratch,
+        FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    ldr(scratch,
+        FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
+    tst(scratch,
+        Operand(Smi::FromInt(1 << SharedFunctionInfo::kBoundFunction)));
+    bf(miss);
+  }
+
+  RECORD_LINE();
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
+  tst(scratch, Operand(1 << Map::kHasNonInstancePrototype));
+  bf_near(&non_instance);
+
+  RECORD_LINE();
+  // Get the prototype or initial map from the function.
+  ldr(result,
+      FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // If the prototype or initial map is the hole, don't return it and
+  // simply miss the cache instead. This will allow us to allocate a
+  // prototype object on-demand in the runtime system.
+  LoadRoot(sh4_ip, Heap::kTheHoleValueRootIndex);
+  cmpeq(result, sh4_ip);
+  bt(miss);
+
+  RECORD_LINE();
+  // If the function does not have an initial map, we're done.
+  Label done;
+  CompareObjectType(result, scratch, scratch, MAP_TYPE, eq);
+  bf_near(&done);
+
+  RECORD_LINE();
+  // Get the prototype from the initial map.
+  ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
+  jmp_near(&done);
+
+  RECORD_LINE();
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  bind(&non_instance);
+  ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  bind(&done);
+}
+
+
+
 void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
                                Register result) {
   UNIMPLEMENTED();
@@ -3201,4 +3110,4 @@ void CodePatcher::EmitCondition(Condition cond) {
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_SH4
