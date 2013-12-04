@@ -126,12 +126,9 @@ class MacroAssembler: public Assembler {
             Condition cond = al);
 
 
-  void And(Register dst, Register src1, const Operand& src2,
-           Condition cond = al);
-  void Ubfx(Register dst, Register src, int lsb, int width,
-            Condition cond = al);
-  void Sbfx(Register dst, Register src, int lsb, int width,
-            Condition cond = al);
+  void And(Register dst, Register src1, const Operand& src2);
+  void Ubfx(Register dst, Register src, int lsb, int width);
+  void Sbfx(Register dst, Register src, int lsb, int width);
   // The scratch register is not used for ARMv7.
   // scratch can be the same register as src (in which case it is trashed), but
   // not the same as dst.
@@ -139,11 +136,9 @@ class MacroAssembler: public Assembler {
            Register src,
            Register scratch,
            int lsb,
-           int width,
-           Condition cond = al);
-  void Bfc(Register dst, Register src, int lsb, int width, Condition cond = al);
-  void Usat(Register dst, int satpos, const Operand& src,
-            Condition cond = al);
+           int width);
+  void Bfc(Register dst, Register src, int lsb, int width);
+  void Usat(Register dst, int satpos, const Operand& src);
 
   void Call(Label* target);
   void Push(Register src) { push(src); }
@@ -151,7 +146,7 @@ class MacroAssembler: public Assembler {
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Handle<Object> value);
-  void Move(Register dst, Register src, Condition cond = al);
+  void Move(Register dst, Register src);
   void Move(DwVfpRegister dst, DwVfpRegister src);
 
   // Load an object from the root table.
@@ -710,7 +705,7 @@ class MacroAssembler: public Assembler {
                               Register scratch,
                               Label* miss);
 
-  void GetNumberHash(Register t0, Register scratch);
+  void GetNumberHash(Register t0, Register scratch, Register scratch2);
 
   void LoadFromNumberDictionary(Label* miss,
                                 Register elements,
