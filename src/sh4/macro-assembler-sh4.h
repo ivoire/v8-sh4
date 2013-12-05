@@ -437,7 +437,7 @@ class MacroAssembler: public Assembler {
 
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
-  void EnterExitFrame(bool save_doubles, int stack_space = 0, Register scratch = sh4_ip);
+  void EnterExitFrame(bool save_doubles, int stack_space = 0);
 
   // Leave the current exit frame. Expects the return value in r0.
   // Expect the number of values, pushed prior to the exit frame, to
@@ -564,105 +564,6 @@ class MacroAssembler: public Assembler {
   // FCmp is similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
-
-  // Untag the source value into destination and jump if source is a smi.
-  // Souce and destination can be the same register.
-  void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
-
-  // Untag the source value into destination and jump if source is not a smi.
-  // Souce and destination can be the same register.
-  void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
-
-  // Test if the register contains a smi ((eq) if true).
-  inline void SmiTst(Register value) {
-    tst(value, Operand(kSmiTagMask));
-  }
-  inline void NonNegativeSmiTst(Register value) {
-    tst(value, Operand(kSmiTagMask | kSmiSignMask));
-  }
-
-  // Jump the register contains a smi.
-  inline void JumpIfSmi(Register value, Label* smi_label, Label::Distance distance = Label::kFar) {
-    tst(value, Operand(kSmiTagMask));
-    if (distance == Label::kFar)
-      bt(smi_label);
-    else
-      bt_near(smi_label);
-  }
-  // Jump if the register contains a non-smi.
-  inline void JumpIfNotSmi(Register value, Label* not_smi_label, Label::Distance distance = Label::kFar) {
-    tst(value, Operand(kSmiTagMask));
-    if (distance == Label::kFar)
-      bf(not_smi_label);
-    else
-      bf_near(not_smi_label);
-  }
-
-  // Jump if either of the registers contain a non-smi.
-  void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi,
-                        Label::Distance distance = Label::kFar);
-  // Jump if either of the registers contain a smi.
-  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi,
-                       Label::Distance distance = Label::kFar);
-
-  // Load the value of a smi object into a FPU double register. The register
-  // scratch1 can be the same register as smi in which case smi will hold the
-  // untagged value afterwards.
-  void SmiToDoubleFPURegister(Register smi,
-                              DwVfpRegister value,
-                              Register scratch1);
-
-
-  // Convert the HeapNumber pointed to by source to a 32bits signed integer
-  // dest. If the HeapNumber does not fit into a 32bits signed integer branch
-  // to not_int32 label. If VFP3 is available double_scratch is used but not
-  // scratch2. TODO: SH4, use fp reg.
-  void ConvertToInt32(Register source,
-                      Register dest,
-                      Register scratch,
-                      Register scratch2,
-                      DwVfpRegister double_scratch,
-                      Label *not_int32);
-
-  // Truncates a double using a specific rounding mode.
-  // Clears the z flag (ne condition) if an overflow occurs.
-  // If exact_conversion is true, the z flag is also cleared if the conversion
-  // was inexact, ie. if the double value could not be converted exactly
-  // to a 32bit integer.
-  void EmitFPUTruncate(FPURoundingMode rounding_mode,
-                       Register result,
-                       DwVfpRegister double_input,
-                       Register scratch,
-                       CheckForInexactConversion check
-                           = kDontCheckForInexactConversion);
-
-  // Helper for EmitECMATruncate.
-  // This will truncate a floating-point value outside of the singed 32bit
-  // integer range to a 32bit signed integer.
-  // Expects the double value loaded in input_high and input_low.
-  // Exits with the answer in 'result'.
-  // Note that this code does not work for values in the 32bit range!
-  void EmitOutOfInt32RangeTruncate(Register result,
-                                   Register input_high,
-                                   Register input_low,
-                                   Register scratch);
-
-  // Abort execution if argument is not a number. Used in debug code.
-  void AbortIfNotNumber(Register object);
-
-  // Abort execution if argument is not a smi. Used in debug code.
-  void AbortIfNotSmi(Register object);
-
-  // Abort execution if argument is a smi. Used in debug code.
-  void AbortIfSmi(Register object);
-
-  // Abort execution if argument is a string. Used in debug code.
-  void AbortIfNotString(Register object);
-
-  // Abort execution if argument is not the root value with the given index.
-  void AbortIfNotRootValue(Register src,
-                           Heap::RootListIndex root_value_index,
-                           const char* message);
 
   // Prints the value of the register to stdout. Use for debug only.
   void PrintRegisterValue(Register reg);
@@ -964,16 +865,65 @@ class MacroAssembler: public Assembler {
   //   index - holds the overwritten index on exit.
   void IndexFromHash(Register hash, Register index);
 
-  void EmitECMATruncate(Register result,
-                        DwVfpRegister double_input,
-                        SwVfpRegister single_scratch,
-                        Register scratch,
-                        Register input_high,
-                        Register input_low) ;
-
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
   void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);
+
+  // Load the value of a smi object into a double register.
+  // The register value must be between d0 and d15.
+  void SmiToDouble(DwVfpRegister value, Register smi);
+
+  // Check if a double can be exactly represented as a signed 32-bit integer.
+  // Z flag set to one if true.
+  void TestDoubleIsInt32(DwVfpRegister double_input,
+                         DwVfpRegister double_scratch);
+
+  // Try to convert a double to a signed 32-bit integer.
+  // Z flag set to one and result assigned if the conversion is exact.
+  void TryDoubleToInt32Exact(Register result,
+                             DwVfpRegister double_input,
+                             DwVfpRegister double_scratch);
+
+  // Floor a double and writes the value to the result register.
+  // Go to exact if the conversion is exact (to be able to test -0),
+  // fall through calling code if an overflow occurred, else go to done.
+  // In return, input_high is loaded with high bits of input.
+  void TryInt32Floor(Register result,
+                     DwVfpRegister double_input,
+                     Register input_high,
+                     DwVfpRegister double_scratch,
+                     Label* done,
+                     Label* exact);
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
+  // succeeds, otherwise falls through if result is saturated. On return
+  // 'result' either holds answer, or is clobbered on fall through.
+  //
+  // Only public for the test code in test-code-stubs-arm.cc.
+  void TryInlineTruncateDoubleToI(Register result,
+                                  DwVfpRegister input,
+                                  Label* done);
+
+  // Performs a truncating conversion of a floating point number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
+  // Exits with 'result' holding the answer.
+  void TruncateDoubleToI(Register result, DwVfpRegister double_input);
+
+  // Performs a truncating conversion of a heap number as used by
+  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
+  // must be different registers.  Exits with 'result' holding the answer.
+  void TruncateHeapNumberToI(Register result, Register object);
+
+  // Converts the smi or heap number in object to an int32 using the rules
+  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
+  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
+  // different registers.
+  void TruncateNumberToI(Register object,
+                         Register result,
+                         Register heap_number_map,
+                         Register scratch1,
+                         Label* not_int32);
 
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
@@ -1122,6 +1072,9 @@ class MacroAssembler: public Assembler {
   // Print a message to stdout and abort execution.
   void Abort(BailoutReason msg);
 
+  // Print an object to stdout.
+  void DebugPrint(Register obj);
+
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
@@ -1179,6 +1132,42 @@ class MacroAssembler: public Assembler {
   void SmiUntag(Register dst, Register src) {
     asr(dst, src, Operand(kSmiTagSize));
   }
+
+  // Untag the source value into destination and jump if source is a smi.
+  // Souce and destination can be the same register.
+  void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
+
+  // Untag the source value into destination and jump if source is not a smi.
+  // Souce and destination can be the same register.
+  void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
+
+  // Test if the register contains a smi (Z == 0 (eq) if true).
+  inline void SmiTst(Register value) {
+    tst(value, Operand(kSmiTagMask));
+  }
+  inline void NonNegativeSmiTst(Register value) {
+    tst(value, Operand(kSmiTagMask | kSmiSignMask));
+  }
+  // Jump if the register contains a smi.
+  inline void JumpIfSmi(Register value, Label* smi_label, Label::Distance distance = Label::kFar) {
+    tst(value, Operand(kSmiTagMask));
+    if (distance == Label::kFar)
+      bt(smi_label);
+    else
+      bt_near(smi_label);
+  }
+  // Jump if either of the registers contain a non-smi.
+  inline void JumpIfNotSmi(Register value, Label* not_smi_label, Label::Distance distance = Label::kFar) {
+    tst(value, Operand(kSmiTagMask));
+    if (distance == Label::kFar)
+      bf(not_smi_label);
+    else
+      bf_near(not_smi_label);
+  }
+  // Jump if either of the registers contain a non-smi.
+  void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi, Label::Distance distance = Label::kFar);
+  // Jump if either of the registers contain a smi.
+  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi, Label::Distance distance = Label::kFar);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
