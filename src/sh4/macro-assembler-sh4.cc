@@ -2175,13 +2175,320 @@ void MacroAssembler::Abort(BailoutReason reason) {
   push(r0);
   mov(r0, Operand(Smi::FromInt(p1 - p0)));
   push(r0);
-  CallRuntime(Runtime::kAbort, 2);
+  // Disable stub call restrictions to always allow calls to abort.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kAbort, 2);
+  } else {
+    CallRuntime(Runtime::kAbort, 2);
+  }
   // will not return here
   if (is_const_pool_blocked()) {
+    // TODO(ivoire): check that's still not needed
     // ARM and MIPS pad the number of instructions in the abort block to
     // 10 and 14 respectively. The reason for this and how it relates to the
     // constant pool (being blocked) is not given.
   }
+}
+
+
+// Clobbers: sh4_rtmp, dst
+// live-in: cp
+// live-out: cp, dst
+void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
+  ASSERT(!dst.is(sh4_rtmp));
+  RECORD_LINE();
+  if (context_chain_length > 0) {
+    RECORD_LINE();
+    // Move up the chain of contexts to the context containing the slot.
+    ldr(dst, MemOperand(cp, Context::SlotOffset(Context::PREVIOUS_INDEX)));
+    for (int i = 1; i < context_chain_length; i++) {
+      RECORD_LINE();
+      ldr(dst, MemOperand(dst, Context::SlotOffset(Context::PREVIOUS_INDEX)));
+    }
+  } else {
+    RECORD_LINE();
+    // Slot is in the current function context.  Move it into the
+    // destination register in case we store into it (the write barrier
+    // cannot be allowed to destroy the context in esi).
+    mov(dst, cp);
+  }
+}
+
+
+void MacroAssembler::LoadTransitionedArrayMapConditional(
+    ElementsKind expected_kind,
+    ElementsKind transitioned_kind,
+    Register map_in_out,
+    Register scratch,
+    Label* no_map_match) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::LoadInitialArrayMap(
+    Register function_in, Register scratch,
+    Register map_out, bool can_have_holes) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::LoadGlobalFunction(int index, Register function) {
+  // Load the global or builtins object from the current context.
+  ldr(function,
+      MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  // Load the native context from the global or builtins object.
+  ldr(function, FieldMemOperand(function,
+                                GlobalObject::kNativeContextOffset));
+  // Load the function from the native context.
+  ldr(function, MemOperand(function, Context::SlotOffset(index)));
+}
+
+
+void MacroAssembler::LoadArrayFunction(Register function) {
+  // Load the global or builtins object from the current context.
+  ldr(function,
+      MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  // Load the global context from the global or builtins object.
+  ldr(function,
+      FieldMemOperand(function, GlobalObject::kGlobalContextOffset));
+  // Load the array function from the native context.
+  ldr(function,
+      MemOperand(function, Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+}
+
+
+void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
+                                                  Register map,
+                                                  Register scratch) {
+  ASSERT(!scratch.is(sh4_ip));
+  ASSERT(!scratch.is(sh4_rtmp));
+  // Load the initial map. The global functions all have initial maps.
+  ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+  if (emit_debug_code()) {
+    Label ok;
+    Label fail;
+    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
+    b_near(&ok);
+    bind(&fail);
+    Abort(kGlobalFunctionsMustHaveInitialMap);
+    bind(&ok);
+  }
+}
+
+
+void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
+    Register reg,
+    Register scratch,
+    Label* not_power_of_two_or_zero) {
+  ASSERT(!reg.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
+  RECORD_LINE();
+  sub(scratch, reg, Operand(1));
+  cmpge(scratch, Operand(0));
+  bf(not_power_of_two_or_zero);
+  tst(scratch, reg);
+  b(ne, not_power_of_two_or_zero);
+}
+
+
+void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
+    Register reg,
+    Register scratch,
+    Label* zero_and_neg,
+    Label* not_power_of_two) {
+  ASSERT(!reg.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
+  RECORD_LINE();
+  sub(scratch, reg, Operand(1));
+  cmpge(scratch, Operand(0));
+  bf(zero_and_neg);
+  tst(scratch, reg);
+  b(ne, not_power_of_two);
+}
+
+
+void MacroAssembler::JumpIfNotBothSmi(Register reg1,
+                                      Register reg2,
+                                      Label* on_not_both_smi,
+                                      Label::Distance distance) {
+  ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
+  STATIC_ASSERT(kSmiTag == 0);
+  RECORD_LINE();
+  tst(reg1, Operand(kSmiTagMask));
+  b(ne, on_not_both_smi, distance);
+  tst(reg2, Operand(kSmiTagMask));
+  b(ne, on_not_both_smi, distance);
+}
+
+
+void MacroAssembler::UntagAndJumpIfSmi(
+    Register dst, Register src, Label* smi_case) {
+  STATIC_ASSERT(kSmiTag == 0);
+  SmiUntag(dst, src);
+  b(ne, smi_case);  // Shifter carry is not set for a smi.
+}
+
+
+void MacroAssembler::UntagAndJumpIfNotSmi(
+    Register dst, Register src, Label* non_smi_case) {
+  STATIC_ASSERT(kSmiTag == 0);
+  SmiUntag(dst, src);
+  b(eq, non_smi_case);  // Shifter carry is set for a non-smi.
+}
+
+
+void MacroAssembler::JumpIfEitherSmi(Register reg1,
+                                     Register reg2,
+                                     Label* on_either_smi,
+                                     Label::Distance distance) {
+  ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
+  STATIC_ASSERT(kSmiTag == 0);
+  RECORD_LINE();
+  tst(reg1, Operand(kSmiTagMask));
+  b(eq, on_either_smi, distance);
+  tst(reg2, Operand(kSmiTagMask));
+  b(eq, on_either_smi, distance);
+}
+
+
+void MacroAssembler::AssertNotSmi(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, kOperandIsASmi);
+  }
+}
+
+
+void MacroAssembler::AssertSmi(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(eq, kOperandIsNotSmi);
+  }
+}
+
+
+void MacroAssembler::AssertString(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, kOperandIsASmiAndNotAString);
+    push(object);
+    ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
+    CompareInstanceType(object, object, FIRST_NONSTRING_TYPE, hs);
+    pop(object);
+    Check(f, kOperandIsNotAString);
+  }
+}
+
+
+void MacroAssembler::AssertName(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, kOperandIsASmiAndNotAName);
+    push(object);
+    ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
+    CompareInstanceType(object, object, LAST_NAME_TYPE, gt);
+    pop(object);
+    Check(f, kOperandIsNotAName);
+  }
+}
+
+
+
+void MacroAssembler::AssertIsRoot(Register reg, Heap::RootListIndex index) {
+  if (emit_debug_code()) {
+    CompareRoot(reg, index);
+    Check(eq, kHeapNumberMapRegisterClobbered);
+  }
+}
+
+
+void MacroAssembler::JumpIfNotHeapNumber(Register object,
+                                         Register heap_number_map,
+                                         Register scratch,
+                                         Label* on_not_heap_number) {
+  RECORD_LINE();
+  ASSERT(!scratch.is(ip));
+  ASSERT(!scratch.is(sh4_rtmp));
+  ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  AssertIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  cmpeq(scratch, heap_number_map);
+  bf(on_not_heap_number);
+}
+
+
+void MacroAssembler::LookupNumberStringCache(Register object,
+                                             Register result,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Register scratch3,
+                                             Label* not_found) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
+    Register first,
+    Register second,
+    Register scratch1,
+    Register scratch2,
+    Label* failure) {
+
+  ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
+         !scratch2.is(sh4_ip));
+  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
+  RECORD_LINE();
+  // Test that both first and second are sequential ASCII strings.
+  // Assume that they are non-smis.
+  ldr(scratch1, FieldMemOperand(first, HeapObject::kMapOffset));
+  ldr(scratch2, FieldMemOperand(second, HeapObject::kMapOffset));
+  ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  ldrb(scratch2, FieldMemOperand(scratch2, Map::kInstanceTypeOffset));
+
+  JumpIfBothInstanceTypesAreNotSequentialAscii(scratch1,
+                                               scratch2,
+                                               scratch1,
+                                               scratch2,
+                                               failure);
+}
+
+
+void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
+                                                         Register second,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         Label* failure) {
+  ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
+         !scratch2.is(sh4_ip));
+  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
+  RECORD_LINE();
+  // Check that neither is a smi.
+  land(scratch1, first, second);
+  JumpIfSmi(scratch1, failure);
+  JumpIfNonSmisNotBothSequentialAsciiStrings(first,
+                                             second,
+                                             scratch1,
+                                             scratch2,
+                                             failure);
+}
+
+
+void MacroAssembler::JumpIfNotUniqueName(Register reg,
+                                         Label* not_unique_name) {
+  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
+  Label succeed;
+  tst(reg, Operand(kIsNotStringMask | kIsNotInternalizedMask));
+  b(eq, &succeed);
+  cmp(reg, Operand(SYMBOL_TYPE));
+  b(ne, not_unique_name);
+
+  bind(&succeed);
 }
 
 
@@ -2191,22 +2498,114 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Register heap_number_map,
-                                        Label* gc_required) {
+                                        Label* gc_required,
+                                        TaggingMode tagging_mode) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   RECORD_LINE();
-  AllocateInNewSpace(HeapNumber::kSize,
-                     result,
-                     scratch1,
-                     scratch2,
-                     gc_required,
-                     TAG_OBJECT);
+  Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
+           tagging_mode == TAG_RESULT ? TAG_OBJECT : NO_ALLOCATION_FLAGS);
 
   // Store heap number map in the allocated object.
   RECORD_LINE();
-  AssertRegisterIsRoot(heap_number_map, scratch1, Heap::kHeapNumberMapRootIndex);
-  RECORD_LINE();
-  str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
+  AssertIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+  if (tagging_mode == TAG_RESULT) {
+    RECORD_LINE();
+    str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
+  } else {
+    str(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
+  }
+}
+
+
+void MacroAssembler::AllocateHeapNumberWithValue(Register result,
+                                                 DwVfpRegister value,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Register heap_number_map,
+                                                 Label* gc_required) {
+  UNIMPLEMENTED();
+}
+
+
+// Copies a fixed number of fields of heap objects from src to dst.
+void MacroAssembler::CopyFields(Register dst,
+                                Register src,
+                                DwVfpRegister double_scratch,
+                                int field_count) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::CopyBytes(Register src,
+                               Register dst,
+                               Register length,
+                               Register scratch) {
+  UNIMPLEMENTED();
+  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
+
+  // Align src before copying in word size chunks.
+  bind(&align_loop);
+  cmp(length, Operand(0));
+  b(eq, &done, Label::kNear);
+  bind(&align_loop_1);
+  tst(src, Operand(kPointerSize - 1));
+  b(eq, &word_loop, Label::kNear);
+  ldrb(scratch, MemOperand(src));
+  add(src, src, Operand(1));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Operand(1));
+  dt(length);
+  b(ne, &byte_loop_1, Label::kNear);
+
+  // Copy bytes in word size chunks.
+  bind(&word_loop);
+  if (emit_debug_code()) {
+    tst(src, Operand(kPointerSize - 1));
+    Assert(eq, "Expecting alignment for CopyBytes");
+  }
+  cmpge(length, Operand(kPointerSize));
+  bf_near(&byte_loop);
+  ldr(scratch, MemOperand(src));
+  add(src, src, Operand(kPointerSize));
+#if CAN_USE_UNALIGNED_ACCESSES
+  str(scratch, MemOperand(dst));
+  add(dst, dst, Operand(kPointerSize));
+#else
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Operand(1));
+  lsr(scratch, scratch, Operand(8));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Operand(1));
+  lsr(scratch, scratch, Operand(8));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Operand(1));
+  lsr(scratch, scratch, Operand(8));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Operand(1));
+#endif
+  sub(length, length, Operand(kPointerSize));
+  b_near(&word_loop);
+
+  // Copy the last bytes if any left.
+  bind(&byte_loop);
+  cmp(length, Operand(0));
+  b(eq, &done, Label::kNear);
+  bind(&byte_loop_1);
+  ldrb(scratch, MemOperand(src));
+  add(src, src, Operand(1));
+  strb(scratch, MemOperand(dst));
+  add(dst, dst, Operand(1));
+  dt(length);
+  b(ne, &byte_loop_1, Label::kNear);
+  bind(&done);
+}
+
+
+void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
+                                                Register end_offset,
+                                                Register filler) {
+  UNIMPLEMENTED();
 }
 
 
@@ -2332,70 +2731,6 @@ void MacroAssembler::AssertRegisterIsRoot(Register reg, Register scratch,
 }
 
 
-void MacroAssembler::CopyBytes(Register src,
-                               Register dst,
-                               Register length,
-                               Register scratch) {
-  Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
-
-  // Align src before copying in word size chunks.
-  bind(&align_loop);
-  cmp(length, Operand(0));
-  b(eq, &done, Label::kNear);
-  bind(&align_loop_1);
-  tst(src, Operand(kPointerSize - 1));
-  b(eq, &word_loop, Label::kNear);
-  ldrb(scratch, MemOperand(src));
-  add(src, src, Operand(1));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  dt(length);
-  b(ne, &byte_loop_1, Label::kNear);
-
-  // Copy bytes in word size chunks.
-  bind(&word_loop);
-  if (emit_debug_code()) {
-    tst(src, Operand(kPointerSize - 1));
-    Assert(eq, "Expecting alignment for CopyBytes");
-  }
-  cmpge(length, Operand(kPointerSize));
-  bf_near(&byte_loop);
-  ldr(scratch, MemOperand(src));
-  add(src, src, Operand(kPointerSize));
-#if CAN_USE_UNALIGNED_ACCESSES
-  str(scratch, MemOperand(dst));
-  add(dst, dst, Operand(kPointerSize));
-#else
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  lsr(scratch, scratch, Operand(8));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  lsr(scratch, scratch, Operand(8));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  lsr(scratch, scratch, Operand(8));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-#endif
-  sub(length, length, Operand(kPointerSize));
-  b_near(&word_loop);
-
-  // Copy the last bytes if any left.
-  bind(&byte_loop);
-  cmp(length, Operand(0));
-  b(eq, &done, Label::kNear);
-  bind(&byte_loop_1);
-  ldrb(scratch, MemOperand(src));
-  add(src, src, Operand(1));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  dt(length);
-  b(ne, &byte_loop_1, Label::kNear);
-  bind(&done);
-}
-
-
 void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
                                        Register source,  // Input.
                                        Register scratch) {
@@ -2448,15 +2783,6 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   bf_near(&l5);
   add(zeros, zeros, Operand(1));
   bind(&l5);
-}
-
-
-// Copies a fixed number of fields of heap objects from src to dst.
-void MacroAssembler::CopyFields(Register dst,
-                                Register src,
-                                DwVfpRegister double_scratch,
-                                int field_count) {
-  UNIMPLEMENTED();
 }
 
 
@@ -2548,137 +2874,6 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
-// Clobbers: sh4_rtmp, dst
-// live-in: cp
-// live-out: cp, dst
-void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
-  ASSERT(!dst.is(sh4_rtmp));
-  RECORD_LINE();
-  if (context_chain_length > 0) {
-    RECORD_LINE();
-    // Move up the chain of contexts to the context containing the slot.
-    ldr(dst, MemOperand(cp, Context::SlotOffset(Context::PREVIOUS_INDEX)));
-    for (int i = 1; i < context_chain_length; i++) {
-      RECORD_LINE();
-      ldr(dst, MemOperand(dst, Context::SlotOffset(Context::PREVIOUS_INDEX)));
-    }
-  } else {
-    RECORD_LINE();
-    // Slot is in the current function context.  Move it into the
-    // destination register in case we store into it (the write barrier
-    // cannot be allowed to destroy the context in esi).
-    mov(dst, cp);
-  }
-}
-
-
-void MacroAssembler::LoadGlobalFunction(int index, Register function) {
-  // Load the global or builtins object from the current context.
-  ldr(function, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  // Load the global context from the global or builtins object.
-  ldr(function, FieldMemOperand(function,
-                                GlobalObject::kGlobalContextOffset));
-  // Load the function from the global context.
-  ldr(function, MemOperand(function, Context::SlotOffset(index)));
-}
-
-
-void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
-                                                  Register map,
-                                                  Register scratch) {
-  ASSERT(!scratch.is(sh4_ip));
-  ASSERT(!scratch.is(sh4_rtmp));
-  // Load the initial map. The global functions all have initial maps.
-  ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  if (emit_debug_code()) {
-    Label ok;
-    Label fail;
-    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, false);
-    b_near(&ok);
-    bind(&fail);
-    Abort("Global functions must have initial map");
-    bind(&ok);
-  }
-}
-
-
-void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
-    Register reg,
-    Register scratch,
-    Label* not_power_of_two_or_zero) {
-  ASSERT(!reg.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
-  RECORD_LINE();
-  // Note: actually the case 0x80000000 is considered a power of two
-  // (not a neg value)
-  sub(scratch, reg, Operand(1));
-  cmpge(scratch, Operand(0));
-  bf(not_power_of_two_or_zero);
-  tst(scratch, reg);
-  b(ne, not_power_of_two_or_zero);
-}
-
-
-void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
-    Register reg,
-    Register scratch,
-    Label* zero_and_neg,
-    Label* not_power_of_two) {
-  ASSERT(!reg.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
-  RECORD_LINE();
-  // Note: actually the case 0x80000000 is considered a pozer of two
-  // (not a neg value)
-  sub(scratch, reg, Operand(1));
-  cmpge(scratch, Operand(0));
-  bf(zero_and_neg);
-  tst(scratch, reg);
-  b(ne, not_power_of_two);
-}
-
-
-void MacroAssembler::JumpIfNotBothSmi(Register reg1,
-                                      Register reg2,
-                                      Label* on_not_both_smi,
-                                      Label::Distance distance) {
-  ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
-  STATIC_ASSERT(kSmiTag == 0);
-  RECORD_LINE();
-  tst(reg1, Operand(kSmiTagMask));
-  b(ne, on_not_both_smi, distance);
-  tst(reg2, Operand(kSmiTagMask));
-  b(ne, on_not_both_smi, distance);
-}
-
-
-void MacroAssembler::UntagAndJumpIfSmi(
-    Register dst, Register src, Label* smi_case) {
-  STATIC_ASSERT(kSmiTag == 0);
-  SmiUntag(dst, src);
-  b(ne, smi_case);  // Shifter carry is not set for a smi.
-}
-
-
-void MacroAssembler::UntagAndJumpIfNotSmi(
-    Register dst, Register src, Label* non_smi_case) {
-  STATIC_ASSERT(kSmiTag == 0);
-  SmiUntag(dst, src);
-  b(eq, non_smi_case);  // Shifter carry is set for a non-smi.
-}
-
-
-void MacroAssembler::JumpIfEitherSmi(Register reg1,
-                                     Register reg2,
-                                     Label* on_either_smi,
-                                     Label::Distance distance) {
-  ASSERT(!reg1.is(sh4_rtmp) && !reg2.is(sh4_rtmp));
-  STATIC_ASSERT(kSmiTag == 0);
-  RECORD_LINE();
-  tst(reg1, Operand(kSmiTagMask));
-  b(eq, on_either_smi, distance);
-  tst(reg2, Operand(kSmiTagMask));
-  b(eq, on_either_smi, distance);
-}
-
-
 void MacroAssembler::AbortIfSmi(Register object) {
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT(!object.is(sh4_rtmp));
@@ -2755,70 +2950,6 @@ void MacroAssembler::PrintRegisterValue(Register reg) {
   popm(kJSCallerSaved);
   pop(reg);
   LeaveInternalFrame();
-}
-
-
-void MacroAssembler::JumpIfNotHeapNumber(Register object,
-                                         Register heap_number_map,
-                                         Register scratch,
-                                         Label* on_not_heap_number) {
-  RECORD_LINE();
-  ASSERT(!scratch.is(sh4_ip));
-  ASSERT(!scratch.is(sh4_rtmp));
-  AssertRegisterIsRoot(heap_number_map, scratch, Heap::kHeapNumberMapRootIndex);
-  ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  cmp(scratch, heap_number_map);
-  b(ne, on_not_heap_number);
-}
-
-
-void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
-    Register first,
-    Register second,
-    Register scratch1,
-    Register scratch2,
-    Label* failure) {
-
-  ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
-         !scratch2.is(sh4_ip));
-  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
-         !scratch2.is(sh4_rtmp));
-  RECORD_LINE();
-  // Test that both first and second are sequential ASCII strings.
-  // Assume that they are non-smis.
-  ldr(scratch1, FieldMemOperand(first, HeapObject::kMapOffset));
-  ldr(scratch2, FieldMemOperand(second, HeapObject::kMapOffset));
-  ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-  ldrb(scratch2, FieldMemOperand(scratch2, Map::kInstanceTypeOffset));
-
-  JumpIfBothInstanceTypesAreNotSequentialAscii(scratch1,
-                                               scratch2,
-                                               scratch1,
-                                               scratch2,
-                                               failure);
-}
-
-
-void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
-                                                         Register second,
-                                                         Register scratch1,
-                                                         Register scratch2,
-                                                         Label* failure) {
-  ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
-         !scratch2.is(sh4_ip));
-  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
-         !scratch2.is(sh4_rtmp));
-  RECORD_LINE();
-  // Check that neither is a smi.
-  STATIC_ASSERT(kSmiTag == 0);
-  land(scratch1, first, second);
-  tst(scratch1, Operand(kSmiTagMask));
-  b(eq, failure);
-  JumpIfNonSmisNotBothSequentialAsciiStrings(first,
-                                             second,
-                                             scratch1,
-                                             scratch2,
-                                             failure);
 }
 
 
