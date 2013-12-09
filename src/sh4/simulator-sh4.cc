@@ -26,14 +26,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
-#include <math.h>
+#include <cmath>
 #include <cstdarg>
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_SH4)
+#if V8_TARGET_ARCH_SH4
 
 #include "disasm.h"
 #include "assembler.h"
+#include "codegen.h"
 #include "sh4/constants-sh4.h"
 #include "sh4/simulator-sh4.h"
 
@@ -322,7 +323,7 @@ void Sh4Debugger::Debug() {
         int32_t words;
         if (argc == next_arg) {
           words = 10;
-        } else if (argc == next_arg + 1) {
+        } else {
           if (!GetValue(argv[next_arg], &words)) {
             words = 10;
           }
@@ -335,7 +336,7 @@ void Sh4Debugger::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
           Heap* current_heap = v8::internal::Isolate::Current()->heap();
-          if (current_heap->Contains(obj) || ((value & 1) == 0)) {
+          if (((value & 1) == 0) || current_heap->Contains(obj)) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", value / 2);
@@ -557,6 +558,7 @@ else if (strcmp(cmd, "stop") == 0) {
 #undef XSTR
 }
 
+
 static bool ICacheMatch(void* one, void* two) {
   ASSERT((reinterpret_cast<intptr_t>(one) & CachePage::kPageMask) == 0);
   ASSERT((reinterpret_cast<intptr_t>(two) & CachePage::kPageMask) == 0);
@@ -650,7 +652,7 @@ void Simulator::CheckICache(v8::internal::HashMap* i_cache,
                  Instruction::kInstrSize) == 0);
   } else {
     // Cache miss.  Load memory into the cache.
-    memcpy(cached_line, line, CachePage::kLineLength);
+    OS::MemCopy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -742,7 +744,10 @@ class Redirection {
     Isolate* isolate = Isolate::Current();
     Redirection* current = isolate->simulator_redirection();
     for (; current != NULL; current = current->next_) {
-      if (current->external_function_ == external_function) return current;
+      if (current->external_function_ == external_function) {
+        ASSERT_EQ(current->type(), type);
+        return current;
+      }
     }
     return new Redirection(external_function, type);
   }
@@ -800,6 +805,7 @@ void Simulator::set_register(int reg, int32_t value) {
 // the special case of accessing the PC register.
 int32_t Simulator::get_register(int reg) const {
   ASSERT((reg >= 0) && (reg < num_registers));
+  // Stupid code added to avoid bug in GCC.
   // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
   if (reg >= num_registers) return 0;
   // End stupid code.
@@ -1075,7 +1081,7 @@ typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
 
 // This signature supports direct call to accessor getter callback.
 typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectGetterCall)(int32_t arg0,
-                                                                  int32_t arg1);
+                               int32_t arg1);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
@@ -1100,7 +1106,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
          (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_FP_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
-
       // This is dodgy but it works because the C entry stubs are never moved.
       // See comment in codegen-sh4.cc and bug 1242173.
       int32_t saved_pr = get_sregister(pr);
@@ -1136,7 +1141,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
         }
         CHECK(stack_aligned);
         if (redirection->type() != ExternalReference::BUILTIN_COMPARE_CALL) {
-          double result;
+          double result = -1;
           switch(redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL: {
             SimulatorRuntimeFPFPCall target =
@@ -1342,7 +1347,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     CheckICache(isolate_->simulator_i_cache(), instr);
   }
   pc_modified_ = false;
-  if (::v8::internal::FLAG_print_sim_trace) {
+  if (::v8::internal::FLAG_trace_sim) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
