@@ -94,6 +94,25 @@ void MacroAssembler::Call(Handle<Code> code,
 }
 
 
+void MacroAssembler::Ret(Condition cond) {
+  ASSERT(cond == al || cond == eq || cond == ne);
+  if (cond == al) {
+    RECORD_LINE();
+    rts();
+  } else {
+    // TODO: block constant pool
+    RECORD_LINE();
+    if (cond == eq) {
+      bf_(2);
+    } else {
+      bt_(2);
+    }
+    rts();
+    // bt/bf destination
+  }
+}
+
+
 void MacroAssembler::Drop(int count) {
   RECORD_LINE();
   if (count > 0) {
@@ -206,6 +225,21 @@ void MacroAssembler::Bfc(Register dst, Register src, int lsb, int width) {
 }
 
 
+void MacroAssembler::Usat(Register dst, int satpos, Register src) {
+    ASSERT((satpos >= 0) && (satpos <= 31));
+
+    int satval = (1 << satpos) - 1;
+
+    if (!src.is(dst)) {
+      mov(dst, src);
+    }
+    cmpge(dst, Operand(0));
+    mov(dst, Operand(0), f);  // 0 if negative.
+    cmpgt(dst, Operand(satval));
+    mov(dst, Operand(satval), t);  // satval if > satval
+}
+
+
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index) {
   RECORD_LINE();
@@ -224,9 +258,11 @@ void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cond,
                                 Label* branch) {
+  ASSERT(!object.is(sh4_ip) && !scratch.is(sh4_ip));
+  ASSERT(!object.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
   ASSERT(cond == eq || cond == ne);
   land(scratch, object, Operand(ExternalReference::new_space_mask(isolate())));
-  cmp(scratch, Operand(ExternalReference::new_space_start(isolate())));
+  cmpeq(scratch, Operand(ExternalReference::new_space_start(isolate())));
   b(cond, branch);
 }
 
@@ -1779,11 +1815,6 @@ void MacroAssembler::TailCallStub(CodeStub* stub) {
 }
 
 
-static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
-  return ref0.address() - ref1.address();
-}
-
-
 void MacroAssembler::CallApiFunctionAndReturn(
     ExternalReference function,
     Address function_address,
@@ -2268,8 +2299,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   // Load the initial map. The global functions all have initial maps.
   ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
   if (emit_debug_code()) {
-    Label ok;
-    Label fail;
+    Label ok, fail;
     CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
     b_near(&ok);
     bind(&fail);
@@ -2562,7 +2592,7 @@ void MacroAssembler::CopyBytes(Register src,
   bind(&word_loop);
   if (emit_debug_code()) {
     tst(src, Operand(kPointerSize - 1));
-    Assert(eq, "Expecting alignment for CopyBytes");
+    Assert(eq, kExpectingAlignmentForCopyBytes);
   }
   cmpge(length, Operand(kPointerSize));
   bf_near(&byte_loop);
@@ -2609,7 +2639,46 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
 }
 
 
+void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
+    Register first,
+    Register second,
+    Register scratch1,
+    Register scratch2,
+    Label* failure) {
+  ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
+         !scratch2.is(sh4_ip));
+  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
+         !scratch2.is(sh4_rtmp));
+
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
+  land(scratch1, first, Operand(kFlatAsciiStringMask));
+  land(scratch2, second, Operand(kFlatAsciiStringMask));
+  cmpeq(scratch1, Operand(kFlatAsciiStringTag));
+  b(ne, failure);
+  // Ignore second test if first test failed.
+  cmpeq(scratch2, Operand(kFlatAsciiStringTag));
+  b(ne, failure);
+}
+
+
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
+                                                            Register scratch,
+                                                            Label* failure) {
+  ASSERT(!type.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  const int kFlatAsciiStringTag =
+      kStringTag | kOneByteStringTag | kSeqStringTag;
+  land(scratch, type, Operand(kFlatAsciiStringMask));
+  cmpeq(scratch, Operand(kFlatAsciiStringTag));
+  b(ne, failure);
+}
+
 static const int kRegisterPassedArguments = 4;
+
 
 int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
@@ -2656,22 +2725,50 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 }
 
 
+void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
+                                          Register scratch) {
+  PrepareCallCFunction(num_reg_arguments, 0, scratch);
+}
+
+
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_reg_arguments,
                                    int num_double_arguments) {
   RECORD_LINE();
-  CallCFunctionHelper(no_reg, function, r3, num_reg_arguments, num_double_arguments);
+  mov(ip, Operand(function));
+  CallCFunctionHelper(ip, num_reg_arguments, num_double_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(Register function,
+                                   int num_reg_arguments,
+                                   int num_double_arguments) {
+  CallCFunctionHelper(function, num_reg_arguments, num_double_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments) {
+  CallCFunction(function, num_arguments, 0);
+}
+
+
+void MacroAssembler::CallCFunction(Register function,
+                                   int num_arguments) {
+  CallCFunction(function, num_arguments, 0);
 }
 
 
 void MacroAssembler::CallCFunctionHelper(Register function,
-                                         ExternalReference function_reference,
-                                         Register scratch,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
+  ASSERT(has_frame());
   ASSERT(!function.is(sh4_ip));
   ASSERT(!function.is(sh4_rtmp));
-#if defined(V8_HOST_ARCH_SH4)
+  // Make sure that the stack is aligned before calling a C function unless
+  // running in the simulator. The simulator has its own alignment check which
+  // provides more information.
+#if V8_HOST_ARCH_SH4
   if (emit_debug_code()) {
     int frame_alignment = OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
@@ -2688,31 +2785,16 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
 #endif
 
-  {
   // Block constant pool when emitting call (might be redundant)
+  UNIMPLEMENTED();
   BlockConstPoolFor(3);
-#ifdef DEBUG
-  Label begin;
-  bind(&begin);
-#endif
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
-  if (function.is(no_reg)) {
-    RECORD_LINE();
-    mov(scratch, Operand(function_reference));
-    function = scratch;
-  }
-  RECORD_LINE();
-  jsr(function);
-  ASSERT(!constant_pool_pool_ ||
-         (pc_offset() - begin.pos() == 2 * kInstrSize ||
-          pc_offset() - begin.pos() == 3 * kInstrSize));
-  }
-
-  int stack_passed_arguments = CalculateStackPassedWords(num_reg_arguments,
-                                                         num_double_arguments);
-  if (OS::ActivationFrameAlignment() > kPointerSize) {
+  Call(function);
+  int stack_passed_arguments = CalculateStackPassedWords(
+      num_reg_arguments, num_double_arguments);
+  if (ActivationFrameAlignment() > kPointerSize) {
     ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
     add(sp, sp, Operand(stack_passed_arguments * sizeof(kPointerSize)));
@@ -2720,14 +2802,119 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 }
 
 
-void MacroAssembler::AssertRegisterIsRoot(Register reg, Register scratch,
-                                          Heap::RootListIndex index) {
-  ASSERT(!reg.is(scratch));
-  if (emit_debug_code()) {
-    LoadRoot(scratch, index);
-    cmp(reg, scratch);
-    Check(eq, "Register did not match expected root");
+void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
+                               Register result) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::CheckPageFlag(
+    Register object,
+    Register scratch,
+    int mask,
+    Condition cc,
+    Label* condition_met) {
+  Bfc(scratch, object, 0, kPageSizeBits);
+  ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  tst(scratch, Operand(mask));
+  bt(condition_met);
+}
+
+
+void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
+                                        Register scratch,
+                                        Label* if_deprecated) {
+  if (map->CanBeDeprecated()) {
+    mov(scratch, Operand(map));
+    ldr(scratch, FieldMemOperand(scratch, Map::kBitField3Offset));
+    tst(scratch, Operand(Smi::FromInt(Map::Deprecated::kMask)));
+    b(f, if_deprecated);
   }
+}
+
+
+void MacroAssembler::JumpIfBlack(Register object,
+                                 Register scratch0,
+                                 Register scratch1,
+                                 Label* on_black) {
+  HasColor(object, scratch0, scratch1, on_black, 1, 0);  // kBlackBitPattern.
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+}
+
+
+void MacroAssembler::HasColor(Register object,
+                              Register bitmap_scratch,
+                              Register mask_scratch,
+                              Label* has_color,
+                              int first_bit,
+                              int second_bit) {
+  ASSERT(!AreAliased(object, bitmap_scratch, mask_scratch, no_reg));
+
+  GetMarkBits(object, bitmap_scratch, mask_scratch);
+
+  Label other_color, word_boundary;
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  tst(ip, mask_scratch);
+  b(first_bit == 1 ? eq : ne, &other_color);
+  // Shift left 1 by adding.
+  add(mask_scratch, mask_scratch, mask_scratch);
+  cmpeq(mask_scratch, Operand::Zero());  // TODO(ivoire): is this correct ?
+  b(eq, &word_boundary);
+  tst(ip, mask_scratch);
+  b(second_bit == 1 ? ne : eq, has_color);
+  jmp(&other_color);
+
+  bind(&word_boundary);
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize + kPointerSize));
+  tst(ip, Operand(1));
+  b(second_bit == 1 ? ne : eq, has_color);
+  bind(&other_color);
+}
+
+
+// Detect some, but not all, common pointer-free objects.  This is used by the
+// incremental write barrier which doesn't care about oddballs (they are always
+// marked black immediately so this code is not hit).
+void MacroAssembler::JumpIfDataObject(Register value,
+                                      Register scratch,
+                                      Label* not_data_object) {
+  Label is_data_object;
+  ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
+  bt(&is_data_object);
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  tst(scratch, Operand(kIsIndirectStringMask | kIsNotStringMask));
+  b(ne, not_data_object);
+  bind(&is_data_object);
+}
+
+
+void MacroAssembler::GetMarkBits(Register addr_reg,
+                                 Register bitmap_reg,
+                                 Register mask_reg) {
+  ASSERT(!AreAliased(addr_reg, bitmap_reg, mask_reg, no_reg));
+  land(bitmap_reg, addr_reg, Operand(~Page::kPageAlignmentMask));
+  Ubfx(mask_reg, addr_reg, kPointerSizeLog2, Bitmap::kBitsPerCellLog2);
+  const int kLowBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
+  Ubfx(ip, addr_reg, kLowBits, kPageSizeBits - kLowBits);
+  lsl(ip, ip, Operand(kPointerSizeLog2));
+  add(bitmap_reg, bitmap_reg, ip);
+  mov(ip, Operand(1));
+  lsl(mask_reg, ip, mask_reg);
+}
+
+
+void MacroAssembler::EnsureNotWhite(
+    Register value,
+    Register bitmap_scratch,
+    Register mask_scratch,
+    Register load_scratch,
+    Label* value_is_white_and_not_data) {
+  UNIMPLEMENTED();
 }
 
 
@@ -2786,219 +2973,6 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
 }
 
 
-void MacroAssembler::Usat(Register dst, int satpos, Register src) {
-    ASSERT((satpos > 0) && (satpos <= 31));
-
-    int satval = (1 << satpos) - 1;
-
-    if (!src.is(dst)) {
-      mov(dst, src);
-    }
-    cmpge(dst, Operand(0));
-    mov(dst, Operand(0), f);  // 0 if negative.
-    cmpgt(dst, Operand(satval));
-    mov(dst, Operand(satval), t);  // satval if > satval
-}
-
-
-void MacroAssembler::Ret(Condition cond) {
-  ASSERT(cond == al || cond == eq || cond == ne);
-  if (cond == al) {
-    RECORD_LINE();
-    rts();
-  } else {
-    // TODO: block constant pool
-    RECORD_LINE();
-    if (cond == eq) {
-      bf_(2);
-    } else {
-      bt_(2);
-    }
-    rts();
-    // bt/bf destination
-  }
-}
-
-
-MaybeObject* MacroAssembler::TryJumpToExternalReference(
-    const ExternalReference& builtin) {
-  mov(r1, Operand(builtin));
-  CEntryStub stub(1);
-  return TryTailCallStub(&stub);
-}
-
-
-MaybeObject* MacroAssembler::TryTailCallExternalReference(
-    const ExternalReference& ext, int num_arguments, int result_size) {
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-
-  // Block constant pool when emitting call (might be redundant)
-  BlockConstPoolScope block_const_pool(this);
-
-  RECORD_LINE();
-  mov(r0, Operand(num_arguments));
-  return TryJumpToExternalReference(ext);
-}
-
-
-MacroAssembler* MacroAssembler::RecordFunctionLine(const char* function,
-                                                   int line) {
-  if (FLAG_code_comments) {
-    /* 10(strlen of MAXINT) + 1(separator) +1(nul). */
-    int size = strlen("/line/")+strlen(function) + 10 + 1 + 1;
-    char *buffer = new char[size];
-    snprintf(buffer, size, "/line/%s/%d", function, line);
-    buffer[size-1] = '\0';
-    RecordComment(buffer);
-  }
-  return this;
-}
-
-
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cond,
-                                Label* branch) {
-  ASSERT(!object.is(sh4_ip) && !scratch.is(sh4_ip));
-  ASSERT(!object.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
-  ASSERT(cond == eq || cond == ne);
-  RECORD_LINE();
-  land(scratch, object,
-       Operand(ExternalReference::new_space_mask(isolate())));
-  mov(sh4_ip, Operand(ExternalReference::new_space_start(isolate())));
-  cmpeq(scratch, sh4_ip);
-  b(cond, branch);
-}
-
-
-void MacroAssembler::AbortIfSmi(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  ASSERT(!object.is(sh4_rtmp));
-
-  tst(object, Operand(kSmiTagMask));
-  Assert(ne, "Operand is a smi");
-}
-
-
-void MacroAssembler::AbortIfNotSmi(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  ASSERT(!object.is(sh4_rtmp));
-
-  tst(object, Operand(kSmiTagMask));
-  Assert(eq, "Operand is not smi");
-}
-
-
-void MacroAssembler::AbortIfNotString(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  ASSERT(!object.is(sh4_ip));
-  ASSERT(!object.is(sh4_rtmp));
-
-  tst(object, Operand(kSmiTagMask));
-  Assert(ne, "Operand is not a string");
-  RECORD_LINE();
-  push(object);
-  ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
-  CompareInstanceType(object, object, FIRST_NONSTRING_TYPE, hs);
-  pop(object);
-  Assert(ne, "Operand is not a string");
-}
-
-
-void MacroAssembler::AbortIfNotRootValue(Register src,
-                                         Heap::RootListIndex root_value_index,
-                                         const char* message) {
-  ASSERT(!src.is(sh4_ip));
-  ASSERT(!src.is(sh4_rtmp));
-  CompareRoot(src, root_value_index);
-  Assert(eq, message);
-}
-
-
-void MacroAssembler::PrintRegisterValue(Register reg) {
-  ASSERT(!reg.is(r4) && !reg.is(r5) && !reg.is(r6) && !reg.is(r7));
-  ASSERT(!reg.is(sh4_rtmp));
-  Label gc_required, skip, not_smi;
-  RECORD_LINE();
-  EnterInternalFrame();
-  // Save reg as it is scratched by WriteInt32ToHeapNumberStub()
-  push(reg);
-  pushm(kJSCallerSaved);
-  TrySmiTag(reg, &not_smi, r5/*scratch*/);
-  mov(r4, reg);
-  jmp(&skip);
-  bind(&not_smi);
-  RECORD_LINE();
-  LoadRoot(r7, Heap::kHeapNumberMapRootIndex);
-  AllocateHeapNumber(r4/*result heap number*/, r5/*scratch*/, r6/*scratch*/,
-                     r7/*heap_number_map*/, &gc_required);
-  WriteInt32ToHeapNumberStub stub(reg, r4, r5/*scratch*/);
-  CallStub(&stub);
-  jmp(&skip);
-  bind(&gc_required);
-  RECORD_LINE();
-  Abort("GC required while dumping number");
-  bind(&skip);
-  RECORD_LINE();
-  push(r4);
-  CallRuntime(Runtime::kNumberToString, 1);
-  push(r0);
-  CallRuntime(Runtime::kGlobalPrint, 1);
-  popm(kJSCallerSaved);
-  pop(reg);
-  LeaveInternalFrame();
-}
-
-
-void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
-    Register first,
-    Register second,
-    Register scratch1,
-    Register scratch2,
-    Label* failure) {
-  ASSERT(!first.is(sh4_ip) && !second.is(sh4_ip) && !scratch1.is(sh4_ip) &&
-         !scratch2.is(sh4_ip));
-  ASSERT(!first.is(sh4_rtmp) && !second.is(sh4_rtmp) && !scratch1.is(sh4_rtmp) &&
-         !scratch2.is(sh4_rtmp));
-
-  int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
-  RECORD_LINE();
-  land(scratch1, first, Operand(kFlatAsciiStringMask));
-  land(scratch2, second, Operand(kFlatAsciiStringMask));
-  cmp(scratch1, Operand(kFlatAsciiStringTag));
-  b(ne, failure);
-  RECORD_LINE();
-  cmp(scratch2, Operand(kFlatAsciiStringTag));
-  b(ne, failure);
-}
-
-
-void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
-                                                            Register scratch,
-                                                            Label* failure) {
-  ASSERT(!type.is(sh4_rtmp) && !scratch.is(sh4_rtmp));
-
-  int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
-  RECORD_LINE();
-  land(scratch, type, Operand(kFlatAsciiStringMask));
-  cmp(scratch, Operand(kFlatAsciiStringTag));
-  b(ne, failure);
-}
-
-
-void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
-                               Register result) {
-  UNIMPLEMENTED();
-}
-
-
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
   ldr(descriptors, FieldMemOperand(map, Map::kDescriptorsOffset));
@@ -3022,11 +2996,14 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   UNIMPLEMENTED();
 }
 
-CodePatcher::CodePatcher(byte* address, int instructions)
+
+CodePatcher::CodePatcher(byte* address,
+                         int instructions,
+                         FlushICache flush_cache)
     : address_(address),
-      instructions_(instructions),
       size_(instructions * Assembler::kInstrSize),
-      masm_(Isolate::Current(), address, size_ + Assembler::kGap) {
+      masm_(NULL, address, size_ + Assembler::kGap),
+      flush_cache_(flush_cache) {
   // Create a new macro assembler pointing to the address of the code to patch.
   // The size is adjusted with kGap on order for the assembler to generate size
   // bytes of instructions without failing with buffer size constraints.
@@ -3036,11 +3013,18 @@ CodePatcher::CodePatcher(byte* address, int instructions)
 
 CodePatcher::~CodePatcher() {
   // Indicate that code has changed.
-  CPU::FlushICache(address_, size_);
+  if (flush_cache_ == FLUSH) {
+    CPU::FlushICache(address_, size_);
+  }
 
   // Check that the code was patched as expected.
   ASSERT(masm_.pc_ == address_ + size_);
   ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
+}
+
+
+void CodePatcher::Emit(Instr instr) {
+  masm()->emit(instr);
 }
 
 

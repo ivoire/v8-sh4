@@ -138,7 +138,7 @@ class MacroAssembler: public Assembler {
            int lsb,
            int width);
   void Bfc(Register dst, Register src, int lsb, int width);
-  void Usat(Register dst, int satpos, const Operand& src);
+  void Usat(Register dst, int satpos, Register src);
 
   void Call(Label* target);
   void Push(Register src) { push(src); }
@@ -1242,6 +1242,14 @@ class MacroAssembler: public Assembler {
 
   void EnumLength(Register dst, Register map);
   void NumberOfOwnDescriptors(Register dst, Register map);
+
+  template<typename Field>
+  void DecodeField(Register reg) {
+    static const int shift = Field::kShift;
+    static const int mask = (Field::kMask >> shift) << kSmiTagSize;
+    lsr(reg, reg, Operand(shift));
+    land(reg, reg, Operand(mask));
+  }
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
