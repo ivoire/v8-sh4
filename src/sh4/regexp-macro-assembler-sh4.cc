@@ -27,8 +27,9 @@
 
 #include "v8.h"
 
-#if defined(V8_TARGET_ARCH_SH4)
+#if V8_TARGET_ARCH_SH4
 
+#include "cpu-profiler.h"
 #include "unicode.h"
 #include "log.h"
 #include "code-stubs.h"
@@ -45,44 +46,48 @@ namespace internal {
 #ifndef V8_INTERPRETED_REGEXP
 /*
  * This assembler uses the following register assignment convention
+ * - r4 : Temporarily stores the index of capture start after a matching pass
+ *        for a global regexp.
  * - r5 : Pointer to current code object (Code*) including heap object tag.
  * - r6 : Current position in input, as negative offset from end of string.
  *        Please notice that this is the byte offset, not the character offset!
  * - r7 : Currently loaded character. Must be loaded using
  *        LoadCurrentCharacter before using any of the dispatch methods.
- * - r8 : points to tip of backtrack stack
+ * - r8 : Points to tip of backtrack stack
  * - r9 : End of input (points to byte after last character in input).
  * - fp : Frame pointer. Used to access arguments, local variables and
  *         RegExp registers.
  * - r10 : IP register, used by assembler. Very volatile.
- * - sp : points to tip of C stack.
+ * - sp : Points to tip of C stack.
  *
  * The remaining registers are free for computations.
  * Each call to a public method should retain this convention.
  *
  * The stack will have the following structure:
- *  - fp[48]  Isolate* isolate   (Address of the current isolate)
- *  - fp[44]  direct_call  (if 1, direct call from JavaScript code,
- *                          if 0, call through the runtime system).
- *  - fp[40]  stack_area_base (High end of the memory area to use as
- *                             backtracking stack).
- *  - fp[46]  int* capture_array (int[num_saved_registers_], for output).
+ *  - fp[52]  Isolate* isolate   (address of the current isolate)
+ *  - fp[48]  direct_call        (if 1, direct call from JavaScript code,
+ *                                if 0, call through the runtime system).
+ *  - fp[44]  stack_area_base    (high end of the memory area to use as
+ *                                backtracking stack).
+ *  - fp[40]  capture array size (may fit multiple sets of matches)
+ *  - fp[36]  int* capture_array (int[num_saved_registers_], for output).
  *  - fp[32]  secondary link/return address used by native call.
  *  --- sp when called ---
- *  - fp[28]  return address (pr).
- *  - fp[24]  old frame pointer (r14).
+ *  - fp[28]  return address     (pr).
+ *  - fp[24]  old frame pointer  (r14).
  *  - fp[0..20]  backup of registers r8..r13.
  *  --- frame pointer ----
- *  - fp[-4]  end of input       (Address of end of string).
- *  - fp[-8]  start of input     (Address of first character in string).
+ *  - fp[-4]  end of input       (address of end of string).
+ *  - fp[-8]  start of input     (address of first character in string).
  *  - fp[-12] start index        (character index of start).
  *  - fp[-16] void* input_string (location of a handle containing the string).
- *  - fp[-20] Offset of location before start of input (effectively character
+ *  - fp[-20] success counter    (only for global regexps to count matches).
+ *  - fp[-24] Offset of location before start of input (effectively character
  *            position -1). Used to initialize capture registers to a
  *            non-position.
- *  - fp[-24] At start (if 1, we are starting at the start of the
+ *  - fp[-28] At start (if 1, we are starting at the start of the
  *    string, otherwise 0)
- *  - fp[-28] register 0         (Only positions must be stored in the first
+ *  - fp[-32] register 0         (Only positions must be stored in the first
  *  -         register 1          num_saved_registers_ registers)
  *  -         ...
  *  -         register num_registers-1
@@ -116,8 +121,10 @@ namespace internal {
 
 RegExpMacroAssemblerSH4::RegExpMacroAssemblerSH4(
     Mode mode,
-    int registers_to_save)
-    : masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
+    int registers_to_save,
+    Zone* zone)
+    : NativeRegExpMacroAssembler(zone),
+      masm_(new MacroAssembler(zone->isolate(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -200,9 +207,9 @@ void RegExpMacroAssemblerSH4::CheckCharacterGT(uc16 limit, Label* on_greater) {
 void RegExpMacroAssemblerSH4::CheckAtStart(Label* on_at_start) {
   Label not_at_start;
   // Did we start the match at the start of the string at all?
-  __ ldr(r0, MemOperand(frame_pointer(), kAtStart));
-  __ cmp(r0, Operand(0, RelocInfo::NONE));
-  BranchOrBacktrack(eq, &not_at_start);
+  __ ldr(r0, MemOperand(frame_pointer(), kStartIndex));
+  __ cmp(r0, Operand::Zero());
+  BranchOrBacktrack(ne, &not_at_start);
 
   // If we did, are we still at the start of the input?
   __ ldr(r1, MemOperand(frame_pointer(), kInputStart));
@@ -215,9 +222,9 @@ void RegExpMacroAssemblerSH4::CheckAtStart(Label* on_at_start) {
 
 void RegExpMacroAssemblerSH4::CheckNotAtStart(Label* on_not_at_start) {
   // Did we start the match at the start of the string at all?
-  __ ldr(r0, MemOperand(frame_pointer(), kAtStart));
-  __ cmp(r0, Operand(0, RelocInfo::NONE));
-  BranchOrBacktrack(eq, on_not_at_start);
+  __ ldr(r0, MemOperand(frame_pointer(), kStartIndex));
+  __ cmp(r0, Operand::Zero());
+  BranchOrBacktrack(ne, on_not_at_start);
   // If we did, are we still at the start of the input?
   __ ldr(r1, MemOperand(frame_pointer(), kInputStart));
   __ add(r0, end_of_input_address(), current_input_offset());
@@ -229,56 +236,6 @@ void RegExpMacroAssemblerSH4::CheckNotAtStart(Label* on_not_at_start) {
 void RegExpMacroAssemblerSH4::CheckCharacterLT(uc16 limit, Label* on_less) {
   __ cmpge(current_character(), Operand(limit));
   BranchOrBacktrack(ne, on_less);
-}
-
-
-void RegExpMacroAssemblerSH4::CheckCharacters(Vector<const uc16> str,
-                                              int cp_offset,
-                                              Label* on_failure,
-                                              bool check_end_of_string) {
-  if (on_failure == NULL) {
-    // Instead of inlining a backtrack for each test, (re)use the global
-    // backtrack target.
-    on_failure = &backtrack_label_;
-  }
-
-  if (check_end_of_string) {
-    // Is last character of required match inside string.
-    CheckPosition(cp_offset + str.length() - 1, on_failure);
-  }
-
-  __ add(r0, end_of_input_address(), current_input_offset());
-  if (cp_offset != 0) {
-    int byte_offset = cp_offset * char_size();
-    __ add(r0, r0, Operand(byte_offset));
-  }
-
-  // r0 : Address of characters to match against str.
-  int stored_high_byte = 0;
-  for (int i = 0; i < str.length(); i++) {
-    if (mode_ == ASCII) {
-      __ ldrb(r1, MemOperand(r0));
-      __ add(r0, r0, Operand(char_size()));
-      ASSERT(str[i] <= String::kMaxAsciiCharCode);
-      __ cmp(r1, Operand(str[i]));
-    } else {
-      __ ldrh(r1, MemOperand(r0));
-      __ add(r0, r0, Operand(char_size()));
-      uc16 match_char = str[i];
-      int match_high_byte = (match_char >> 8);
-      if (match_high_byte == 0) {
-        __ cmp(r1, Operand(str[i]));
-      } else {
-        if (match_high_byte != stored_high_byte) {
-          __ mov(r2, Operand(match_high_byte));
-          stored_high_byte = match_high_byte;
-        }
-        __ add(r3, r2, Operand(match_char & 0xff));
-        __ cmp(r1, r3);
-      }
-    }
-    BranchOrBacktrack(ne, on_failure);
-  }
 }
 
 
@@ -340,8 +297,13 @@ void RegExpMacroAssemblerSH4::CheckNotBackReferenceIgnoreCase(
     __ b(ne, &fail);
     __ sub(r3, r3, Operand('a'));
     __ cmphi(r3, Operand('z' - 'a'));  // Is r3 a lowercase letter?
-    __ b(eq, &fail);
-
+    __ bf(&loop_check);  // In range 'a'-'z'.
+    // Latin-1: Check for values in range [224,254] but not 247.
+    __ sub(r3, r3, Operand(224 - 'a'));
+    __ cmphi(r3, Operand(254 - 224));
+    __ bt(&fail);  // Weren't Latin-1 letters.
+    __ cmpeq(r3, Operand(247 - 224));  // Check for 247.
+    __ bt(&fail);
 
     __ bind(&loop_check);
     __ cmpge(r0, r1);
@@ -379,17 +341,20 @@ void RegExpMacroAssemblerSH4::CheckNotBackReferenceIgnoreCase(
     // Save length on stack for use on return.
     __ push(r1);
     // Isolate.
-    __ mov(r7, Operand(ExternalReference::isolate_address()));
+    __ mov(r7, Operand(ExternalReference::isolate_address(isolate())));
 
-    ExternalReference function =
-        ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
-    __ CallCFunction(function, argument_count);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm_);
+      ExternalReference function =
+          ExternalReference::re_case_insensitive_compare_uc16(isolate());
+      __ CallCFunction(function, argument_count);
+    }
 
     __ pop(r1);
     __ Pop(r4, r5, r6, r7);
 
     // Check if function returned non-zero for success or zero for failure.
-    __ cmp(r0, Operand(0, RelocInfo::NONE));
+    __ cmp(r0, Operand::Zero());
     BranchOrBacktrack(eq, on_no_match);
     // On success, increment position by length of capture.
     __ add(current_input_offset(), current_input_offset(), r1);
@@ -443,16 +408,6 @@ void RegExpMacroAssemblerSH4::CheckNotBackReference(
 }
 
 
-void RegExpMacroAssemblerSH4::CheckNotRegistersEqual(int reg1,
-                                                     int reg2,
-                                                     Label* on_not_equal) {
-  __ ldr(r0, register_location(reg1));
-  __ ldr(r1, register_location(reg2));
-  __ cmp(r0, r1);
-  BranchOrBacktrack(ne, on_not_equal);
-}
-
-
 void RegExpMacroAssemblerSH4::CheckNotCharacter(unsigned c,
                                                 Label* on_not_equal) {
   __ cmp(current_character(), Operand(c));
@@ -463,8 +418,12 @@ void RegExpMacroAssemblerSH4::CheckNotCharacter(unsigned c,
 void RegExpMacroAssemblerSH4::CheckCharacterAfterAnd(uint32_t c,
                                                      uint32_t mask,
                                                      Label* on_equal) {
-  __ land(r0, current_character(), Operand(mask));
-  __ cmp(r0, Operand(c));
+  if (c == 0) {
+    __ tst(current_character(), Operand(mask));
+  } else {
+    __ land(r0, current_character(), Operand(mask));
+    __ cmp(r0, Operand(c));
+  }
   BranchOrBacktrack(eq, on_equal);
 }
 
@@ -472,8 +431,12 @@ void RegExpMacroAssemblerSH4::CheckCharacterAfterAnd(uint32_t c,
 void RegExpMacroAssemblerSH4::CheckNotCharacterAfterAnd(unsigned c,
                                                         unsigned mask,
                                                         Label* on_not_equal) {
-  __ land(r0, current_character(), Operand(mask));
-  __ cmp(r0, Operand(c));
+  if (c == 0) {
+    __ tst(current_character(), Operand(mask));
+  } else {
+    __ land(r0, current_character(), Operand(mask));
+    __ cmp(r0, Operand(c));
+  }
   BranchOrBacktrack(ne, on_not_equal);
 }
 
@@ -483,11 +446,49 @@ void RegExpMacroAssemblerSH4::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  ASSERT(minus < String::kMaxUC16CharCode);
+  ASSERT(minus < String::kMaxUtf16CodeUnit);
   __ sub(r0, current_character(), Operand(minus));
   __ land(r0, r0, Operand(mask));
-  __ cmp(r0, Operand(c));
+  __ cmpeq(r0, Operand(c));
   BranchOrBacktrack(ne, on_not_equal);
+}
+
+
+void RegExpMacroAssemblerSH4::CheckCharacterInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_in_range) {
+  __ sub(r0, current_character(), Operand(from));
+  __ cmphi(r0, Operand(to - from));
+  BranchOrBacktrack(f, on_in_range);  // Unsigned lower-or-same condition.
+}
+
+
+void RegExpMacroAssemblerSH4::CheckCharacterNotInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_not_in_range) {
+  __ sub(r0, current_character(), Operand(from));
+  __ cmphi(r0, Operand(to - from));
+  BranchOrBacktrack(t, on_not_in_range);  // Unsigned higher condition.
+}
+
+
+void RegExpMacroAssemblerSH4::CheckBitInTable(
+    Handle<ByteArray> table,
+    Label* on_bit_set) {
+  __ mov(r0, Operand(table));
+  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
+    __ land(r1, current_character(), Operand(kTableSize - 1));
+    __ add(r1, r1, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+  } else {
+    __ add(r1,
+           current_character(),
+           Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+  }
+  __ ldrb(r0, MemOperand(r0, r1));
+  __ cmpeq(r0, Operand::Zero());
+  BranchOrBacktrack(ne, on_bit_set);
 }
 
 
@@ -499,34 +500,28 @@ bool RegExpMacroAssemblerSH4::CheckSpecialCharacterClass(uc16 type,
   case 's':
     // Match space-characters
     if (mode_ == ASCII) {
-      // ASCII space characters are '\t'..'\r' and ' '.
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
       __ cmp(current_character(), Operand(' '));
       __ b(eq, &success);
       // Check range 0x09..0x0d
       __ sub(r0, current_character(), Operand('\t'));
       __ cmphi(r0, Operand('\r' - '\t'));
-      BranchOrBacktrack(eq, on_no_match);
+      __ bf(&success);
+      // \u00a0 (NBSP).
+      __ cmpeq(r0, Operand(0x00a0 - '\t'));
+      BranchOrBacktrack(f, on_no_match);
       __ bind(&success);
       return true;
     }
     return false;
   case 'S':
-    // Match non-space characters.
-    if (mode_ == ASCII) {
-      // ASCII space characters are '\t'..'\r' and ' '.
-      __ cmp(current_character(), Operand(' '));
-      BranchOrBacktrack(eq, on_no_match);
-      __ sub(r0, current_character(), Operand('\t'));
-      __ cmphi(r0, Operand('\r' - '\t'));
-      BranchOrBacktrack(ne, on_no_match);
-      return true;
-    }
+    // The emitted code for generic character classes is good enough.
     return false;
   case 'd':
     // Match ASCII digits ('0'..'9')
     __ sub(r0, current_character(), Operand('0'));
-    __ cmphi(current_character(), Operand('9' - '0'));
+    __ cmphi(r0, Operand('9' - '0'));
     BranchOrBacktrack(eq, on_no_match);
     return true;
   case 'D':
@@ -582,7 +577,7 @@ bool RegExpMacroAssemblerSH4::CheckSpecialCharacterClass(uc16 type,
     ExternalReference map = ExternalReference::re_word_character_map();
     __ mov(r0, Operand(map));
     __ ldrb(r0, MemOperand(r0, current_character()));
-    __ tst(r0, r0);
+    __ cmp(r0, Operand::Zero());
     BranchOrBacktrack(eq, on_no_match);
     return true;
   }
@@ -596,7 +591,7 @@ bool RegExpMacroAssemblerSH4::CheckSpecialCharacterClass(uc16 type,
     ExternalReference map = ExternalReference::re_word_character_map();
     __ mov(r0, Operand(map));
     __ ldrb(r0, MemOperand(r0, current_character()));
-    __ tst(r0, r0);
+    __ cmp(r0, Operand::Zero());
     BranchOrBacktrack(ne, on_no_match);
     if (mode_ != ASCII) {
       __ bind(&done);
@@ -620,11 +615,18 @@ void RegExpMacroAssemblerSH4::Fail() {
 
 
 Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
+  Label return_r0;
   // Finalize code - write the entry point code now we know how many
   // registers we need.
 
   // Entry code:
   __ bind(&entry_label_);
+
+  // Tell the system that we have a stack frame.  Because the type is MANUAL, no
+  // is generated.
+  FrameScope scope(masm_, StackFrame::MANUAL);
+
+  // Actually emit code to start a new stack frame.
   // Push arguments
   // Save callee-save registers.
   // Start new stack frame.
@@ -640,14 +642,15 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
   // Set frame pointer in space for it if this is not a direct call
   // from generated code.
   __ add(frame_pointer(), sp, Operand(4 * kPointerSize));
+  __ mov(r0, Operand::Zero());
+  __ push(r0);  // Make room for success counter and initialize it to 0.
   __ push(r0);  // Make room for "position - 1" constant (value is irrelevant).
-  __ push(r0);  // Make room for "at start" constant (value is irrelevant).
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
   Label stack_ok;
 
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(masm_->isolate());
+      ExternalReference::address_of_stack_limit(isolate());
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   // Handle it if the stack pointer is already below the stack limit.
@@ -661,13 +664,13 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
   __ mov(r0, Operand(EXCEPTION));
-  __ jmp(&exit_label_);
+  __ jmp(&return_r0);
 
   __ bind(&stack_limit_hit);
   CallCheckStackGuardState(r0);
-  __ cmp(r0, Operand(0, RelocInfo::NONE));
+  __ cmp(r0, Operand::Zero());
   // If returned value is non-zero, we exit with the returned value as result.
-  __ b(ne, &exit_label_);
+  __ b(ne, &return_r0);
 
   __ bind(&stack_ok);
 
@@ -689,42 +692,46 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
   // position registers.
   __ str(r0, MemOperand(frame_pointer(), kInputStartMinusOne));
 
-  // Determine whether the start index is zero, that is at the start of the
-  // string, and store that value in a local variable.
-  __ tst(r1, r1);
-  __ mov(r1, Operand(1), eq);
-  __ mov(r1, Operand(0, RelocInfo::NONE), ne);
-  __ str(r1, MemOperand(frame_pointer(), kAtStart));
+  // Initialize code pointer register
+  __ mov(code_pointer(), Operand(masm_->CodeObject()));
 
+  Label load_char_start_regexp, start_regexp;
+  // Load newline if index is at start, previous character otherwise.
+  __ cmpeq(r1, Operand::Zero());
+  __ b(ne, &load_char_start_regexp);
+  __ mov(current_character(), Operand('\n'), eq);
+  __ jmp(&start_regexp);
+
+  // Global regexp restarts matching here.
+  __ bind(&load_char_start_regexp);
+  // Load previous char as initial value of current character register.
+  LoadCurrentCharacterUnchecked(-1, 1);
+  __ bind(&start_regexp);
+
+  // Initialize on-stack registers.
   if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
     // Fill saved registers with initial value = start offset - 1
-
-    // Address of register 0.
-    __ add(r1, frame_pointer(), Operand(kRegisterZero));
-    __ mov(r2, Operand(num_saved_registers_));
-    Label init_loop;
-    __ bind(&init_loop);
-    __ str(r0, MemOperand(r1));
-    __ add(r1, r1, Operand(-kPointerSize));
-    __ dt(r2);
-    __ b(ne, &init_loop);
+    if (num_saved_registers_ > 8) {
+      // Address of register 0.
+      __ add(r1, frame_pointer(), Operand(kRegisterZero));
+      __ mov(r2, Operand(num_saved_registers_));
+      Label init_loop;
+      __ bind(&init_loop);
+      __ str(r0, MemOperand(r1));
+      __ add(r1, r1, Operand(-kPointerSize));
+      __ dt(r2);
+      __ b(ne, &init_loop);
+    } else {
+      for (int i = 0; i < num_saved_registers_; i++) {
+        __ str(r0, register_location(i));
+      }
+    }
   }
 
   // Initialize backtrack stack pointer.
   __ ldr(backtrack_stackpointer(), MemOperand(frame_pointer(), kStackHighEnd));
-  // Initialize code pointer register
-  __ mov(code_pointer(), Operand(masm_->CodeObject()));
-  // Load previous char as initial value of current character register.
-  Label at_start;
-  __ ldr(r0, MemOperand(frame_pointer(), kAtStart));
-  __ cmp(r0, Operand(0, RelocInfo::NONE));
-  __ b(ne, &at_start);
-  LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
-  __ jmp(&start_label_);
-  __ bind(&at_start);
-  __ mov(current_character(), Operand('\n'));
-  __ jmp(&start_label_);
 
+  __ jmp(&start_label_);
 
   // Exit code:
   if (success_label_.is_linked()) {
@@ -751,6 +758,10 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
       for (int i = 0; i < num_saved_registers_; i += 2) {
         __ ldr(r2, register_location(i));
         __ ldr(r3, register_location(i + 1));
+        if (i == 0 && global_with_zero_length_check()) {
+          // Keep capture start in r4 for the zero-length check later.
+          __ mov(r4, r2);
+        }
         if (mode_ == UC16) {
           __ asr(r2, r2, Operand(1));
           __ add(r2, r1, r2);
@@ -764,10 +775,58 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
         __ str(r3, MemOperand(r0, kPointerSize, PostIndex));
       }
     }
-    __ mov(r0, Operand(SUCCESS));
+
+    if (global()) {
+      // Restart matching if the regular expression is flagged as global.
+      __ ldr(r0, MemOperand(frame_pointer(), kSuccessfulCaptures));
+      __ ldr(r1, MemOperand(frame_pointer(), kNumOutputRegisters));
+      __ ldr(r2, MemOperand(frame_pointer(), kRegisterOutput));
+      // Increment success counter.
+      __ add(r0, r0, Operand(1));
+      __ str(r0, MemOperand(frame_pointer(), kSuccessfulCaptures));
+      // Capture results have been stored, so the number of remaining global
+      // output registers is reduced by the number of stored captures.
+      __ sub(r1, r1, Operand(num_saved_registers_));
+      // Check whether we have enough room for another set of capture results.
+      __ cmpge(r1, Operand(num_saved_registers_));
+      __ bf(&return_r0);
+
+      __ str(r1, MemOperand(frame_pointer(), kNumOutputRegisters));
+      // Advance the location for output.
+      __ add(r2, r2, Operand(num_saved_registers_ * kPointerSize));
+      __ str(r2, MemOperand(frame_pointer(), kRegisterOutput));
+
+      // Prepare r0 to initialize registers with its value in the next run.
+      __ ldr(r0, MemOperand(frame_pointer(), kInputStartMinusOne));
+
+      if (global_with_zero_length_check()) {
+        // Special case for zero-length matches.
+        // r4: capture start index
+        __ cmpeq(current_input_offset(), r4);
+        // Not a zero-length match, restart.
+        __ bf(&load_char_start_regexp);
+        // Offset from the end is zero if we already reached the end.
+        __ cmpeq(current_input_offset(), Operand::Zero());
+        __ bt(&exit_label_);
+        // Advance current position after a zero-length match.
+        __ add(current_input_offset(),
+               current_input_offset(),
+               Operand((mode_ == UC16) ? 2 : 1));
+      }
+
+      __ b(&load_char_start_regexp);
+    } else {
+      __ mov(r0, Operand(SUCCESS));
+    }
   }
+
   // Exit and return r0
   __ bind(&exit_label_);
+  if (global()) {
+    __ ldr(r0, MemOperand(frame_pointer(), kSuccessfulCaptures));
+  }
+
+  __ bind(&return_r0);
   // Skip sp past regexp registers and local variables..
   __ mov(sp, frame_pointer());
   // Restore registers r4..r11 and return (restoring lr to pc).
@@ -788,10 +847,10 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
     SafeCallTarget(&check_preempt_label_);
 
     CallCheckStackGuardState(r0);
-    __ cmp(r0, Operand(0, RelocInfo::NONE));
+    __ cmp(r0, Operand::Zero());
     // If returning non-zero, we should end execution with the given
     // result as return value.
-    __ b(ne, &exit_label_);
+    __ b(ne, &return_r0);
 
     // String might have moved: Reload end of string from frame.
     __ ldr(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
@@ -809,15 +868,15 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
     static const int num_arguments = 3;
     __ mov(r4, backtrack_stackpointer());
     __ add(r5, frame_pointer(), Operand(kStackHighEnd));
-    __ mov(r6, Operand(ExternalReference::isolate_address()));
+    __ mov(r6, Operand(ExternalReference::isolate_address(isolate())));
     __ PrepareCallCFunction(num_arguments, r0);
     ExternalReference grow_stack =
-        ExternalReference::re_grow_stack(masm_->isolate());
+        ExternalReference::re_grow_stack(isolate());
     __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ Pop(r4, r5, r6, r7);
-    __ cmp(r0, Operand(0, RelocInfo::NONE));
+    __ cmp(r0, Operand::Zero());
     __ b(eq, &exit_with_exception);
     // Otherwise use return value as new stack pointer.
     __ mov(backtrack_stackpointer(), r0);
@@ -830,15 +889,14 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
     __ bind(&exit_with_exception);
     // Exit with Result EXCEPTION(-1) to signal thrown exception.
     __ mov(r0, Operand(EXCEPTION));
-    __ jmp(&exit_label_);
+    __ jmp(&return_r0);
   }
 
   CodeDesc code_desc;
   masm_->GetCode(&code_desc);
-  Handle<Code> code = FACTORY->NewCode(code_desc,
-                                       Code::ComputeFlags(Code::REGEXP),
-                                       masm_->CodeObject());
-  PROFILE(Isolate::Current(), RegExpCodeCreateEvent(*code, *source));
+  Handle<Code> code = isolate()->factory()->NewCode(
+      code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
+  PROFILE(masm_->isolate(), RegExpCodeCreateEvent(*code, *source));
   return Handle<HeapObject>::cast(code);
 }
 
@@ -905,6 +963,7 @@ void RegExpMacroAssemblerSH4::PopRegister(int register_index) {
 
 
 void RegExpMacroAssemblerSH4::PushBacktrack(Label* label) {
+  // TODO(ivoire): is it still correct ?
   if (label->is_bound()) {
     // Constant pool optimization is currently disabled in regexp assembler
     // Assembler::BlockConstPoolScope block_const_pool(masm_);
@@ -965,8 +1024,9 @@ void RegExpMacroAssemblerSH4::SetRegister(int register_index, int to) {
 }
 
 
-void RegExpMacroAssemblerSH4::Succeed() {
+bool RegExpMacroAssemblerSH4::Succeed() {
   __ jmp(&success_label_);
+  return global();
 }
 
 
@@ -1000,19 +1060,36 @@ void RegExpMacroAssemblerSH4::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerSH4::CallCheckStackGuardState(Register scratch) {
-  static const int num_arguments = 3;
   // We do not have to save r5 as this value is then putted back by
   // CallCFunctionUsingStub (from the CodeObject)
   __ Push(r4, r6, r7);
-  __ PrepareCallCFunction(num_arguments, scratch);
+  __ PrepareCallCFunction(3, scratch);
+
   // RegExp code frame pointer.
   __ mov(r6, frame_pointer());
   // Code* of self.
   __ mov(r5, Operand(masm_->CodeObject()));
-  // r0 becomes return address pointer.
+  // We need to make room for the return address on the stack.
+  int stack_alignment = OS::ActivationFrameAlignment();
+  ASSERT(IsAligned(stack_alignment, kPointerSize));
+  __ sub(sp, sp, Operand(stack_alignment));
+
+  // r0 will point to the return address, placed by DirectCEntry.
+  __ mov(r4, sp);
+
   ExternalReference stack_guard_check =
-      ExternalReference::re_check_stack_guard_state(masm_->isolate());
-  CallCFunctionUsingStub(stack_guard_check, num_arguments);
+      ExternalReference::re_check_stack_guard_state(isolate());
+  __ mov(ip, Operand(stack_guard_check));
+  DirectCEntryStub stub;
+  stub.GenerateCall(masm_, ip);
+
+  // Drop the return address from the stack.
+  __ add(sp, sp, Operand(stack_alignment));
+
+  ASSERT(stack_alignment != 0);
+  __ ldr(sp, MemOperand(sp, 0));
+
+  __ mov(code_pointer(), Operand(masm_->CodeObject()));
   __ Pop(r4, r6, r7);
 }
 
@@ -1028,7 +1105,6 @@ int RegExpMacroAssemblerSH4::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
   Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
-  ASSERT(isolate == Isolate::Current());
   if (isolate->stack_guard()->IsStackOverflow()) {
     isolate->StackOverflow();
     return EXCEPTION;
@@ -1050,13 +1126,13 @@ int RegExpMacroAssemblerSH4::CheckStackGuardState(Address* return_address,
   Handle<String> subject(frame_entry<String*>(re_frame, kInputString));
 
   // Current string.
-  bool is_ascii = subject->IsAsciiRepresentationUnderneath();
+  bool is_ascii = subject->IsOneByteRepresentationUnderneath();
 
   ASSERT(re_code->instruction_start() <= *return_address);
   ASSERT(*return_address <=
       re_code->instruction_start() + re_code->instruction_size());
 
-  MaybeObject* result = Execution::HandleStackGuardInterrupt();
+  MaybeObject* result = Execution::HandleStackGuardInterrupt(isolate);
 
   if (*code_handle != re_code) {  // Return address no longer valid
     int delta = code_handle->address() - re_code->address();
@@ -1081,7 +1157,7 @@ int RegExpMacroAssemblerSH4::CheckStackGuardState(Address* return_address,
   }
 
   // String might have changed.
-  if (subject_tmp->IsAsciiRepresentation() != is_ascii) {
+  if (subject_tmp->IsOneByteRepresentation() != is_ascii) {
     // If we changed between an ASCII and an UC16 string, the specialized
     // code cannot be used, and we need to restart regexp matching from
     // scratch (including, potentially, compiling a new version of the code).
@@ -1112,6 +1188,11 @@ int RegExpMacroAssemblerSH4::CheckStackGuardState(Address* return_address,
     frame_entry<const String*>(re_frame, kInputString) = *subject;
     frame_entry<const byte*>(re_frame, kInputStart) = new_address;
     frame_entry<const byte*>(re_frame, kInputEnd) = new_address + byte_length;
+  } else if (frame_entry<const String*>(re_frame, kInputString) != *subject) {
+    // Subject string might have been a ConsString that underwent
+    // short-circuiting during GC. That will not change start_address but
+    // will change pointer inside the subject handle.
+    frame_entry<const String*>(re_frame, kInputString) = *subject;
   }
 
   return 0;
@@ -1196,7 +1277,7 @@ void RegExpMacroAssemblerSH4::Pop(Register target) {
 void RegExpMacroAssemblerSH4::CheckPreemption() {
   // Check for preemption.
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(masm_->isolate());
+      ExternalReference::address_of_stack_limit(isolate());
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ cmphi(sp, r0);
@@ -1206,7 +1287,7 @@ void RegExpMacroAssemblerSH4::CheckPreemption() {
 
 void RegExpMacroAssemblerSH4::CheckStackLimit() {
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit(masm_->isolate());
+      ExternalReference::address_of_regexp_stack_limit(isolate());
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ cmphi(backtrack_stackpointer(), r0);
@@ -1214,15 +1295,8 @@ void RegExpMacroAssemblerSH4::CheckStackLimit() {
 }
 
 
-void RegExpMacroAssemblerSH4::CallCFunctionUsingStub(
-    ExternalReference function,
-    int num_arguments) {
-  // Must pass all arguments in registers. The stub pushes on the stack.
-  ASSERT(num_arguments <= 4);
-  __ mov(r1, Operand(function));
-  RegExpCEntryStub stub;
-  __ CallStub(&stub);
-  __ mov(code_pointer(), Operand(masm_->CodeObject()));
+bool RegExpMacroAssemblerSH4::CanReadUnaligned() {
+  return false;
 }
 
 
@@ -1230,16 +1304,17 @@ void RegExpMacroAssemblerSH4::LoadCurrentCharacterUnchecked(int cp_offset,
                                                             int characters) {
   Register offset = current_input_offset();
   if (cp_offset != 0) {
-    __ add(r0, current_input_offset(), Operand(cp_offset * char_size()));
-    offset = r0;
+    // r4 is not being used to store the capture start index at this point.
+    __ add(r4, current_input_offset(), Operand(cp_offset * char_size()));
+    offset = r4;
   }
   // The ldr, str, ldrh, strh instructions can do unaligned accesses, if the CPU
   // and the operating system running on the target allow it.
   // If unaligned load/stores are not supported then this function must only
   // be used to load a single character at a time.
-#if !V8_TARGET_CAN_READ_UNALIGNED
-  ASSERT(characters == 1);
-#endif
+  if (!CanReadUnaligned()) {
+    ASSERT(characters == 1);
+  }
 
   if (mode_ == ASCII) {
     if (characters == 4) {
@@ -1261,20 +1336,6 @@ void RegExpMacroAssemblerSH4::LoadCurrentCharacterUnchecked(int cp_offset,
   }
 }
 
-
-void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
-  // TODO(STM): do we have to align the stack arguments ?
-  //// Decrement it by kPointerSize to make room for pushing and poping pr
-  //int stack_alignment = OS::ActivationFrameAlignment() - kPointerSize;
-  //// Stack is already aligned for call, so decrement by alignment
-  //// to make room for storing the link register.
-  __ push(pr);
-  // The first argument should be sp
-  __ mov(r4, sp);
-  __ jsr(r1);
-  __ pop(pr);
-  __ rts();
-}
 
 #undef __
 
