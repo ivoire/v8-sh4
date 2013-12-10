@@ -33,6 +33,7 @@ namespace internal {
 
 // Number of registers in normal SH4 mode.
 const int kNumRegisters = 16;
+const int kNumAllocatableRegisters = 8;
 const int kNumFPUSingleRegisters = 16;
 const int kNumFPUDoubleRegisters = 8;
 const int kNumFPURegisters = kNumFPUDoubleRegisters + kNumFPUSingleRegisters;

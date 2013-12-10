@@ -1046,6 +1046,9 @@ class MacroAssembler: public Assembler {
     return code_object_;
   }
 
+  // Record code generator line mapping through comments.
+  // Use -code_comments to enable.
+  MacroAssembler* RecordFunctionLine(const char* function, int line);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

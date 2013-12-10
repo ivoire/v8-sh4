@@ -1282,10 +1282,10 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
 #ifdef DEBUG
     if (imm.rmode_ != RelocInfo::NONE32) {
       Address target_address = pc_;
-      // Verify that target_address_address_at() is actually returning
+      // Verify that target_pointer_at() is actually returning
       // the address where the target address for the instruction is stored.
       ASSERT(target_address ==
-             target_address_address_at(
+             target_pointer_at(
                 reinterpret_cast<byte*>(buffer_ + instr_address)));
     }
 #endif

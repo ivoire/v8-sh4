@@ -275,6 +275,20 @@ void MacroAssembler::StoreRoot(Register source,
 }
 
 
+MacroAssembler* MacroAssembler::RecordFunctionLine(const char* function,
+                                                   int line) {
+  if (FLAG_code_comments) {
+    /* 10(strlen of MAXINT) + 1(separator) +1(nul). */
+    int size = strlen("/line/")+strlen(function) + 10 + 1 + 1;
+    char *buffer = new char[size];
+    snprintf(buffer, size, "/line/%s/%d", function, line);
+    buffer[size-1] = '\0';
+    RecordComment(buffer);
+  }
+  return this;
+}
+
+
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cond,
@@ -2078,7 +2092,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
     jsr(r2);
     call_wrapper.AfterCall();
   } else {
-    ASSERT(flags == JUMP_FUNCTION);
+    ASSERT(flag == JUMP_FUNCTION);
     RECORD_LINE();
     SetCallKind(r5, CALL_AS_METHOD);
     Jump(r2);
@@ -3060,6 +3074,30 @@ Register GetRegisterThatIsNotOneOf(Register reg1,
   UNREACHABLE();
   return no_reg;
 }
+
+
+#ifdef DEBUG
+bool AreAliased(Register reg1,
+                Register reg2,
+                Register reg3,
+                Register reg4,
+                Register reg5,
+                Register reg6) {
+  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() +
+    reg3.is_valid() + reg4.is_valid() + reg5.is_valid() + reg6.is_valid();
+
+  RegList regs = 0;
+  if (reg1.is_valid()) regs |= reg1.bit();
+  if (reg2.is_valid()) regs |= reg2.bit();
+  if (reg3.is_valid()) regs |= reg3.bit();
+  if (reg4.is_valid()) regs |= reg4.bit();
+  if (reg5.is_valid()) regs |= reg5.bit();
+  if (reg6.is_valid()) regs |= reg6.bit();
+  int n_of_non_aliasing_regs = NumRegs(regs);
+
+  return n_of_valid_regs != n_of_non_aliasing_regs;
+}
+#endif
 
 
 CodePatcher::CodePatcher(byte* address,

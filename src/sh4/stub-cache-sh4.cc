@@ -105,7 +105,8 @@ static void ProbeTable(Isolate* isolate,
   // It's a nice optimization if this constant is encodable in the bic insn.
 
   uint32_t mask = Code::kFlagsNotUsedInLookup;
-  ASSERT(__ ImmediateFitsAddrMode1Instruction(mask));
+  // TODO(ivoire): is it needed ?
+  //ASSERT(__ ImmediateFitsAddrMode1Instruction(mask));
   __ bic(flags_reg, flags_reg, Operand(mask));
   __ cmpeq(flags_reg, Operand(flags));
   __ b(ne, &miss);
@@ -1424,9 +1425,9 @@ void LoadStubCompiler::GenerateLoadCallback(
   STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
   STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
   STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
-  ASSERT(!scratch2().is(reg));
-  ASSERT(!scratch3().is(reg));
-  ASSERT(!scratch4().is(reg));
+  ASSERT(!scratch2().is(reg) && !scratch2().is(ip));
+  ASSERT(!scratch3().is(reg) && !scratch3().is(ip));
+  ASSERT(!scratch4().is(reg) && !scratch4().is(ip));
   __ push(receiver());
   if (heap()->InNewSpace(callback->data())) {
     __ Move(scratch3(), callback);
@@ -1447,7 +1448,6 @@ void LoadStubCompiler::GenerateLoadCallback(
   __ mov(r0, sp);  // r0 = Handle<Name>
 
   const int kApiStackSpace = 1;
-  ASSERT(!receiver.is(ip) && !name_reg.is(ip) && !scratch2.is(ip));
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
