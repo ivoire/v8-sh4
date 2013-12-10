@@ -69,7 +69,7 @@ const RegList kCalleeSaved =
   1 <<  13 |  //  r13 (cp in JS)
   1 <<  14;   //  r14 (fp in JS)
 
-int kNumCalleeSaved = 7;
+const int kNumCalleeSaved = 7;
 
 
 // Number of registers for which space is reserved in safepoints. Must be a

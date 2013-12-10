@@ -62,6 +62,11 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
+void MacroAssembler::Jump(Register target) {
+  jmp(target);
+}
+
+
 void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode) {
   RECORD_LINE();
   mov(ip, Operand(target, rmode));
@@ -74,6 +79,18 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   RECORD_LINE();
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode);
+}
+
+
+void MacroAssembler::Call(Register target, Condition cond) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::Call(Address target,
+                          RelocInfo::Mode rmode,
+                          TargetAddressStorageMode mode) {
+  UNIMPLEMENTED();
 }
 
 
@@ -127,6 +144,10 @@ void MacroAssembler::Ret(int drop) {
   Ret();
 }
 
+
+void MacroAssembler::Call(Label* target) {
+  jsr(target);
+}
 
 void MacroAssembler::UnimplementedBreak(const char *file, int line) {
   uint32_t file_id = 0;
@@ -391,6 +412,11 @@ void MacroAssembler::Strd(Register src1, Register src2,
 }
 
 
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+  UNIMPLEMENTED();
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // r0-r3: must be preserved
   RECORD_LINE();
@@ -467,6 +493,21 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   str(ip, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
+
+int MacroAssembler::ActivationFrameAlignment() {
+  // TODO(ivoire): is it useful ?
+#if V8_HOST_ARCH_SH4
+  // Running on the real platform. Use the alignment as mandated by the local
+  // environment.
+  return OS::ActivationFrameAlignment();
+#else  // V8_HOST_ARCH_SH4
+  // If we are using the simulator then we should always align to the expected
+  // alignment. As the simulator is used to generate snapshots we do not know
+  // if the target platform will need alignment, so this is controlled from a
+  // flag.
+  return FLAG_sim_stack_alignment;
+#endif  // V8_HOST_ARCH_SH4
+}
 
 void MacroAssembler::InitializeNewString(Register string,
                                          Register length,
@@ -2994,6 +3035,30 @@ void MacroAssembler::EnumLength(Register dst, Register map) {
 
 void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   UNIMPLEMENTED();
+}
+
+
+Register GetRegisterThatIsNotOneOf(Register reg1,
+                                   Register reg2,
+                                   Register reg3,
+                                   Register reg4,
+                                   Register reg5,
+                                   Register reg6) {
+  RegList regs = 0;
+  if (reg1.is_valid()) regs |= reg1.bit();
+  if (reg2.is_valid()) regs |= reg2.bit();
+  if (reg3.is_valid()) regs |= reg3.bit();
+  if (reg4.is_valid()) regs |= reg4.bit();
+  if (reg5.is_valid()) regs |= reg5.bit();
+  if (reg6.is_valid()) regs |= reg6.bit();
+
+  for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
+    Register candidate = Register::FromAllocationIndex(i);
+    if (regs & candidate.bit()) continue;
+    return candidate;
+  }
+  UNREACHABLE();
+  return no_reg;
 }
 
 

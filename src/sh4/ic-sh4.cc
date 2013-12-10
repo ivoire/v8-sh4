@@ -1608,7 +1608,7 @@ bool CompareIC::HasInlinedSmiCode(Address address) {
 }
 
 
-void PatchInlinedSmiCode(Address address) {
+void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   // Should be analyzed.
   UNIMPLEMENTED();
   Address cmp_instruction_address;

@@ -721,6 +721,8 @@
             '../../src/sh4/lithium-gap-resolver-sh4.h',
             '../../src/sh4/macro-assembler-sh4.cc',
             '../../src/sh4/macro-assembler-sh4.h',
+            '../../src/sh4/opcodes-sh4.cc',
+            '../../src/sh4/opcodes-sh4.h',
             '../../src/sh4/regexp-macro-assembler-sh4.cc',
             '../../src/sh4/regexp-macro-assembler-sh4.h',
             '../../src/sh4/simulator-sh4.cc',

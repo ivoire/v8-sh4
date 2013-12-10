@@ -398,6 +398,16 @@ void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
 }
 
 
+void LCodeGen::DoMultiplySubD(LMultiplySubD* instr) {
+  UNIMPLEMENTED();
+}
+
+
+void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
+  UNIMPLEMENTED();
+}
+
+
 void LCodeGen::DoMulI(LMulI* instr) {
   UNIMPLEMENTED();
 }
@@ -414,6 +424,11 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
 
 
 void LCodeGen::DoSubI(LSubI* instr) {
+  UNIMPLEMENTED();
+}
+
+
+void LCodeGen::DoRSubI(LRSubI* instr) {
   UNIMPLEMENTED();
 }
 
@@ -439,6 +454,11 @@ void LCodeGen::DoConstantE(LConstantE* instr) {
 
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
+  UNIMPLEMENTED();
+}
+
+
+void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
   UNIMPLEMENTED();
 }
 
@@ -561,6 +581,11 @@ Condition LCodeGen::EmitIsString(Register input,
                                  SmiCheck check_needed = INLINE_SMI_CHECK) {
   UNIMPLEMENTED();
   return ne;
+}
+
+
+void LCodeGen::DoIsStringAndBranch(LIsStringAndBranch* instr) {
+  UNIMPLEMENTED();
 }
 
 

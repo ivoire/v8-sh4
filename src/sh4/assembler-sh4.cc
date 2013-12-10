@@ -46,6 +46,13 @@ unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
 unsigned CpuFeatures::cross_compile_ = 0;
 
+
+ExternalReference ExternalReference::cpu_features() {
+  ASSERT(CpuFeatures::initialized_);
+  return ExternalReference(&CpuFeatures::supported_);
+}
+
+
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
 // can be defined to enable FPU instructions when building the
