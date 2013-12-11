@@ -64,6 +64,12 @@
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 #endif
+#if V8_TARGET_ARCH_SH4
+#include "sh4/assembler-sh4.h"
+#include "sh4/macro-assembler-sh4.h"
+#include "sh4/regexp-macro-assembler-sh4.h"
+#endif
+
 #endif  // V8_INTERPRETED_REGEXP
 
 using namespace v8::internal;
@@ -704,6 +710,8 @@ typedef RegExpMacroAssemblerX64 ArchRegExpMacroAssembler;
 typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_MIPS
 typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_SH4
+typedef RegExpMacroAssemblerSH4 ArchRegExpMacroAssembler;
 #endif
 
 class ContextInitializer {
