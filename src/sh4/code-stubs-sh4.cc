@@ -562,12 +562,12 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ Push(scratch_high, scratch_low);
 
   if (!skip_fastpath()) {
-    UNIMPLEMENTED();
+    __ UNIMPLEMENTED_BREAK();
   } else {
     // We've already done MacroAssembler::TryFastTruncatedDoubleToILoad, so we
     // know exponent > 31, so we can skip the vcvt_s32_f64 which will saturate.
     if (double_offset == 0) {
-      UNIMPLEMENTED();
+      __ UNIMPLEMENTED_BREAK();
     } else {
       __ ldr(scratch_low, MemOperand(input_reg, double_offset));
       __ ldr(scratch_high, MemOperand(input_reg, double_offset + kIntSize));
@@ -848,7 +848,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Lhs is a smi, rhs is a number.
   // Convert lhs to a double in d7.
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 
   // We now have both loaded as doubles but we can skip the lhs nan check
   // since it's a smi.
@@ -873,7 +873,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Rhs is a smi, lhs is a heap number.
   // Load the double from lhs, tagged HeapNumber r1, to d7.
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   // Fall through to both_loaded_as_doubles.
 }
 
@@ -939,7 +939,7 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
   // Both are heap numbers.  Load them up then jump to the code we have
   // for that.
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   __ jmp(both_loaded_as_doubles);
 }
 
@@ -1195,7 +1195,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   const Register scratch = r1;
 
   if (save_doubles_ == kSaveFPRegs) {
-    UNIMPLEMENTED();
+    __ UNIMPLEMENTED_BREAK();
   }
   const int argument_count = 1;
   const int fp_argument_count = 0;
@@ -1209,7 +1209,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       argument_count);
   __ pop(r4);
   if (save_doubles_ == kSaveFPRegs) {
-    UNIMPLEMENTED();
+    __ UNIMPLEMENTED_BREAK();
   }
   __ popm(kJSCallerSaved);
   __ pop(pr);             // Also pop pr to get Ret(0).
@@ -1373,7 +1373,7 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
           0, 1);
       break;
     default:
-      UNIMPLEMENTED();
+      __ UNIMPLEMENTED_BREAK();
       break;
   }
   __ pop(lr);
@@ -1395,7 +1395,7 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -1523,7 +1523,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // instructions so add another 4 to pc to get the return address.
   {
     // Prevent literal pool emission before return address.
-    UNIMPLEMENTED();
+    __ UNIMPLEMENTED_BREAK();
   }
 
   // Compute the return address in pr to return to after the jsr below.
@@ -1586,7 +1586,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // See if we just retrieved an OOM exception.
   JumpIfOOM(masm, r0, r3, throw_out_of_memory_exception);
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 
   // Clear the pending exception.
   __ mov(r3, Operand(isolate->factory()->the_hole_value()));
@@ -1845,7 +1845,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // inserting instructions here after we read the pc. We block literal pool
   // emission for the same reason.
   {
-    UNIMPLEMENTED();
+    __ UNIMPLEMENTED_BREAK();
   }
 
   // Unlink this frame from the handler chain.
@@ -1874,11 +1874,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Restore callee-saved registers and return.
 #ifdef DEBUG
   if (FLAG_debug_code) {
-    UNIMPLEMENTED();
+    __ UNIMPLEMENTED_BREAK();
   }
 #endif
   // Restore callee-saved vfp registers.
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 
   __ popm(kCalleeSaved);
   __ pop(pr);
@@ -2784,7 +2784,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(isolate->counters()->regexp_entry_native(), 1, r0, r2);
 
   // TODO(ivoire): still usefull ?
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   // Save r5-r7 as they are going to be used afterward in the C code
   // r4 is restored by a load on the right place in the same frame
   __ Push(r5, r6, r7);
@@ -3010,7 +3010,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&not_seq_nor_cons);
   // Compare flags are still set.
   // TODO(ivoire): Should re-compare !
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   __ b(gt, &not_long_external);  // Go to (8).
 
   // (7) External string.  Make it, offset-wise, look like a sequential string.
@@ -3338,7 +3338,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ ldr(jmp_reg, FieldMemOperand(jmp_reg,
                                   SharedFunctionInfo::kConstructStubOffset));
   //__ add(pc, jmp_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 
   // r0: number of arguments
   // r1: called object
@@ -3795,7 +3795,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Arithmetic shift right by one un-smi-tags. In this case we rotate right
   // instead because we bail out on non-smi values: ROR and ASR are equivalent
   // for smis but they set the flags in a way that's easier to optimize.
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   // TODO(ivoire): what about ROR on sh4 ?
   //__ mov(r2, Operand(r2, ROR, 1), SetCC);
   //__ mov(r3, Operand(r3, ROR, 1), SetCC, cc);
@@ -4560,7 +4560,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   }
 
   // Inlining the double comparison and falling back to the general compare
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -4804,7 +4804,7 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -5168,12 +5168,12 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 
 
 void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -5181,34 +5181,34 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,
     OnNoNeedToInformIncrementalMarker on_no_need,
     Mode mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 template<class T>
 static void CreateArrayDispatch(MacroAssembler* masm,
                                 AllocationSiteOverrideMode mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -5237,23 +5237,23 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
 void ArrayConstructorStub::GenerateDispatchToArrayStub(
     MacroAssembler* masm,
     AllocationSiteOverrideMode mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void InternalArrayConstructorStub::GenerateCase(
     MacroAssembler* masm, ElementsKind kind) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
