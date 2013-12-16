@@ -100,7 +100,7 @@ void MacroAssembler::Call(Register target, Condition cond) {
 void MacroAssembler::Call(Address target,
                           RelocInfo::Mode rmode,
                           TargetAddressStorageMode mode) {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
 
@@ -375,6 +375,48 @@ void MacroAssembler::RecordWrite(Register object,
   if (emit_debug_code()) {
     mov(address, Operand(BitCast<int32_t>(kZapValue + 12)));
     mov(value, Operand(BitCast<int32_t>(kZapValue + 16)));
+  }
+}
+
+
+void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
+                                         Register address,
+                                         Register scratch,
+                                         SaveFPRegsMode fp_mode,
+                                         RememberedSetFinalAction and_then) {
+  Label done;
+  if (emit_debug_code()) {
+    Label ok;
+    JumpIfNotInNewSpace(object, scratch, &ok);
+    stop("Remembered set pointer is in new space");
+    bind(&ok);
+  }
+  // Load store buffer top.
+  ExternalReference store_buffer =
+      ExternalReference::store_buffer_top(isolate());
+  mov(ip, Operand(store_buffer));
+  ldr(scratch, MemOperand(ip));
+  // Store pointer to buffer and increment buffer top.
+  str(address, MemOperand(scratch, kPointerSize, PostIndex));
+  // Write back new top of buffer.
+  str(scratch, MemOperand(ip));
+  // Call stub on end of buffer.
+  // Check for end of buffer.
+  tst(scratch, Operand(StoreBuffer::kStoreBufferOverflowBit));
+  if (and_then == kFallThroughAtEnd) {
+    b(eq, &done);
+  } else {
+    ASSERT(and_then == kReturnAtEnd);
+    Ret(eq);
+  }
+  push(pr);
+  StoreBufferOverflowStub store_buffer_overflow =
+      StoreBufferOverflowStub(fp_mode);
+  CallStub(&store_buffer_overflow);
+  pop(lr);
+  bind(&done);
+  if (and_then == kReturnAtEnd) {
+    Ret();
   }
 }
 
@@ -919,7 +961,7 @@ void MacroAssembler::JumpToHandlerEntry() {
   // Compute the handler entry address and jump to it.  The handler table is
   // a fixed array of (smi-tagged) code offsets.
   // r0 = exception, r1 = code object, r2 = state.
-  UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
 
@@ -1893,8 +1935,8 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
 
 bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
-  UNIMPLEMENTED();
-  return false;
+  if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
+  return allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe(isolate());
 }
 
 
@@ -2828,8 +2870,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
   ASSERT(has_frame());
-  ASSERT(!function.is(sh4_ip));
-  ASSERT(!function.is(sh4_rtmp));
+  ASSERT(function.is(ip));
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
@@ -2850,9 +2891,6 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   }
 #endif
 
-  // Block constant pool when emitting call (might be redundant)
-  UNIMPLEMENTED();
-  BlockConstPoolFor(3);
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
