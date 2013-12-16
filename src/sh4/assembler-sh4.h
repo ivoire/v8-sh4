@@ -808,12 +808,17 @@ class Assembler : public AssemblerBase {
   void fdiv(DwVfpRegister Dd, DwVfpRegister Ds)     { fdiv_double_(Ds, Dd); }
 
   // Read/patch instructions
-  static Instr instr_at(byte* pc)
-        { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(byte* pc, Instr instr)
-        { *reinterpret_cast<Instr*>(pc) = instr; }
+  Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
+  void instr_at_put(int pos, Instr instr) {
+    *reinterpret_cast<Instr*>(buffer_ + pos) = instr;
+  }
+  static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
+  static void instr_at_put(byte* pc, Instr instr) {
+    *reinterpret_cast<Instr*>(pc) = instr;
+  }
   static Condition GetCondition(Instr instr);
   static bool IsBranch(Instr instr);
+  static int GetBranchOffset(Instr instr);
   static bool IsJsr(Instr instr);
   static Register GetRn(Instr instr);
   static Register GetRm(Instr instr);

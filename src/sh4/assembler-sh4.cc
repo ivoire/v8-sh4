@@ -282,6 +282,13 @@ bool Assembler::IsBranch(Instr instr) {
 }
 
 
+int Assembler::GetBranchOffset(Instr instr) {
+  ASSERT(IsBranch(instr));
+  uint8_t disp = instr & 0xFF;
+  return (disp * 2) + 4;
+}
+
+
 Register Assembler::GetRn(Instr instr) {
   ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
   Register reg;
