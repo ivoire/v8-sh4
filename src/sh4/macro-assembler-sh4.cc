@@ -82,8 +82,18 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
 }
 
 
+int MacroAssembler::CallSize(Register target, Condition cond) {
+  return 2 * kInstrSize;
+}
+
+
 void MacroAssembler::Call(Register target, Condition cond) {
-  UNIMPLEMENTED();
+  ASSERT_EQ(cond, al);
+  BlockConstPoolScope block_const_pool(this);
+  Label start;
+  bind(&start);
+  jsr(target);
+  ASSERT_EQ(CallSize(target), SizeOfCodeGeneratedSince(&start));
 }
 
 
