@@ -3182,7 +3182,7 @@ void CodePatcher::Emit(Instr instr) {
 void CodePatcher::EmitCondition(Condition cond) {
   Instr instr = Assembler::instr_at(masm_.pc_);
   ASSERT(cond == eq || cond == ne);
-  ASSERT(Assembler::IsBranch(instr));
+  ASSERT(Assembler::IsCondBranch(instr));
   instr = (instr & ~0x200);     // Changed to bt
   if (cond == ne)
     instr |= 0x200;             // Changed to bf

@@ -1662,7 +1662,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
             Assembler::GetRm(instr_at_patch).code());
   ASSERT(Assembler::IsMovImmediate(instr_before_patch));
   ASSERT_EQ(Assembler::GetRn(instr_before_patch).code(), sh4_ip.code());
-  ASSERT(Assembler::IsBranch(branch_instr));
+  ASSERT(Assembler::IsCondBranch(branch_instr));
   if (Assembler::GetCondition(branch_instr) == f) {
     // This is patching a "jump if not smi" site to be active.
     // Changing

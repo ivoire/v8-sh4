@@ -817,7 +817,8 @@ class Assembler : public AssemblerBase {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
   static Condition GetCondition(Instr instr);
-  static bool IsBranch(Instr instr);
+  static bool IsCondBranch(Instr instr);
+  static bool IsInCondBranch(Instr instr);
   static int GetBranchOffset(Instr instr);
   static bool IsJsr(Instr instr);
   static Register GetRn(Instr instr);

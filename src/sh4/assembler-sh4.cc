@@ -269,22 +269,33 @@ void Assembler::Align(int m) {
 
 
 Condition Assembler::GetCondition(Instr instr) {
-  ASSERT(IsBranch(instr));
+  ASSERT(IsCondBranch(instr));
   return (instr & 0x200) == 0x200 ?
     ne :        // bf| bf/s
     eq;         // bt|bt/s
 }
 
 
-bool Assembler::IsBranch(Instr instr) {
+bool Assembler::IsCondBranch(Instr instr) {
   // bt|bf|bt/s|bf/s instrs.
   return (instr & 0xF900) == 0x8900;
 }
 
 
+bool Assembler::IsInCondBranch(Instr instr) {
+  // bra instrs.
+  return (instr & 0xF000) == 0xA000;
+}
+
 int Assembler::GetBranchOffset(Instr instr) {
-  ASSERT(IsBranch(instr));
-  uint8_t disp = instr & 0xFF;
+  printf("instr=0x%08x\n", instr);
+  ASSERT(IsCondBranch(instr) || IsInCondBranch(instr));
+  uint8_t disp;
+  if (IsCondBranch(instr))
+    disp = instr & 0xFF;
+  else if (IsInCondBranch(instr))
+    disp = instr & 0xFFF;
+
   return (disp * 2) + 4;
 }
 
