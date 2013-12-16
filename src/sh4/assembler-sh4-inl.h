@@ -365,8 +365,7 @@ Address Assembler::target_pointer_address_at(Address pc) {
 
 
 Address Assembler::target_pointer_at(Address pc) {
-  UNIMPLEMENTED();
-  // TODO: handle moves !
+  // TODO(ivoire): handle moves !
   return Memory::Address_at(target_pointer_address_at(pc));
 }
 
@@ -390,7 +389,15 @@ void Assembler::deserialization_set_special_target_at(
 
 
 void Assembler::set_target_pointer_at(Address pc, Address target) {
-  UNIMPLEMENTED();
+  Memory::Address_at(target_pointer_address_at(pc)) = target;
+  // Intuitively, we would think it is necessary to flush the instruction cache
+  // after patching a target address in the code as follows:
+  //   CPU::FlushICache(pc, sizeof(target));
+  // However, on SH4, no instruction was actually patched by the assignment
+  // above; the target address is not part of an instruction, it is patched in
+  // the constant pool and is read via a data access; the instruction accessing
+  // this address in the constant pool remains unchanged.
+
 }
 
 
