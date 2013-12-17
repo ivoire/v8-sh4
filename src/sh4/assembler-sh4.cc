@@ -299,6 +299,13 @@ int Assembler::GetBranchOffset(Instr instr) {
   return (disp * 2) + 4;
 }
 
+bool Assembler::IsBt(Instr instr) {
+  return (instr & 0xFF00) == 0x8900;
+}
+
+bool Assembler::IsBf(Instr instr) {
+  return (instr & 0xFF00) == 0x8B00;
+}
 
 Register Assembler::GetRn(Instr instr) {
   ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));

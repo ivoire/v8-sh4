@@ -768,6 +768,7 @@ class Assembler : public AssemblerBase {
   bool fits_cmp_unsigned_imm(int imm) { return is_uint8(imm); }
 
   void dt(Register Rd)  { dt_(Rd); }
+  void clrt() { clrt_(); }
 
   // FPU support
   // Load float
@@ -816,10 +817,13 @@ class Assembler : public AssemblerBase {
   static void instr_at_put(byte* pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
+  void *addr_at(int pos) { return buffer_ + pos; }
   static Condition GetCondition(Instr instr);
   static bool IsCondBranch(Instr instr);
   static bool IsInCondBranch(Instr instr);
   static int GetBranchOffset(Instr instr);
+  static bool IsBt(Instr instr);
+  static bool IsBf(Instr instr);
   static bool IsJsr(Instr instr);
   static Register GetRn(Instr instr);
   static Register GetRm(Instr instr);
