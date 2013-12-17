@@ -29,6 +29,7 @@
 
 #if V8_TARGET_ARCH_SH4
 
+#include "disasm.h"
 #include "bootstrapper.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
@@ -5163,7 +5164,50 @@ bool CodeStub::CanUseFPRegisters() {
 // we keep the GC informed.  The word in the object where the value has been
 // written is in the address register.
 void RecordWriteStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Label skip_to_incremental_noncompacting;
+  Label skip_to_incremental_compacting;
+
+  // The first two instructions are generated with labels so as to get the
+  // offset fixed up correctly by the bind(Label*) call.  We patch it back and
+  // forth between a compare instructions (a nop in this position) and the
+  // real branch when we start and stop incremental heap marking.
+  // See RecordWriteStub::Patch for details.
+  // The sequence will be:
+  //  clrt
+  //  bt(skip_to_incremental_noncompacting) # == nop
+  //  nop
+  //  bt(skip_to_incremental_compacting)    # == nop
+  //  nop
+  {
+    // Block literal pool emission, as the position of these two instructions
+    // is assumed by the patching code.
+    Assembler::BlockConstPoolScope block_const_pool(masm);
+    __ clrt();
+    __ bt_near(&skip_to_incremental_noncompacting);
+    __ bt_near(&skip_to_incremental_compacting);
+  }
+
+  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+    __ RememberedSetHelper(object_,
+                           address_,
+                           value_,
+                           save_fp_regs_mode_,
+                           MacroAssembler::kReturnAtEnd);
+  }
+  __ Ret();
+
+  __ bind(&skip_to_incremental_noncompacting);
+  GenerateIncremental(masm, INCREMENTAL);
+
+  __ bind(&skip_to_incremental_compacting);
+  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
+
+  // Initial mode of the stub is expected to be STORE_BUFFER_ONLY.
+  // Will be checked in IncrementalMarking::ActivateGeneratedStub.
+  ASSERT(Assembler::GetBranchOffset(masm->instr_at(4)) < (1 << 12));
+  ASSERT(Assembler::GetBranchOffset(masm->instr_at(8)) < (1 << 12));
+  PatchBranchIntoNop(masm, 2 * Assembler::kInstrSize);
+  PatchBranchIntoNop(masm, 4 * Assembler::kInstrSize);
 }
 
 

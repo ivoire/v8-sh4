@@ -287,7 +287,7 @@ class RecordWriteStub: public PlatformCodeStub {
   virtual bool SometimesSetsUpAFrame() { return false; }
 
   static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
-    UNIMPLEMENTED();
+    masm->instr_at_put(pos, (masm->instr_at(pos) | 0x8900));
   }
 
   static void PatchNopIntoBranch(MacroAssembler* masm, int pos) {
@@ -295,7 +295,23 @@ class RecordWriteStub: public PlatformCodeStub {
   }
 
   static Mode GetMode(Code* stub) {
-    UNIMPLEMENTED();
+    Instr first_instruction = Assembler::instr_at(stub->instruction_start() +
+                                                  2 * Assembler::kInstrSize);
+    Instr second_instruction = Assembler::instr_at(stub->instruction_start() +
+                                                   4 * Assembler::kInstrSize);
+
+    if (Assembler::IsBf(first_instruction)) {
+      return INCREMENTAL;
+    }
+
+    ASSERT(Assembler::IsBt(first_instruction));
+
+    if (Assembler::IsBf(second_instruction)) {
+      return INCREMENTAL_COMPACTION;
+    }
+
+    ASSERT(Assembler::IsBt(second_instruction));
+
     return STORE_BUFFER_ONLY;
   }
 
