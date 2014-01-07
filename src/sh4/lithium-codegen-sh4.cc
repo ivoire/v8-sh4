@@ -63,76 +63,207 @@ class SafepointGenerator : public CallWrapper {
 #define __ masm()->
 
 bool LCodeGen::GenerateCode() {
-  UNIMPLEMENTED();
-  return true;
+  LPhase phase("Z_Code generation", chunk());
+  ASSERT(is_unused());
+  status_ = GENERATING;
+
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // NONE indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done in GeneratePrologue).
+  FrameScope frame_scope(masm_, StackFrame::NONE);
+
+  return GeneratePrologue() &&
+      GenerateBody() &&
+      GenerateDeferredCode() &&
+      GenerateDeoptJumpTable() &&
+      GenerateSafepointTable();
 }
 
 
 void LCodeGen::FinishCode(Handle<Code> code) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::Abort(BailoutReason reason) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 bool LCodeGen::GeneratePrologue() {
-  UNIMPLEMENTED();
-  return false;
+  ASSERT(is_generating());
+
+  if (info()->IsOptimizing()) {
+    ProfileEntryHookStub::MaybeCallEntryHook(masm_);
+
+#ifdef DEBUG
+    if (strlen(FLAG_stop_at) > 0 &&
+        info_->function()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
+      __ stop("stop_at");
+    }
+#endif
+
+    // r1: Callee's JS function.
+    // cp: Callee's context.
+    // fp: Caller's frame pointer.
+    // lr: Caller's pc.
+
+    // Strict mode functions and builtins need to replace the receiver
+    // with undefined when called as functions (without an explicit
+    // receiver object). r5 is zero for method calls and non-zero for
+    // function calls.
+    if (!info_->is_classic_mode() || info_->is_native()) {
+      Label skip;
+      __ cmp(r5, Operand::Zero());
+      int receiver_offset = scope()->num_parameters() * kPointerSize;
+      __ bt_near(&skip);
+      __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+      __ str(r2, MemOperand(sp, receiver_offset));
+      __ bind(&skip);
+    }
+  }
+
+  info()->set_prologue_offset(masm_->pc_offset());
+  if (NeedsEagerFrame()) {
+    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
+    frame_is_built_ = true;
+    info_->AddNoFrameRange(0, masm_->pc_offset());
+  }
+
+  // Reserve space for the stack slots needed by the code.
+  int slots = GetStackSlotCount();
+  if (slots > 0) {
+    if (FLAG_debug_code) {
+      __ sub(sp,  sp, Operand(slots * kPointerSize));
+      __ push(r0);
+      __ push(r1);
+      __ add(r0, sp, Operand(slots *  kPointerSize));
+      __ mov(r1, Operand(kSlotsZapValue));
+      Label loop;
+      __ bind(&loop);
+      __ sub(r0, r0, Operand(kPointerSize));
+      __ str(r1, MemOperand(r0, 2 * kPointerSize));
+      __ cmpeq(r0, sp);
+      __ b(ne, &loop);
+      __ pop(r1);
+      __ pop(r0);
+    } else {
+      __ sub(sp,  sp, Operand(slots * kPointerSize));
+    }
+  }
+
+  if (info()->saves_caller_doubles()) {
+    Comment(";;; Save clobbered callee double registers");
+    int count = 0;
+    BitVector* doubles = chunk()->allocated_double_registers();
+    BitVector::Iterator save_iterator(doubles);
+    while (!save_iterator.Done()) {
+      __ UNIMPLEMENTED_BREAK();
+      save_iterator.Advance();
+      count++;
+    }
+  }
+
+  // Possibly allocate a local context.
+  int heap_slots = info()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  if (heap_slots > 0) {
+    Comment(";;; Allocate local context");
+    // Argument to NewContext is the function, which is in r1.
+    __ push(r1);
+    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+      FastNewContextStub stub(heap_slots);
+      __ CallStub(&stub);
+    } else {
+      __ CallRuntime(Runtime::kNewFunctionContext, 1);
+    }
+    RecordSafepoint(Safepoint::kNoLazyDeopt);
+    // Context is returned in both r0 and cp.  It replaces the context
+    // passed to us.  It's saved in the stack and kept live in cp.
+    __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    // Copy any necessary parameters into the context.
+    int num_parameters = scope()->num_parameters();
+    for (int i = 0; i < num_parameters; i++) {
+      Variable* var = scope()->parameter(i);
+      if (var->IsContextSlot()) {
+        int parameter_offset = StandardFrameConstants::kCallerSPOffset +
+            (num_parameters - 1 - i) * kPointerSize;
+        // Load parameter from stack.
+        __ ldr(r0, MemOperand(fp, parameter_offset));
+        // Store it in the context.
+        MemOperand target = ContextOperand(cp, var->index());
+        __ str(r0, target);
+        // Update the write barrier. This clobbers r3 and r0.
+        __ RecordWriteContextSlot(
+            cp,
+            target.offset(),
+            r0,
+            r3,
+            GetLinkRegisterState(),
+            kSaveFPRegs);
+      }
+    }
+    Comment(";;; End allocate local context");
+  }
+
+  // Trace the call.
+  if (FLAG_trace && info()->IsOptimizing()) {
+    // We have not executed any compiled code yet, so cp still holds the
+    // incoming context.
+    __ CallRuntime(Runtime::kTraceEnter, 0);
+  }
+  return !is_aborted();
 }
 
 
 void LCodeGen::GenerateOsrPrologue() {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 bool LCodeGen::GenerateDeferredCode() {
-  UNIMPLEMENTED();
-  return false;
+  __ UNIMPLEMENTED_BREAK();
+  return true;
 }
 
 
 bool LCodeGen::GenerateDeoptJumpTable() {
-  UNIMPLEMENTED();
-  return false;
+  __ UNIMPLEMENTED_BREAK();
+  return true;
 }
 
 
 bool LCodeGen::GenerateSafepointTable() {
-  UNIMPLEMENTED();
-  return false;
+  __ UNIMPLEMENTED_BREAK();
+  return true;
 }
 
 
 Register LCodeGen::ToRegister(int index) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return no_reg;
 }
 
 
 DwVfpRegister LCodeGen::ToDoubleRegister(int index) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return no_dreg;
 }
 
 
 Register LCodeGen::ToRegister(LOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return no_reg;
 }
 
 
 Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return no_reg;
 }
 
 
 DwVfpRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return no_dreg;
 }
 
@@ -140,75 +271,75 @@ DwVfpRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
 DwVfpRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
                                                SwVfpRegister flt_scratch,
                                                DwVfpRegister dbl_scratch) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return no_dreg;
 }
 
 
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return Handle<Object>();
 }
 
 
 bool LCodeGen::IsInteger32(LConstantOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return false;
 }
 
 
 bool LCodeGen::IsSmi(LConstantOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return false;
 }
 
 
 int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return -1;
 }
 
 
 int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
                                    const Representation& r) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return -1;
 }
 
 
 Smi* LCodeGen::ToSmi(LConstantOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return NULL;
 }
 
 
 double LCodeGen::ToDouble(LConstantOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return 0.0;
 }
 
 
 Operand LCodeGen::ToOperand(LOperand* op) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return Operand::Zero();
 }
 
 
 MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return MemOperand(no_reg, 0);
 }
 
 
 MemOperand LCodeGen::ToHighMemOperand(LOperand* op) const {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return MemOperand(no_reg, 0);
 }
 
 
 void LCodeGen::WriteTranslation(LEnvironment* environment,
                                 Translation* translation) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -219,7 +350,7 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
                                 bool is_uint32,
                                 int* object_index_pointer,
                                 int* dematerialized_index_pointer) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -227,7 +358,7 @@ void LCodeGen::CallCode(Handle<Code> code,
                         RelocInfo::Mode mode,
                         LInstruction* instr,
                         TargetAddressStorageMode storage_mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -236,7 +367,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                LInstruction* instr,
                                SafepointMode safepoint_mode,
                                TargetAddressStorageMode storage_mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -244,7 +375,7 @@ void LCodeGen::CallRuntime(const Runtime::Function* function,
                            int num_arguments,
                            LInstruction* instr,
                            SaveFPRegsMode save_doubles) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -252,48 +383,60 @@ void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
                                        int argc,
                                        LInstruction* instr,
                                        LOperand* context) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                                     Safepoint::DeoptMode mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DeoptimizeIf(Condition condition,
                             LEnvironment* environment,
                             Deoptimizer::BailoutType bailout_type) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DeoptimizeIf(Condition condition,
                             LEnvironment* environment) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 int LCodeGen::DefineDeoptimizationLiteral(Handle<Object> literal) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return -1;
 }
 
 
 void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
-  UNIMPLEMENTED();
+  ASSERT(deoptimization_literals_.length() == 0);
+
+  const ZoneList<Handle<JSFunction> >* inlined_closures =
+      chunk()->inlined_closures();
+
+  for (int i = 0, length = inlined_closures->length();
+       i < length;
+       i++) {
+    DefineDeoptimizationLiteral(inlined_closures->at(i));
+  }
+
+  inlined_function_count_ = deoptimization_literals_.length();
+
 }
 
 
 void LCodeGen::RecordSafepointWithLazyDeopt(
     LInstruction* instr, SafepointMode safepoint_mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -302,25 +445,25 @@ void LCodeGen::RecordSafepoint(
     Safepoint::Kind kind,
     int arguments,
     Safepoint::DeoptMode deopt_mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::RecordSafepoint(LPointerMap* pointers,
                                Safepoint::DeoptMode deopt_mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::RecordSafepoint(Safepoint::DeoptMode deopt_mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
                                             int arguments,
                                             Safepoint::DeoptMode deopt_mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -328,52 +471,52 @@ void LCodeGen::RecordSafepointWithRegistersAndDoubles(
     LPointerMap* pointers,
     int arguments,
     Safepoint::DeoptMode deopt_mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::RecordAndWritePosition(int position) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLabel(LLabel* label) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoParallelMove(LParallelMove* move) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoGap(LGap* gap) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoInstructionGap(LInstructionGap* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoParameter(LParameter* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallStub(LCallStub* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoModI(LModI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -384,159 +527,159 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
     Register remainder,
     Register scratch,
     LEnvironment* environment) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMultiplySubD(LMultiplySubD* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMulI(LMulI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoBitI(LBitI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoShiftI(LShiftI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoSubI(LSubI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoRSubI(LRSubI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoConstantS(LConstantS* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoConstantD(LConstantD* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoConstantE(LConstantE* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoElementsKind(LElementsKind* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoValueOf(LValueOf* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDateField(LDateField* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoThrow(LThrow* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoAddI(LAddI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 template<class InstrType>
 void LCodeGen::EmitBranch(InstrType instr, Condition condition) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 template<class InstrType>
 void LCodeGen::EmitFalseBranch(InstrType instr, Condition condition) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDebugBreak(LDebugBreak* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoBranch(LBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::EmitGoto(int block) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoGoto(LGoto* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -547,17 +690,17 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 
 
 void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -565,13 +708,13 @@ Condition LCodeGen::EmitIsObject(Register input,
                                  Register temp1,
                                  Label* is_not_object,
                                  Label* is_object) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return ne;
 }
 
 
 void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -579,44 +722,44 @@ Condition LCodeGen::EmitIsString(Register input,
                                  Register temp1,
                                  Label* is_not_string,
                                  SmiCheck check_needed = INLINE_SMI_CHECK) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return ne;
 }
 
 
 void LCodeGen::DoIsStringAndBranch(LIsStringAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoHasCachedArrayIndexAndBranch(
     LHasCachedArrayIndexAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -628,124 +771,124 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
                                Register input,
                                Register temp,
                                Register temp2) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                                Label* map_check) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCmpT(LCmpT* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoReturn(LReturn* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadRoot(LLoadRoot* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadExternalArrayPointer(
     LLoadExternalArrayPointer* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -757,73 +900,73 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key,
                                          int shift_size,
                                          int additional_index,
                                          int additional_offset) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return MemOperand(no_reg, 0);
 }
 
 
 void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoPushArgument(LPushArgument* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDrop(LDrop* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoThisFunction(LThisFunction* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoContext(LContext* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoOuterContext(LOuterContext* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -833,274 +976,274 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  LInstruction* instr,
                                  CallKind call_kind,
                                  R1State r1_state) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::EmitIntegerMathAbs(LMathAbs* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathAbs(LMathAbs* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathFloor(LMathFloor* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathRound(LMathRound* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoPower(LPower* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoRandom(LRandom* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathLog(LMathLog* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathTan(LMathTan* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathCos(LMathCos* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoMathSin(LMathSin* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallNamed(LCallNamed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallNew(LCallNew* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreCodeEntry(LStoreCodeEntry* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoInnerAllocatedObject(LInnerAllocatedObject* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::ApplyCheckIf(Condition condition, LBoundsCheck* check) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStringAdd(LStringAdd* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoInteger32ToSmi(LInteger32ToSmi* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
                                     LOperand* value,
                                     IntegerSignedness signedness) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -1110,112 +1253,112 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCheckValue(LCheckValue* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoAllocate(LAllocate* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoTypeof(LTypeof* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -1223,73 +1366,73 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Label* false_label,
                                  Register input,
                                  Handle<String> type_name) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
   return ne;
 }
 
 
 void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::EmitIsConstructCall(Register temp1, Register temp2) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDummyUse(LDummyUse* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoCheckMapValue(LCheckMapValue* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
