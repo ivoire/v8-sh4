@@ -288,7 +288,6 @@ bool Assembler::IsInCondBranch(Instr instr) {
 }
 
 int Assembler::GetBranchOffset(Instr instr) {
-  printf("instr=0x%08x\n", instr);
   ASSERT(IsCondBranch(instr) || IsInCondBranch(instr));
   uint8_t disp;
   if (IsCondBranch(instr))
