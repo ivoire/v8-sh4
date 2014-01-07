@@ -39,8 +39,9 @@ const int Deoptimizer::table_entry_size_ = 12;
 
 
 int Deoptimizer::patch_size() {
-  UNIMPLEMENTED();
-  return 0;
+  //TODO(ivoire): find the right value !
+  const int kCallInstructionSizeInWords = 3;
+  return kCallInstructionSizeInWords * Assembler::kInstrSize;
 }
 
 
