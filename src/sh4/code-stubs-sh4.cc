@@ -5258,7 +5258,23 @@ static void CreateArrayDispatch(MacroAssembler* masm,
 
 template<class T>
 static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
-  UNIMPLEMENTED();
+  ElementsKind initial_kind = GetInitialFastElementsKind();
+  ElementsKind initial_holey_kind = GetHoleyElementsKind(initial_kind);
+
+  int to_index = GetSequenceIndexFromFastElementsKind(
+      TERMINAL_FAST_ELEMENTS_KIND);
+  for (int i = 0; i <= to_index; ++i) {
+    ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
+    T stub(kind);
+    stub.GetCode(isolate)->set_is_pregenerated(true);
+    if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE ||
+        (!FLAG_track_allocation_sites &&
+         (kind == initial_kind || kind == initial_holey_kind))) {
+      T stub1(kind, CONTEXT_CHECK_REQUIRED, DISABLE_ALLOCATION_SITES);
+      stub1.GetCode(isolate)->set_is_pregenerated(true);
+    }
+  }
+
 }
 
 
@@ -5274,7 +5290,16 @@ void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
     Isolate* isolate) {
-  UNIMPLEMENTED();
+  ElementsKind kinds[2] = { FAST_ELEMENTS, FAST_HOLEY_ELEMENTS };
+  for (int i = 0; i < 2; i++) {
+    // For internal arrays we only need a few things
+    InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
+    stubh1.GetCode(isolate)->set_is_pregenerated(true);
+    InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
+    stubh2.GetCode(isolate)->set_is_pregenerated(true);
+    InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
+    stubh3.GetCode(isolate)->set_is_pregenerated(true);
+  }
 }
 
 
