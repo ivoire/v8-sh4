@@ -317,7 +317,7 @@ void FullCodeGenerator::Generate() {
       __ LoadRoot(ip, Heap::kStackLimitRootIndex);
       __ cmphs(sp, ip);
       __ bt_near(&ok);
-      PredictableCodeSizeScope predictable(masm_, 2 * Assembler::kInstrSize);
+      PredictableCodeSizeScope predictable(masm_, masm_->GetCallTargetAddressOffset());
       __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
       __ bind(&ok);
     }
