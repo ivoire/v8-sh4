@@ -1685,6 +1685,10 @@ void MacroAssembler::CompareInstanceType(Register map,
     RECORD_LINE();
     cmpgt(type_reg, Operand(type));
     break;
+  case hi:
+    RECORD_LINE();
+    cmphi(type_reg, Operand(type));
+    break;
   default:
     UNIMPLEMENTED();
   }
