@@ -479,7 +479,7 @@ void MacroAssembler::Strd(Register src1, Register src2,
 
 
 void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
 
@@ -1131,7 +1131,6 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
 
 void MacroAssembler::GetNumberHash(Register t0, Register scratch, Register scratch2) {
-  UNIMPLEMENTED();
   // First of all we assign the hash seed to scratch.
   LoadRoot(scratch, Heap::kHashSeedRootIndex);
   SmiUntag(scratch);
@@ -1334,9 +1333,9 @@ void MacroAssembler::Allocate(int object_size,
   // to calculate the new top. We must preserve the ip register at this
   // point, so we cannot just use add().
   ASSERT(object_size > 0);
-  while (object_size != 0) {
-    UNIMPLEMENTED();
-  }
+//  while (object_size != 0) {
+    UNIMPLEMENTED_BREAK();
+//  }
   b(t, gc_required);
 
   RECORD_LINE();
@@ -1761,7 +1760,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
            fail,
            DONT_DO_SMI_CHECK);
 
-  UNIMPLEMENTED();
+  bind(&smi_value);
+  UNIMPLEMENTED_BREAK();
 }
 
 
@@ -2362,14 +2362,14 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Register map_in_out,
     Register scratch,
     Label* no_map_match) {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
 
 void MacroAssembler::LoadInitialArrayMap(
     Register function_in, Register scratch,
     Register map_out, bool can_have_holes) {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
 
@@ -2564,7 +2564,7 @@ void MacroAssembler::LookupNumberStringCache(Register object,
                                              Register scratch2,
                                              Register scratch3,
                                              Label* not_found) {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
 
