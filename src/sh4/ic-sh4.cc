@@ -1146,7 +1146,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 
   // Check that the key is an array index, that is Uint32.
   __ NonNegativeSmiTst(r0);
-  __ bf(&slow);
+  __ bf_near(&slow);
 
   // Get the map of the receiver.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
