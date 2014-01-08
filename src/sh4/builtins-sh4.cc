@@ -326,8 +326,8 @@ void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
   // stack limit as a cue for an interrupt signal.
   Label ok;
   __ LoadRoot(ip, Heap::kStackLimitRootIndex);
-  __ cmpeq(sp, ip);
-  __ b(hs, &ok);
+  __ cmphs(sp, ip);
+  __ bt(&ok);
 
   CallRuntimePassFunction(masm, Runtime::kTryInstallRecompiledCode);
   // Tail call to returned code.
@@ -803,7 +803,7 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 
 
 static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 #define DEFINE_CODE_AGE_BUILTIN_GENERATOR(C)                 \
@@ -820,7 +820,7 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 
 
 void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -895,12 +895,12 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -1243,7 +1243,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     frame_scope.GenerateLeaveFrame();
     __ add(sp, sp, Operand(3 * kPointerSize));
-    __ Jump(lr);
+    __ rts();
 
     // Invoke the function proxy.
     __ bind(&call_proxy);

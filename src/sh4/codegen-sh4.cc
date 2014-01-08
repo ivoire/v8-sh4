@@ -113,19 +113,19 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     MacroAssembler* masm, AllocationSiteMode mode,
     Label* allocation_memento_found) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void ElementsTransitionGenerator::GenerateSmiToDouble(
     MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
 void ElementsTransitionGenerator::GenerateDoubleToObject(
     MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -134,7 +134,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register index,
                                        Register result,
                                        Label* call_runtime) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 
@@ -146,7 +146,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
                                    Register temp1,
                                    Register temp2,
                                    Register temp3) {
-  UNIMPLEMENTED();
+  __ UNIMPLEMENTED_BREAK();
 }
 
 #undef __
