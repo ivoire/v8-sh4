@@ -407,17 +407,9 @@ Address Assembler::target_address_at(Address pc) {
 
 
 void Assembler::set_target_address_at(Address pc, Address target) {
-  UNIMPLEMENTED();
-  // TODO(ivoire): handle moves.
-  Memory::Address_at(target_pointer_address_at(pc)) = target;
-  // Intuitively, we would think it is necessary to flush the instruction cache
-  // after patching a target address in the code as follows:
-  //   CPU::FlushICache(pc, sizeof(target));
-  // However, on ARM, no instruction was actually patched by the assignment
-  // above; the target address is not part of an instruction, it is patched in
-  // the constant pool and is read via a data access; the instruction accessing
-  // this address in the constant pool remains unchanged.
+  set_target_pointer_at(pc, target);
 }
+
 
 int Assembler::align() {
   int count = 0;
