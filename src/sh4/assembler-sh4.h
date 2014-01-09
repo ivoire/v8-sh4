@@ -1228,6 +1228,7 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static const int kGap = 32;
+  static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
 
   // These were taken verbatim from ARM

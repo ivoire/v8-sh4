@@ -1880,12 +1880,17 @@ void Assembler::RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data) {
   // Contrary to RecordRelocInfo, we also handle constant pool entries here
   // that have no reloc info.
 
-  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
+  // We do not try to reuse pool constants.
+  RelocInfo rinfo(pc_, rmode, data, NULL);
+  if (((rmode >= RelocInfo::JS_RETURN &&
+       (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
+      rmode == RelocInfo::CONST_POOL)) {
     // Adjust code for new modes.
     ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
            || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsPosition(rmode));
+           || RelocInfo::IsPosition(rmode)
+           || RelocInfo::IsConstPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
     // Make sure the constant pool is not emitted in place of the next
@@ -1898,34 +1903,33 @@ void Assembler::RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data) {
       first_const_pool_use_ = pc_offset();
     }
     last_const_pool_use_ = pc_offset();
-    pending_reloc_info_[num_pending_reloc_info_++] = RelocInfo(pc_, rmode, data, NULL);
+    pending_reloc_info_[num_pending_reloc_info_++] = rinfo;
   }
 
   // Constant pool handling complete
-  if (rmode == RelocInfo::NONE32)
-    return;
-
-  // Don't record external references unless the heap will be serialized.
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+  if (!RelocInfo::IsNone(rinfo.rmode())) {
+    // Don't record external references unless the heap will be serialized.
+    if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
+      if (!Serializer::enabled()) {
+        Serializer::TooLateToEnableNow();
+      }
 #endif
-    if (!Serializer::enabled() && !emit_debug_code()) {
-      return;
+      if (!Serializer::enabled() && !emit_debug_code()) {
+        return;
+      }
     }
-  }
-  if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-    RelocInfo reloc_info_with_ast_id(pc_,
-                                     rmode,
-                                     RecordedAstId().ToInt(),
-                                     NULL);
-    ClearRecordedAstId();
-    reloc_info_writer.Write(&reloc_info_with_ast_id);
-  } else {
-    RelocInfo rinfo(pc_, rmode, data, NULL);
-    reloc_info_writer.Write(&rinfo);
+    ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
+    if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
+      RelocInfo reloc_info_with_ast_id(pc_,
+                                       rmode,
+                                       RecordedAstId().ToInt(),
+                                       NULL);
+      ClearRecordedAstId();
+      reloc_info_writer.Write(&reloc_info_with_ast_id);
+    } else {
+      reloc_info_writer.Write(&rinfo);
+    }
   }
 }
 
