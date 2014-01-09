@@ -1849,8 +1849,6 @@ void Assembler::dd(uint32_t data) {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  UNIMPLEMENTED();
-  ASSERT(rmode != RelocInfo::NONE32);
   // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
@@ -1862,6 +1860,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       return;
     }
   }
+  ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
   if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
       RelocInfo reloc_info_with_ast_id(pc_,
                                        rmode,
