@@ -97,10 +97,53 @@ void MacroAssembler::Call(Register target, Condition cond) {
 }
 
 
+int MacroAssembler::CallSize(
+    Address target, RelocInfo::Mode rmode) {
+  return GetCallTargetAddressOffset();
+}
+
+
 void MacroAssembler::Call(Address target,
                           RelocInfo::Mode rmode,
                           TargetAddressStorageMode mode) {
-  UNIMPLEMENTED_BREAK();
+  // Block constant pool for the call instruction sequence.
+  BlockConstPoolScope block_const_pool(this);
+  Label start;
+  bind(&start);
+
+  bool old_predictable_code_size = predictable_code_size();
+  if (mode == NEVER_INLINE_TARGET_ADDRESS) {
+    set_predictable_code_size(true);
+  }
+
+  // Call sequence may be:
+  //  mov  ip, @ct_pool
+  //  jsr  ip
+  //  nop
+  //                      @ return address
+  // Or without the constant pool
+  //  mov  ip, @slot
+  //  nop
+  //  jmp 4
+  //  nop
+  //  ..const..
+  //  ..const..
+  //  jsr  ip
+  //  nop
+
+  // Statement positions are expected to be recorded when the target
+  // address is loaded. The mov method will automatically record
+  // positions when pc is the target, since this is not the case here
+  // we have to do it explicitly.
+  positions_recorder()->WriteRecordedPositions();
+
+  mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
+  jsr(ip);
+
+  ASSERT_EQ(CallSize(target, rmode), SizeOfCodeGeneratedSince(&start));
+  if (mode == NEVER_INLINE_TARGET_ADDRESS) {
+    set_predictable_code_size(old_predictable_code_size);
+  }
 }
 
 
