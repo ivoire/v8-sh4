@@ -1862,7 +1862,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // inserting instructions here after we read the pc. We block literal pool
   // emission for the same reason.
   {
-    __ UNIMPLEMENTED_BREAK();
+    __ add(ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ jsr(ip);
   }
 
   // Unlink this frame from the handler chain.
@@ -5256,7 +5257,9 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  __ UNIMPLEMENTED_BREAK();
+  if (masm->isolate()->function_entry_hook() != NULL) {
+    __ UNIMPLEMENTED_BREAK();
+  }
 }
 
 
