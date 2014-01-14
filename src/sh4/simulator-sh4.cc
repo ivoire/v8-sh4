@@ -418,6 +418,8 @@ void Sh4Debugger::Debug() {
         }
       } else if (strcmp(cmd, "flags") == 0) {
         int fpscr = sim_->get_sregister(Simulator::fpscr);
+        PrintF("pc: 0x%08x; pr: 0x%08x\n", sim_->get_pc(),
+                                           sim_->get_sregister(Simulator::pr));
         PrintF("T flag: %d; ", sim_->get_t_flag());
         PrintF("S flag: %d; ", sim_->get_s_flag());
         PrintF("Q flag: %d; ", sim_->get_q_flag());
