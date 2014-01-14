@@ -1403,16 +1403,32 @@ void Simulator::InstructionDecode(Instruction* instr) {
 
 // Execute a delay slot instruction
 void Simulator::InstructionDecodeDelaySlot(Instruction* instr) {
+  // TODO(ivoire): factorize with Simulator::InstructionDecode
   in_delay_slot_ = true;
   if (v8::internal::FLAG_check_icache) {
     CheckICache(isolate_->simulator_i_cache(), instr);
   }
+  if (::v8::internal::FLAG_trace_sim) {
+    disasm::NameConverter converter;
+    disasm::Disassembler dasm(converter);
+    // use a reasonably large buffer
+    v8::internal::EmbeddedVector<char, 256> buffer;
+    dasm.InstructionDecode(buffer,
+                           reinterpret_cast<byte*>(instr));
+    PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
+  }
 
   uint32_t iword = instr->InstructionBits();
+  if (iword == kCallRtRedirected ||
+      iword == kBreakpoint ||
+      iword == kStoppoint) {
+    SoftwareInterrupt(instr, iword);
+  } else {
 #include "sh4/jump-table-sh4.h"
 #include "sh4/autogen-simulator-sh4.cc"
+  }
 
- in_delay_slot_ = false;
+  in_delay_slot_ = false;
 }
 
 
