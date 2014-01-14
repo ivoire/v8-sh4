@@ -488,6 +488,29 @@ else if (strcmp(cmd, "stop") == 0) {
         ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
         PrintF("Trace of executed instructions is %s\n",
                ::v8::internal::FLAG_trace_sim ? "on" : "off");
+      } else if (strcmp(cmd, "unimp") == 0) {
+        const char* psz_file;
+        int file_id = sim_->get_register(Simulator::r0);
+        switch (file_id) {
+        case 1518: psz_file = "assembler-sh4.cc"; break;
+        case 1424: psz_file = "assembler-sh4.h"; break;
+        case 1792: psz_file = "assembler-sh4-inl.h"; break;
+        case 1434: psz_file = "builtins-sh4.cc"; break;
+        case 1285: psz_file = "codegen-sh4.cc"; break;
+        case 1191: psz_file = "codegen-sh4.h"; break;
+        case 1577: psz_file = "code-stubs-sh4.cc"; break;
+        case 1483: psz_file = "code-stubs-sh4.h"; break;
+        case 1549: psz_file = "constants-sh4.cc"; break;
+        case 1455: psz_file = "constants-sh4.h"; break;
+        case 888:  psz_file = "cpu-sh4.cc"; break;
+        case 1765: psz_file = "full-codegen-sh4.cc"; break;
+        case 764:  psz_file = "ic-sh4.cc"; break;
+        case 2093: psz_file = "macro-assembler-sh4.cc"; break;
+        case 2789: psz_file = "regexp-macro-assembler-sh4.cc"; break;
+        case 1551: psz_file = "stub-cache-sh4.cc"; break;
+        default:   psz_file = "???";
+        }
+        PrintF("File: %s (%d)\nLine: %d\n", psz_file, file_id, sim_->get_register(Simulator::r1));
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
         PrintF("cont\n");
         PrintF("  continue execution (alias 'c')\n");
@@ -518,6 +541,8 @@ else if (strcmp(cmd, "stop") == 0) {
         PrintF("  delete the breakpoint\n");
         PrintF("trace (alias 't')\n");
         PrintF("  toogle the tracing of all executed statements\n");
+        PrintF("unimp\n");
+        PrintF("  give __FILE__ and __LINE__ of the current break\n");
 #if 0
         PrintF("stop feature:\n");
         PrintF("  Description:\n");
@@ -1273,7 +1298,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
         }
 
         // Print the current processor state
-        PrintF(" PC: 0x%08x \n  => %s\n SP: 0x%08x\n PR: 0x%08x\n", get_pc(), /*buffer.start()*/ "???", get_register(sp), get_sregister(pr));
+        PrintF(" PC: 0x%08x\n SP: 0x%08x\n PR: 0x%08x\n", get_pc(), get_register(sp), get_sregister(pr));
         for (int i = 0; i < num_registers; i++)
             PrintF(" R%01d: 0x%08x %10d\n", i, get_register(i), get_register(i));
 

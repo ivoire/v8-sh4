@@ -207,6 +207,8 @@ void MacroAssembler::UnimplementedBreak(const char *file, int line) {
   const char *base = strrchr(file, '/');
   if (base == NULL)
     base = file;
+  else
+    base++;
   while (*base) {
     file_id += *base;
     base++;
