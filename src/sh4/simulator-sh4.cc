@@ -1421,6 +1421,12 @@ void Simulator::Execute() {
     // Fast version of the dispatch loop without checking whether the simulator
     // should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
+      // sh4 processors cannot execute at unaligned address
+      if (program_counter & 1) {
+        PrintF("Trying to execute at unaligned address: pc=0x%08" V8PRIxPTR "\n", program_counter);
+        Sh4Debugger dbg(this);
+        dbg.Debug();
+      }
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
       InstructionDecode(instr);
@@ -1430,6 +1436,13 @@ void Simulator::Execute() {
     // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
     // we reach the particular instuction count.
     while (program_counter != end_sim_pc) {
+      // sh4 processors cannot execute at unaligned address
+      if (program_counter & 1) {
+        PrintF("Trying to execute at unaligned address: pc=0x%08" V8PRIxPTR "\n", program_counter);
+        Sh4Debugger dbg(this);
+        dbg.Debug();
+      }
+
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
       if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
