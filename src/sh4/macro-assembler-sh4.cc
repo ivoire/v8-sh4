@@ -524,7 +524,26 @@ void MacroAssembler::Strd(Register src1, Register src2,
 
 
 void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
-  UNIMPLEMENTED_BREAK();
+  if (frame_mode == BUILD_STUB_FRAME) {
+    push(pr);
+    pushm(cp.bit() | fp.bit());
+    Push(Smi::FromInt(StackFrame::STUB));
+    // Adjust FP to point to saved FP.
+    add(fp, sp, Operand(2 * kPointerSize));
+  } else {
+    PredictableCodeSizeScope predictible_code_size_scope(
+        this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+    // The following three instructions must remain together and unmodified
+    // for code aging to work properly.
+    if (isolate()->IsCodePreAgingActive()) {
+      UNIMPLEMENTED();
+    } else {
+      Push(r1, cp, fp, pr);
+      nop();
+      // Adjust FP to point to saved FP.
+      add(fp, sp, Operand(2 * kPointerSize));
+    }
+  }
 }
 
 
