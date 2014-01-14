@@ -152,9 +152,33 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 #undef __
 
 
+static byte* GetNoCodeAgeSequence(uint32_t* length) {
+  // The sequence of instructions that is patched out for aging code is the
+  // following boilerplate stack-building prologue that is found in FUNCTIONS
+  static bool initialized = false;
+  static uint32_t sequence[kNoCodeAgeSequenceLength];
+  byte* byte_sequence = reinterpret_cast<byte*>(sequence);
+  *length = kNoCodeAgeSequenceLength * Assembler::kInstrSize;
+  if (!initialized) {
+    CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
+    PredictableCodeSizeScope scope(patcher.masm(), *length);
+    patcher.masm()->Push(r1, cp, fp, pr);
+    patcher.masm()->nop();
+    patcher.masm()->add(fp, sp, Operand(2 * kPointerSize));
+    initialized = true;
+  }
+  return byte_sequence;
+}
+
+
 bool Code::IsYoungSequence(byte* sequence) {
-  UNIMPLEMENTED();
-  return false;
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  bool result = !memcmp(sequence, young_sequence, young_length);
+  ASSERT(result);// ||
+  // TODO(ivoire): implement this correctly !!!
+  //       Memory::uint32_at(sequence) == kCodeAgePatchFirstInstruction);
+  return result;
 }
 
 
