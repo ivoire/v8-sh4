@@ -1444,6 +1444,7 @@ void Simulator::Execute() {
         PrintF("Trying to execute at unaligned address: pc=0x%08" V8PRIxPTR "\n", program_counter);
         Sh4Debugger dbg(this);
         dbg.Debug();
+        break;
       }
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
@@ -1459,6 +1460,7 @@ void Simulator::Execute() {
         PrintF("Trying to execute at unaligned address: pc=0x%08" V8PRIxPTR "\n", program_counter);
         Sh4Debugger dbg(this);
         dbg.Debug();
+        break;
       }
 
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
