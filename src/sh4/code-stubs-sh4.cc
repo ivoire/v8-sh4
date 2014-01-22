@@ -1535,28 +1535,25 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // know where the return address is. The CEntryStub is unmovable, so
   // we can store the address on the stack to be able to find it again and
   // we never have to restore it, because it will not change.
-  // Compute the return address in lr to return to after the jump below. Pc is
-  // already at '+ 8' from the current instruction but return is after three
-  // instructions so add another 4 to pc to get the return address.
   {
     // Prevent literal pool emission before return address.
-    __ UNIMPLEMENTED_BREAK();
-  }
+    Assembler::BlockConstPoolScope block_const_pool(masm);
 
-  // Compute the return address in pr to return to after the jsr below.
-  // We use the addpc operation for this with an offset of 6.
-  // We add 3 * kInstrSize to the pc after the addpc for the size of
-  // the sequence: [str, jsr, nop(delay slot)].
-  __ addpc(r3, 3 * Assembler::kInstrSize, pr);
+    // Compute the return address in pr to return to after the jsr below.
+    // We use the addpc operation for this with an offset of 6.
+    // We add 3 * kInstrSize to the pc after the addpc for the size of
+    // the sequence: [str, jsr, nop(delay slot)].
+    __ addpc(r3, 3 * Assembler::kInstrSize, pr);
 #ifdef DEBUG
-  int old_pc = masm->pc_offset();
+    int old_pc = masm->pc_offset();
 #endif
-  __ str(r3, MemOperand(sp, 0));
-  __ jsr(r2);
-  //  __ jsr(sh4_r9);
+    __ str(r3, MemOperand(sp, 0));
+    __ jsr(r2);
+    //  __ jsr(sh4_r9);
 #ifdef DEBUG
-  ASSERT(masm->pc_offset() - old_pc == 3 * Assembler::kInstrSize);
+    ASSERT(masm->pc_offset() - old_pc == 3 * Assembler::kInstrSize);
 #endif
+  }
 
   if (always_allocate) {
     // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
