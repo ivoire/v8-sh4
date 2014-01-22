@@ -1896,7 +1896,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   }
 #endif
   // Restore callee-saved vfp registers.
-  __ UNIMPLEMENTED_BREAK();
+  // TODO(ivoire): nothying to do here normally
 
   __ popm(kCalleeSaved);
   __ pop(pr);
