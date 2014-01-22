@@ -460,7 +460,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ RecordJSReturn();
       masm_->mov(sp, fp);
       int no_frame_start = masm_->pc_offset();
-      masm_->Pop(fp, pr);
+      masm_->Pop(pr, fp);
       masm_->add(sp, sp, Operand(sp_delta));
       masm_->Ret();
       info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
