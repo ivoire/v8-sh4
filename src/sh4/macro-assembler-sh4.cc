@@ -524,9 +524,9 @@ void MacroAssembler::Strd(Register src1, Register src2,
 
 
 void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+
   if (frame_mode == BUILD_STUB_FRAME) {
-    push(pr);
-    pushm(cp.bit() | fp.bit());
+    Push(pr, fp, cp);
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
     add(fp, sp, Operand(2 * kPointerSize));
@@ -538,7 +538,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     if (isolate()->IsCodePreAgingActive()) {
       UNIMPLEMENTED();
     } else {
-      Push(r1, cp, fp, pr);
+      Push(pr, fp, cp, r1);
       nop();
       // Adjust FP to point to saved FP.
       add(fp, sp, Operand(2 * kPointerSize));
@@ -677,7 +677,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   mov(r3, Operand::Zero());
   mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(r3, MemOperand(ip));
-
 
   // Restore current context from top and clear it in debug mode.
   if (restore_context) {
