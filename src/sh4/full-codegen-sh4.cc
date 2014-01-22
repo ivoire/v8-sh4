@@ -2203,8 +2203,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // fp = caller's frame pointer.
   // cp = callee's context,
   // r4 = callee's JS function.
-  __ push(pr);
-  __ Push(fp, cp, r4);
+  __ Push(pr, fp, cp, r4);
   // Adjust FP to point to saved FP.
   __ add(fp, sp, Operand(2 * kPointerSize));
 
