@@ -4967,6 +4967,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
                             Address pc_addr,
                             BackEdgeState target_state,
                             Code* replacement_code) {
+  UNIMPLEMENTED();
 }
 
 
