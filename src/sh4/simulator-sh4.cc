@@ -1512,7 +1512,7 @@ void Simulator::CallInternal(byte* entry) {
   CHECK_EQ(callee_saved_value, get_register(r8));
   CHECK_EQ(callee_saved_value, get_register(r9));
   CHECK_EQ(callee_saved_value, get_register(r10));
-//  CHECK_EQ(callee_saved_value, get_register(r11));
+  CHECK_EQ(callee_saved_value, get_register(r11));
   CHECK_EQ(callee_saved_value, get_register(r12));
   CHECK_EQ(callee_saved_value, get_register(r13));
 
