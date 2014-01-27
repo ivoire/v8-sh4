@@ -5255,7 +5255,12 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
-    __ UNIMPLEMENTED_BREAK();
+    PredictableCodeSizeScope predictable(masm, 5 * Assembler::kInstrSize);
+    AllowStubCallsScope allow_stub_calls(masm, true);
+    ProfileEntryHookStub stub;
+    __ push(pr);
+    __ CallStub(&stub);
+    __ pop(pr);
   }
 }
 
