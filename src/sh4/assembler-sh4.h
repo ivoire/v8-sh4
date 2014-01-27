@@ -661,8 +661,7 @@ class Assembler : public AssemblerBase {
   // register.
   static const int kPcLoadDelta = 2;
 
-  // The debug break slot must be able to contain a call instruction.
-  static const int kDebugBreakSlotLength = kInstrSize;
+  static const int kJSReturnSequenceInstructions = 6;
 
   // branch type
   enum branch_type {
