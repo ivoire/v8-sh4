@@ -149,7 +149,7 @@ const int kRegister_pr_Code = -2;
 // Core register
 struct Register {
   static const int kNumRegisters = 16;
-  static const int kMaxNumAllocatableRegisters = 8;
+  static const int kMaxNumAllocatableRegisters = 14;
   static const int kSizeInBytes = 4;
 
   inline static int NumAllocatableRegisters();
@@ -273,7 +273,7 @@ struct SwVfpRegister {
 // Double word VFP register.
 struct DwVfpRegister {
   static const int kMaxNumRegisters = 8;
-  static const int kMaxNumAllocatableRegisters = 8;
+  static const int kMaxNumAllocatableRegisters = 14;  // TODO(ivoire): see src/lithium-allocator.cc:1788 !
 
   // Note: the number of registers can be different at snapshot and run-time.
   // Any code included in the snapshot must be able to run both with 16 or 32
