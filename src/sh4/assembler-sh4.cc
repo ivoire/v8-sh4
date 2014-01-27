@@ -294,6 +294,8 @@ int Assembler::GetBranchOffset(Instr instr) {
     disp = instr & 0xFF;
   else if (IsInCondBranch(instr))
     disp = instr & 0xFFF;
+  else
+    disp = 0; // DEAD code
 
   return (disp * 2) + 4;
 }
