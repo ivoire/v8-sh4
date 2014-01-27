@@ -642,6 +642,11 @@ class Assembler : public AssemblerBase {
   }
 
   static int ResolveCallTargetAddressOffset(byte *address);
+
+  // Distance between the instruction referring to the address of the call
+  // target and the return address.
+  static const int kCallTargetAddressOffset = 3 * kInstrSize;
+
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = 0 * kInstrSize;

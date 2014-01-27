@@ -371,8 +371,8 @@ Address Assembler::target_pointer_at(Address pc) {
 
 
 Address Assembler::target_address_from_return_address(Address pc) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(ivoire): depends if constant pools are in use !
+  return pc - kCallTargetAddressOffset;
 }
 
 
