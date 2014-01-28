@@ -31,6 +31,6 @@ logging=${logging:-off}
 prof=${prof:-off}
 tests=${tests:-""}
 
-make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} -j4
+make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} "$@"
 
 #  sh4.debug snapshot=off regexp=interpreted debuggersupport=off -j4
