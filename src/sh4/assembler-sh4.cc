@@ -1738,9 +1738,13 @@ void Assembler::popm(RegList src, bool doubles) {
 // enabling/disabling and a counter feature. See simulator-arm.h .
 void Assembler::stop(const char* msg) {
 #ifndef __sh__
-  CheckConstPool(true, true);
-  dw(kStoppoint);
-  dd(reinterpret_cast<uint32_t>(msg));
+  {
+    BlockConstPoolScope block_const_pool(this);
+    emit(kStoppoint);
+    CheckBuffer();
+    *reinterpret_cast<uint32_t*>(pc_) = reinterpret_cast<uint32_t>(msg);
+    pc_ += sizeof(uint32_t);
+  }
 #else
   // Generate an privileged instruction
   bkpt();
