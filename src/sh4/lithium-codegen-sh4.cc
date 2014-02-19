@@ -80,17 +80,25 @@ bool LCodeGen::GenerateCode() {
 }
 
 
-void LCodeGen::FinishCode(Handle<Code> code) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::FinishCode(Handle<Code> code) { // SAMEAS: arm
+  ASSERT(is_done());
+  code->set_stack_slots(GetStackSlotCount());
+  code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
+  if (FLAG_weak_embedded_maps_in_optimized_code) {
+    RegisterDependentCodeForEmbeddedMaps(code);
+  }
+  PopulateDeoptimizationData(code);
+  info()->CommitDependencies(code);
 }
 
 
-void LCodeGen::Abort(BailoutReason reason) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::Abort(BailoutReason reason) { // SAMEAS: arm
+  info()->set_bailout_reason(reason);
+  status_ = ABORTED;
 }
 
 
-bool LCodeGen::GeneratePrologue() {
+bool LCodeGen::GeneratePrologue() { // SAMEAS: arm, DIFF: codegen
   ASSERT(is_generating());
 
   if (info()->IsOptimizing()) {
@@ -118,7 +126,7 @@ bool LCodeGen::GeneratePrologue() {
       int receiver_offset = scope()->num_parameters() * kPointerSize;
       __ bt_near(&skip);
       __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-      __ str(r2, MemOperand(sp, receiver_offset));
+      __ str(r2, MemOperand(sp, receiver_offset)); // DIFF: codegen
       __ bind(&skip);
     }
   }
@@ -143,7 +151,7 @@ bool LCodeGen::GeneratePrologue() {
       __ bind(&loop);
       __ sub(r0, r0, Operand(kPointerSize));
       __ str(r1, MemOperand(r0, 2 * kPointerSize));
-      __ cmpeq(r0, sp);
+      __ cmpeq(r0, sp); // DIFF: codegen
       __ b(ne, &loop);
       __ pop(r1);
       __ pop(r0);
@@ -221,20 +229,34 @@ void LCodeGen::GenerateOsrPrologue() {
 
 
 bool LCodeGen::GenerateDeferredCode() {
-  __ UNIMPLEMENTED_BREAK();
-  return true;
+  __ UNIMPLEMENTED_BREAK(); // Fake succesful generation
+
+  // Force constant pool emission at the end of the deferred code to make
+  // sure that no constant pools are emitted after.
+  masm()->CheckConstPool(true, false);
+
+  return !is_aborted();
 }
 
 
 bool LCodeGen::GenerateDeoptJumpTable() {
-  __ UNIMPLEMENTED_BREAK();
-  return true;
+  __ UNIMPLEMENTED_BREAK(); // Fake succesful generation
+
+  // Force constant pool emission at the end of the deopt jump table to make
+  // sure that no constant pools are emitted after.
+  masm()->CheckConstPool(true, false);
+
+  // The deoptimization jump table is the last part of the instruction
+  // sequence. Mark the generated code as done unless we bailed out.
+  if (!is_aborted()) status_ = DONE;
+  return !is_aborted();
 }
 
 
-bool LCodeGen::GenerateSafepointTable() {
-  __ UNIMPLEMENTED_BREAK();
-  return true;
+bool LCodeGen::GenerateSafepointTable() { // SAMEAS: arm
+  ASSERT(is_done());
+  safepoints_.Emit(masm(), GetStackSlotCount());
+  return !is_aborted();
 }
 
 
@@ -405,6 +427,34 @@ void LCodeGen::DeoptimizeIf(Condition condition,
   __ UNIMPLEMENTED_BREAK();
 }
 
+void LCodeGen::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) { // SAMEAS: arm
+  ZoneList<Handle<Map> > maps(1, zone());
+  ZoneList<Handle<JSObject> > objects(1, zone());
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    if (Code::IsWeakEmbeddedObject(code->kind(), it.rinfo()->target_object())) {
+      if (it.rinfo()->target_object()->IsMap()) {
+        Handle<Map> map(Map::cast(it.rinfo()->target_object()));
+        maps.Add(map, zone());
+      } else if (it.rinfo()->target_object()->IsJSObject()) {
+        Handle<JSObject> object(JSObject::cast(it.rinfo()->target_object()));
+        objects.Add(object, zone());
+      }
+    }
+  }
+#ifdef VERIFY_HEAP
+  // This disables verification of weak embedded objects after full GC.
+  // AddDependentCode can cause a GC, which would observe the state where
+  // this code is not yet in the depended code lists of the embedded maps.
+  NoWeakObjectVerificationScope disable_verification_of_embedded_objects;
+#endif
+  for (int i = 0; i < maps.length(); i++) {
+    maps.at(i)->AddDependentCode(DependentCode::kWeaklyEmbeddedGroup, code);
+  }
+  for (int i = 0; i < objects.length(); i++) {
+    AddWeakObjectToCodeDependency(isolate()->heap(), objects.at(i), code);
+  }
+}
 
 void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   __ UNIMPLEMENTED_BREAK();
