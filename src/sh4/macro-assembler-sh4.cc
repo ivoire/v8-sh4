@@ -2298,6 +2298,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 
 
 void MacroAssembler::Assert(Condition cond, BailoutReason reason) {
+  ASSERT(cond == ne || cond == eq); // Limitation of sh4 Check()
   if (emit_debug_code())
     Check(cond, reason);
 }
@@ -2334,6 +2335,7 @@ void MacroAssembler::AssertFastElements(Register elements) {
 void MacroAssembler::Check(Condition cond, BailoutReason reason) {
   Label L;
   RECORD_LINE();
+  ASSERT(cond == ne || cond == eq); // Limitation of sh4 b(cond,...)
   b(cond, &L);
   Abort(reason);
   // will not return here

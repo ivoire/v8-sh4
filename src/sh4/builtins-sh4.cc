@@ -345,7 +345,7 @@ void Builtins::Generate_ConcurrentRecompile(MacroAssembler* masm) {
 }
 
 
-static void Generate_JSConstructStubHelper(MacroAssembler* masm,
+static void Generate_JSConstructStubHelper(MacroAssembler* masm, // SAMEAS: arm
                                            bool is_api_function,
                                            bool count_constructions) {
   // ----------- S t a t e -------------
@@ -387,7 +387,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r1: constructor function
       __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
       __ JumpIfSmi(r2, &rt_call);
-      __ CompareObjectType(r2, r3, r4, MAP_TYPE, eq);
+      __ CompareObjectType(r2, r3, r4, MAP_TYPE, eq); // DIFF: codegen
       __ b(ne, &rt_call);
 
       // Check that the constructor is not constructing a JSFunction (see
@@ -395,7 +395,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // initial map's instance type would be JS_FUNCTION_TYPE.
       // r1: constructor function
       // r2: initial map
-      __ CompareInstanceType(r2, r3, JS_FUNCTION_TYPE, eq);
+      __ CompareInstanceType(r2, r3, JS_FUNCTION_TYPE, eq); // DIFF: codegen
       __ b(eq, &rt_call);
 
       if (count_constructions) {
@@ -405,7 +405,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         MemOperand constructor_count =
             FieldMemOperand(r3, SharedFunctionInfo::kConstructionCountOffset);
         __ ldrb(r4, constructor_count);
-        __ dt(r4);
+        __ dt(r4);  // DIFF: codegen
         __ strb(r4, constructor_count);
         __ b(ne, &allocate);
 
@@ -454,14 +454,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
         __ Ubfx(r0, r0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
                 kBitsPerByte);
-        __ lsl(r0, r0, Operand(kPointerSizeLog2));
+        __ lsl(r0, r0, Operand(kPointerSizeLog2)); // DIFF: codegen
         __ add(r0, r5, r0);
         // r0: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
           __ lsl(ip, r3, Operand(kPointerSizeLog2));
           __ add(ip, r4, ip);  // End of object.
-          __ cmp(r0, ip);
-          __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
+          __ cmpgt(r0, ip); // DIFF: codegen
+          __ Assert(ne, kUnexpectedNumberOfPreAllocatedPropertyFields); // DIFF: codegen
         }
         __ InitializeFieldsWithFiller(r5, r0, r6);
         // To allow for truncation.
@@ -488,16 +488,16 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
       __ Ubfx(r6, r0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
               kBitsPerByte);
-      __ add(r3, r3, r6);
+      __ add(r3, r3, r6); // DIFF: codegen
       __ Ubfx(r6, r0, Map::kInObjectPropertiesByte * kBitsPerByte,
               kBitsPerByte);
-      __ sub(r3, r3, r6);
+      __ sub(r3, r3, r6); // DIFF: codegen
       __ tst(r3, r3);
 
       // Done if no extra properties are to be allocated.
       __ b(eq, &allocated);
-      __ cmpge(r3, Operand(0));
-      __ Assert(eq, kPropertyAllocationCountFailed);
+      __ cmpge(r3, Operand(0)); // DIFF: codegen
+      __ Assert(eq, kPropertyAllocationCountFailed); // DIFF: codegen
 
       // Scale the number of elements by pointer size and add the header for
       // FixedArrays to the start of the next object calculation from above.
@@ -533,7 +533,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r3: number of elements in properties array
       // r4: JSObject
       // r5: FixedArray (not tagged)
-      __ lsl(r6, r3, Operand(kPointerSizeLog2));
+      __ lsl(r6, r3, Operand(kPointerSizeLog2)); // DIFF: codegen
       __ add(r6, r2, r6);  // End of object.
       ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
       { Label loop, entry;
@@ -542,7 +542,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ bind(&loop);
         __ str(r0, MemOperand(r2, kPointerSize, PostIndex));
         __ bind(&entry);
-        __ cmpge(r2, r6);
+        __ cmpge(r2, r6); // DIFF: codegen
         __ bf(&loop);
       }
 
@@ -606,12 +606,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     Label loop, entry;
     __ b_near(&entry);
     __ bind(&loop);
-    __ lsl(ip, r3, Operand(kPointerSizeLog2 - 1));
+    __ lsl(ip, r3, Operand(kPointerSizeLog2 - 1)); // DIFF: codegen
     __ ldr(ip, MemOperand(r2, ip));
     __ push(ip);
     __ bind(&entry);
     __ cmpge(r3, Operand(2)); // for branch below
-    __ sub(r3, r3, Operand(2));
+    __ sub(r3, r3, Operand(2)); // DIFF: codegen
     __ bt(&loop);
 
     // Call the function.
@@ -656,7 +656,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // If the type of the result (stored in its map) is less than
     // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
-    __ CompareObjectType(r0, r1, r3, FIRST_SPEC_OBJECT_TYPE, ge);
+    __ CompareObjectType(r0, r1, r3, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
     __ bt(&exit);
 
     // Throw away the result of the constructor invocation and use the
@@ -676,11 +676,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Leave construct frame.
   }
 
-  __ lsl(ip, r1, Operand(kPointerSizeLog2 - 1));
+  __ lsl(ip, r1, Operand(kPointerSizeLog2 - 1)); // DIFF: codegen
   __ add(sp, sp, ip);
   __ add(sp, sp, Operand(kPointerSize));
   __ IncrementCounter(isolate->counters()->constructed_objects(), 1, r1, r2);
-  __ rts();
+  __ rts(); // DIFF: codegen
 }
 
 
