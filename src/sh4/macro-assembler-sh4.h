@@ -1377,7 +1377,24 @@ inline MemOperand GlobalObjectOperand()  {
 #define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
 #define ACCESS_MASM(masm) masm->stop(__FILE_LINE__); masm->
 #else
-#define ACCESS_MASM(masm) masm->
+#ifdef DEBUG
+inline MacroAssembler *RecordFunctionLine(MacroAssembler *masm,
+                                          const char *function, int line)
+{
+  if (FLAG_code_comments) {
+    /* 10(strlen of MAXINT) + 1(separator) +1(nul). */
+    int size = strlen("/line/")+strlen(function) + 10 + 1 + 1;
+    char *buffer = new char[size];
+    snprintf(buffer, size, "/line/%s/%d", function, line);
+    buffer[size-1] = '\0';
+    masm->RecordComment(buffer);
+  }
+  return masm;
+}
+# define ACCESS_MASM(masm) masm->RecordFunctionLine(__FUNCTION__, __LINE__)->
+#else
+# define ACCESS_MASM(masm) masm->
+#endif
 #endif
 
 
