@@ -34,16 +34,21 @@
 
 using namespace v8::internal;
 
-#define BEGIN()                           \
-  /* Disable compilation of natives. */   \
-  i::FLAG_disable_native_files = true;    \
-                                          \
-  CcTest::InitializeVM();                 \
-  Isolate* isolate = CcTest::i_isolate(); \
+/*
+  Use this macro to setup the VM at the start of each test.
+  By default use BEGIN_WITH_NATIVE(false) if natives are
+  not needed. Only when needed, use BEGIN_WITH_NATIVE(true).
+*/
+#define BEGIN_WITH_NATIVE(native)               \
+  /* Set compilation of natives. */             \
+  i::FLAG_disable_native_files = !(native);     \
+                                                \
+  CcTest::InitializeVM();                       \
+  Isolate* isolate = CcTest::i_isolate();       \
   HandleScope scope(isolate);
 
 TEST(sh4) {
-  BEGIN()
+  BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "0x1234;";
   v8::Handle<v8::String> source = v8::String::New(c_source);
@@ -52,7 +57,7 @@ TEST(sh4) {
 }
 
 TEST(sh4_1) {
-  BEGIN()
+  BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "0x1234 + 0x10;";
   v8::Handle<v8::String> source = v8::String::New(c_source);
@@ -61,7 +66,7 @@ TEST(sh4_1) {
 }
 
 TEST(sh4_2) {
-  BEGIN()
+  BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "function foo() { return 0x1234; }; foo();";
   v8::Handle<v8::String> source = v8::String::New(c_source);
@@ -70,7 +75,7 @@ TEST(sh4_2) {
 }
 
 TEST(sh4_3) {
-  BEGIN()
+  BEGIN_WITH_NATIVE(true)
 
   const char* c_source = "\"foo\" + \"bar\" != \"foobar\";";
   v8::Handle<v8::String> source = v8::String::New(c_source);
@@ -79,7 +84,7 @@ TEST(sh4_3) {
 }
 
 TEST(sh4_4) {
-  BEGIN()
+  BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "0x1235 - 1;";
   v8::Handle<v8::String> source = v8::String::New(c_source);
@@ -88,7 +93,7 @@ TEST(sh4_4) {
 }
 
 TEST(sh4_5) {
-  BEGIN()
+  BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "0x123 * 16;";
   v8::Handle<v8::String> source = v8::String::New(c_source);
