@@ -3237,7 +3237,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 }
 
 
-void CallFunctionStub::Generate(MacroAssembler* masm) {
+void CallFunctionStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   // r1 : the function to call
   // r2 : cache cell for call target
   Label slow, non_function;
@@ -3265,10 +3265,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // r1: pushed function (to be verified)
   __ JumpIfSmi(r1, &non_function);
   // Get the map of the function object.
-  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq);
+  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq); // DIFF: codegen
   __ b(ne, &slow);
 
-  if (RecordCallTarget()) {
+  if (0 && RecordCallTarget()) { // DIFF: lithium
     GenerateRecordCallTarget(masm);
   }
 
@@ -3295,7 +3295,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
-  if (RecordCallTarget()) {
+  if (0 && RecordCallTarget()) { // DIFF: lithium
     // If there is a call target cache, mark it megamorphic in the
     // non-function case.  MegamorphicSentinel is an immortal immovable
     // object (undefined) so no write barrier is needed.
@@ -3305,7 +3305,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ str(ip, FieldMemOperand(r2, Cell::kValueOffset));
   }
   // Check for function proxy.
-  __ cmpeq(r3, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ cmpeq(r3, Operand(JS_FUNCTION_PROXY_TYPE)); // DIFF: codegen
   __ b(ne, &non_function);
   __ push(r1);  // put proxy as additional argument
   __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE32));
@@ -3331,7 +3331,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallConstructStub::Generate(MacroAssembler* masm) {
+void CallConstructStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   // r0 : number of arguments
   // r1 : the function to call
   // r2 : cache cell for call target
@@ -3340,10 +3340,10 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   // Check that the function is not a smi.
   __ JumpIfSmi(r1, &non_function_call);
   // Check that the function is a JSFunction.
-  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq);
+  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq); // DIFF: codegen
   __ b(ne, &slow);
 
-  if (RecordCallTarget()) {
+  if (0 && RecordCallTarget()) { // DIFF: lithium
     GenerateRecordCallTarget(masm);
   }
 
@@ -3352,15 +3352,15 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ ldr(jmp_reg, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(jmp_reg, FieldMemOperand(jmp_reg,
                                   SharedFunctionInfo::kConstructStubOffset));
-  //__ add(pc, jmp_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ UNIMPLEMENTED_BREAK();
+  __ add(ip, jmp_reg, Operand(Code::kHeaderSize - kHeapObjectTag)); // DIFF: codegen
+  __ jmp(ip); // DIFF: codegen
 
   // r0: number of arguments
   // r1: called object
   // r3: object type
   Label do_call;
   __ bind(&slow);
-  __ cmpeq(r3, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ cmpeq(r3, Operand(JS_FUNCTION_PROXY_TYPE)); // DIFF: codegen
   __ b(ne, &non_function_call);
   __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
   __ jmp(&do_call);
