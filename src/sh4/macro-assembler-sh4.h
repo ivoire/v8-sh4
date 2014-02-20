@@ -43,7 +43,7 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
 
-const Register kRootRegister = { kRegister_r10_Code };  // Roots array pointer.
+const Register kRootRegister = { kRegister_roots_Code };  // Roots array pointer.
 
 // Flags used for AllocateHeapNumber
 enum TaggingMode {
