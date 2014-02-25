@@ -275,7 +275,7 @@ $(BUILDS): $(OUTDIR)/Makefile.$$(basename $$@)
 	         CXX="$(CXX)" LINK="$(LINK)" \
 	         BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                     python -c "print raw_input().capitalize()") \
-	         builddir="$(shell pwd)/$(OUTDIR)/$@"
+	         builddir="$(shell pwd)/$(OUTDIR)/$@" $(BT)
 
 native: $(OUTDIR)/Makefile.native
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.native \

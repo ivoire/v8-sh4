@@ -117,7 +117,7 @@ namespace internal {
 #define CODE_STUB_LIST_MIPS(V)
 #endif
 
-// List of code stubs only used on ARM platforms.
+// List of code stubs only used on SH4 platforms. // SAMEAS: arm
 #if V8_TARGET_ARCH_SH4
 #define CODE_STUB_LIST_SH4(V) \
   V(GetProperty)              \

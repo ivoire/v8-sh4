@@ -1609,11 +1609,9 @@ bool CompareIC::HasInlinedSmiCode(Address address) {
 
 
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
-  // Should be analyzed.
-  UNIMPLEMENTED();
   Address cmp_instruction_address;
   Instr movl = Assembler::instr_at(address);
-  ASSERT((movl & 0xf000) == 0xd000);
+  ASSERT(Assembler::IsMovlPcRelative(movl));
   if ((movl & kOff8Mask) == 0x1) {
     // load from an inlined constant pool
     cmp_instruction_address = address + Assembler::kOldStyleCallTargetAddressOffset;
@@ -1668,15 +1666,17 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     // Changing
     //   mov #kSmiTagMask, sh4_ip
     //   cmp rx, rx
-    //   bf <skip>        // actually a bt <target>
+    //   bf <skip>        // actually never taken
     //   ...
-    //   bra <target>
+    //   bra <target>     // always jump to <target> (non-optimized case)
     //   skip:
     // to
     //   mov #kSmiTagMask, sh4_ip
     //   tst rx, sh4_ip
-    //   bt <skip>       // actually implements a bf <target>
+    //   bt <skip>       // implements jump <target> if not smi
     //   ...
+    //   bra <target>
+    //   skip:
     CodePatcher patcher(patch_address, 2);
     Register reg = Assembler::GetRn(instr_at_patch);
     patcher.masm()->tst(reg, sh4_ip);
@@ -1687,15 +1687,17 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     // Changing
     //   mov #kSmiTagMask, sh4_ip
     //   cmp rx, rx
-    //   bt <skip>        // actually a bf <target>
+    //   bt <skip>        // actually always taken (non-optimized case)
     //   ...
     //   bra <target>
     //   skip:
     // to
     //   mov #kSmiTagMask, sh4_ip
     //   tst rx, sh4_ip
-    //   bf <target>
+    //   bf <skip>      // implements jump <target> if smi
     //   ...
+    //   bra <target>
+    //   skip:
     CodePatcher patcher(patch_address, 2);
     Register reg = Assembler::GetRn(instr_at_patch);
     patcher.masm()->tst(reg, sh4_ip);

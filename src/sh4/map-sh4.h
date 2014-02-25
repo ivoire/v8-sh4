@@ -42,7 +42,7 @@
 #define r14 "Unexpected"
 #define r15 "Unexpected"
 #else
-// Second include, we define the mapping
+// Second include, we undefine the mapping
 #undef MAP_SH4
 #undef r8
 #undef ip

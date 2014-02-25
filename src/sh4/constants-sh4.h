@@ -41,6 +41,18 @@ const int kNumFPURegisters = kNumFPUDoubleRegisters + kNumFPUSingleRegisters;
 // Marker for end of register list.
 static const int kNoRegister = -1;
 
+// Condition code updating mode.
+// We define here LaaveCC as for ARM
+// and SetT instead of SetCC as SH4 only supports T bit
+// Note that on SH4 this is not an instruction/encoding variant
+// we use it only to provide some interface similar to ARM
+// in macro-assembler-sh4.h.
+enum SBit {
+  SetT     = 1,  // Set T bit
+  LeaveT   = 0   // Leave T bit unchanged: ref ARM LeaveCC
+};
+
+
 // -----------------------------------------------------------------------------
 // Instructions encoding.
 

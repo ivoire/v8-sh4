@@ -40,6 +40,18 @@
 
 #if defined(USE_SIMULATOR)
 
+#ifdef DEBUG
+#define FATAL_DEBUG(msg) {                      \
+    Sh4Debugger dbg(this);                      \
+    dbg.Debug();                                \
+    V8_Fatal(__FILE__, __LINE__, "%s", (msg));  \
+  }
+#undef UNREACHABLE
+#define UNREACHABLE() FATAL_DEBUG("unreachable code")
+#undef UNIMPLEMENTED
+#define UNIMPLEMENTED() FATAL_DEBUG("unimplemented code")
+#endif
+
 // Only build the simulator if not compiling for real SH4 hardware.
 namespace v8 {
 namespace internal {
@@ -510,6 +522,8 @@ else if (strcmp(cmd, "stop") == 0) {
         case 2093: psz_file = "macro-assembler-sh4.cc"; break;
         case 2789: psz_file = "regexp-macro-assembler-sh4.cc"; break;
         case 1551: psz_file = "stub-cache-sh4.cc"; break;
+        case 1756: psz_file = "deoptimizer-sh4.cc"; break;
+        case 2094: psz_file = "lithium-codegen-sh4.cc"; break;
         default:   psz_file = "???";
         }
         PrintF("File: %s (%d)\nLine: %d\n", psz_file, file_id, sim_->get_register(Simulator::r1));
@@ -823,6 +837,8 @@ void Simulator::set_register(int reg, int32_t value) {
   // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
   if (reg >= num_registers) return;
   // End stupid code.
+  if (::v8::internal::FLAG_trace_sim_regs && dump_set_register)
+    PrintF("W[%3s 0x%08x]", Registers::Name(reg), value);
 
   registers_[reg] = value;
 }
@@ -836,6 +852,11 @@ int32_t Simulator::get_register(int reg) const {
   // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
   if (reg >= num_registers) return 0;
   // End stupid code.
+
+  int32_t value = registers_[reg];
+  if (::v8::internal::FLAG_trace_sim_regs && dump_get_register)
+    PrintF("R[%3s 0x%08x]", Registers::Name(reg), value);
+
   return registers_[reg];
 }
 
@@ -890,6 +911,8 @@ double Simulator::get_dregister(int reg) const {
 
 // Raw access to the PC register.
 void Simulator::set_pc(int32_t value) {
+  if (::v8::internal::FLAG_trace_sim_regs && dump_set_register)
+    PrintF("W[PC 0x%08x]", value);
   pc_modified_ = true;
   pc_ = value;
 }
@@ -902,6 +925,8 @@ bool Simulator::has_bad_pc() const {
 
 // Raw access to the PC register without the special adjustment when reading.
 int32_t Simulator::get_pc() const {
+  if (::v8::internal::FLAG_trace_sim_regs && dump_get_register)
+    PrintF("R[PC 0x%08x]", pc_);
   return pc_;
 }
 
@@ -949,6 +974,14 @@ int32_t Simulator::get_sregister(int num) {
 
 
 int Simulator::ReadW(int32_t addr, Instruction* instr) {
+  if (addr == 0 || (addr & 3) != 0) {
+    // Print the current processor state
+    PrintF(" PC: 0x%08x\n SP: 0x%08x\n PR: 0x%08x\n", get_pc(), get_register(sp), get_sregister(pr));
+    for (int i = 0; i < num_registers; i++)
+      PrintF(" R%01d: 0x%08x %10d\n", i, get_register(i), get_register(i));
+    fflush(stdout);
+  }
+
   if ((addr & 3) == 0) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     return *ptr;
@@ -963,6 +996,13 @@ int Simulator::ReadW(int32_t addr, Instruction* instr) {
 
 
 void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
+  if (addr == 0 || (addr & 3) != 0) {
+    // Print the current processor state
+    PrintF(" PC: 0x%08x\n SP: 0x%08x\n PR: 0x%08x\n", get_pc(), get_register(sp), get_sregister(pr));
+    for (int i = 0; i < num_registers; i++)
+      PrintF(" R%01d: 0x%08x %10d\n", i, get_register(i), get_register(i));
+    fflush(stdout);
+  }
   if ((addr & 3) == 0) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     *ptr = value;
@@ -1381,7 +1421,14 @@ void Simulator::InstructionDecode(Instruction* instr) {
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
                            reinterpret_cast<byte*>(instr));
-    PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
+    if (::v8::internal::FLAG_trace_sim_regs) {
+      PrintF("  0x%08x  %s \t\t", reinterpret_cast<intptr_t>(instr), buffer.start());
+      fflush(stdout);
+      dump_get_register = true;
+      dump_set_register = true;
+    } else {
+      PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
+    }
   }
 
   uint16_t iword = instr->InstructionBits();
@@ -1397,6 +1444,13 @@ void Simulator::InstructionDecode(Instruction* instr) {
 
   if (!pc_modified_) {
     set_pc(reinterpret_cast<int32_t>(instr) + Instruction::kInstrSize);
+  }
+
+  if (::v8::internal::FLAG_trace_sim_regs) {
+    dump_get_register = false;
+    dump_set_register = false;
+    PrintF("\n");
+    fflush(stdout);
   }
 }
 
@@ -1416,6 +1470,7 @@ void Simulator::InstructionDecodeDelaySlot(Instruction* instr) {
     dasm.InstructionDecode(buffer,
                            reinterpret_cast<byte*>(instr));
     PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
+    fflush(stdout);
   }
 
   uint32_t iword = instr->InstructionBits();

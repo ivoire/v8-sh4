@@ -1101,7 +1101,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
+void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) { // SAMEAS: arm
   Comment cmnt(masm_, "[ ForInStatement");
   SetStatementPosition(stmt);
 
@@ -1126,8 +1126,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label convert;
   Label done_convert;
   __ JumpIfSmi(r0, &convert, Label::kNear);
-  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge);
-  __ bt_near(&done_convert);
+  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+  __ bt_near(&done_convert); // DIFF: codegen
   __ bind(&convert);
   __ push(r0);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
@@ -1137,8 +1137,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Check for proxies.
   Label call_runtime;
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
-  __ CompareObjectType(r0, r1, r1, LAST_JS_PROXY_TYPE, gt);
-  __ bf(&call_runtime);
+  __ CompareObjectType(r0, r1, r1, LAST_JS_PROXY_TYPE, gt); // DIFF: codegen
+  __ bf(&call_runtime); // DIFF: codegen
 
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
@@ -1150,7 +1150,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // iterated over and use the cache for the iteration.
   Label use_cache;
   __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ b_near(&use_cache);
+  __ b(&use_cache);
 
   // Get the set of properties to enumerate.
   __ bind(&call_runtime);
@@ -1163,16 +1163,16 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label fixed_array;
   __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kMetaMapRootIndex);
-  __ cmpeq(r2, ip);
-  __ bf_near(&fixed_array);
+  __ cmp(r2, ip);
+  __ b(ne, &fixed_array);
 
   // We got a map in register r0. Get the enumeration cache from it.
   Label no_descriptors;
   __ bind(&use_cache);
 
   __ EnumLength(r1, r0);
-  __ cmpeq(r1, Operand(Smi::FromInt(0)));
-  __ bt(&no_descriptors);
+  __ cmp(r1, Operand(Smi::FromInt(0)));
+  __ b(eq, &no_descriptors);
 
   __ LoadInstanceDescriptors(r0, r2);
   __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheOffset));
@@ -1183,7 +1183,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(r0, Operand(Smi::FromInt(0)));
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(r2, r1, r0);
-  __ jmp_near(&loop);
+  __ jmp(&loop);
 
   __ bind(&no_descriptors);
   __ Drop(1);
@@ -1204,8 +1204,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(r1, Operand(Smi::FromInt(1)));  // Smi indicates slow check
   __ ldr(r2, MemOperand(sp, 0 * kPointerSize));  // Get enumerated object
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
-  __ CompareObjectType(r2, r3, r3, LAST_JS_PROXY_TYPE, gt);
-  __ bt(&non_proxy);
+  __ CompareObjectType(r2, r3, r3, LAST_JS_PROXY_TYPE, gt); // DIFF: codegen
+  __ bt(&non_proxy); // DIFF: codegen
   __ mov(r1, Operand(Smi::FromInt(0)));  // Zero indicates proxy
   __ bind(&non_proxy);
   __ Push(r1, r0);  // Smi and array
@@ -1218,14 +1218,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&loop);
   // Load the current count to r0, load the length to r1.
   __ Ldrd(r0, r1, MemOperand(sp, 0 * kPointerSize));
-  __ cmphs(r0, r1);  // Compare to the array length.
-  __ bt(loop_statement.break_label());
+  __ cmphs(r0, r1);  // Compare to the array length. // DIFF: codegen
+  __ bt(loop_statement.break_label()); // DIFF: codegen
 
   // Get the current entry of the array into register r3.
   __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ lsl(r3, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ ldr(r3, MemOperand(r2, r3));
+  __ lsl(r3, r0, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+  __ ldr(r3, MemOperand(r2, r3)); // DIFF: codegen
 
   // Get the expected map from the stack or a smi in the
   // permanent slow case into register r2.
@@ -1236,12 +1236,12 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label update_each;
   __ ldr(r1, MemOperand(sp, 4 * kPointerSize));
   __ ldr(r4, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmpeq(r4, r2);
-  __ bt_near(&update_each);
+  __ cmp(r4, Operand(r2));
+  __ b(eq, &update_each);
 
   // For proxies, no filtering is done.
   // TODO(rossberg): What if only a prototype is a proxy? Not specified yet.
-  __ cmpeq(r2, Operand(Smi::FromInt(0)));
+  __ cmp(r2, Operand(Smi::FromInt(0)));
   __ b(eq, &update_each);
 
   // Convert the entry to a string or (smi) 0 if it isn't a property
@@ -1250,8 +1250,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(r1);  // Enumerable.
   __ push(r3);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
-  __ mov(r3, r0);
-  __ tst(r3, r3);
+  __ mov(r3, r0); // DIFF: codegen
+  __ tst(r3, r3); // DIFF: codegen
   __ b(eq, loop_statement.continue_label());
 
   // Update the 'each' property or variable from the possibly filtered
@@ -1287,7 +1287,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
+void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) { // SAMEAS: arm
   Comment cmnt(masm_, "[ ForOfStatement");
   SetStatementPosition(stmt);
 
@@ -1299,15 +1299,15 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
   // As with for-in, skip the loop if the iterator is null or undefined.
   __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
-  __ bt(loop_statement.break_label());
+  __ b(eq, loop_statement.break_label());
   __ CompareRoot(r0, Heap::kNullValueRootIndex);
-  __ bt(loop_statement.break_label());
+  __ b(eq, loop_statement.break_label());
 
   // Convert the iterator to a JS object.
   Label convert, done_convert;
   __ JumpIfSmi(r0, &convert);
-  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge);
-  __ bt(&done_convert);
+  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+  __ bt(&done_convert); // DIFF: codegen
   __ bind(&convert);
   __ push(r0);
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
@@ -2357,7 +2357,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
       __ lsl(scratch1, scratch1, scratch2);
-      __ TrySmiTag(right, &stub_call, scratch1);
+      __ TrySmiTag(right, scratch1, &stub_call);
       break;
     }
     case Token::SHR: {

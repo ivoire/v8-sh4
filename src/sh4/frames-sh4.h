@@ -69,12 +69,23 @@ const RegList kCalleeSaved =
   1 <<  13 |  //  r13 (cp in JS)
   1 <<  14;   //  r14 (fp in JS)
 
+// When calling into C++ (only for C++ calls that can't cause a GC).
+// The call code will take care of lr, fp, etc.
+const RegList kCallerSaved = kJSCallerSaved; // Same as JS caller saved
+
 const int kNumCalleeSaved = 7;
 
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
+// TODO(regis): Only 8 registers may actually be sufficient. Revisit.
 const int kNumSafepointRegisters = 16;
+
+// Define the list of registers actually saved at safepoints.
+// Note that the number of saved registers may be smaller than the reserved
+// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
+const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 // ----------------------------------------------------
 

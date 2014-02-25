@@ -284,20 +284,34 @@ void RelocInfo::Visit(Heap* heap) {
 
 
 Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) {
+  rm_ = no_reg;
   imm32_ = immediate;
   rmode_ = rmode;
 }
 
 
 Operand::Operand(const ExternalReference& f) {
+  rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 
 Operand::Operand(Smi* value) {
+  rm_ = no_reg;
   imm32_ = reinterpret_cast<intptr_t>(value);
   rmode_ = RelocInfo::NONE32;
+}
+
+Operand::Operand(Register rm) {
+  rm_ = rm;
+  imm32_ = 0;
+  rmode_ = RelocInfo::NONE32;
+}
+
+
+bool Operand::is_reg() const {
+  return rm_.is_valid();
 }
 
 
@@ -326,13 +340,15 @@ void Assembler::CheckBuffer() {
   }
 }
 
-
+#ifdef DEBUG
+/* Defined in assembler-sh4.cc in DEBUG MODE. */
+#else
 void Assembler::emit(Instr x) {
   CheckBuffer();
   *reinterpret_cast<Instr*>(pc_) = x;
   pc_ += kInstrSize;
 }
-
+#endif
 
 Address Assembler::target_pointer_address_at(Address pc) {
   // Compute the actual address in the code where the address of the
@@ -371,19 +387,49 @@ Address Assembler::target_pointer_at(Address pc) {
 
 
 Address Assembler::target_address_from_return_address(Address pc) {
-  // TODO(ivoire): depends if constant pools are in use !
-  return pc - kCallTargetAddressOffset;
+  // This is used only in the case of a call with immediate
+  // target (ref ARM port).
+  // No need to account for a direct register based call.
+  // This is equivalent to calling ResolveCallTargetAddressOffset()
+  // that returns the length of the sequence.
+  Instr possible_mov;
+  possible_mov = instr_at(pc - 3 * kInstrSize);
+  if (IsMovlPcRelative(possible_mov)) {
+    // Delayed constant pool
+    return pc - kNewStyleCallTargetAddressOffset;
+  } else {
+    return pc - kOldStyleCallTargetAddressOffset;
+  }
 }
 
 
 Address Assembler::return_address_from_call_start(Address pc) {
-  UNIMPLEMENTED();
-  return NULL;
+  // This is used only in the case of a call with immediate
+  // target (ref ARM port).
+  // No need to account for a direct register based call.
+  // Thus this is equivalent to GetCallTargetAddressOffset().
+  // There are two cases:
+  // - delayed constant pool: movl, jsr, nop
+  // - immediate constant pool: movl, nop, bra, ....
+  // Ref to assembler-sh4.h
+  // We assert that we are actually pointet to a PC relative
+  // mov instruction which always starts an immediate call sequence.
+  Instr first_instr = instr_at(pc);
+  ASSERT(IsMovlPcRelative(first_instr));
+  Instr possible_jsr = instr_at(pc + kInstrSize);
+  if (IsJsr(possible_jsr)) {
+      // Delayed constant pool
+      return pc + kNewStyleCallTargetAddressOffset;
+  } else {
+      return pc + kOldStyleCallTargetAddressOffset;
+  }
 }
 
 
 void Assembler::deserialization_set_special_target_at(
     Address constant_pool_entry, Address target) {
+  fprintf(stderr, "%s: %p %p\n", __FUNCTION__,
+          (void *)constant_pool_entry, (void *)target);
   UNIMPLEMENTED();
 }
 
@@ -432,17 +478,32 @@ int Assembler::misalign() {
 
 
 void Assembler::cmp(Condition *cond, Register Rd, Register Rs) {
-  Condition cond_to_test = eq;
+  Condition cond_to_test = t;
   switch (*cond) {
   case ne:
-    cond_to_test = ne;
+    cond_to_test = f;
   case eq:
     cmpeq(Rd, Rs);
     break;
   case lt:
-    cond_to_test = ne;
+    cond_to_test = f;
   case ge:
     cmpge(Rd, Rs);
+    break;
+  case le:
+    cond_to_test = f;
+  case gt:
+    cmpgt(Rd, Rs);
+    break;
+  case lo:
+    cond_to_test = f;
+  case hs:
+    cmphs(Rd, Rs);
+    break;
+  case ls:
+    cond_to_test = f;
+  case hi:
+    cmphi(Rd, Rs);
     break;
   default:
     UNREACHABLE();
@@ -451,46 +512,76 @@ void Assembler::cmp(Condition *cond, Register Rd, Register Rs) {
 }
 
 
-void Assembler::cmpeq(Register Rd, const Operand& imm, Register rtmp) {
-  if (Rd.is(r0) && FITS_SH4_cmpeq_imm_R0(imm.imm32_)) {
-    cmpeq_imm_R0_(imm.imm32_);
+void Assembler::cmpeq(Register Rd, const Operand& src, Register rtmp) {
+  if (src.is_reg()) {
+    cmpeq(Rd, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  if (Rd.is(r0) && FITS_SH4_cmpeq_imm_R0(src.imm32_)) {
+    cmpeq_imm_R0_(src.imm32_);
   } else {
-    mov(rtmp, imm);
+    mov(rtmp, src);
     cmpeq_(rtmp, Rd);
   }
 }
 
 
-void Assembler::cmpgt(Register Rd, const Operand& imm, Register rtmp) {
-  mov(rtmp, imm);
+void Assembler::cmpgt(Register Rd, const Operand& src, Register rtmp) {
+  if (src.is_reg()) {
+    cmpgt(Rd, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  mov(rtmp, src);
   cmpgt_(rtmp, Rd);
 }
 
 
-void Assembler::cmpge(Register Rd, const Operand& imm, Register rtmp) {
-  mov(rtmp, imm);
+void Assembler::cmpge(Register Rd, const Operand& src, Register rtmp) {
+  if (src.is_reg()) {
+    cmpge(Rd, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  mov(rtmp, src);
   cmpge_(rtmp, Rd);
 }
 
 
-void Assembler::cmphi(Register Rd, const Operand& imm, Register rtmp) {
-  mov(rtmp, imm);
+void Assembler::cmphi(Register Rd, const Operand& src, Register rtmp) {
+  if (src.is_reg()) {
+    cmphi(Rd, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  mov(rtmp, src);
   cmphi_(rtmp, Rd);
 }
 
 
-void Assembler::cmphs(Register Rd, const Operand& imm, Register rtmp) {
-  mov(rtmp, imm);
+void Assembler::cmphs(Register Rd, const Operand& src, Register rtmp) {
+  if (src.is_reg()) {
+    cmphs(Rd, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  mov(rtmp, src);
   cmphs_(rtmp, Rd);
 }
 
 
-void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
+void Assembler::rsb(Register Rd, Register Rs, const Operand& src,
                     Register rtmp) {
-  if (imm.imm32_ == 0 && imm.rmode_ == RelocInfo::NONE32) {
+  if (src.is_reg()) {
+    rsb(Rd, Rs, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  if (src.imm32_ == 0 && src.rmode_ == RelocInfo::NONE32) {
     neg_(Rs, Rd);
   } else {
-    mov(rtmp, imm);
+    mov(rtmp, src);
     sub(Rd, rtmp, Rs);
   }
 }
@@ -500,10 +591,14 @@ void Assembler::rsb(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
+void Assembler::rsb(Register Rd, Register Rs, const Operand& src,
                     Condition cond, Register rtmp) {
   ASSERT(cond == ne || cond == eq);
-  if (imm.imm32_ == 0 && imm.rmode_ == RelocInfo::NONE32) {
+  if (src.is_reg()) {
+    UNIMPLEMENTED();
+  }
+  ASSERT(!src.is_reg());
+  if (src.imm32_ == 0 && src.rmode_ == RelocInfo::NONE32) {
     if (cond == eq)
       bf_(0);           // Jump after sequence if T bit is false
     else
@@ -515,7 +610,7 @@ void Assembler::rsb(Register Rd, Register Rs, const Operand& imm,
       bf_near(&end);           // Jump after sequence if T bit is false
     else
       bt_near(&end);           // Jump after sequence if T bit is true
-    rsb(Rd, Rs, imm, rtmp);
+    rsb(Rd, Rs, src, rtmp);
     bind(&end);
   }
 }

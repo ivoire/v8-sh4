@@ -410,8 +410,34 @@ enum Condition {
 
   // Aliases
   t = eq,        // cmp eq; if SH4 cmpeq/cmp sets the T bit, t == eq
-  f = ne         // cmp ne: if SH4 cmpeq/cmp clears the T bit, f == ne
+  f = ne,        // cmp ne: if SH4 cmpeq/cmp clears the T bit, f == ne
+  lo = ui,       // unsigned lower
+  ls = us        // unsigned lower or same 
 };
+
+// Corresponds to transposing the operands of a comparison.
+inline Condition ReverseCondition(Condition cond) { // SAMEAS: arm
+  switch (cond) {
+    case lo:
+      return hi;
+    case hi:
+      return lo;
+    case hs:
+      return ls;
+    case ls:
+      return hs;
+    case lt:
+      return gt;
+    case gt:
+      return lt;
+    case ge:
+      return le;
+    case le:
+      return ge;
+    default:
+      return cond;
+  };
+}
 
 enum AddrMode {
   PreIndex,
@@ -477,21 +503,66 @@ enum ScaleFactor {
 
 class Operand BASE_EMBEDDED {
  public:
-  inline explicit Operand(int32_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE32);
-  inline explicit Operand(const ExternalReference& f);
-  inline explicit Operand(Smi* value);
-  inline static Operand Zero() {
+  // immediate
+  INLINE(explicit Operand(int32_t immediate,
+         RelocInfo::Mode rmode = RelocInfo::NONE32));
+  INLINE(static Operand Zero()) {
     return Operand(static_cast<int32_t>(0));
   }
+  INLINE(explicit Operand(const ExternalReference& f));
   explicit Operand(Handle<Object> handle);
+  INLINE(explicit Operand(Smi* value));
+
+  // rm
+  INLINE(explicit Operand(Register rm));
+
+  // rm <shift_op> shift_imm: not available for SH4
+  //explicit Operand(Register rm, ShiftOp shift_op, int shift_imm);
+  //INLINE(static Operand SmiUntag(Register rm)) {
+  //  return Operand(rm, ASR, kSmiTagSize);
+  //}
+  //INLINE(static Operand PointerOffsetFromSmiKey(Register key)) {
+  //  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  //  return Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize);
+  //}
+  //INLINE(static Operand DoubleOffsetFromSmiKey(Register key)) {
+  //  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
+  //  return Operand(key, LSL, kDoubleSizeLog2 - kSmiTagSize);
+  //}
+
+  // rm <shift_op> rs: not available for SH4
+  //explicit Operand(Register rm, ShiftOp shift_op, Register rs);
+
+  // Return true if this is a register operand.
+  INLINE(bool is_reg() const);
+
+  // Return true if this operand fits in one instruction so that no
+  // 2-instruction solution with a load into the ip register is necessary. If
+  // the instruction this operand is used for is a MOV or MVN instruction the
+  // actual instruction to use is required for this calculation. For other
+  // instructions instr is ignored.
+  //bool is_single_instruction(const Assembler* assembler, Instr instr = 0) const;
+  //bool must_output_reloc_info(const Assembler* assembler) const;
+
+  inline int32_t immediate() const {
+    ASSERT(!rm_.is_valid());
+    return imm32_;
+  }
+
+  Register rm() const { return rm_; }
+  //Register rs() const { return rs_; } // Not available for SH4
+  //ShiftOp shift_op() const { return shift_op_; } // Not available for SH4
 
   bool is_int8() const {
     return -128 <= imm32_ && imm32_ < 128 && rmode_ == RelocInfo::NONE32;
   }
 
  private:
-  int32_t imm32_;
+  Register rm_;
+  //Register rs_; // Not availabel for SH4
+  //ShiftOp shift_op_; // Not availabel for SH4
+  //int shift_imm_;  // Not availabel for SH4
+  int32_t imm32_;  // valid if rm_ == no_reg
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -645,7 +716,8 @@ class Assembler : public AssemblerBase {
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
-  static const int kCallTargetAddressOffset = 3 * kInstrSize;
+  // SH4: obsolete with constant pools, use GetCallTargetAddressOffset().
+  //static const int kCallTargetAddressOffset = 3 * kInstrSize;
 
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
@@ -679,8 +751,8 @@ class Assembler : public AssemblerBase {
 
   // ---------------------------------------------------------------------------
   // Wrappers around the code generators
-  void add(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp);
-  void add(Register Rd, Register Rs, const Operand& imm,
+  void add(Register Rd, const Operand& src, Register rtmp = sh4_rtmp);
+  void add(Register Rd, Register Rs, const Operand& src,
            Register rtmp = sh4_rtmp);
   void add(Register Rd, Register Rs, Register Rt);
 
@@ -714,8 +786,11 @@ class Assembler : public AssemblerBase {
          Register rtmp = sh4_rtmp) {
     ASSERT((distance == Label::kNear && (L->is_bound() || L->is_unused() || L->is_near_linked())) ||
            (distance == Label::kFar  && (!L->is_near_linked())));
-    ASSERT(cond == ne || cond == eq);
-    branch(L, rtmp, cond == eq ? branch_true: branch_false, distance);
+    ASSERT(cond == ne || cond == eq || cond == al);
+    branch(L, rtmp,
+           (cond == eq ? branch_true:
+            (cond == ne ? branch_false:
+             branch_unconditional)), distance);
   }
 
   void jsr(Label* L, Register rtmp = sh4_rtmp)
@@ -743,27 +818,31 @@ class Assembler : public AssemblerBase {
   void cmphi(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmphi_(Rs, Rd); }    // is Rd u> Rs ?
   void cmphs(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmphs_(Rs, Rd); }    // is Rd u>= Rs ?
 
-  inline void cmpeq(Register Rd, const Operand& imm,
+  inline void cmpeq(Register Rd, const Operand& src,
                     Register rtmp = sh4_rtmp);
-  inline void cmpgt(Register Rd, const Operand& imm,
+  inline void cmpgt(Register Rd, const Operand& src,
                     Register rtmp = sh4_rtmp);
-  inline void cmpge(Register Rd, const Operand& imm,
+  inline void cmpge(Register Rd, const Operand& src,
                     Register rtmp = sh4_rtmp);
-  inline void cmphi(Register Rd, const Operand& imm,
+  inline void cmphi(Register Rd, const Operand& src,
                     Register rtmp = sh4_rtmp);
-  inline void cmphs(Register Rd, const Operand& imm,
+  inline void cmphs(Register Rd, const Operand& src,
                     Register rtmp = sh4_rtmp);
 
   // ALiases for cmpeq
   void cmp(Register Rd, Register Rs) { cmpeq_(Rs, Rd); }
-  void cmp(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp)
-        { cmpeq(Rd, imm, rtmp); }
+  void cmp(Register Rd, const Operand& src, Register rtmp = sh4_rtmp)
+        { cmpeq(Rd, src, rtmp); }
 
   inline void cmp(Condition *cond, Register Rd, Register Rs);
-  void cmp(Condition *cond, Register Rd, const Operand& imm,
+  void cmp(Condition *cond, Register Rd, const Operand& src,
            Register rtmp = sh4_rtmp) {
-    mov(rtmp, imm);
-    cmp(cond, Rd, rtmp);
+    if (src.is_reg()) {
+      cmp(cond, Rd, src.rm());
+    } else {
+      mov(rtmp, src);
+      cmp(cond, Rd, rtmp);
+    }
   }
 
   void cmpeq_r0_unsigned_imm(int imm) {
@@ -787,7 +866,7 @@ class Assembler : public AssemblerBase {
   // Double conversion from register: Dd = (double)Rs
   void dfloat(DwVfpRegister Dd, Register Rs);
   // Double conversion from int operand: Dd = (double)imm
-  void dfloat(DwVfpRegister Dd, const Operand &imm, Register rtmp = sh4_rtmp);
+  void dfloat(DwVfpRegister Dd, const Operand &src, Register rtmp = sh4_rtmp);
 
   // Double conversion from unsigned int register: Dd = (double)Rs(unsigned)
   void dufloat(DwVfpRegister Dd, Register Rs, DwVfpRegister drtmp, Register rtmp);
@@ -829,6 +908,8 @@ class Assembler : public AssemblerBase {
   static bool IsBt(Instr instr);
   static bool IsBf(Instr instr);
   static bool IsJsr(Instr instr);
+  static bool IsNop(Instr instr);
+  static bool IsBra(Instr instr);
   static Register GetRn(Instr instr);
   static Register GetRm(Instr instr);
   static bool IsCmpRegister(Instr instr);
@@ -839,22 +920,25 @@ class Assembler : public AssemblerBase {
   static bool IsMovlPcRelative(Instr instr)
       { return (instr & (0xf << 12)) == 0xd000; }
 
-  void sub(Register Rd, Register Rs, const Operand& imm,
+  void sub(Register Rd, Register Rs, const Operand& src,
            Register rtmp = sh4_rtmp);
   void sub(Register Rd, Register Rs, Register Rt);
 
   // Reverse sub: imm - Rs
-  inline void rsb(Register Rd, Register Rs, const Operand& imm,
+  inline void rsb(Register Rd, Register Rs, const Operand& src,
                   Register rtmp = sh4_rtmp);
   // Reverse sub: Rt - Rs
   inline void rsb(Register Rd, Register Rs, Register Rt);
-  inline void rsb(Register Rd, Register Rs, const Operand& imm,
+  inline void rsb(Register Rd, Register Rs, const Operand& src,
                   Condition cond, Register rtmp = sh4_rtmp);
 
   void addv(Register Rd, Register Rs, Register Rt);
-  void addv(Register Rd, Register Rs, const Operand& imm,
+  void addv(Register Rd, Register Rs, const Operand& src,
             Register rtmp = sh4_rtmp);
-  void subv(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
+  void subv(Register Rd, Register Rs, Register Rt,
+            Register rtmp = sh4_rtmp);
+  void subv(Register Rd, Register Rs, const Operand& src,
+            Register rtmp = sh4_rtmp);
 
   void addc(Register Rd, Register Rs, Register Rt);
   void subc(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);
@@ -886,14 +970,17 @@ class Assembler : public AssemblerBase {
            Register rtmp = sh4_rtmp);
   void lsr(Register Rd, Register Rs, Register Rt, bool in_range = false, Register rtmp = sh4_rtmp);
 
-  void land(Register Rd, Register Rs, const Operand& imm,
+  void land(Register Rd, Register Rs, const Operand& src,
             Register rtmp = sh4_rtmp);
   void land(Register Rd, Register Rs, Register Rt);
 
   // bit clear
-  void bic(Register Rd, Register Rs, const Operand& imm,
-           Register rtmp = sh4_rtmp)
-        { land(Rd, Rs, Operand(~imm.imm32_), rtmp); }
+  void bic(Register Rd, Register Rs, const Operand& src,
+           Register rtmp = sh4_rtmp) {
+    if (src.is_reg())
+      UNIMPLEMENTED();
+    land(Rd, Rs, Operand(~src.imm32_), rtmp);
+  }
   void bic(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp) {
     lnot(rtmp, Rt);
     land(Rd, Rs, rtmp);
@@ -902,37 +989,37 @@ class Assembler : public AssemblerBase {
   void lnot(Register Rd, Register Rs) { not_(Rs, Rd); }
   void mvn(Register Rd, Register Rs)  { lnot(Rd, Rs); }  // Alias for lnot()
 
-  void lor(Register Rd, Register Rs, const Operand& imm,
+  void lor(Register Rd, Register Rs, const Operand& src,
            Register rtmp = sh4_rtmp);
   void lor(Register Rd, Register Rs, Register Rt);
-  void lor(Register Rd, Register Rs, const Operand& imm, Condition cond,
+  void lor(Register Rd, Register Rs, const Operand& src, Condition cond,
            Register rtmp = sh4_rtmp);
   void lor(Register Rd, Register Rs, Register Rt, Condition cond);
 
-  void lxor(Register Rd, Register Rs, const Operand& imm,
+  void lxor(Register Rd, Register Rs, const Operand& src,
             Register rtmp = sh4_rtmp);
   void lxor(Register Rd, Register Rs, Register Rt);
 
   // Aliases for lxor
-  void eor(Register Rd, Register Rs, const Operand& imm,
-           Register rtmp = sh4_rtmp) { lxor(Rd, Rs, imm, rtmp); }
+  void eor(Register Rd, Register Rs, const Operand& src,
+           Register rtmp = sh4_rtmp) { lxor(Rd, Rs, src, rtmp); }
   void eor(Register Rd, Register Rs, Register Rt)  { lxor(Rd, Rs, Rt); }
 
   // Aliases for lor
-  void orr(Register Rd, Register Rs, const Operand& imm,
-           Register rtmp = sh4_rtmp) { lor(Rd, Rs, imm, rtmp); }
+  void orr(Register Rd, Register Rs, const Operand& src,
+           Register rtmp = sh4_rtmp) { lor(Rd, Rs, src, rtmp); }
   void orr(Register Rd, Register Rs, Register Rt)  { lor(Rd, Rs, Rt); }
-  void orr(Register Rd, Register Rs, const Operand& imm,
+  void orr(Register Rd, Register Rs, const Operand& src,
            Condition cond, Register rtmp = sh4_rtmp)
-        { lor(Rd, Rs, imm, cond, rtmp); }
+        { lor(Rd, Rs, src, cond, rtmp); }
   void orr(Register Rd, Register Rs, Register Rt, Condition cond)
         { lor(Rd, Rs, Rt, cond); }
 
   void tst(Register Rd, Register Rs) { tst_(Rs, Rd); }
-  void tst(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp);
+  void tst(Register Rd, const Operand& src, Register rtmp = sh4_rtmp);
 
-  void teq(Register Rd, const Operand& imm, Register rtmp = sh4_rtmp) {
-    lxor(rtmp, Rd, imm);
+  void teq(Register Rd, const Operand& src, Register rtmp = sh4_rtmp) {
+    lxor(rtmp, Rd, src);
     tst(rtmp, rtmp);
   }
   void teq(Register Rd, Register Rs, Register rtmp = sh4_rtmp) {
@@ -994,8 +1081,8 @@ class Assembler : public AssemblerBase {
 
   void push(Register src);
   void push(DwVfpRegister src);
-  // push an immediate on the stack: use rtmp register for that
-  void push(const Operand& op, Register rtmp = sh4_rtmp);
+  // push a genral operand on the stack: use rtmp register for that
+  void push(const Operand& src, Register rtmp = sh4_rtmp);
   void pushm(RegList src, bool doubles = false);
 
   void pop(Register dst);
@@ -1006,7 +1093,8 @@ class Assembler : public AssemblerBase {
   inline void rts();
 
   // Exception-generating instructions and debugging support
-  void stop(const char* msg);
+  void stop(const char* msg,
+            Condition cond = al);
   void bkpt();
 
   // Align the code
@@ -1030,8 +1118,11 @@ class Assembler : public AssemblerBase {
 
   void call(Label* L);
 
+#ifdef DEBUG
+  void emit(Instr x);
+#else
   inline void emit(Instr x);
-
+#endif
   // Class for scoping postponing the constant pool generation.
   class BlockConstPoolScope {
    public:
@@ -1106,6 +1197,11 @@ class Assembler : public AssemblerBase {
   // Where pc_after is the pc after this operation.
   // It clobbers pr which must be always passed in the Pr parameter
   void addpc(Register Rd, int offset, Register Pr);
+
+  // Return in Rd the value of pc_after.
+  // Where pc_after is the pc after this operation.
+  // The result register Pr, must always be Pr itself.
+  void movpc(Register Pr);
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting

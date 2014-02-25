@@ -56,10 +56,10 @@ static V8_INLINE void DumpBacktrace() {
         int status;
         size_t length;
         char* demangled = abi::__cxa_demangle(mangled, NULL, &length, &status);
-        i::OS::PrintError("%s\n", demangled != NULL ? demangled : mangled);
+        i::OS::PrintError("%p %s\n", trace[i], demangled != NULL ? demangled : mangled);
         free(demangled);
       } else {
-        i::OS::PrintError("??\n");
+        i::OS::PrintError("%p ??\n", trace[i]);
       }
     }
   }

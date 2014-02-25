@@ -1111,28 +1111,36 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Smi utilities
 
-  void SmiTag(Register reg) {
-    add(reg, reg, reg);
+  // SH4: when s == SetT: T set iif NOT a SMI
+  void SmiTag(Register reg, SBit s = LeaveT) {
+    if (s == SetT) addv(reg, reg, reg);
+    else add(reg, reg, reg);
   }
-  void SmiTag(Register dst, Register src) {
-    add(dst, src, src);
+  // SH4: when s == SetT: T set iif NOT a SMI
+  void SmiTag(Register dst, Register src, SBit s = LeaveT) {
+    if (s == SetT) addv(dst, src, src);
+    else add(dst, src, src);
   }
 
   // Try to convert int32 to smi. If the value is to large, preserve
   // the original value and jump to not_a_smi. Destroys scratch and
   // sets flags.
-  void TrySmiTag(Register reg, Label* not_a_smi, Register scratch) {
-      // TODO(ivoire): the semantic is not the same as ARM one !
-      UNIMPLEMENTED();
-//    addv(scratch, reg, reg);
-//    b(t, not_a_smi);
-//    mov(reg, scratch);
+  void TrySmiTag(Register reg, Label* not_a_smi) {
+    TrySmiTag(reg, reg, not_a_smi);
   }
 
-  void SmiUntag(Register reg) {
+  void TrySmiTag(Register reg, Register src, Label* not_a_smi) {
+    addv(sh4_rtmp, reg, reg);
+    b(t, not_a_smi);
+    add(reg, reg, reg);
+  }
+
+  void SmiUntag(Register reg, SBit s = LeaveT) { // SH4: when s == SetT, set T bit if SMI
+    if (s == SetT) tst(reg, Operand(kSmiTagMask));
     asr(reg, reg, Operand(kSmiTagSize));
   }
-  void SmiUntag(Register dst, Register src) {
+  void SmiUntag(Register dst, Register src, SBit s = LeaveT) { // SH4: when s == SetT, set T if SMI
+    if (s == SetT) tst(src, Operand(kSmiTagMask));
     asr(dst, src, Operand(kSmiTagSize));
   }
 
@@ -1145,10 +1153,10 @@ class MacroAssembler: public Assembler {
   void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
 
   // Test if the register contains a smi (Z == 0 (eq) if true).
-  inline void SmiTst(Register value) {
+  inline void SmiTst(Register value) { // SAMEAS: arm, SH4: T (eq) set if true.
     tst(value, Operand(kSmiTagMask));
   }
-  inline void NonNegativeSmiTst(Register value) {
+  inline void NonNegativeSmiTst(Register value) {   // SAMEAS: arm, SH4: T (eq) set if true.
     tst(value, Operand(kSmiTagMask | kSmiSignMask));
   }
   // Jump if the register contains a smi.

@@ -743,8 +743,9 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
       }
     }
 
+    LOperand* temp1 = TempRegister(); // DIFF: codegen
     LInstruction* result =
-        DefineAsRegister(new(zone()) LShiftI(op, left, right, does_deopt));
+      DefineAsRegister(new(zone()) LShiftI(op, left, right, temp1, does_deopt)); // DIFF: codegen
     return does_deopt ? AssignEnvironment(result) : result;
   } else {
     return DoArithmeticT(op, instr);

@@ -163,6 +163,7 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
+  rm_ = no_reg;
   if (obj->IsHeapObject()) {
     ASSERT(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm32_ = reinterpret_cast<intptr_t>(handle.location());
@@ -333,7 +334,20 @@ bool Assembler::IsMovImmediate(Instr instr) {
 
 
 bool Assembler::IsJsr(Instr instr) {
+  // jsr @rx
   return (instr & 0xF0FF) == 0x400B;
+}
+
+
+bool Assembler::IsNop(Instr instr) {
+  // nop
+  return instr == 0x0009;
+}
+
+
+bool Assembler::IsBra(Instr instr) {
+  // bra #offset
+  return (instr >> 12) == 0xa;
 }
 
 
@@ -363,24 +377,34 @@ int Assembler::GetCmpImmediateAsUnsigned(Instr instr) {
 }
 
 
-void Assembler::add(Register Rd, const Operand& imm, Register rtmp) {
-  if (imm.is_int8()) {
-    add_imm_(imm.imm32_, Rd);
+void Assembler::add(Register Rd, const Operand& src, Register rtmp) {
+  if (src.is_reg()) {
+    add_(src.rm(), Rd);
+    return;
+  }
+  ASSERT(!src.is_reg());
+  if (src.is_int8()) {
+    add_imm_(src.imm32_, Rd);
   } else {
     ASSERT(!Rd.is(rtmp));
-    mov(rtmp, imm);
+    mov(rtmp, src);
     add_(rtmp, Rd);
   }
 }
 
 
-void Assembler::add(Register Rd, Register Rs, const Operand& imm,
+void Assembler::add(Register Rd, Register Rs, const Operand& src,
                     Register rtmp) {
+  if (src.is_reg()) {
+    add(Rd, Rs, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
   if (Rs.code() != Rd.code()) {
-    mov(Rd, imm);
+    mov(Rd, src);
     add_(Rs, Rd);
   } else {
-    add(Rd, imm, rtmp);
+    add(Rd, src, rtmp);
   }
 }
 
@@ -398,9 +422,14 @@ void Assembler::add(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::sub(Register Rd, Register Rs, const Operand& imm,
+void Assembler::sub(Register Rd, Register Rs, const Operand& src,
                     Register rtmp) {
-  mov(rtmp, imm);
+  if (src.is_reg()) {
+    sub(Rd, Rs, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  mov(rtmp, src);
   if (Rs.code() == Rd.code()) {
     sub_(rtmp, Rd);
   } else {
@@ -438,10 +467,14 @@ void Assembler::addv(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::addv(Register Rd, Register Rs, const Operand& imm,
+void Assembler::addv(Register Rd, Register Rs, const Operand& src,
                      Register rtmp) {
-  mov(rtmp, imm);
-  addv(Rd, Rs, rtmp);
+  if (src.is_reg()) {
+    addv(Rd, Rs, src.rm());
+  } else {
+    mov(rtmp, src);
+    addv(Rd, Rs, rtmp);
+  }
 }
 
 void Assembler::addc(Register Rd, Register Rs, Register Rt) {
@@ -475,6 +508,16 @@ void Assembler::subv(Register Rd, Register Rs, Register Rt, Register rtmp) {
 }
 
 
+void Assembler::subv(Register Rd, Register Rs, const Operand& src,
+                     Register rtmp) {
+  if (src.is_reg()) {
+    subv(Rd, Rs, src.rm(), rtmp);
+  } else {
+    mov(rtmp, src);
+    subv(Rd, Rs, rtmp, no_reg/*not used*/);
+  }
+}
+
 void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
   // Clear T bit before using subc
   clrt_();
@@ -495,6 +538,9 @@ void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
 // TODO(stm): check why asl is useful? Is it like lsl?
 void Assembler::asl(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
+  if (imm.is_reg())
+    UNIMPLEMENTED();
+
   ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
@@ -514,7 +560,7 @@ void Assembler::asr(Register Rd, Register Rs, Register Rt, bool in_range, Regist
   if (!in_range) {
     movt_(rtmp);
     push(rtmp);
-    cmphi(Rt, Operand(31), rtmp);
+    cmphi(Rt, Operand(31), rtmp); // Does modify the T bit
   }
   neg_(Rt, rtmp);
   if (!in_range) {
@@ -524,7 +570,7 @@ void Assembler::asr(Register Rd, Register Rs, Register Rt, bool in_range, Regist
   if (Rs.code() != Rd.code()) {
     mov_(Rs, Rd);
   }
-  shad_(rtmp, Rd);
+  shad_(rtmp, Rd); // Does not modify the T bit
   if (!in_range) {
     pop(rtmp);
     cmppl_(rtmp); // gives back t bit
@@ -534,26 +580,27 @@ void Assembler::asr(Register Rd, Register Rs, Register Rt, bool in_range, Regist
 
 void Assembler::asr(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
+  if (imm.is_reg())
+    UNIMPLEMENTED();
   ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
-  if (imm.imm32_ == 1) {
-    shar_(Rd);
-  } else {
-    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
-    mov_imm_(-imm.imm32_, rtmp);
-    shad_(rtmp, Rd);
-  }
+  // Note that we do not want to modify the T bit, hence shar is prohibited
+  ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
+  mov_imm_(-imm.imm32_, rtmp);
+  shad_(rtmp, Rd);
 }
 
 
 void Assembler::lsl(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
+  if (imm.is_reg())
+    UNIMPLEMENTED();
   ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
   if (imm.imm32_ == 1) {
-    shll_(Rd);
+    shll_(Rd); // TODO(stm) this one modified the T bit: fix it
   } else if (imm.imm32_ == 2) {
     shll2_(Rd);
   } else {
@@ -592,11 +639,13 @@ void Assembler::lsl(Register Rd, Register Rs, Register Rt, bool wrap, Register r
 
 void Assembler::lsr(Register Rd, Register Rs, const Operand& imm,
                     Register rtmp) {
+  if (imm.is_reg())
+    UNIMPLEMENTED();
   ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
   if (imm.imm32_ == 1) {
-    shlr_(Rd);
+    shlr_(Rd); // TODO(stm) this one modified the T bit: fix it
   } else if (imm.imm32_ == 2) {
     shlr2_(Rd);
   } else {
@@ -629,14 +678,24 @@ void Assembler::lsr(Register Rd, Register Rs, Register Rt, bool in_range, Regist
 }
 
 
-void Assembler::land(Register Rd, Register Rs, const Operand& imm,
+void Assembler::land(Register Rd, Register Rs, const Operand& src,
                      Register rtmp) {
-  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_and_imm_R0(imm.imm32_)) {
-    and_imm_R0_(imm.imm32_);
+  if (src.is_reg()) {
+    land(Rd, Rs, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_and_imm_R0(src.imm32_)) {
+    and_imm_R0_(src.imm32_);
   } else {
     ASSERT(!Rs.is(rtmp));
-    mov(rtmp, imm);
-    land(Rd, Rs, rtmp);
+    if (!Rs.is(Rd)) {
+      mov(Rd, src);
+      land(Rd, Rs, Rd);
+    } else {
+      mov(rtmp, src);
+      land(Rd, Rs, rtmp);
+    }
   }
 }
 
@@ -654,14 +713,23 @@ void Assembler::land(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::lor(Register Rd, Register Rs, const Operand& imm,
+void Assembler::lor(Register Rd, Register Rs, const Operand& src,
                     Register rtmp) {
-  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_or_imm_R0(imm.imm32_)) {
-    or_imm_R0_(imm.imm32_);
+  if (src.is_reg()) {
+    lor(Rd, Rs, src.rm());
+    return;
+  }
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_or_imm_R0(src.imm32_)) {
+    or_imm_R0_(src.imm32_);
   } else {
     ASSERT(!Rs.is(rtmp));
-    mov(rtmp, imm);
-    lor(Rd, Rs, rtmp);
+    if (!Rs.is(Rd)) {
+      mov(Rd, src);
+      lor(Rd, Rs, Rd);
+    } else {
+      mov(rtmp, src);
+      lor(Rd, Rs, rtmp);
+    }
   }
 }
 
@@ -689,27 +757,42 @@ void Assembler::lor(Register Rd, Register Rs, Register Rt, Condition cond) {
 }
 
 
-void Assembler::lor(Register Rd, Register Rs, const Operand& imm,
+void Assembler::lor(Register Rd, Register Rs, const Operand& src,
                     Condition cond, Register rtmp) {
   ASSERT(cond == ne || cond == eq);
+  if (src.is_reg()) {
+    lor(Rd, Rs, src.rm(), cond);
+    return;
+  }
+  ASSERT(!src.is_reg());
   Label end;
   if (cond == eq)
     bf_near(&end);   // Jump after sequence if T bit is false
   else
     bt_near(&end);   // Jump after sequence if T bit is true
-  lor(Rd, Rs, imm, rtmp);
+  lor(Rd, Rs, src, rtmp);
   bind(&end);
 }
 
 
-void Assembler::lxor(Register Rd, Register Rs, const Operand& imm,
+void Assembler::lxor(Register Rd, Register Rs, const Operand& src,
                      Register rtmp) {
-  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(imm.imm32_)) {
-    xor_imm_R0_(imm.imm32_);
+  if (src.is_reg()) {
+    lxor(Rd, Rs, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
+  if (Rd.is(r0) && Rd.is(Rs) && FITS_SH4_xor_imm_R0(src.imm32_)) {
+    xor_imm_R0_(src.imm32_);
   } else {
     ASSERT(!Rs.is(rtmp));
-    mov(rtmp, imm);
-    lxor(Rd, Rs, rtmp);
+    if (!Rs.is(Rd)) {
+      mov(Rd, src);
+      lxor(Rd, Rs, Rd);
+    } else {
+      mov(rtmp, src);
+      lxor(Rd, Rs, rtmp);
+    }
   }
 }
 
@@ -726,10 +809,15 @@ void Assembler::lxor(Register Rd, Register Rs, Register Rt) {
 }
 
 
-void Assembler::tst(Register Rd, const Operand& imm, Register rtmp) {
-  ASSERT(!Rd.is(rtmp));
-  mov(rtmp, imm);
-  tst_(Rd, rtmp);
+void Assembler::tst(Register Rd, const Operand& src, Register rtmp) {
+  if (src.is_reg()) {
+    tst_(Rd, src.rm());
+  } else {
+    ASSERT(!Rd.is(rtmp));
+    mov(rtmp, src);
+    tst_(Rd, rtmp);
+  }
+
 }
 
 void Assembler::call(Label* L) {
@@ -1278,17 +1366,23 @@ void Assembler::jsr_pool(int offset, Register rtmp, bool patched_later) {
   }
 }
 
-void Assembler::mov(Register Rd, const Operand& imm, bool force) {
+void Assembler::mov(Register Rd, const Operand& src, bool force) {
+  if (src.is_reg()) {
+    ASSERT(force == false);
+    mov(Rd, src.rm());
+    return;
+  }
+  ASSERT(!src.is_reg());
   // FIXME(STM): Internal ref not handled
-  ASSERT(imm.rmode_ != RelocInfo::INTERNAL_REFERENCE);
+  ASSERT(src.rmode_ != RelocInfo::INTERNAL_REFERENCE);
 
   // Delayed constant pool emitting (experimental)
   if (constant_pool_pool_)
-    return Assembler::mov_pool(Rd, imm, force);
+    return Assembler::mov_pool(Rd, src, force);
 
   // Move based on immediates can only be 8 bits long
-  if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE32)) {
-    mov_imm_(imm.imm32_, Rd);
+  if (force == false && (src.is_int8() && src.rmode_ == RelocInfo::NONE32)) {
+    mov_imm_(src.imm32_, Rd);
   } else {
     // Use a tiny constant pool and jump above
     align();
@@ -1300,13 +1394,13 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
     // though the target address is encoded in the constant pool below.
     // If the code sequence changes, one must update
     // Assembler::target_address_address_at().
-    if (imm.rmode_ != RelocInfo::NONE32) RecordRelocInfo(imm.rmode_);
+    if (src.rmode_ != RelocInfo::NONE32) RecordRelocInfo(src.rmode_);
     movl_dispPC_(4, Rd);
     nop_();
     bra_(4);
     nop_();
 #ifdef DEBUG
-    if (imm.rmode_ != RelocInfo::NONE32) {
+    if (src.rmode_ != RelocInfo::NONE32) {
       Address target_address = pc_;
       // Verify that target_pointer_at() is actually returning
       // the address where the target address for the instruction is stored.
@@ -1315,12 +1409,12 @@ void Assembler::mov(Register Rd, const Operand& imm, bool force) {
                 reinterpret_cast<byte*>(buffer_ + instr_address)));
     }
 #endif
-    dd(imm.imm32_);
+    dd(src.imm32_);
   }
 }
 
 void Assembler::mov_pool(Register Rd, const Operand& imm, bool force) {
-
+  ASSERT(!imm.is_reg());
   // Move based on immediates can only be 8 bits long
   if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE32)) {
     mov_imm_(imm.imm32_, Rd);
@@ -1339,6 +1433,14 @@ void Assembler::addpc(Register Rd, int offset, Register Pr) {
   nop_();
   sts_PR_(Rd);
   add_imm_(4+offset, Rd);
+}
+
+void Assembler::movpc(Register Pr) {
+  // We move the pc after this code sequence into the
+  // link register pr.
+  ASSERT(Pr.is(pr));
+  bsr_(0);
+  nop_();
 }
 
 
@@ -1364,22 +1466,27 @@ void Assembler::mov(Register Rd, Register Rs, Condition cond) {
 }
 
 
-void Assembler::mov(Register Rd, const Operand& imm, Condition cond) {
+void Assembler::mov(Register Rd, const Operand& src, Condition cond) {
   ASSERT(cond == ne || cond == eq);
-  if (FITS_SH4_mov_imm(imm.imm32_)) {
+  if (src.is_reg()) {
+    mov(Rd, src.rm(), cond);
+    return;
+  }
+  ASSERT(!src.is_reg());
+  if (FITS_SH4_mov_imm(src.imm32_)) {
     // If cond is eq, we move Rs into Rd, otherwise, nop
     if (cond == eq)
       bf_(0);           // Jump after sequence if T bit is false
     else
       bt_(0);           // Jump after sequence if T bit is true
-    mov_imm_(imm.imm32_, Rd);
+    mov_imm_(src.imm32_, Rd);
   } else {
     Label skip;
     if (cond == eq)
       bf_near(&skip);
     else
       bt_near(&skip);
-    mov(Rd, imm);
+    mov(Rd, src);
     bind(&skip);
   }
 }
@@ -1542,10 +1649,15 @@ void Assembler::dstr(DwVfpRegister src, const MemOperand& dst, Register rtmp) {
 }
 
 
-void Assembler::dfloat(DwVfpRegister Dd, const Operand &imm, Register rtmp)
+void Assembler::dfloat(DwVfpRegister Dd, const Operand &src, Register rtmp)
 {
-  mov(rtmp, imm);
-  dfloat(Dd, rtmp);
+  Register r_src = rtmp;
+  if (src.is_reg()) {
+    r_src = src.rm();
+  } else {
+    mov(r_src, src);
+  }
+  dfloat(Dd, r_src);
 }
 
 
@@ -1693,9 +1805,14 @@ void Assembler::push(DwVfpRegister src) {
 }
 
 
-void Assembler::push(const Operand& op, Register rtmp) {
-  mov(rtmp, op);
-  push(rtmp);
+void Assembler::push(const Operand& src, Register rtmp) {
+  Register r_src = rtmp;
+  if (src.is_reg()) {
+    r_src = src.rm();
+  } else {
+    mov(r_src, src);
+  }
+  push(r_src);
 }
 
 
@@ -1736,7 +1853,13 @@ void Assembler::popm(RegList src, bool doubles) {
 // Exception-generating instructions and debugging support.
 // Stops with a non-negative code less than kNumOfWatchedStops support
 // enabling/disabling and a counter feature. See simulator-arm.h .
-void Assembler::stop(const char* msg) {
+void Assembler::stop(const char* msg, Condition cond) {
+  ASSERT(cond == ne || cond == eq || cond == al);
+  Label skip;
+  if (cond == eq)
+    bf_near(&skip);   // Jump after sequence if T bit is false
+  else
+    bt_near(&skip);   // Jump after sequence if T bit is true
 #ifndef __sh__
   {
     BlockConstPoolScope block_const_pool(this);
@@ -1746,9 +1869,10 @@ void Assembler::stop(const char* msg) {
     pc_ += sizeof(uint32_t);
   }
 #else
-  // Generate an privileged instruction
+  // Generate a privileged instruction
   bkpt();
 #endif // __sh__
+  bind(&skip);
 }
 
 
@@ -2086,21 +2210,31 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursiv
 
 int Assembler::ResolveCallTargetAddressOffset(byte *pc) {
   Instr instr = instr_at(pc - 2);
-  ASSERT(instr == 0x9);
+  ASSERT(IsNop(instr));
   instr = instr_at(pc - 4);
   ASSERT(IsJsr(instr));
   instr = instr_at(pc - 6);
   // if it's the constant pool load here, then we found what we were looking for
-  if ((instr & 0xf000) == 0xd000) {
+  if (IsMovlPcRelative(instr)) {
     return kNewStyleCallTargetAddressOffset;
   } else {
     instr = instr_at(pc - 10);
-    ASSERT(instr == 0x9);
+    ASSERT(IsNop(instr));
     instr = instr_at(pc - 12);
-    ASSERT(instr >> 12 == 0xa); // bra
+    ASSERT(IsBra(instr));
     return kOldStyleCallTargetAddressOffset;
   }
 }
+
+#ifdef DEBUG
+void Assembler::emit(Instr x) {
+  CheckBuffer();
+  // INSERT: instruction checks
+  // if (x == 0xXXXX) ASSERT(0);
+  *reinterpret_cast<Instr*>(pc_) = x;
+  pc_ += kInstrSize;
+}
+#endif
 
 } }  // namespace v8::internal
 

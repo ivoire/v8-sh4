@@ -9,6 +9,7 @@ pdir=`dirname $0`
 # Default architecture: native one
 arch=${arch:-""}
 site=${site:-default}
+jobs=${jobs-1}
 
 # Load the global flags (local and site)
 [ -f ${pdir}/source_local.sh ] && . ${pdir}/source_local.sh
@@ -31,6 +32,6 @@ logging=${logging:-off}
 prof=${prof:-off}
 tests=${tests:-""}
 
-make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} "$@"
+make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} ${jobs+-j$jobs} "$@"
 
 #  sh4.debug snapshot=off regexp=interpreted debuggersupport=off -j4

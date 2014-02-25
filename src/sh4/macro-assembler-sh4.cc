@@ -83,6 +83,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
 
 
 int MacroAssembler::CallSize(Register target, Condition cond) {
+  // Register based call: jsr @target; nop;
   return 2 * kInstrSize;
 }
 
@@ -99,6 +100,8 @@ void MacroAssembler::Call(Register target, Condition cond) {
 
 int MacroAssembler::CallSize(
     Address target, RelocInfo::Mode rmode) {
+  // Depends upon constant pool management:
+  // same as GetCallTargetAddressOffset()
   return GetCallTargetAddressOffset();
 }
 
@@ -121,7 +124,7 @@ void MacroAssembler::Call(Address target,
   //  jsr  ip
   //  nop
   //                      @ return address
-  // Or without the constant pool
+  // Or without the constant pool optimization
   //  mov  ip, @slot
   //  nop
   //  jmp 4
@@ -220,7 +223,7 @@ void MacroAssembler::UnimplementedBreak(const char *file, int line) {
 }
 
 
-void MacroAssembler::Move(Register dst, Handle<Object> value) {
+void MacroAssembler::Move(Register dst, Handle<Object> value) { // SAMEAS: arm
   RECORD_LINE();
   AllowDeferredHandleDereference smi_check;
   if (value->IsSmi()) {
@@ -297,7 +300,7 @@ void MacroAssembler::Bfc(Register dst, Register src, int lsb, int width) {
   ASSERT(lsb < 32);
   int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
   RECORD_LINE();
-  land(dst, dst, Operand(~mask));
+  land(dst, src, Operand(~mask));
 }
 
 
@@ -357,7 +360,7 @@ void MacroAssembler::InNewSpace(Register object,
 }
 
 
-void MacroAssembler::RecordWriteField(
+void MacroAssembler::RecordWriteField( // SAMEAS: arm
     Register object,
     int offset,
     Register value,
@@ -366,14 +369,51 @@ void MacroAssembler::RecordWriteField(
     SaveFPRegsMode save_fp,
     RememberedSetAction remembered_set_action,
     SmiCheck smi_check) {
-  UNIMPLEMENTED();
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis.
+  Label done;
+
+  // Skip barrier if writing a smi.
+  if (smi_check == INLINE_SMI_CHECK) {
+    JumpIfSmi(value, &done);
+  }
+
+  // Although the object register is tagged, the offset is relative to the start
+  // of the object, so so offset must be a multiple of kPointerSize.
+  ASSERT(IsAligned(offset, kPointerSize));
+
+  add(dst, object, Operand(offset - kHeapObjectTag));
+  if (emit_debug_code()) {
+    Label ok;
+    tst(dst, Operand((1 << kPointerSizeLog2) - 1));
+    b(eq, &ok);
+    stop("Unaligned cell in write barrier");
+    bind(&ok);
+  }
+
+  RecordWrite(object,
+              dst,
+              value,
+              lr_status,
+              save_fp,
+              remembered_set_action,
+              OMIT_SMI_CHECK);
+
+  bind(&done);
+
+  // Clobber clobbered input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    mov(value, Operand(BitCast<int32_t>(kZapValue + 4)));
+    mov(dst, Operand(BitCast<int32_t>(kZapValue + 8)));
+  }
 }
 
 
 // Will clobber 4 registers: object, address, scratch, ip.  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
-void MacroAssembler::RecordWrite(Register object,
+void MacroAssembler::RecordWrite(Register object, // SAMEAS: arm
                                  Register address,
                                  Register value,
                                  LinkRegisterStatus lr_status,
@@ -382,7 +422,7 @@ void MacroAssembler::RecordWrite(Register object,
                                  SmiCheck smi_check) {
   if (emit_debug_code()) {
     ldr(ip, MemOperand(address));
-    cmpeq(ip, value);
+    cmp(ip, value);
     Check(eq, kWrongAddressOrValuePassedToRecordWrite);
   }
 
@@ -405,7 +445,7 @@ void MacroAssembler::RecordWrite(Register object,
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {
-    push(pr);
+    push(lr);
   }
   RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
   CallStub(&stub);
@@ -466,19 +506,72 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
 }
 
 
-void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) {
+// Push and pop all registers that can hold pointers.
+void MacroAssembler::PushSafepointRegisters() { // SAMEAS: arm
+  // Safepoints expect a block of contiguous register values starting with r0:
+  ASSERT(((1 << kNumSafepointSavedRegisters) - 1) == kSafepointSavedRegisters);
+  // Safepoints expect a block of kNumSafepointRegisters values on the
+  // stack, so adjust the stack for unsaved registers.
+  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
+  ASSERT(num_unsaved >= 0);
+  sub(sp, sp, Operand(num_unsaved * kPointerSize));
+  pushm(kSafepointSavedRegisters); // DIFF: codegen
+}
+
+
+void MacroAssembler::PopSafepointRegisters() { // SAMEAS: arm
+  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
+  popm(kSafepointSavedRegisters); // DIFF: codegen
+  add(sp, sp, Operand(num_unsaved * kPointerSize));
+}
+
+
+void MacroAssembler::PushSafepointRegistersAndDoubles() {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::PopSafepointRegistersAndDoubles() {
+  UNIMPLEMENTED();
+}
+
+void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register src, // SAMEAS: arm
+                                                             Register dst) {
+  str(src, SafepointRegistersAndDoublesSlot(dst));
+}
+
+
+void MacroAssembler::StoreToSafepointRegisterSlot(Register src, Register dst) { // SAMEAS: arm
+  str(src, SafepointRegisterSlot(dst));
+}
+
+
+void MacroAssembler::LoadFromSafepointRegisterSlot(Register dst, Register src) { // SAMEAS: arm
   ldr(dst, SafepointRegisterSlot(src));
 }
 
 
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  UNIMPLEMENTED();
-  return 0;
+int MacroAssembler::SafepointRegisterStackIndex(int reg_code) { // SAMEAS: arm
+  // The registers are pushed starting with the highest encoding,
+  // which means that lowest encodings are closest to the stack pointer.
+  ASSERT(reg_code >= 0 && reg_code < kNumSafepointRegisters);
+  return reg_code;
 }
 
 
 MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
   return MemOperand(sp, SafepointRegisterStackIndex(reg.code()) * kPointerSize);
+}
+
+
+MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
+  // Number of d-regs not known at snapshot time.
+  ASSERT(!Serializer::enabled()); // SH4: known actually, but leave as ARM
+  // General purpose registers are pushed last on the stack.
+  UNIMPLEMENTED(); // TODO: FPU
+  int doubles_size = 0; // DwVfpRegister::NumAllocatableRegisters() * kDoubleSize;
+  int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
+  return MemOperand(sp, doubles_size + register_offset);
 }
 
 
@@ -605,7 +698,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Optionally save all double registers.
   if (save_doubles) {
     RECORD_LINE();
-    UNIMPLEMENTED_BREAK();
+    // TODO(stm): save doubles // DIFF: codegen
   }
 
   // Reserve place for the return address and stack space and align the frame
@@ -670,7 +763,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   RECORD_LINE();
   // Optionally restore all double registers.
   if (save_doubles) {
-    UNIMPLEMENTED_BREAK();
+    // TODO(stm): save doubles // DIFF: codegen
   }
 
   // Clear top frame.
@@ -1308,7 +1401,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
 }
 
 
-void MacroAssembler::Allocate(int object_size,
+void MacroAssembler::Allocate(int object_size, // SAMEAS: arm
                               Register result,
                               Register scratch1,
                               Register scratch2,
@@ -1336,6 +1429,7 @@ void MacroAssembler::Allocate(int object_size,
   ASSERT(!scratch2.is(ip));
   ASSERT(!scratch1.is(sh4_rtmp));
   ASSERT(!scratch2.is(sh4_rtmp));
+  ASSERT(ip.is(sh4_ip));
 
   // Make object size into bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
@@ -1371,7 +1465,7 @@ void MacroAssembler::Allocate(int object_size,
     RECORD_LINE();
     // Load allocation top into result and allocation limit into ip.
     ldr(result, MemOperand(topaddr));
-    ldr(sh4_ip, MemOperand(topaddr, 4));
+    ldr(ip, MemOperand(topaddr, 4));
   } else {
     if (emit_debug_code()) {
       RECORD_LINE();
@@ -1388,22 +1482,37 @@ void MacroAssembler::Allocate(int object_size,
   }
 
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
-    UNIMPLEMENTED();
+    // Align the next allocation. Storing the filler map without checking top is
+    // safe in new-space because the limit of the heap is aligned there.
+    ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
+    STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    Label aligned;
+    tst(result, Operand(kDoubleAlignmentMask)); // DIFF: codegen
+    b(t, &aligned); // DIFF: codegen
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmphs(result, Operand(ip)); // DIFF: codegen
+      b(t, gc_required); // DIFF: codegen
+    }
+    mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
+    str(scratch2, MemOperand(result, kDoubleSize / 2, PostIndex));
+    bind(&aligned);
   }
 
   RECORD_LINE();
   // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top. We must preserve the ip register at this
+  // to calculate the new top.
+  // ARM: We must preserve the ip register at this
   // point, so we cannot just use add().
+  // SH4: simplified there compared to ARM, as ip is not scratched
+  // by addv.
   ASSERT(object_size > 0);
-//  while (object_size != 0) {
-    UNIMPLEMENTED_BREAK();
-//  }
-  b(t, gc_required);
+  mov(scratch2, Operand(object_size)); // DIFF: codegen
+  addc(scratch2, result, scratch2); // DIFF: codegen
+  b(t, gc_required); // DIFF: codegen
 
   RECORD_LINE();
-  cmphi(scratch2, sh4_ip);
-  bt(gc_required);
+  cmphi(scratch2, ip); // DIFF: codegen
+  bt(gc_required); // DIFF: codegen
 
   RECORD_LINE();
   str(scratch2, MemOperand(topaddr));
@@ -1416,7 +1525,7 @@ void MacroAssembler::Allocate(int object_size,
 }
 
 
-void MacroAssembler::Allocate(Register object_size,
+void MacroAssembler::Allocate(Register object_size, // SAMEAS: arm
                               Register result,
                               Register scratch1,
                               Register scratch2,
@@ -1446,9 +1555,11 @@ void MacroAssembler::Allocate(Register object_size,
   ASSERT(!result.is(ip));
   ASSERT(!scratch1.is(ip));
   ASSERT(!scratch2.is(ip));
+  ASSERT(!object_size.is(sh4_rtmp));
   ASSERT(!result.is(sh4_rtmp));
   ASSERT(!scratch1.is(sh4_rtmp));
   ASSERT(!scratch2.is(sh4_rtmp));
+  ASSERT(ip.is(sh4_ip));
 
   // Check relative positions of allocation top and limit addresses.
   // The values must be adjacent in memory to allow the use of LDM.
@@ -1493,7 +1604,20 @@ void MacroAssembler::Allocate(Register object_size,
   }
 
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
-    UNIMPLEMENTED();
+    // Align the next allocation. Storing the filler map without checking top is
+    // safe in new-space because the limit of the heap is aligned there.
+    ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
+    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    Label aligned;
+    tst(result, Operand(kDoubleAlignmentMask)); // DIFF: codegen
+    b(eq, &aligned);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      cmphs(result, Operand(ip)); // DIFF: codegen
+      b(t, gc_required); // DIFF/ codegen
+    }
+    mov(scratch2, Operand(isolate()->factory()->one_pointer_filler_map()));
+    str(scratch2, MemOperand(result, kDoubleSize / 2, PostIndex));
+    bind(&aligned);
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
@@ -1501,17 +1625,17 @@ void MacroAssembler::Allocate(Register object_size,
   // required to get the number of bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
     RECORD_LINE();
-    lsl(scratch2, object_size, Operand(kPointerSizeLog2));
-    addc(scratch2, result, scratch2);
+    lsl(scratch2, object_size, Operand(kPointerSizeLog2)); // DIFF: codegen
+    addc(scratch2, result, scratch2); // DIFF: codegen
   } else {
     RECORD_LINE();
-    addc(scratch2, result, object_size);
+    addc(scratch2, result, object_size); // DIFF: codegen
   }
   RECORD_LINE();
-  b(t, gc_required);
+  b(t, gc_required); // DIFF: codegen
   RECORD_LINE();
-  cmphi(scratch2, ip);
-  bt(gc_required);
+  cmphi(scratch2, ip); // DIFF: codegen
+  b(t, gc_required); // DIFF: codegen
   RECORD_LINE();
 
   // Update allocation top. result temporarily holds the new top.
@@ -2076,7 +2200,7 @@ void MacroAssembler::TruncateDoubleToI(Register result,
 
 void MacroAssembler::TruncateHeapNumberToI(Register result,
                                            Register object) {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED_BREAK();
 }
 
 
@@ -2337,6 +2461,7 @@ void MacroAssembler::Check(Condition cond, BailoutReason reason) {
   RECORD_LINE();
   ASSERT(cond == ne || cond == eq); // Limitation of sh4 b(cond,...)
   b(cond, &L);
+  UNIMPLEMENTED_BREAK();
   Abort(reason);
   // will not return here
   bind(&L);
@@ -2531,16 +2656,16 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
 void MacroAssembler::UntagAndJumpIfSmi(
     Register dst, Register src, Label* smi_case) {
   STATIC_ASSERT(kSmiTag == 0);
-  SmiUntag(dst, src);
-  b(ne, smi_case);  // Shifter carry is not set for a smi.
+  SmiUntag(dst, src, SetT);
+  bt(smi_case);  // T bit is set for a smi
 }
 
 
 void MacroAssembler::UntagAndJumpIfNotSmi(
     Register dst, Register src, Label* non_smi_case) {
   STATIC_ASSERT(kSmiTag == 0);
-  SmiUntag(dst, src);
-  b(eq, non_smi_case);  // Shifter carry is set for a non-smi.
+  SmiUntag(dst, src, SetT);
+  bf(non_smi_case);  // T bit is not set if not a smi
 }
 
 
@@ -2986,16 +3111,17 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
 }
 
 
-void MacroAssembler::CheckPageFlag(
+void MacroAssembler::CheckPageFlag( // SAMEAS: arm
     Register object,
     Register scratch,
     int mask,
     Condition cc,
     Label* condition_met) {
+  ASSERT(cc == eq || cc == ne);
   Bfc(scratch, object, 0, kPageSizeBits);
   ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
   tst(scratch, Operand(mask));
-  bt(condition_met);
+  b(cc,condition_met);
 }
 
 
@@ -3163,15 +3289,48 @@ void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
 }
 
 
-void MacroAssembler::EnumLength(Register dst, Register map) {
+void MacroAssembler::EnumLength(Register dst, Register map) { // SAMEAS: arm
   STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
   ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
   land(dst, dst, Operand(Smi::FromInt(Map::EnumLengthBits::kMask)));
 }
 
 
-void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
-  UNIMPLEMENTED();
+void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) { // SAMEAS: arm
+  Register  empty_fixed_array_value = r6;
+  LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
+  Label next, start;
+  mov(r2, r0);
+
+  // Check if the enum length field is properly initialized, indicating that
+  // there is an enum cache.
+  ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+
+  EnumLength(r3, r1);
+  cmp(r3, Operand(Smi::FromInt(Map::kInvalidEnumCache)));
+  b(eq, call_runtime);
+
+  jmp(&start);
+
+  bind(&next);
+  ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+
+  // For all objects but the receiver, check that the cache is empty.
+  EnumLength(r3, r1);
+  cmp(r3, Operand(Smi::FromInt(0)));
+  b(ne, call_runtime);
+
+  bind(&start);
+
+  // Check that there are no elements. Register r2 contains the current JS
+  // object we've reached through the prototype chain.
+  ldr(r2, FieldMemOperand(r2, JSObject::kElementsOffset));
+  cmp(r2, empty_fixed_array_value);
+  b(ne, call_runtime);
+
+  ldr(r2, FieldMemOperand(r1, Map::kPrototypeOffset));
+  cmp(r2, null_value);
+  b(ne, &next);
 }
 
 

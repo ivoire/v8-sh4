@@ -321,6 +321,10 @@ enum Register {
   Instr break_instr_;
 
   v8::internal::Isolate* isolate_;
+
+  // Dump states
+  bool dump_set_register;
+  bool dump_get_register;
 };
 
 

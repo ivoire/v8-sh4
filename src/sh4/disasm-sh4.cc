@@ -46,6 +46,7 @@ namespace internal {
 
 //------------------------------------------------------------------------------
 
+#define USE_KERNEL_DISASM 1
 #ifdef USE_KERNEL_DISASM
 # define V8_IN_TYPE_DECLS 1
 #  include "opcodes-disasm-sh4.c"
