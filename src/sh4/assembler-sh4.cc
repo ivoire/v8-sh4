@@ -1512,7 +1512,7 @@ void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 
-void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
+void Assembler::movsb(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
@@ -1525,11 +1525,17 @@ void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
       movb_indRs_(rtmp, Rd);
     }
   }
+}
+
+
+void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset);
+  movsb(Rd, src, rtmp);
   extub_(Rd, Rd);       // zero extension
 }
 
 
-void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
+void Assembler::movsw(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
@@ -1542,8 +1548,12 @@ void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
       movw_indRs_(rtmp, Rd);
     }
   }
-  // Zero extension
-  extuw_(Rd, Rd);
+}
+
+void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset);
+  movsw(Rd, src, rtmp);
+  extuw_(Rd, Rd);       // zero extension
 }
 
 
@@ -1562,38 +1572,6 @@ void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds) {
   fmov_decRd_(Ds.high(), sp);
   pop(Rd1);
   pop(Rd2);
-}
-
-
-void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
-  ASSERT(src.mode_ == Offset);
-  if (src.rn_.is_valid()) {
-    add(rtmp, src.rm_, src.rn_);
-    movb_indRs_(rtmp, Rd);
-  } else {
-    if (src.offset_ == 0) {
-      movb_indRs_(src.rm_, Rd);
-    } else {
-      add(rtmp, src.rm_, Operand(src.offset_));
-      movb_indRs_(rtmp, Rd);
-    }
-  }
-}
-
-
-void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
-  ASSERT(src.mode_ == Offset);
-  if (src.rn_.is_valid()) {
-    add(rtmp, src.rm_, src.rn_);
-    movw_indRs_(rtmp, Rd);
-  } else {
-    if (src.offset_ == 0) {
-      movw_indRs_(src.rm_, Rd);
-    } else {
-      add(rtmp, src.rm_, Operand(src.offset_));
-      movw_indRs_(rtmp, Rd);
-    }
-  }
 }
 
 

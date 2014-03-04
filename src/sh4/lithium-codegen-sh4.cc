@@ -2227,13 +2227,47 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
 }
 
 
-void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
+void LCodeGen::CallKnownFunction(Handle<JSFunction> function, // SAMEAS: arm
                                  int formal_parameter_count,
                                  int arity,
                                  LInstruction* instr,
                                  CallKind call_kind,
                                  R1State r1_state) {
-  __ UNIMPLEMENTED_BREAK();
+  bool dont_adapt_arguments =
+      formal_parameter_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+  bool can_invoke_directly =
+      dont_adapt_arguments || formal_parameter_count == arity;
+
+  LPointerMap* pointers = instr->pointer_map();
+
+  if (can_invoke_directly) {
+    if (r1_state == R1_UNINITIALIZED) {
+      __ Move(r1, function);
+    }
+
+    // Change context.
+    __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+
+    // Set r0 to arguments count if adaption is not needed. Assumes that r0
+    // is available to write to at this point.
+    if (dont_adapt_arguments) {
+      __ mov(r0, Operand(arity));
+    }
+
+    // Invoke function.
+    __ SetCallKind(r5, call_kind);
+    __ ldr(ip, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+    __ Call(ip);
+
+    // Set up deoptimization.
+    RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+  } else {
+    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+    ParameterCount count(arity);
+    ParameterCount expected(formal_parameter_count);
+    __ InvokeFunction(
+        function, expected, count, CALL_FUNCTION, generator, call_kind);
+  }
 }
 
 
@@ -2312,8 +2346,25 @@ void LCodeGen::DoMathSin(LMathSin* instr) {
 }
 
 
-void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) { // SAMEAS: arm
+  ASSERT(ToRegister(instr->context()).is(cp));
+  ASSERT(ToRegister(instr->function()).is(r1));
+  ASSERT(instr->HasPointerMap());
+
+  Handle<JSFunction> known_function = instr->hydrogen()->known_function();
+  if (known_function.is_null()) {
+    LPointerMap* pointers = instr->pointer_map();
+    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+    ParameterCount count(instr->arity());
+    __ InvokeFunction(r1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
+  } else {
+    CallKnownFunction(known_function,
+                      instr->hydrogen()->formal_parameter_count(),
+                      instr->arity(),
+                      instr,
+                      CALL_AS_METHOD,
+                      R1_CONTAINS_TARGET);
+  }
 }
 
 

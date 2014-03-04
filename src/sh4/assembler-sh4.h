@@ -1038,8 +1038,12 @@ class Assembler : public AssemblerBase {
   void mov(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   // unsigned 8 bit load op.
   void movb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  // signed 8 bit load op.
+  void movsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   // unsigned 16 bit load op.
   void movw(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  // signed 16 bit load op.
+  void movsw(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   // store op.
   void mov(const MemOperand& dst, Register Rd, Register rtmp = sh4_rtmp);
   // store 8 bits op.
@@ -1050,23 +1054,17 @@ class Assembler : public AssemblerBase {
   void movd(DwVfpRegister Dd, Register Rs1, Register Rs2);
   void movd(Register Rd1, Register Rd2, DwVfpRegister Ds);
 
-  inline void ldr(Register Rd, const MemOperand& src,
-                  Register rtmp = sh4_rtmp);
-  void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
-        { movb(Rd, src, rtmp); }
-  void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp)
-        { movw(Rd, src, rtmp); }
+  inline void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  inline void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  inline void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   // signed 8 bit load op.
-  void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  inline void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   // signed 16 bit load op.
-  void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  inline void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
 
-  inline void str(Register Rs, const MemOperand& dst,
-                  Register rtmp = sh4_rtmp);
-  void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)
-        { movw(dst, Rs, rtmp); }
-  void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp)
-        { movb(dst, Rs, rtmp); }
+  inline void str(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp);
+  inline void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp);
+  inline void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp);
 
   void ldrpr(Register Rd) { lds_PR_(Rd); }
   void strpr(Register Rs) { sts_PR_(Rs); }

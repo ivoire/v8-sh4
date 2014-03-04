@@ -1451,14 +1451,14 @@ void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-static void JumpIfOOM(MacroAssembler* masm,
+static void JumpIfOOM(MacroAssembler* masm, // SAMEAS: arm
                       Register value,
                       Register scratch,
                       Label* oom_label) {
   STATIC_ASSERT(Failure::OUT_OF_MEMORY_EXCEPTION == 3);
   STATIC_ASSERT(kFailureTag == 3);
-  __ land(scratch, value, Operand(0xf));
-  __ cmpeq(scratch, Operand(0xf));
+  __ land(scratch, value, Operand(0xf)); // DIFF: codegen
+  __ cmp(scratch, Operand(0xf));
   __ b(eq, oom_label);
 }
 
@@ -1477,11 +1477,14 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   //         Used later by LeaveExitFrame()
   // sh4_r9: pointer to builtin function  (C callee-saved)
   // sh4_r10: pointer to the first argument (C callee-saved)
-  // TODO(stm): use of r10 is dangerous (ip)
   // SH4: moved callee-saved to stack localtion (see ::Generate())
+  // sh4_r8 (r4 for ARM): sp + (1+0)*kPointerSize
+  // sh4_r9 (r5 for ARM): sp + (1+1)*kPointerSize
+  // sh4_r10 (r6 for ARM): sp + (1+2)*kPointerSize
   Isolate* isolate = masm->isolate();
   ASSERT(!r0.is(sh4_rtmp));
   ASSERT(!r0.is(sh4_ip));
+  // SH4: obsolete: on stack 
   //ASSERT(!sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) && !sh4_r10.is(sh4_rtmp));
 
   if (do_gc) {
@@ -1504,11 +1507,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Call C built-in.
   // r4 = argc, r5 = argv, r6 = isolate
-  //__ mov(r4, sh4_r8);
-  //__ mov(r5, sh4_r10);
-  // SH4: ref to ::Generate that stored into the stack
-  __ ldr(r4, MemOperand(sp, (1+0)*kPointerSize));
-  __ ldr(r5, MemOperand(sp, (1+2)*kPointerSize));
+  //__ mov(r4, sh4_r8); // SH4: obsolete: on stack
+  __ ldr(r4, MemOperand(sp, (1+0)*kPointerSize)); // DIFF: codegen: SH4 C-ABI arg 1
+  //__ mov(r5, sh4_r10); // SH4: obsolete: on stack
+  __ ldr(r5, MemOperand(sp, (1+2)*kPointerSize)); // DIFF: codegen: SH4 C-ABI arg 2
 
 #if V8_HOST_ARCH_SH4
   int frame_alignment = MacroAssembler::ActivationFrameAlignment();
@@ -1526,9 +1528,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 #endif
 
-  __ mov(r6, Operand(ExternalReference::isolate_address(isolate)));
+  __ mov(r6, Operand(ExternalReference::isolate_address(isolate))); // DIFF: codegen: SH4 C-ABI arg 3
 
-  // SH4: ref to ::Generate() that stored the builtin into the stack
+  //__ mov(r2, sh4_r9); // SH4: obsolete: on stack 
   __ ldr(r2, MemOperand(sp, (1+1)*kPointerSize));
 
   // To let the GC traverse the return address of the exit frames, we need to
@@ -1576,11 +1578,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  //  Callee-saved register sh4_r8 still holds argc.
-  // SH4: stored on stack into ::Generate()
+  //__ mov(r2, sh4_r8); // SH4: obsolete: on stack
   __ ldr(r2, MemOperand(sp, (1+0)*kPointerSize));
   __ LeaveExitFrame(save_doubles_, r2, true);
-  //  __ LeaveExitFrame(save_doubles_, sh4_r8);
   __ rts();
 
   // check if we should retry or throw exception
@@ -1596,22 +1596,20 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Retrieve the pending exception.
   __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
-  __ ldr(r0, MemOperand(r3));
+  __ ldr(r0, MemOperand(ip));
 
   // See if we just retrieved an OOM exception.
-  JumpIfOOM(masm, r0, r3, throw_out_of_memory_exception);
-  __ UNIMPLEMENTED_BREAK();
+  JumpIfOOM(masm, r0, ip, throw_out_of_memory_exception);
 
   // Clear the pending exception.
   __ mov(r3, Operand(isolate->factory()->the_hole_value()));
-  __ mov(r2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
+  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
-  __ str(r2, MemOperand(r3));
+  __ str(r3, MemOperand(ip));
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
-  __ mov(r3, Operand(isolate->factory()->termination_exception()));
-  __ cmpeq(r0, r3);
+  __ cmp(r0, Operand(isolate->factory()->termination_exception()));
   __ b(eq, throw_termination_exception);
 
   // Handle normal exception.
@@ -3728,7 +3726,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateHashInit(MacroAssembler* masm,
+void StringHelper::GenerateHashInit(MacroAssembler* masm,  // SAMEAS: arm, DIFF: codegen
                                     Register hash,
                                     Register character,
                                     Register scratch) {
@@ -3747,13 +3745,13 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
+void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm, // SAMEAS: arm, DIFF: codegen
                                             Register hash,
                                             Register character,
                                             Register scratch) {
   // Added a scratch parameter for the SH4 implementation compared to ARM.
   // hash += character;
-  __ add(hash, hash, character);
+  __ add(hash, hash, Operand(character));
   // hash += hash << 10;
   __ lsl(scratch, hash, Operand(10));
   __ add(hash, hash, scratch);
@@ -3763,7 +3761,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
+void StringHelper::GenerateHashGetHash(MacroAssembler* masm, // SAMEAS: arm, DIFF: codegen
                                        Register hash,
                                        Register scratch) {
   // Added a scratch parameter for the SH4 implementation compared to ARM.
@@ -3785,7 +3783,7 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
 }
 
 
-void SubStringStub::Generate(MacroAssembler* masm) {
+void SubStringStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   Label runtime;
 
   // Stack frame on entry.
@@ -3813,20 +3811,20 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Arithmetic shift right by one un-smi-tags. In this case we rotate right
   // instead because we bail out on non-smi values: ROR and ASR are equivalent
   // for smis but they set the flags in a way that's easier to optimize.
-  __ UNIMPLEMENTED_BREAK();
-  // TODO(ivoire): what about ROR on sh4 ?
-  //__ mov(r2, Operand(r2, ROR, 1), SetCC);
-  //__ mov(r3, Operand(r3, ROR, 1), SetCC, cc);
+  __ SmiUntag(r2, SetT); // DIFF: codegen
+  __ b(f, &runtime); // branch is not a smi // DIFF: codegen
+  __ SmiUntag(r3, SetT); // DIFF: codegen
+  __ b(f, &runtime); // branch is not a smi // DIFF: codegen
   // If either to or from had the smi tag bit set, then C is set now, and N
   // has the same value: we rotated by 1, so the bottom bit is now the top bit.
   // We want to bailout to runtime here if From is negative.  In that case, the
   // next instruction is not executed and we fall through to bailing out to
   // runtime.
   // Executed if both r2 and r3 are untagged integers.
-  // TODO(ivoire): same
-  //__ sub(r2, r2, Operand(r3), SetCC, cc);
   // One of the above un-smis or the above SUB could have set N==1.
-  //__ b(mi, &runtime);  // Either "from" or "to" is not an smi, or from > to.
+  __ cmpgt(r3, r2); // DIFF: codegen
+  __ b(t, &runtime);  // Either "from" or "to" is not an smi, or from > to.
+  __ sub(r2, r2, Operand(r3)); // DIFF: codegen
 
   // Make sure first argument is a string.
   __ ldr(r0, MemOperand(sp, kStringOffset));
@@ -3837,7 +3835,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ b(NegateCondition(is_string), &runtime);
 
   Label single_char;
-  __ cmpeq(r2, Operand(1));
+  __ cmp(r2, Operand(1));
   __ b(eq, &single_char);
 
   // Short-cut for the case of trivial substring.
@@ -3845,13 +3843,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r0: original string
   // r2: result string length
   __ ldr(r4, FieldMemOperand(r0, String::kLengthOffset));
-  __ asr(r4, r4, Operand(1));
-  __ cmpeq(r2, r4);
+  __ asr(r4, r4, Operand(1)); // DIFF: codegen
+  __ cmp(r2, r4); // DIFF: codegen
   // Return original string.
   __ b(eq, &return_r0);
   // Longer than original string's length or negative: unsafe arguments.
-  __ cmphi(r2, r4);
-  __ b(hi, &runtime);
+  __ cmphi(r2, r4); // DIFF: codegen
+  __ b(t, &runtime); // DIFF: codegen
   // Shorter than original string's length: an actual substring.
 
   // Deal with different string types: update the index if necessary
@@ -3883,8 +3881,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Sliced string.  Fetch parent and correct start index by offset.
   __ ldr(r5, FieldMemOperand(r0, SlicedString::kParentOffset));
   __ ldr(r4, FieldMemOperand(r0, SlicedString::kOffsetOffset));
-  __ asr(r1, r4, Operand(1));
-  __ add(r3, r3, r1);  // Add offset to index.
+  __ asr(r1, r4, Operand(1)); // DIFF: codegen
+  __ add(r3, r3, r1);  // Add offset to index. // DIFF: codegen
   // Update instance type.
   __ ldr(r1, FieldMemOperand(r5, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
@@ -3902,9 +3900,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // r1: instance type of underlying subject string
     // r2: length
     // r3: adjusted start index (untagged)
-    __ cmpge(r2, Operand(SlicedString::kMinLength));
+    __ cmpge(r2, Operand(SlicedString::kMinLength)); // DIFF: codegen
     // Short slice.  Copy instead of slicing.
-    __ bf(&copy_routine);
+    __ bf(&copy_routine); // DIFF: codegen
     // Allocate new sliced string.  At this point we do not reload the instance
     // type including the string encoding because we simply rely on the info
     // provided by the original string.  It does not matter if the original

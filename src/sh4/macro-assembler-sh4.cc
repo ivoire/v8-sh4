@@ -1113,15 +1113,23 @@ void MacroAssembler::PopTryHandler() {
 }
 
 
-void MacroAssembler::JumpToHandlerEntry() {
+void MacroAssembler::JumpToHandlerEntry() { // SAMEAS: arm
   // Compute the handler entry address and jump to it.  The handler table is
   // a fixed array of (smi-tagged) code offsets.
   // r0 = exception, r1 = code object, r2 = state.
-  UNIMPLEMENTED_BREAK();
+  ldr(r3, FieldMemOperand(r1, Code::kHandlerTableOffset));  // Handler table.
+  add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  lsr(r2, r2, Operand(StackHandler::kKindWidth)); // Handler index. // DIFF: codegen
+  lsl(r2, r2, Operand(kPointerSizeLog2)); // DIFF: codegen
+  ldr(r2, MemOperand(r3, r2));  // Smi-tagged offset. // DIFF: codegen
+  add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start.
+  SmiUntag(r2); // DIFF: codegen
+  add(r1, r1, r2); // DIFF: codegen
+  jmp(r1); // DIFF: codegen
 }
 
 
-void MacroAssembler::Throw(Register value) {
+void MacroAssembler::Throw(Register value) { // SAMEAS: arm
   ASSERT(!value.is(sh4_ip));
   ASSERT(!value.is(sh4_rtmp));
 
@@ -1150,7 +1158,7 @@ void MacroAssembler::Throw(Register value) {
 
   // Get the code object (r1) and state (r2).  Restore the context and frame
   // pointer.
-  Pop(fp, cp, r2, r1);
+  Pop(fp, cp, r2, r1); // DIFF: codegen
 
   // If the handler is a JS frame, restore the context to the frame.
   // (kind == ENTRY) == (fp == 0) == (cp == 0), so we could test either fp
@@ -1158,9 +1166,9 @@ void MacroAssembler::Throw(Register value) {
   RECORD_LINE();
   Label skip;
   tst(cp, cp);
-  bt(&skip);
-  str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  bind(&skip);
+  bt_near(&skip); // DIFF: codegen
+  str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset)); // DIFF: codegen
+  bind(&skip); // DIFF: codegen
 
   JumpToHandlerEntry();
 }
@@ -2868,27 +2876,23 @@ void MacroAssembler::CopyFields(Register dst,
 }
 
 
-void MacroAssembler::CopyBytes(Register src,
+  void MacroAssembler::CopyBytes(Register src, // SAMEAS: arm
                                Register dst,
                                Register length,
                                Register scratch) {
-  UNIMPLEMENTED();
   Label align_loop, align_loop_1, word_loop, byte_loop, byte_loop_1, done;
 
   // Align src before copying in word size chunks.
-  bind(&align_loop);
-  cmp(length, Operand(0));
-  b(eq, &done, Label::kNear);
+  cmpgt(length, Operand(kPointerSize)); // DIFF: codegen
+  bf_near(&byte_loop); // DIFF: codegen
+
   bind(&align_loop_1);
   tst(src, Operand(kPointerSize - 1));
-  b(eq, &word_loop, Label::kNear);
-  ldrb(scratch, MemOperand(src));
-  add(src, src, Operand(1));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  dt(length);
-  b(ne, &byte_loop_1, Label::kNear);
-
+  bt_near(&word_loop); // DIFF: codegen
+  ldrb(scratch, MemOperand(src, 1, PostIndex));
+  strb(scratch, MemOperand(dst, 1, PostIndex));
+  dt(length); // DIFF: codegen
+  b_near(&align_loop_1);
   // Copy bytes in word size chunks.
   bind(&word_loop);
   if (emit_debug_code()) {
@@ -2897,38 +2901,30 @@ void MacroAssembler::CopyBytes(Register src,
   }
   cmpge(length, Operand(kPointerSize));
   bf_near(&byte_loop);
-  ldr(scratch, MemOperand(src));
-  add(src, src, Operand(kPointerSize));
-#if CAN_USE_UNALIGNED_ACCESSES
-  str(scratch, MemOperand(dst));
-  add(dst, dst, Operand(kPointerSize));
-#else
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  lsr(scratch, scratch, Operand(8));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  lsr(scratch, scratch, Operand(8));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  lsr(scratch, scratch, Operand(8));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-#endif
+  ldr(scratch, MemOperand(src, kPointerSize, PostIndex));
+  if (CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) {
+    ASSERT(0); // SH4: not supported
+  } else {
+    strb(scratch, MemOperand(dst, 1, PostIndex));
+    lsr(scratch, scratch, Operand(8)); // DIFF: codegen
+    strb(scratch, MemOperand(dst, 1, PostIndex));
+    lsr(scratch, scratch, Operand(8)); // DIFF: codegen
+    strb(scratch, MemOperand(dst, 1, PostIndex));
+    lsr(scratch, scratch, Operand(8)); // DIFF: codegen
+    strb(scratch, MemOperand(dst, 1, PostIndex));
+  }
   sub(length, length, Operand(kPointerSize));
   b_near(&word_loop);
 
   // Copy the last bytes if any left.
   bind(&byte_loop);
-  cmp(length, Operand(0));
-  b(eq, &done, Label::kNear);
+  cmpeq(length, Operand(0)); // DIFF: codegen
+  bt_near(&done); // DIFF: codegen
   bind(&byte_loop_1);
-  ldrb(scratch, MemOperand(src));
-  add(src, src, Operand(1));
-  strb(scratch, MemOperand(dst));
-  add(dst, dst, Operand(1));
-  dt(length);
-  b(ne, &byte_loop_1, Label::kNear);
+  ldrb(scratch, MemOperand(src, 1, PostIndex));
+  strb(scratch, MemOperand(dst, 1, PostIndex));
+  dt(length); // DIFF: codegen
+  bf_near(&byte_loop_1); // DIFF: codegen
   bind(&done);
 }
 

@@ -639,6 +639,72 @@ void Assembler::ldr(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 
+void Assembler::ldrh(Register Rd, const MemOperand& src, Register rtmp) {
+  switch(src.mode_) {
+  case PreIndex:
+    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
+    movw(Rd, MemOperand(src.rm_, 0), rtmp);
+    break;
+  case PostIndex:
+    movw(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    break;
+  case Offset:
+    movw(Rd, src, rtmp);
+    break;
+  }
+}
+
+void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
+  switch(src.mode_) {
+  case PreIndex:
+    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
+    movsw(Rd, MemOperand(src.rm_, 0), rtmp);
+    break;
+  case PostIndex:
+    movsw(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    break;
+  case Offset:
+    movsw(Rd, src, rtmp);
+    break;
+  }
+}
+
+
+void Assembler::ldrb(Register Rd, const MemOperand& src, Register rtmp) {
+  switch(src.mode_) {
+  case PreIndex:
+    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
+    movb(Rd, MemOperand(src.rm_, 0), rtmp);
+    break;
+  case PostIndex:
+    movb(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    break;
+  case Offset:
+    movb(Rd, src, rtmp);
+    break;
+  }
+}
+
+void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
+  switch(src.mode_) {
+  case PreIndex:
+    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
+    movsb(Rd, MemOperand(src.rm_, 0), rtmp);
+    break;
+  case PostIndex:
+    movsb(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    break;
+  case Offset:
+    movsb(Rd, src, rtmp);
+    break;
+  }
+}
+
+
 void Assembler::str(Register Rs, const MemOperand& dst, Register rtmp) {
   switch(dst.mode_) {
   case PreIndex:
@@ -654,6 +720,41 @@ void Assembler::str(Register Rs, const MemOperand& dst, Register rtmp) {
     break;
   }
 }
+
+
+void Assembler::strh(Register Rs, const MemOperand& dst, Register rtmp) {
+  switch(dst.mode_) {
+  case PreIndex:
+    add(dst.rm_ , dst.rm_, Operand(dst.offset()), rtmp);
+    movw(MemOperand(dst.rm_, 0), Rs, rtmp);
+    break;
+  case PostIndex:
+    movw(MemOperand(dst.rm_, 0), Rs, rtmp);
+    add(dst.rm_, dst.rm_, Operand(dst.offset()), rtmp);
+    break;
+  case Offset:
+    movw(dst, Rs, rtmp);
+    break;
+  }
+}
+
+
+void Assembler::strb(Register Rs, const MemOperand& dst, Register rtmp) {
+  switch(dst.mode_) {
+  case PreIndex:
+    add(dst.rm_ , dst.rm_, Operand(dst.offset()), rtmp);
+    movb(MemOperand(dst.rm_, 0), Rs, rtmp);
+    break;
+  case PostIndex:
+    movb(MemOperand(dst.rm_, 0), Rs, rtmp);
+    add(dst.rm_, dst.rm_, Operand(dst.offset()), rtmp);
+    break;
+  case Offset:
+    movb(dst, Rs, rtmp);
+    break;
+  }
+}
+
 
 } }  // namespace v8::internal
 
