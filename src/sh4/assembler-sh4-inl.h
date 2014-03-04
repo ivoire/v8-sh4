@@ -59,13 +59,13 @@ void RelocInfo::apply(intptr_t delta) {
 }
 
 
-Address RelocInfo::target_address() {
+Address RelocInfo::target_address() { // SAMEAS: arm
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   return Assembler::target_address_at(pc_);
 }
 
 
-Address RelocInfo::target_address_address() {
+Address RelocInfo::target_address_address() { // SAMEAS: arm
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
@@ -208,7 +208,11 @@ Object** RelocInfo::call_object_address() {
 
 
 void RelocInfo::WipeOut() {
-  UNIMPLEMENTED();
+  ASSERT(IsEmbeddedObject(rmode_) ||
+         IsCodeTarget(rmode_) ||
+         IsRuntimeEntry(rmode_) ||
+         IsExternalReference(rmode_));
+  Assembler::set_target_pointer_at(pc_, NULL);
 }
 
 
@@ -359,10 +363,12 @@ Address Assembler::target_pointer_address_at(Address pc) {
   // With inline constant pools, all sequences for jmp/jsr/mov uses the same
   // sequence as mov(), i.e.:
   // align 4;
+  // @ pc argument is there
   // movl pc+4 => R; nop; bra pc+4; nop; pool[0..32]
   //
   // New style (delayed) constant pool uses look like this:
   // (aligned or unaligned)
+  // @ pc argument is there
   // movl pc+disp => R;
   // (disp + 1 instructions later, aligned)
   // pool entry [0..32]
@@ -381,7 +387,7 @@ Address Assembler::target_pointer_address_at(Address pc) {
 
 
 Address Assembler::target_pointer_at(Address pc) {
-  // TODO(ivoire): handle moves !
+  ASSERT(IsMovlPcRelative(instr_at(pc)));
   return Memory::Address_at(target_pointer_address_at(pc));
 }
 
@@ -398,7 +404,11 @@ Address Assembler::target_address_from_return_address(Address pc) {
     // Delayed constant pool
     return pc - kNewStyleCallTargetAddressOffset;
   } else {
-    return pc - kOldStyleCallTargetAddressOffset;
+    // As we go backward from the return address we do not need
+    // to account for the alignment at the start of a sequence.
+    // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment
+    // value.
+    return pc - kOldStyleCallTargetAddressOffsetWithoutAlignment;
   }
 }
 
@@ -407,21 +417,30 @@ Address Assembler::return_address_from_call_start(Address pc) {
   // This is used only in the case of a call with immediate
   // target (ref ARM port).
   // No need to account for a direct register based call.
-  // Thus this is equivalent to GetCallTargetAddressOffset().
   // There are two cases:
   // - delayed constant pool: movl, jsr, nop
   // - immediate constant pool: movl, nop, bra, ....
   // Ref to assembler-sh4.h
-  // We assert that we are actually pointet to a PC relative
+  // We assert that we are actually pointing to a PC relative
   // mov instruction which always starts an immediate call sequence.
+  // NOTE: this function is not equivalent to
+  // GetCallTargetAddressOffset() which is independent of the
+  // call location but dependent on the call alignment.
+  // Actually this muist return the offset after the alignment
+  // while GetCallTargetAddressOffset() must add an instruction
+  // word in the misaligned case.
   Instr first_instr = instr_at(pc);
   ASSERT(IsMovlPcRelative(first_instr));
   Instr possible_jsr = instr_at(pc + kInstrSize);
   if (IsJsr(possible_jsr)) {
-      // Delayed constant pool
-      return pc + kNewStyleCallTargetAddressOffset;
+    // Delayed constant pool
+    return pc + kNewStyleCallTargetAddressOffset;
   } else {
-      return pc + kOldStyleCallTargetAddressOffset;
+    // As we go backward from the return address we do not need
+    // to account for the alignment at the start of a sequence.
+    // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment
+    // value.
+    return pc + kOldStyleCallTargetAddressOffsetWithoutAlignment;
   }
 }
 
@@ -435,6 +454,7 @@ void Assembler::deserialization_set_special_target_at(
 
 
 void Assembler::set_target_pointer_at(Address pc, Address target) {
+  ASSERT(IsMovlPcRelative(Assembler::instr_at(pc)));
   Memory::Address_at(target_pointer_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to flush the instruction cache
   // after patching a target address in the code as follows:

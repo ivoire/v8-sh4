@@ -651,7 +651,7 @@ DEFINE_bool(profile_hydrogen_code_stub_compilation, false,
             "Print the time it takes to lazily compile hydrogen code stubs.")
 
 // SH4
-DEFINE_bool(pool, true, "use constant pools")
+DEFINE_bool(pool, false, "use constant pools") // SH4: TODO: disabled for now
 
 //
 // Dev shell flags
@@ -854,6 +854,7 @@ DEFINE_implication(sodium, print_opt_code)
 DEFINE_implication(sodium, emit_opt_code_positions)
 DEFINE_implication(sodium, code_comments)
 
+DEFINE_bool(print_emit, false, "disassemble instruction while they are emitted")
 DEFINE_bool(print_all_code, false, "enable all flags related to printing code")
 DEFINE_implication(print_all_code, print_code)
 DEFINE_implication(print_all_code, print_opt_code)

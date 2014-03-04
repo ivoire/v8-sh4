@@ -95,15 +95,17 @@ class MacroAssembler: public Assembler {
   void Jump(Register target);
   void Jump(Address target, RelocInfo::Mode rmode);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode);
-  static int CallSize(Register target, Condition cond = al);
+  static int CallSize(Register target, int call_offset, Condition cond = al);
   void Call(Register target, Condition cond = al);
-  int CallSize(Address target, RelocInfo::Mode rmode);
+  int CallSize(Address target, int call_offset, RelocInfo::Mode rmode);
   static int CallSizeNotPredictableCodeSize(Address target,
                                             RelocInfo::Mode rmode,
+                                            Address call_address,
                                             Condition cond = al);
   void Call(Address target, RelocInfo::Mode rmode,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
   int CallSize(Handle<Code> code,
+               int call_offset,
                RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
                TypeFeedbackId ast_id = TypeFeedbackId::None());
   void Call(Handle<Code> code,

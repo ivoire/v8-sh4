@@ -39,12 +39,14 @@ using namespace v8::internal;
   By default use BEGIN_WITH_NATIVE(false) if natives are
   not needed. Only when needed, use BEGIN_WITH_NATIVE(true).
 */
-#define BEGIN_WITH_NATIVE(native)               \
-  /* Set compilation of natives. */             \
-  i::FLAG_disable_native_files = !(native);     \
-                                                \
-  CcTest::InitializeVM();                       \
-  Isolate* isolate = CcTest::i_isolate();       \
+#define BEGIN_WITH_NATIVE(native)                       \
+  /* Set compilation of natives. */                     \
+  i::FLAG_disable_native_files = !(native);             \
+  /* Disable slow asserts that require natives. */      \
+  i::FLAG_enable_slow_asserts = false;                  \
+                                                        \
+  CcTest::InitializeVM();                               \
+  Isolate* isolate = CcTest::i_isolate();               \
   HandleScope scope(isolate);
 
 TEST(sh4) {
@@ -100,3 +102,4 @@ TEST(sh4_5) {
   v8::Handle<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(0X1230,  script->Run()->Int32Value());
 }
+

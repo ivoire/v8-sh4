@@ -82,7 +82,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
 }
 
 
-int MacroAssembler::CallSize(Register target, Condition cond) {
+int MacroAssembler::CallSize(Register target, int call_offset, Condition cond) {
   // Register based call: jsr @target; nop;
   return 2 * kInstrSize;
 }
@@ -92,17 +92,19 @@ void MacroAssembler::Call(Register target, Condition cond) {
   ASSERT_EQ(cond, al);
   BlockConstPoolScope block_const_pool(this);
   Label start;
+  int call_offset = pc_offset();
   bind(&start);
   jsr(target);
-  ASSERT_EQ(CallSize(target), SizeOfCodeGeneratedSince(&start));
+  ASSERT_EQ(CallSize(target, call_offset), SizeOfCodeGeneratedSince(&start));
 }
 
 
-int MacroAssembler::CallSize(
-    Address target, RelocInfo::Mode rmode) {
+int MacroAssembler::CallSize(Address target,
+                             int call_offset,
+                             RelocInfo::Mode rmode) {
   // Depends upon constant pool management:
   // same as GetCallTargetAddressOffset()
-  return GetCallTargetAddressOffset();
+  return GetCallTargetAddressOffset(call_offset);
 }
 
 
@@ -112,6 +114,7 @@ void MacroAssembler::Call(Address target,
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
   Label start;
+  int call_offset = pc_offset();
   bind(&start);
 
   bool old_predictable_code_size = predictable_code_size();
@@ -120,11 +123,14 @@ void MacroAssembler::Call(Address target,
   }
 
   // Call sequence may be:
+  // @ start of ::Call()
   //  mov  ip, @ct_pool
   //  jsr  ip
   //  nop
   //                      @ return address
   // Or without the constant pool optimization
+  // @ start of ::Call()
+  //  align(4) // a variable sequence (nop)
   //  mov  ip, @slot
   //  nop
   //  jmp 4
@@ -143,7 +149,7 @@ void MacroAssembler::Call(Address target,
   mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   jsr(ip);
 
-  ASSERT_EQ(CallSize(target, rmode), SizeOfCodeGeneratedSince(&start));
+  ASSERT_EQ(CallSize(target, call_offset, rmode), SizeOfCodeGeneratedSince(&start));
   if (mode == NEVER_INLINE_TARGET_ADDRESS) {
     set_predictable_code_size(old_predictable_code_size);
   }

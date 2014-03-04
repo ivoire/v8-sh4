@@ -1614,7 +1614,8 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   ASSERT(Assembler::IsMovlPcRelative(movl));
   if ((movl & kOff8Mask) == 0x1) {
     // load from an inlined constant pool
-    cmp_instruction_address = address + Assembler::kOldStyleCallTargetAddressOffset;
+    cmp_instruction_address = address +
+      Assembler::kOldStyleCallTargetAddressOffsetWithoutAlignment;
   } else {
     // constant pools are optimized
     cmp_instruction_address = address + Assembler::kNewStyleCallTargetAddressOffset;

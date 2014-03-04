@@ -90,7 +90,8 @@ static void InitializeVM() {
 #define BEGIN()                                         \
   /* Disable compilation of natives. */                 \
   i::FLAG_disable_native_files = true;                  \
-  i::FLAG_code_comments = true;                         \
+  /* Disable slow asserts that require natives. */      \
+  i::FLAG_enable_slow_asserts = false;                  \
                                                         \
   CcTest::InitializeVM();                               \
   Isolate* isolate = Isolate::Current();                \

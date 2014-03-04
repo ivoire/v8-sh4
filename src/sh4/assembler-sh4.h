@@ -688,8 +688,10 @@ class Assembler : public AssemblerBase {
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
-  // The call sequence is:
-  // mov.l const_pool, rx     @ call sequence start address
+  // The call sequence is for inlined constant pool:
+  // @ call sequence start address
+  // align(4)
+  // mov.l const_pool, rx
   // nop
   // bra skip
   // nop
@@ -698,18 +700,31 @@ class Assembler : public AssemblerBase {
   // skip:
   // jsr rx
   // nop
-  // ...                      @ return address (put in pr by the jsr)
-  static const int kOldStyleCallTargetAddressOffset = 2 * kInstrSize +
-                                                      2 * kInstrSize +
-                                                      4 * kInstrSize;
+  // @ return address (put in pr by the jsr)
+  //
+  //The call sequence is for delayed constant pool:
+  // @ call sequence start address
+  // mov.l const_pool, rx
+  // jsr rx
+  // nop
+  // @ return address (put in pr by the jsr)
+
+  static const int kOldStyleCallTargetAddressOffsetWithoutAlignment =
+    2 * kInstrSize +
+    2 * kInstrSize +
+    4 * kInstrSize;
   static const int kNewStyleCallTargetAddressOffset = 3 * kInstrSize;
 
-  int GetCallTargetAddressOffset() const {
-    // constant_pool_pool_ is not meant to be switched mid-flight
+  // SH4: we need the start address of the Call sequence
+  // as with inlined constant pools the alignment matters
+  // constant_pool_pool_ is not meant to be switched mid-flight
+  int GetCallTargetAddressOffset(int call_offset) const {
     if (constant_pool_pool_)
-      return kNewStyleCallTargetAddressOffset; // mov.l; jsr; nop
-    else
-      return kOldStyleCallTargetAddressOffset; // see above
+      return kNewStyleCallTargetAddressOffset;
+    else {
+      int misaligned = call_offset % 4;
+      return kOldStyleCallTargetAddressOffsetWithoutAlignment + misaligned;
+    }
   }
 
   static int ResolveCallTargetAddressOffset(byte *address);

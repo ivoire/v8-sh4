@@ -48,6 +48,8 @@ typedef Object* (*F5)(double x, double y, int p2, int p3, int p4);
 #define BEGIN()                                         \
   /* Disable compilation of natives. */                 \
   i::FLAG_disable_native_files = true;                  \
+  /* Disable slow asserts that require natives. */      \
+  i::FLAG_enable_slow_asserts = false;                  \
                                                         \
   CcTest::InitializeVM();                               \
   Isolate* isolate = CcTest::i_isolate();               \

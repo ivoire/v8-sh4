@@ -317,7 +317,8 @@ void FullCodeGenerator::Generate() {
       __ LoadRoot(ip, Heap::kStackLimitRootIndex);
       __ cmphs(sp, ip);
       __ bt_near(&ok);
-      PredictableCodeSizeScope predictable(masm_, masm_->GetCallTargetAddressOffset());
+      // SH4: for SH4 we must pass a PC offset to GetCallTarget.
+      PredictableCodeSizeScope predictable(masm_, masm_->GetCallTargetAddressOffset(masm_->pc_offset()));
       __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
       __ bind(&ok);
     }

@@ -33,6 +33,7 @@
 #include "disassembler.h"
 #include "macro-assembler.h"
 #include "serialize.h"
+#include "disasm.h"
 
 #include "checks-sh4.h"
 
@@ -1402,10 +1403,10 @@ void Assembler::mov(Register Rd, const Operand& src, bool force) {
 #ifdef DEBUG
     if (src.rmode_ != RelocInfo::NONE32) {
       Address target_address = pc_;
-      // Verify that target_pointer_at() is actually returning
-      // the address where the target address for the instruction is stored.
+      // Verify that target_pointer_address_at() is actually returning
+      // the address where the pointer for the instruction is stored.
       ASSERT(target_address ==
-             target_pointer_at(
+             target_pointer_address_at(
                 reinterpret_cast<byte*>(buffer_ + instr_address)));
     }
 #endif
@@ -2200,7 +2201,12 @@ int Assembler::ResolveCallTargetAddressOffset(byte *pc) {
     ASSERT(IsNop(instr));
     instr = instr_at(pc - 12);
     ASSERT(IsBra(instr));
-    return kOldStyleCallTargetAddressOffset;
+    instr = instr_at(pc - 14);
+    ASSERT(IsNop(instr));
+    instr = instr_at(pc - 16);
+    ASSERT(IsMovlPcRelative(instr));
+    ASSERT(16 == kOldStyleCallTargetAddressOffsetWithoutAlignment);
+    return kOldStyleCallTargetAddressOffsetWithoutAlignment;
   }
 }
 
@@ -2210,6 +2216,10 @@ void Assembler::emit(Instr x) {
   // INSERT: instruction checks
   // if (x == 0xXXXX) ASSERT(0);
   *reinterpret_cast<Instr*>(pc_) = x;
+  if (FLAG_print_emit) {
+    disasm::Disassembler::Disassemble(stdout, pc_, pc_ + kInstrSize);
+    fflush(stdout);
+  }
   pc_ += kInstrSize;
 }
 #endif
