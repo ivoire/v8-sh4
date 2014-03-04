@@ -286,21 +286,30 @@ class RecordWriteStub: public PlatformCodeStub {
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
+  // Position of branches that will be patched. Ref to ::Generate()
+  static const int kFirstBranchPos = 2 * Assembler::kInstrSize; // DIFF: codegen
+  static const int kSecondBranchPos = 4 * Assembler::kInstrSize; // DIFF: codegen
+
   static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
-    masm->instr_at_put(pos, (masm->instr_at(pos) | 0x8900));
+    // SH4: change bf (branch) into bt (nop) ref to ::Generate()
+    masm->instr_at_put(pos, (masm->instr_at(pos) & ~0x200/*bt*/)); // DIFF: codegen
+    ASSERT(Assembler::IsBt(masm->instr_at(pos)));
   }
 
   static void PatchNopIntoBranch(MacroAssembler* masm, int pos) {
-    UNIMPLEMENTED();
+    // SH4: change bt (nop) into bf (branch) ref to ::Generate()
+    masm->instr_at_put(pos, (masm->instr_at(pos) | 0x200/*bf*/)); // DIFF: codegen
+    ASSERT(Assembler::IsBf(masm->instr_at(pos)));
   }
 
   static Mode GetMode(Code* stub) {
     Instr first_instruction = Assembler::instr_at(stub->instruction_start() +
-                                                  2 * Assembler::kInstrSize);
+                                                  kFirstBranchPos);
     Instr second_instruction = Assembler::instr_at(stub->instruction_start() +
-                                                   4 * Assembler::kInstrSize);
+                                                  kSecondBranchPos);
 
     if (Assembler::IsBf(first_instruction)) {
+      ASSERT(Assembler::IsBt(second_instruction));
       return INCREMENTAL;
     }
 
@@ -315,8 +324,28 @@ class RecordWriteStub: public PlatformCodeStub {
     return STORE_BUFFER_ONLY;
   }
 
-  static void Patch(Code* stub, Mode mode) {
-    UNIMPLEMENTED();
+  static void Patch(Code* stub, Mode mode) { // SAMEAS: arm
+    MacroAssembler masm(NULL,
+                        stub->instruction_start(),
+                        stub->instruction_size());
+    switch (mode) {
+      case STORE_BUFFER_ONLY:
+        ASSERT(GetMode(stub) == INCREMENTAL ||
+               GetMode(stub) == INCREMENTAL_COMPACTION);
+        PatchBranchIntoNop(&masm, kFirstBranchPos); // DIFF: codegen
+        PatchBranchIntoNop(&masm, kSecondBranchPos); // DIFF: codegen
+        break;
+      case INCREMENTAL:
+        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        PatchNopIntoBranch(&masm, kFirstBranchPos); // DIFF: codegen
+        break;
+      case INCREMENTAL_COMPACTION:
+        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        PatchNopIntoBranch(&masm, kSecondBranchPos); // DIFF: codegen
+        break;
+    }
+    ASSERT(GetMode(stub) == mode);
+    CPU::FlushICache(stub->instruction_start(), kSecondBranchPos + Assembler::kInstrSize); // DIFF: codegen
   }
 
  private:
@@ -335,29 +364,35 @@ class RecordWriteStub: public PlatformCodeStub {
       scratch1_ = GetRegisterThatIsNotOneOf(object_, address_, scratch0_);
     }
 
-    void Save(MacroAssembler* masm) {
-      UNIMPLEMENTED();
+    void Save(MacroAssembler* masm) { // SAMEAS: arm
       ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
       // We don't have to save scratch0_ because it was given to us as
       // a scratch register.
       masm->push(scratch1_);
     }
 
-    void Restore(MacroAssembler* masm) {
-      UNIMPLEMENTED();
+    void Restore(MacroAssembler* masm) { // SAMEAS: arm
       masm->pop(scratch1_);
     }
 
     // If we have to call into C then we need to save and restore all caller-
     // saved registers that were not already preserved.  The scratch registers
     // will be restored by other means so we don't bother pushing them here.
-    void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
-      UNIMPLEMENTED();
+    void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) { // SAMEAS: arm
+      masm->push(pr); // DIFF: codegen
+      masm->pushm(kCallerSaved & ~scratch1_.bit()); // DIFF: codegen
+      if (mode == kSaveFPRegs) {
+        masm->SaveFPRegs(sp, scratch0_);
+      }
     }
 
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
-      UNIMPLEMENTED();
+      if (mode == kSaveFPRegs) {
+        masm->RestoreFPRegs(sp, scratch0_);
+      }
+      masm->popm(kCallerSaved & ~scratch1_.bit()); // DIFF: codegen
+      masm->pop(pr); // DIFF: codegen
     }
 
     inline Register object() { return object_; }

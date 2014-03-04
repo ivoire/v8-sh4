@@ -2942,6 +2942,23 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
 }
 
 
+void MacroAssembler::SaveFPRegs(Register location, Register scratch) {
+  UNIMPLEMENTED_BREAK();
+  // vstm(db_w, location, d16, d31, ne);
+  // sub(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
+  // vstm(db_w, location, d0, d15);
+}
+
+
+void MacroAssembler::RestoreFPRegs(Register location, Register scratch) {
+  UNIMPLEMENTED_BREAK();
+  // CheckFor32DRegs(scratch);
+  // vldm(ia_w, location, d0, d15);
+  // vldm(ia_w, location, d16, d31, ne);
+  // add(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
+}
+
+
 void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
     Register first,
     Register second,

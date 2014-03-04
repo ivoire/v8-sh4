@@ -5191,10 +5191,10 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   // See RecordWriteStub::Patch for details.
   // The sequence will be:
   //  clrt
-  //  bt(skip_to_incremental_noncompacting) # == nop
-  //  nop
-  //  bt(skip_to_incremental_compacting)    # == nop
-  //  nop
+  //  nop // align
+  //  bt(skip_to_incremental_noncompacting) # == nop (kFirstBranchPos)
+  //  nop // align
+  //  bt(skip_to_incremental_compacting)    # == nop (kSecondBranchPos)
   {
     // Block literal pool emission, as the position of these two instructions
     // is assumed by the patching code.
@@ -5221,10 +5221,13 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 
   // Initial mode of the stub is expected to be STORE_BUFFER_ONLY.
   // Will be checked in IncrementalMarking::ActivateGeneratedStub.
-  ASSERT(Assembler::GetBranchOffset(masm->instr_at(4)) < (1 << 12));
-  ASSERT(Assembler::GetBranchOffset(masm->instr_at(8)) < (1 << 12));
-  PatchBranchIntoNop(masm, 2 * Assembler::kInstrSize);
-  PatchBranchIntoNop(masm, 4 * Assembler::kInstrSize);
+  ASSERT(Assembler::IsBt(masm->instr_at(kFirstBranchPos)));
+  ASSERT(Assembler::IsBt(masm->instr_at(kSecondBranchPos)));
+  // SH4: not needed as the range is checked by the bindings above.
+  //ASSERT(Assembler::GetBranchOffset(masm->instr_at(kFirstBranchPos)) < (1 << 12));
+  //ASSERT(Assembler::GetBranchOffset(masm->instr_at(kSecondBranchPos)) < (1 << 12));
+  PatchBranchIntoNop(masm, kFirstBranchPos); // DIFF: codegen
+  PatchBranchIntoNop(masm, kFirstBranchPos); // DIFF: codegen
 }
 
 

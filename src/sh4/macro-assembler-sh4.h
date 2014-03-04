@@ -938,6 +938,10 @@ class MacroAssembler: public Assembler {
   // values to location, saving [d0..(d15|d31)].
   void SaveFPRegs(Register location, Register scratch);
 
+  // Does a runtime check for 16/32 FP registers. Either way, pops 32 double
+  // values to location, restoring [d0..(d15|d31)].
+  void RestoreFPRegs(Register location, Register scratch);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 
