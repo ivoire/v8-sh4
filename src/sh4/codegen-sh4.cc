@@ -242,7 +242,10 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
   if (!initialized) {
     CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
     PredictableCodeSizeScope scope(patcher.masm(), *length);
-    patcher.masm()->Push(r1, cp, fp, pr);
+    // NOTE: This code must be the same as in MacroAssembler::Prologue
+    // Otherwise the ASSERT(result) in ::IsYoungSequence() will fail
+    // for young code.
+    patcher.masm()->Push(pr, fp, cp, r1);
     patcher.masm()->nop();
     patcher.masm()->add(fp, sp, Operand(2 * kPointerSize));
     initialized = true;
@@ -256,7 +259,7 @@ bool Code::IsYoungSequence(byte* sequence) {
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
   bool result = !memcmp(sequence, young_sequence, young_length);
   ASSERT(result);// ||
-  // TODO(ivoire): implement this correctly !!!
+  // TODO(stm): implement PatchPlatformCodeAge()
   //       Memory::uint32_at(sequence) == kCodeAgePatchFirstInstruction);
   return result;
 }
@@ -264,7 +267,15 @@ bool Code::IsYoungSequence(byte* sequence) {
 
 void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
                                MarkingParity* parity) {
-  UNIMPLEMENTED();
+  if (IsYoungSequence(sequence)) {
+    *age = kNoAgeCodeAge;
+    *parity = NO_MARKING_PARITY;
+  } else {
+    Address target_address = Memory::Address_at(
+        sequence + Assembler::kInstrSize * (kNoCodeAgeSequenceLength - 1));
+    Code* stub = GetCodeFromTargetAddress(target_address);
+    GetCodeAgeAndParity(stub, age, parity);
+  }
 }
 
 
@@ -272,7 +283,24 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
-  UNIMPLEMENTED();
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  if (age == kNoAgeCodeAge) {
+    CopyBytes(sequence, young_sequence, young_length);
+    CPU::FlushICache(sequence, young_length);
+  } else {
+    // NOTE: This code must be the same as in MacroAssembler::Prologue
+    // r0 must point to the start of the patch sequence
+    // Ref to called stubs called there:
+    // Builtins::Generate_MarkCodeAsExecutedOnce
+    // Builtins::GenerateMakeCodeYoungAgainCommon
+    //Code* stub = GetCodeAgeStub(isolate, age, parity);
+    //CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
+    UNIMPLEMENTED();
+    // patcher.masm()->add(r0, pc, Operand(-8));
+    // patcher.masm()->ldr(pc, MemOperand(pc, -4));
+    // patcher.masm()->emit_code_stub_address(stub);
+  }
 }
 
 

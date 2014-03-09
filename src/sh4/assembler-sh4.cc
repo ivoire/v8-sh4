@@ -1992,6 +1992,13 @@ void Assembler::dd(uint32_t data) {
 }
 
 
+void Assembler::emit_code_stub_address(Code* stub) {
+  // SH4: expect that the caller handles the alignment
+  ASSERT(pc_offset() % 4 == 0);
+  dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+}
+
+
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {

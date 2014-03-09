@@ -661,8 +661,15 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
     if (isolate()->IsCodePreAgingActive()) {
+      // Pre-age the code.
+      // NOTE: This code must be the same as in PatchPlatformCodeAge (codegen-sh4.cc)
+      //Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       UNIMPLEMENTED();
+      // add(r0, pc, Operand(-8));
+      // ldr(pc, MemOperand(pc, -4));
+      // emit_code_stub_address(stub);
     } else {
+      // NOTE: This code must be the same as in GetNoCodeAgeSequence (codegen-sh4.cc)
       Push(pr, fp, cp, r1);
       nop();
       // Adjust FP to point to saved FP.
