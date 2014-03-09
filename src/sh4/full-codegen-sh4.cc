@@ -4159,7 +4159,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // Check the length of the separator.
   __ ldr(scratch, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
   __ cmpeq(scratch, Operand(Smi::FromInt(1)));
-  __ bt_near(&one_char_separator);
+  __ bt(&one_char_separator);
   __ cmpgt(scratch, Operand(Smi::FromInt(1)));
   __ bt(&long_separator);
 
