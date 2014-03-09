@@ -3910,9 +3910,9 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
   __ bind(&not_array_index);
   // Calculate the two character string hash.
   Register hash = scratch1;
-  StringHelper::GenerateHashInit(masm, hash, c1, scratch);
-  StringHelper::GenerateHashAddCharacter(masm, hash, c2, scratch);
-  StringHelper::GenerateHashGetHash(masm, hash, scratch);
+  StringHelper::GenerateHashInit(masm, hash, c1);
+  StringHelper::GenerateHashAddCharacter(masm, hash, c2);
+  StringHelper::GenerateHashGetHash(masm, hash);
 
   // Collect the two characters in a register.
   Register chars = c1;
@@ -4018,27 +4018,34 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
 
 void StringHelper::GenerateHashInit(MacroAssembler* masm,  // SAMEAS: arm, DIFF: codegen
                                     Register hash,
-                                    Register character,
-                                    Register scratch) {
-  // Added a scratch parameter for the SH4 implementation compared to ARM.
-  // hash = character + (character << 10);
+                                    Register character) {
+  ASSERT(!hash.is(character));
+  // hash = seed + character;
   __ LoadRoot(hash, Heap::kHashSeedRootIndex);
   // Untag smi seed and add the character.
-  __ lsr(scratch, hash, Operand(kSmiTagSize));
-  __ add(hash, character, scratch);
+  __ lsr(hash, hash, Operand(kSmiTagSize));
+  __ add(hash, hash, character);
+  // On SH4, we need an additional register, spill root
+  __ push(kRootRegister); // DIFF: codegen
+  Register scratch = kRootRegister; // DIFF: codegen
   // hash += hash << 10;
   __ lsl(scratch, hash, Operand(10));
   __ add(hash, hash, scratch);
   // hash ^= hash >> 6;
   __ lsr(scratch, hash, Operand(6));
   __ eor(hash, hash, scratch);
+  __ pop(kRootRegister); // DIFF: codegen
+
 }
 
 
 void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm, // SAMEAS: arm, DIFF: codegen
                                             Register hash,
-                                            Register character,
-                                            Register scratch) {
+                                            Register character) {
+  ASSERT(!hash.is(character));
+  // On SH4, we need an additional register, spill root
+  __ push(kRootRegister); // DIFF: codegen
+  Register scratch = kRootRegister; // DIFF: codegen
   // Added a scratch parameter for the SH4 implementation compared to ARM.
   // hash += character;
   __ add(hash, hash, Operand(character));
@@ -4048,12 +4055,15 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm, // SAMEAS: arm
   // hash ^= hash >> 6;
   __ lsr(scratch, hash, Operand(6));
   __ eor(hash, hash, scratch);
+  __ pop(kRootRegister); // DIFF: codegen
 }
 
 
 void StringHelper::GenerateHashGetHash(MacroAssembler* masm, // SAMEAS: arm, DIFF: codegen
-                                       Register hash,
-                                       Register scratch) {
+                                       Register hash) {
+  // On SH4, we need an additional register, spill root
+  __ push(kRootRegister); // DIFF: codegen
+  Register scratch = kRootRegister; // DIFF: codegen
   // Added a scratch parameter for the SH4 implementation compared to ARM.
   // hash += hash << 3;
   __ lsl(scratch, hash, Operand(3));
@@ -4070,6 +4080,7 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm, // SAMEAS: arm, DIF
   // if (hash == 0) hash = 27;
   __ cmpeq(hash, Operand(0));
   __ mov(hash, Operand(StringHasher::kZeroHash), t);
+  __ pop(kRootRegister); // DIFF: codegen
 }
 
 

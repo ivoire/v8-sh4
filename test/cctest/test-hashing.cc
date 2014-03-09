@@ -111,6 +111,25 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   __ pop(kRootRegister);
   __ jr(ra);
   __ nop();
+#elif V8_TARGET_ARCH_SH4
+  __ push(kRootRegister);
+  // SH4: on SH4 rtmp and ip must be preserved
+  __ push(sh4_rtmp);
+  __ push(sh4_ip);
+  __ InitializeRootRegister();
+
+  __ mov(r0, Operand(0));
+  __ mov(sh4_ip, Operand(string.at(0)));
+  StringHelper::GenerateHashInit(masm, r0, sh4_ip);
+  for (int i = 1; i < string.length(); i++) {
+    __ mov(sh4_ip, Operand(string.at(i)));
+    StringHelper::GenerateHashAddCharacter(masm, r0, sh4_ip);
+  }
+  StringHelper::GenerateHashGetHash(masm, r0);
+  __ pop(sh4_ip);
+  __ pop(sh4_rtmp);
+  __ pop(kRootRegister);
+  __ rts();
 #endif
 }
 
@@ -146,6 +165,18 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ pop(kRootRegister);
   __ jr(ra);
   __ nop();
+#elif V8_TARGET_ARCH_SH4
+  __ push(kRootRegister);
+  // SH4: on SH4 rtmp and ip must be preserved
+  __ push(sh4_rtmp);
+  __ push(sh4_ip);
+  __ InitializeRootRegister();
+  __ mov(r0, Operand(key));
+  __ GetNumberHash(r0, sh4_ip);
+  __ pop(sh4_ip);
+  __ pop(sh4_rtmp);
+  __ pop(kRootRegister);
+  __ rts();
 #endif
 }
 

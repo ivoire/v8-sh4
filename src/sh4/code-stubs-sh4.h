@@ -129,17 +129,14 @@ class StringHelper : public AllStatic {
   // Generate string hash.
   static void GenerateHashInit(MacroAssembler* masm,
                                Register hash,
-                               Register character,
-                               Register scratch);
+                               Register character);
 
   static void GenerateHashAddCharacter(MacroAssembler* masm,
                                        Register hash,
-                                       Register character,
-                                       Register scratch);
+                                       Register character);
 
   static void GenerateHashGetHash(MacroAssembler* masm,
-                                  Register hash,
-                                  Register scratch);
+                                  Register hash);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);

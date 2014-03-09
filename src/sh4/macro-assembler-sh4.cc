@@ -1339,9 +1339,14 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
-void MacroAssembler::GetNumberHash(Register t0, Register scratch, Register scratch2) {
+void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
   // First of all we assign the hash seed to scratch.
   LoadRoot(scratch, Heap::kHashSeedRootIndex);
+
+  // On SH4, we need an additional register, spill root
+  push(kRootRegister);
+  Register scratch2 = kRootRegister;
+
   SmiUntag(scratch);
 
   // Xor original key with a seed.
@@ -1363,7 +1368,7 @@ void MacroAssembler::GetNumberHash(Register t0, Register scratch, Register scrat
   // hash = hash ^ (hash >> 4);
   lsr(scratch, t0, Operand(4));
   eor(t0, t0, scratch);
-  // hash = hash * 2057;
+  // hash = hash * 2057; (2057 == 2048 + 8 + 1)
   lsl(scratch, t0, Operand(11));
   lsl(scratch2, t0, Operand(3));
   add(t0, t0, scratch2);
@@ -1371,6 +1376,8 @@ void MacroAssembler::GetNumberHash(Register t0, Register scratch, Register scrat
   // hash = hash ^ (hash >> 16);
   lsr(scratch, t0, Operand(16));
   eor(t0, t0, scratch);
+
+  pop(kRootRegister);
 }
 
 
@@ -1403,7 +1410,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // t2 - used for the index into the dictionary.
   Label done;
 
-  GetNumberHash(t0, t1, t2);
+  GetNumberHash(t0, t1);
 
   // Compute the capacity mask.
   ldr(t1, FieldMemOperand(elements, SeededNumberDictionary::kCapacityOffset));
