@@ -246,6 +246,9 @@ const Register sh4_ip = r10;    // Used as additional scratch in JS code
 
 // Single word VFP register.
 struct SwVfpRegister {
+
+  static const int kSizeInBytes = 4;
+
   bool is_valid() const { return 0 <= code_ && code_ < 16; }
   bool is(SwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
@@ -272,39 +275,22 @@ struct SwVfpRegister {
 
 // Double word VFP register.
 struct DwVfpRegister {
-  static const int kMaxNumRegisters = 8;
+  static const int kMaxNumRegisters = 8; // SH4: 8 doubles only (we use only FPU bank 0)
   static const int kMaxNumAllocatableRegisters = 14;  // TODO(ivoire): see src/lithium-allocator.cc:1788 !
 
+  static const int kNumReservedRegisters = 0; // TODO: SH4: do we need reserved registers? (ref ARM)
+  static const int kSizeInBytes = 8;
   // Note: the number of registers can be different at snapshot and run-time.
   // Any code included in the snapshot must be able to run both with 16 or 32
   // registers.
+  // SH4: not applicable to SH4. Though SH4 as only 8 double registers
+  // available (we use only the FPU bank 0).
   inline static int NumRegisters();
   inline static int NumAllocatableRegisters();
 
-  static int ToAllocationIndex(DwVfpRegister reg) {
-    ASSERT(reg.code() != 0);
-    return reg.code();
-  }
-
-  static DwVfpRegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return from_code(index);
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    const char* const names[] = {
-      "dr0",
-      "dr2",
-      "dr4",
-      "dr6",
-      "dr8",
-      "dr10",
-      "dr12",
-      "dr14",
-    };
-    return names[index];
-  }
+  inline static int ToAllocationIndex(DwVfpRegister reg);
+  static const char* AllocationIndexToString(int index);
+  inline static DwVfpRegister FromAllocationIndex(int index);
 
   static DwVfpRegister from_code(int code) {
     DwVfpRegister r = { code };
@@ -312,18 +298,20 @@ struct DwVfpRegister {
   }
 
   // Supporting dr0 to dr8
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters * 2 - 1; }
+  bool is_valid() const {
+    return 0 <= code_ && code_ < kMaxNumRegisters * 2 - 1 && code_ % 2 == 0;
+  }
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
   SwVfpRegister low() const {
     SwVfpRegister reg;
-    reg.code_ = code_;
+    reg.code_ = code_ + 1; // SH4: low bit in odd register FR(code+1)
 
     ASSERT(reg.is_valid());
     return reg;
   }
   SwVfpRegister high() const {
     SwVfpRegister reg;
-    reg.code_ = code_ + 1;
+    reg.code_ = code_; // SH4: high bit in even register FR(code)
 
     ASSERT(reg.is_valid());
     return reg;
@@ -363,27 +351,23 @@ const SwVfpRegister fr9  = {  9 };
 const SwVfpRegister fr10 = { 10 };
 const SwVfpRegister fr11 = { 11 };
 // Callee saved registers
-// Using these registers is forbidden for the moment as we do not save/restaure
-// them on ABI frontiers.
-//const SwVfpRegister fr12 = { 12 };
-//const SwVfpRegister fr13 = { 13 };
-//const SwVfpRegister fr14 = { 14 };
-//const SwVfpRegister fr15 = { 15 };
+const SwVfpRegister fr12 = { 12 };
+const SwVfpRegister fr13 = { 13 };
+const SwVfpRegister fr14 = { 14 };
+const SwVfpRegister fr15 = { 15 };
 
 
 // Caller saved registers
 const DwVfpRegister no_dreg = { -1 };
-const DwVfpRegister dr0   = {  0  };
-const DwVfpRegister dr2   = {  2  };
-const DwVfpRegister dr4   = {  4  };
-const DwVfpRegister dr6   = {  6  };
-const DwVfpRegister dr8   = {  8  };
-const DwVfpRegister dr10  = {  10 };
+const DwVfpRegister sh4_dr0   = {  0  };
+const DwVfpRegister sh4_dr2   = {  2  };
+const DwVfpRegister sh4_dr4   = {  4  };
+const DwVfpRegister sh4_dr6   = {  6  };
+const DwVfpRegister sh4_dr8   = {  8  };
+const DwVfpRegister sh4_dr10  = {  10 };
 // Callee saved registers.
-// The uses of theses registers is forbidden for the moment as we do not
-// save/restaure them on ABI frontiers.
-//const DwVfpRegister dr12  = {  12 };
-//const DwVfpRegister dr14  = {  14 };
+const DwVfpRegister sh4_dr12  = {  12 };
+const DwVfpRegister sh4_dr14  = {  14 };
 
 // TODO(ivoire): is it ok ?
 #define kScratchDoubleReg dr10
@@ -901,10 +885,70 @@ class Assembler : public AssemblerBase {
   void dcmpgt(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpgt_double_(Ds, Dd); }
 
   // FPU operations
+  void fneg(DwVfpRegister Dd)                       { fneg_double_(Dd); }
+  void fabs(DwVfpRegister Dd)                       { fabs_double_(Dd); }
   void fadd(DwVfpRegister Dd, DwVfpRegister Ds)     { fadd_double_(Ds, Dd); }
   void fsub(DwVfpRegister Dd, DwVfpRegister Ds)     { fsub_double_(Ds, Dd); }
   void fmul(DwVfpRegister Dd, DwVfpRegister Ds)     { fmul_double_(Ds, Dd); }
   void fdiv(DwVfpRegister Dd, DwVfpRegister Ds)     { fdiv_double_(Ds, Dd); }
+  void fsqrt(DwVfpRegister Dd)                      { fsqrt_double_(Dd); }
+
+  // FPU ARM interface emulation (ref to src/arm/assembler-arm.h)
+  void vldr(DwVfpRegister dst, Register base, int offset,
+            Condition cond = al, Register rtmp = sh4_rtmp);
+  void vldr(DwVfpRegister dst, const MemOperand& src,
+            Condition cond = al, Register rtmp = sh4_rtmp);
+
+  void vldr(SwVfpRegister dst, Register base, int offset,
+            Condition cond = al, Register rtmp = sh4_rtmp);
+  void vldr(SwVfpRegister dst, const MemOperand& src,
+            Condition cond = al, Register rtmp = sh4_rtmp);
+
+  void vstr(DwVfpRegister src,
+            Register base,
+            int offset,
+            Condition cond = al,
+            Register rtmp = sh4_rtmp);
+  void vstr(DwVfpRegister src,
+            const MemOperand& dst,
+            Condition cond = al,
+            Register rtmp = sh4_rtmp);
+
+  void vstr(SwVfpRegister src,
+            Register base,
+            int offset,
+            Condition cond = al,
+            Register rtmp = sh4_rtmp);
+  void vstr(SwVfpRegister src,
+            const MemOperand& dst,
+            Condition cond = al,
+            Register rtmp = sh4_rtmp);
+
+  void vcvt_f64_s32(DwVfpRegister dst,
+                    Register src,
+                    VFPConversionMode mode = kDefaultRoundToZero,
+                    Condition cond = al);
+  void vcvt_f64_u32(DwVfpRegister dst,
+                    Register src,
+                    DwVfpRegister drtmp,
+                    VFPConversionMode mode = kDefaultRoundToZero,
+                    Condition cond = al,
+                    Register rtmp = sh4_rtmp);
+
+  void vmov(DwVfpRegister dst, double imm,
+            Register scratch = no_reg,
+            Register rtmp = sh4_rtmp);
+  void vmov(DwVfpRegister dst, DwVfpRegister src, Condition cond = al);
+  void vmov(DwVfpRegister dst, Register src1, Register src2, Condition cond = al);
+  void vmov(Register dst1, Register dst2, DwVfpRegister src, Condition cond = al);
+
+  void vneg(DwVfpRegister dst, DwVfpRegister src, const Condition cond = al);
+  void vabs(DwVfpRegister dst, DwVfpRegister src, const Condition cond = al);
+  void vadd(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2, Condition cond = al);
+  void vsub(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2, Condition cond = al);
+  void vmul(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2, Condition cond = al);
+  void vdiv(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2, Condition cond = al);
+  void vsqrt(DwVfpRegister dst, DwVfpRegister src, Condition cond = al);
 
   // Read/patch instructions
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
@@ -1014,6 +1058,12 @@ class Assembler : public AssemblerBase {
   void lxor(Register Rd, Register Rs, const Operand& src,
             Register rtmp = sh4_rtmp);
   void lxor(Register Rd, Register Rs, Register Rt);
+
+
+  // Aliases for land
+  void and_(Register Rd, Register Rs, const Operand& src,
+            Register rtmp = sh4_rtmp) { land(Rd, Rs, src, rtmp); }
+  void and_(Register Rd, Register Rs, Register Rt) { land(Rd, Rs, Rt); }
 
   // Aliases for lxor
   void eor(Register Rd, Register Rs, const Operand& src,

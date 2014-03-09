@@ -1828,11 +1828,11 @@ TEST(30) {
 
   BEGIN();
   PROLOGUE();
-  __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, a)), r6);
-  __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, b)), r6);
+  __ dldr(sh4_dr0, MemOperand(r4, OFFSET_OF(T, a)), r6);
+  __ dldr(sh4_dr2, MemOperand(r4, OFFSET_OF(T, b)), r6);
 
-  __ dstr(dr0, MemOperand(r4, OFFSET_OF(T, b)), r6);
-  __ dstr(dr2, MemOperand(r4, OFFSET_OF(T, a)), r6);
+  __ dstr(sh4_dr0, MemOperand(r4, OFFSET_OF(T, b)), r6);
+  __ dstr(sh4_dr2, MemOperand(r4, OFFSET_OF(T, a)), r6);
 
   __ mov(r0, r5);
   EPILOGUE();
@@ -1857,10 +1857,10 @@ TEST(31) {
 
   BEGIN();
   PROLOGUE();
-  __ dfloat(dr0, Operand(123));
+  __ dfloat(sh4_dr0, Operand(123));
   __ mov(r0, Operand(0));
 
-  __ dcmpeq(dr0, dr4);
+  __ dcmpeq(sh4_dr0, sh4_dr4);
   __ bt(&end);
 
   __ mov(r0, Operand(1));
@@ -1892,28 +1892,28 @@ TEST(32) {
   Label error;
   PROLOGUE();
 
-  __ dfloat(dr0, Operand(34));
-  __ fadd(dr0, dr4);
-  __ dfloat(dr2, Operand(456 + 34));
-  __ dcmpeq(dr2, dr0);
+  __ dfloat(sh4_dr0, Operand(34));
+  __ fadd(sh4_dr0, sh4_dr4);
+  __ dfloat(sh4_dr2, Operand(456 + 34));
+  __ dcmpeq(sh4_dr2, sh4_dr0);
   B_LINE(f, &error);
 
-  __ dfloat(dr2, Operand(56));
-  __ fsub(dr0, dr2);
-  __ dfloat(dr2, Operand(456 + 34 - 56));
-  __ dcmpeq(dr2, dr0);
+  __ dfloat(sh4_dr2, Operand(56));
+  __ fsub(sh4_dr0, sh4_dr2);
+  __ dfloat(sh4_dr2, Operand(456 + 34 - 56));
+  __ dcmpeq(sh4_dr2, sh4_dr0);
   B_LINE(f, &error);
 
-  __ dfloat(dr2, Operand(7));
-  __ fmul(dr0, dr2);
-  __ dfloat(dr2, Operand((456 + 34 - 56) * 7));
-  __ dcmpeq(dr2, dr0);
+  __ dfloat(sh4_dr2, Operand(7));
+  __ fmul(sh4_dr0, sh4_dr2);
+  __ dfloat(sh4_dr2, Operand((456 + 34 - 56) * 7));
+  __ dcmpeq(sh4_dr2, sh4_dr0);
   B_LINE(f, &error);
 
-  __ dfloat(dr2, Operand(2));
-  __ fdiv(dr0, dr2);
-  __ dfloat(dr2, Operand(((456 + 34 - 56) * 7) / 2));
-  __ dcmpeq(dr2, dr0);
+  __ dfloat(sh4_dr2, Operand(2));
+  __ fdiv(sh4_dr0, sh4_dr2);
+  __ dfloat(sh4_dr2, Operand(((456 + 34 - 56) * 7) / 2));
+  __ dcmpeq(sh4_dr2, sh4_dr0);
   B_LINE(f, &error);
 
   // All ok
@@ -1947,12 +1947,12 @@ TEST(33) {
   Label error;
   PROLOGUE();
 
-  __ idouble(r1, dr4);
+  __ idouble(r1, sh4_dr4);
   __ cmpeq(r1, Operand(4212));
   B_LINE(f, &error);
 
-  __ dfloat(dr2, Operand(343575789));
-  __ idouble(r3, dr2);
+  __ dfloat(sh4_dr2, Operand(343575789));
+  __ idouble(r3, sh4_dr2);
   __ cmpeq(r3, Operand(343575789));
   B_LINE(f, &error);
 
@@ -2101,14 +2101,14 @@ TEST(from_arm_4) {
   __ push(r4);
   __ sub(fp, r0, Operand(4));
 
-  __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, a)));
-  __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, b)));
-  __ fadd(dr0, dr2);
-  __ dstr(dr0, MemOperand(r4, OFFSET_OF(T, c)));
+  __ dldr(sh4_dr0, MemOperand(r4, OFFSET_OF(T, a)));
+  __ dldr(sh4_dr2, MemOperand(r4, OFFSET_OF(T, b)));
+  __ fadd(sh4_dr0, sh4_dr2);
+  __ dstr(sh4_dr0, MemOperand(r4, OFFSET_OF(T, c)));
 
-  __ movd(r2, r3, dr0);
-  __ movd(dr0, r2, r3);
-  __ dstr(dr0, MemOperand(r4, OFFSET_OF(T, b)));
+  __ movd(r2, r3, sh4_dr0);
+  __ movd(sh4_dr0, r2, r3);
+  __ dstr(sh4_dr0, MemOperand(r4, OFFSET_OF(T, b)));
 
   // Load t.x and t.y, switch values, and store back to the struct.
   __ fldr(fr0, MemOperand(r4, OFFSET_OF(T, x)));
@@ -2117,24 +2117,24 @@ TEST(from_arm_4) {
   __ fstr(fr0, MemOperand(r4, OFFSET_OF(T, y)));
 
   // Load a double and store it as an integer
-  __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, d)));
-  __ idouble(r0, dr0);
+  __ dldr(sh4_dr0, MemOperand(r4, OFFSET_OF(T, d)));
+  __ idouble(r0, sh4_dr0);
   __ str(r0, MemOperand(r4, OFFSET_OF(T, i)));
 
   // Divisions and multiplications
-  __ dldr(dr0, MemOperand(r4, OFFSET_OF(T, e)));
-  __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, f)));
-  __ fmul(dr2, dr0);
-  __ dstr(dr2, MemOperand(r4, OFFSET_OF(T, e)));
+  __ dldr(sh4_dr0, MemOperand(r4, OFFSET_OF(T, e)));
+  __ dldr(sh4_dr2, MemOperand(r4, OFFSET_OF(T, f)));
+  __ fmul(sh4_dr2, sh4_dr0);
+  __ dstr(sh4_dr2, MemOperand(r4, OFFSET_OF(T, e)));
 
-  __ dldr(dr2, MemOperand(r4, OFFSET_OF(T, f)));
-  __ fdiv(dr2, dr0);
-  __ dstr(dr2, MemOperand(r4, OFFSET_OF(T, f)));
+  __ dldr(sh4_dr2, MemOperand(r4, OFFSET_OF(T, f)));
+  __ fdiv(sh4_dr2, sh4_dr0);
+  __ dstr(sh4_dr2, MemOperand(r4, OFFSET_OF(T, f)));
 
-  __ dldr(dr4, MemOperand(r4, OFFSET_OF(T, g)));
-  __ dldr(dr6, MemOperand(r4, OFFSET_OF(T, h)));
-  __ fsub(dr4, dr6);
-  __ dstr(dr4, MemOperand(r4, OFFSET_OF(T, g)));
+  __ dldr(sh4_dr4, MemOperand(r4, OFFSET_OF(T, g)));
+  __ dldr(sh4_dr6, MemOperand(r4, OFFSET_OF(T, h)));
+  __ fsub(sh4_dr4, sh4_dr6);
+  __ dstr(sh4_dr4, MemOperand(r4, OFFSET_OF(T, g)));
 
   __ pop(r4);
   __ pop(fp);

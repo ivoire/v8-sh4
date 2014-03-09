@@ -190,11 +190,14 @@ enum Register {
   void mul_helper(int sign, unsigned int rm, unsigned int rn);
   void div1 (int iRn2, int iRn1);
 
-  // Double helpers for add and sub
+  // Double helpers
   void dsub(int n, int m);
   void dadd(int n, int m);
   void dmul(int n, int m);
   void ddiv(int n, int m);
+  void dsqrt(int n);
+  void dabs(int n);
+  void dneg(int n);
 
   // Accessor to the internal simulator stack area.
   uintptr_t StackLimit() const;

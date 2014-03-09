@@ -132,6 +132,23 @@ void CpuFeatures::PrintFeatures() {
 }
 
 
+const char* DwVfpRegister::AllocationIndexToString(int index) {
+  ASSERT(index >= 0 && index < NumAllocatableRegisters());
+  const char* const names[] = {
+    "dr0",
+    "dr2",
+    "dr4",
+    "dr6",
+    "dr8",
+    "dr10",
+    "dr12",
+    "dr14",
+  };
+  ASSERT(index >= 0 && (unsigned)index < sizeof(names)/sizeof(names[0]));
+  return names[index];
+}
+
+
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
@@ -1559,24 +1576,25 @@ void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::movd(DwVfpRegister Dd, Register Rs1, Register Rs2) {
-  align();
-  push(Rs1);
-  push(Rs2);
-  fmov_incRs_(sp, Dd.low());
-  fmov_incRs_(sp, Dd.high());
+  // SH4: use the stack, enforce a correct data layout.
+  // Ref to: pop(double) implementation
+  push(Rs2); // high bits
+  push(Rs1); // low bits
+  pop(Dd);
 }
 
 
 void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds) {
-  align();
-  fmov_decRd_(Ds.low(), sp);
-  fmov_decRd_(Ds.high(), sp);
-  pop(Rd1);
-  pop(Rd2);
+  // SH4: use the stack, enforce a correct data layout.
+  // Ref to: push(double) implementation
+  push(Ds);
+  pop(Rd1); // low bits
+  pop(Rd2); // high bits
 }
 
 
-void Assembler::fldr(SwVfpRegister dst, const MemOperand& src, Register rtmp) {
+void Assembler::fldr(SwVfpRegister dst, const MemOperand& src, Register rtmp) { 
+  ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     add(rtmp, src.rm_, src.rn_);
     fmov_indRs_(rtmp, dst);
@@ -1593,16 +1611,18 @@ void Assembler::fldr(SwVfpRegister dst, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::dldr(DwVfpRegister dst, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset);
   if (src.rn_.is_valid()) {
     UNIMPLEMENTED();
   } else {
-    fldr(dst.high(), src, rtmp);
-    fldr(dst.low(), MemOperand(src.rm_, src.offset_ + 4), rtmp);
+    fldr(dst.low(), src, rtmp);
+    fldr(dst.high(), MemOperand(src.rm_, src.offset_ + 4), rtmp);
   }
 }
 
 
 void Assembler::fstr(SwVfpRegister src, const MemOperand& dst, Register rtmp) {
+  ASSERT(dst.mode_ == Offset);
   if (dst.rn_.is_valid()) {
     add(rtmp, dst.rm_ ,dst.rn_);
     fmov_indRd_(src, rtmp);
@@ -1619,11 +1639,12 @@ void Assembler::fstr(SwVfpRegister src, const MemOperand& dst, Register rtmp) {
 
 
 void Assembler::dstr(DwVfpRegister src, const MemOperand& dst, Register rtmp) {
+  ASSERT(dst.mode_ == Offset);
   if (dst.rn_.is_valid()) {
     UNIMPLEMENTED();
   } else {
-    fstr(src.high(), dst, rtmp);
-    fstr(src.low(), MemOperand(dst.rm_, dst.offset_ + 4), rtmp);
+    fstr(src.low(), dst, rtmp);
+    fstr(src.high(), MemOperand(dst.rm_, dst.offset_ + 4), rtmp);
   }
 }
 
@@ -1652,19 +1673,23 @@ void Assembler::dufloat(DwVfpRegister Dd, Register Rs, DwVfpRegister drtmp, Regi
 
   // Test the sign bit to see if the conversion from unsigned to signed is safe
   tst(Rs, Operand(0x80000000), rtmp);
-  bf(&too_large);
+  bf_near(&too_large);
 
   // The unsigned integer is smal enough to be a signed one
   lds_FPUL_(Rs);
   float_FPUL_double_(Dd);
-  b(&end);
+  b_near(&end);
 
-  // Do some correction to convert the unsigned to a floating point value
+  // Do some correction to convert the unsigned to a floating point value.
+  // Actually if Rs is interpreted as signed, one must add 2*0x80000000 to
+  // get the right value.
   bind(&too_large);
+  // TODO: eauivalent to vmov(rtmp, 4294967296.0);
   dfloat(drtmp, Operand(0x7fffffff), rtmp);
   dfloat(Dd, Operand(1), rtmp);
   fadd(drtmp, Dd);
   fadd(drtmp, drtmp);
+  // END TODO
   dfloat(Dd, Rs);
   fadd(Dd, drtmp);
 
@@ -1765,8 +1790,13 @@ void Assembler::pop(Register dst) {
 
 
 void Assembler::pop(DwVfpRegister dst) {
-  fmov_incRs_(sp, SwVfpRegister::from_code(dst.code()));
-  fmov_incRs_(sp, SwVfpRegister::from_code(dst.code()+1));
+  // SH4: when poping a double from stack, assumes
+  // a correct data layout:
+  // old_sp -> [low bits of double]
+  //           [high bits of double]
+  // new_sp -> ...
+  fmov_incRs_(sp, dst.low());
+  fmov_incRs_(sp, dst.high());
 }
 
 
@@ -1779,8 +1809,13 @@ void Assembler::push(Register src) {
 
 
 void Assembler::push(DwVfpRegister src) {
-  fmov_decRd_(SwVfpRegister::from_code(src.code()), sp);
-  fmov_decRd_(SwVfpRegister::from_code(src.code()+1), sp);
+  // SH4: when pushing on stack a double, enforce
+  // a correct data layout:
+  // new_sp -> [low bits of double]
+  //           [high bits of double]
+  // old_sp -> ...
+  fmov_decRd_(src.high(), sp);
+  fmov_decRd_(src.low(), sp);
 }
 
 
@@ -2209,6 +2244,318 @@ int Assembler::ResolveCallTargetAddressOffset(byte *pc) {
     return kOldStyleCallTargetAddressOffsetWithoutAlignment;
   }
 }
+
+// FPU ARM interface emulation (ref to src/arm/assembler-arm.h)
+void Assembler::vldr(DwVfpRegister dst, Register base, int offset,
+                     Condition cond, Register rtmp)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  dldr(dst, MemOperand(base, offset), rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vldr(DwVfpRegister dst, const MemOperand& src,
+                     Condition cond, Register rtmp)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  dldr(dst, src, rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vldr(SwVfpRegister dst, Register base, int offset,
+                     Condition cond, Register rtmp)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  fldr(dst, MemOperand(base, offset), rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vldr(SwVfpRegister dst, const MemOperand& src,
+                     Condition cond, Register rtmp)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  fldr(dst, src, rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vstr(DwVfpRegister src, Register base, int offset,
+                     Condition cond, Register rtmp)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  dstr(src, MemOperand(base, offset), rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vstr(DwVfpRegister src, const MemOperand& dst,
+            Condition cond, Register rtmp)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  dstr(src, dst, rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vstr(SwVfpRegister src, Register base, int offset,
+                     Condition cond, Register rtmp)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  fstr(src, MemOperand(base, offset), rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vstr(SwVfpRegister src, const MemOperand& dst,
+            Condition cond, Register rtmp)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  fstr(src, dst, rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vcvt_f64_s32(DwVfpRegister dst,
+                             Register src,
+                             VFPConversionMode mode,
+                             Condition cond)
+{
+  Label skip;
+  ASSERT(mode == kDefaultRoundToZero);
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  dfloat(dst, src);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vcvt_f64_u32(DwVfpRegister dst,
+                             Register src,
+                             DwVfpRegister drtmp,
+                             VFPConversionMode mode,
+                             Condition cond,
+                             Register rtmp)
+{
+  Label skip;
+  ASSERT(mode == kDefaultRoundToZero);
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  dufloat(dst, src, drtmp, rtmp);
+  if (cond != al)
+    bind(&skip);
+}
+
+static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
+  uint64_t i;
+  OS::MemCopy(&i, &d, 8);
+
+  *lo = i & 0xffffffff;
+  *hi = i >> 32;
+}
+
+void Assembler::vmov(DwVfpRegister dst,
+                     double imm,
+                     Register scratch,
+                     Register rtmp)
+{
+  // Note that scratch is never used, we use rtmp instead.
+  uint32_t lo, hi;
+  DoubleAsTwoUInt32(imm, &lo, &hi);
+  // SH4: push high bits first, then low bits, such that data layout is correct
+  // when pointed by new SP. Ref to pop(double) implementation.
+  mov(rtmp, Operand((int32_t)hi));
+  push(rtmp);
+  mov(rtmp, Operand((int32_t)lo));
+  push(rtmp);
+  // Now pop double from stack
+  pop(dst);
+}
+
+
+void Assembler::vmov(DwVfpRegister dst, DwVfpRegister src, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  // SH4: TODO, use fmov instead of stack transfer
+  push(src);
+  pop(dst);
+  if (cond != al)
+    bind(&skip);
+}
+
+
+void Assembler::vmov(DwVfpRegister dst, Register src1, Register src2, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  movd(dst, src1, src2);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vmov(Register dst1, Register dst2, DwVfpRegister src, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  movd(dst1, dst2, src);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vneg(DwVfpRegister dst, DwVfpRegister src, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  if (src.code() != dst.code())
+    vmov(dst, src);
+  fneg(dst);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vabs(DwVfpRegister dst, DwVfpRegister src, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  if (src.code() != dst.code())
+    vmov(dst, src);
+  fabs(dst);
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vadd(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  if (src1.code() == dst.code())
+    fadd(dst, src2);
+  else if (src2.code() == dst.code())
+    fadd(dst, src1);
+  else {
+    vmov(dst, src1);
+    fadd(dst, src2);
+  }
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vsub(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  if (src1.code() == dst.code())
+    fsub(dst, src2);
+  else if (src2.code() == dst.code()) {
+    // Need to preserve src1 and use it as temporary
+    push(src1);
+    fsub(src1, src2);
+    vmov(dst, src1);
+    pop(src1);
+  } else {
+    vmov(dst, src1);
+    fsub(dst, src2);
+  }
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vmul(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  if (src1.code() == dst.code())
+    fmul(dst, src2);
+  else if (src2.code() == dst.code())
+    fmul(dst, src1);
+  else {
+    vmov(dst, src1);
+    fmul(dst, src2);
+  }
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vdiv(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  if (src1.code() == dst.code())
+    fdiv(dst, src2);
+  else if (src2.code() == dst.code()) {
+    // Need to preserve src1 and use it as temporary
+    push(src1);
+    fdiv(src1, src2);
+    vmov(dst, src1);
+    pop(src1);
+  } else {
+    vmov(dst, src1);
+    fdiv(dst, src2);
+  }
+  if (cond != al)
+    bind(&skip);
+}
+
+void Assembler::vsqrt(DwVfpRegister dst, DwVfpRegister src, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  if (src.code() != dst.code())
+    vmov(dst, src);
+  fsqrt(dst);
+  if (cond != al)
+    bind(&skip);
+}
+
 
 #ifdef DEBUG
 void Assembler::emit(Instr x) {

@@ -75,6 +75,8 @@ const RegList kCallerSaved = kJSCallerSaved; // Same as JS caller saved
 
 const int kNumCalleeSaved = 7;
 
+// Double registers sh4_dr12 and sh4_dr14 are callee-saved.
+const int kNumDoubleCalleeSaved = 2;
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.

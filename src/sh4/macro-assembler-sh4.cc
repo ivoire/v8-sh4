@@ -255,6 +255,18 @@ void MacroAssembler::Move(Register dst, Register src) {
 }
 
 
+void MacroAssembler::And(Register dst, Register src1, const Operand& src2) {
+  RECORD_LINE();
+  if (!src2.is_reg() &&
+      !src2.is_int8() && // no reloc associated
+      src2.immediate() == 0) {
+    mov(dst, Operand::Zero());
+  } else {
+    and_(dst, src1, src2);
+  }
+}
+
+
 void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width) {
   ASSERT(lsb < 32);
 
@@ -622,6 +634,20 @@ void MacroAssembler::Strd(Register src1, Register src2,
 }
 
 
+void MacroAssembler::VFPEnsureFPSCRState(Register scratch) {
+  RECORD_LINE();
+  nop();  // SH4: no-op
+}
+
+
+void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
+                                        const DwVfpRegister src,
+                                        const Condition cond) {
+  RECORD_LINE();
+  nop();  // SH4: no-op
+}
+
+
 void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
 
   if (frame_mode == BUILD_STUB_FRAME) {
@@ -795,6 +821,12 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
     lsl(r3, argument_count, Operand(kPointerSizeLog2));
     add(sp, sp, r3);
   }
+}
+
+
+void MacroAssembler::GetCFunctionDoubleResult(DwVfpRegister dst) {
+  // SH4: return value is in dr0
+  vmov(dst, sh4_dr0);
 }
 
 
@@ -1965,8 +1997,27 @@ void MacroAssembler::StoreNumberToDoubleElements(
            fail,
            DONT_DO_SMI_CHECK);
 
+  vldr(double_scratch, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
+  // Force a canonical NaN.
+  // SH4: mode test is not applicable
+  // if (emit_debug_code()) {
+  //   vmrs(ip);
+  //   tst(ip, Operand(kVFPDefaultNaNModeControlBit));
+  //   Assert(ne, kDefaultNaNModeNotSet);
+  // }
+  VFPCanonicalizeNaN(double_scratch);
+  b(&store);
+
   bind(&smi_value);
-  UNIMPLEMENTED_BREAK();
+  SmiToDouble(double_scratch, value_reg);
+
+  bind(&store);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
+  lsl(scratch1, key_reg, Operand(kDoubleSizeLog2 - kSmiTagSize));
+  add(scratch1, elements_reg, scratch1);
+  vstr(double_scratch,
+       FieldMemOperand(scratch1,
+                       FixedDoubleArray::kHeaderSize - elements_offset));
 }
 
 
@@ -2173,7 +2224,8 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 
 
 void MacroAssembler::SmiToDouble(DwVfpRegister value, Register smi) {
-  UNIMPLEMENTED();
+  SmiUntag(ip, smi);
+  vcvt_f64_s32(value, ip);
 }
 
 void MacroAssembler::TestDoubleIsInt32(DwVfpRegister double_input,
@@ -2878,11 +2930,26 @@ void MacroAssembler::CopyFields(Register dst,
                                 Register src,
                                 DwVfpRegister double_scratch,
                                 int field_count) {
-  UNIMPLEMENTED();
+  int double_count = field_count / (DwVfpRegister::kSizeInBytes / kPointerSize);
+  for (int i = 0; i < double_count; i++) {
+    vldr(double_scratch, FieldMemOperand(src, i * DwVfpRegister::kSizeInBytes));
+    vstr(double_scratch, FieldMemOperand(dst, i * DwVfpRegister::kSizeInBytes));
+  }
+
+  STATIC_ASSERT(SwVfpRegister::kSizeInBytes == kPointerSize);
+  STATIC_ASSERT(2 * SwVfpRegister::kSizeInBytes == DwVfpRegister::kSizeInBytes);
+
+  int remain = field_count % (DwVfpRegister::kSizeInBytes / kPointerSize);
+  if (remain != 0) {
+    vldr(double_scratch.low(),
+         FieldMemOperand(src, (field_count - 1) * kPointerSize));
+    vstr(double_scratch.low(),
+         FieldMemOperand(dst, (field_count - 1) * kPointerSize));
+  }
 }
 
 
-  void MacroAssembler::CopyBytes(Register src, // SAMEAS: arm
+void MacroAssembler::CopyBytes(Register src, // SAMEAS: arm
                                Register dst,
                                Register length,
                                Register scratch) {
@@ -3054,6 +3121,35 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           Register scratch) {
   PrepareCallCFunction(num_reg_arguments, 0, scratch);
+}
+
+
+void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg) {
+  // SH4: Pass doubles through dr4
+  vmov(sh4_dr4, dreg);
+}
+
+
+void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg1,
+                                             DwVfpRegister dreg2) {
+  // SH4: Pass doubles through dr4/dr6
+  if (dreg2.is(sh4_dr4)) {
+    ASSERT(!dreg1.is(sh4_dr6));
+    vmov(sh4_dr6, dreg2);
+    vmov(sh4_dr4, dreg1);
+  } else {
+    ASSERT(!dreg2.is(sh4_dr4));
+    vmov(sh4_dr4, dreg1);
+    vmov(sh4_dr6, dreg2);
+  }
+}
+
+
+void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg,
+                                             Register reg) {
+  // SH4: Pass double through dr4, integer through r4
+  vmov(sh4_dr4, dreg);
+  mov(r4, reg);
 }
 
 

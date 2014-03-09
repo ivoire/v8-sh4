@@ -63,7 +63,7 @@ const char* Registers::Name(int reg) {
 
 
 // Support for FPU registers fr0 to fr15 (dr0 to dr14).
-// Note that "frN:frM" is the same as "drN/2"
+// Note that "frN:frN+1" is the same as "drN"
 const char* FPURegisters::names_[kNumFPURegisters] = {
     "fr0", "fr1", "fr2", "fr3", "fr4", "fr5", "fr6", "fr7",
     "fr8", "fr9", "fr10", "fr11", "fr12", "fr13", "fr14", "fr15",

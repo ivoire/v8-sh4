@@ -41,6 +41,16 @@
 #define r13 "Unexpected"
 #define r14 "Unexpected"
 #define r15 "Unexpected"
+
+// Mapping from ARM VFP doubles to SH4 Doubles
+#define d0 sh4_dr0
+#define d1 sh4_dr2
+#define d2 sh4_dr4
+#define d3 sh4_dr6
+#define d4 sh4_dr8
+#define d5 sh4_dr10
+#define d6 sh4_dr12
+#define d7 sh4_dr14
 #else
 // Second include, we undefine the mapping
 #undef MAP_SH4
@@ -54,4 +64,13 @@
 #undef r13
 #undef r14
 #undef r15
+
+#undef d0
+#undef d1
+#undef d2
+#undef d3
+#undef d4
+#undef d5
+#undef d6
+#undef d7
 #endif

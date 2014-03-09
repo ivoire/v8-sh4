@@ -1624,7 +1624,7 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(
 }
 
 
-void CallStubCompiler::GenerateMissBranch() {
+void CallStubCompiler::GenerateMissBranch() { // SAMEAS: arm
   Handle<Code> code =
       isolate()->stub_cache()->ComputeCallMiss(arguments().immediate(),
                                                kind_,
@@ -1633,7 +1633,7 @@ void CallStubCompiler::GenerateMissBranch() {
 }
 
 
-Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
+Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object, // SAMEAS: arm
                                                 Handle<JSObject> holder,
                                                 PropertyIndex index,
                                                 Handle<Name> name) {
@@ -1668,7 +1668,7 @@ Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
 }
 
 
-Handle<Code> CallStubCompiler::CompileArrayCodeCall(
+Handle<Code> CallStubCompiler::CompileArrayCodeCall( // SAMEAS: arm
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
@@ -1716,7 +1716,7 @@ Handle<Code> CallStubCompiler::CompileArrayCodeCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileArrayPushCall(
+Handle<Code> CallStubCompiler::CompileArrayPushCall( // SAMEAS: arm
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
@@ -1780,8 +1780,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
-      __ cmpgt(r0, r4);
-      __ bt(&attempt_to_grow_elements);
+      __ cmpgt(r0, r4); // DIFF: codegen
+      __ bt(&attempt_to_grow_elements); // DIFF: codegen
 
       // Check if value is a smi.
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
@@ -1793,8 +1793,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Store the value.
       // We may need a register containing the address end_elements below,
       // so write back the value in end_elements.
-      __ lsl(end_elements, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
-      __ add(end_elements, elements, end_elements);
+      __ lsl(end_elements, r0, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+      __ add(end_elements, elements, end_elements); // DIFF: codegen
       const int kEndElementsOffset =
           FixedArray::kHeaderSize - kHeapObjectTag - argc * kPointerSize;
       __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
@@ -1820,11 +1820,11 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
-      __ cmpgt(r0, r4);
-      __ bt(&call_builtin);
+      __ cmpgt(r0, r4); // DIFF: codegen
+      __ bt(&call_builtin); // DIFF: codegen
 
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
-      __ StoreNumberToDoubleElements(r4, r0, elements, r5, dr0,
+      __ StoreNumberToDoubleElements(r4, r0, elements, r5, d0,
                                      &call_builtin, argc * kDoubleSize);
 
       // Save new length.
@@ -1848,8 +1848,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
         __ ldr(r9, FieldMemOperand(r4, HeapObject::kMapOffset));
         __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
-        __ cmpeq(r9, ip);
-        __ bt(&call_builtin);
+        __ cmpeq(r9, ip); // DIFF: codegen
+        __ bt(&call_builtin); // DIFF: codegen
         // edx: receiver
         // r3: map
         Label try_holey_map;
@@ -1887,7 +1887,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Store the value.
       // We may need a register containing the address end_elements below,
       // so write back the value in end_elements.
-      __ lsl(end_elements, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
+      __ lsl(end_elements, r0, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
       __ add(end_elements, elements, end_elements);
       __ str(r4, MemOperand(end_elements, kEndElementsOffset, PreIndex));
 
@@ -1924,19 +1924,19 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       const int kAllocationDelta = 4;
       // Load top and check if it is the end of elements.
-      __ lsl(end_elements, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
-      __ add(end_elements, elements, end_elements);
+      __ lsl(end_elements, r0, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+      __ add(end_elements, elements, end_elements); // DIFF: codegen
       __ add(end_elements, end_elements, Operand(kEndElementsOffset));
       __ mov(r4, Operand(new_space_allocation_top));
       __ ldr(r3, MemOperand(r4));
-      __ cmpeq(end_elements, r3);
-      __ bf(&call_builtin);
+      __ cmpeq(end_elements, r3); // DIFF: codegen
+      __ bf(&call_builtin); // DIFF: codegen
 
       __ mov(r9, Operand(new_space_allocation_limit));
       __ ldr(r9, MemOperand(r9));
       __ add(r3, r3, Operand(kAllocationDelta * kPointerSize));
-      __ cmphi(r3, r9);
-      __ bt(&call_builtin);
+      __ cmphi(r3, r9); // DIFF: codegen
+      __ bt(&call_builtin); // DIFF: codegen
 
       // We fit and could grow elements.
       // Update new_space_allocation_top.
@@ -1973,7 +1973,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileArrayPopCall(
+Handle<Code> CallStubCompiler::CompileArrayPopCall( // SAMEAS: arm
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
@@ -2018,16 +2018,16 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
 
   // Get the array's length into r4 and calculate new length.
   __ ldr(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
-  __ cmpge(r4, Operand(Smi::FromInt(1))); // for branch below
-  __ sub(r4, r4, Operand(Smi::FromInt(1)));
-  __ bf_near(&return_undefined);
+  __ cmpge(r4, Operand(Smi::FromInt(1))); // for branch below // DIFF: codegen
+  __ sub(r4, r4, Operand(Smi::FromInt(1))); // DIFF: codegen
+  __ bf_near(&return_undefined); // DIFF: codegen
 
   // Get the last element.
   __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
   // We can't address the last element in one operation. Compute the more
   // expensive shift first, and use an offset later on.
-  __ lsl(r0, r4, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ add(elements, elements, r0);
+  __ lsl(r0, r4, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+  __ add(elements, elements, r0); // DIFF: codegen
   __ ldr(r0, FieldMemOperand(elements, FixedArray::kHeaderSize));
   __ cmp(r0, r6);
   __ b(eq, &call_builtin);
@@ -2058,7 +2058,7 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
+Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall( // SAMEAS: arm
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
@@ -2141,7 +2141,7 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileStringCharAtCall(
+Handle<Code> CallStubCompiler::CompileStringCharAtCall( // SAMEAS: arm
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
@@ -2225,7 +2225,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
+Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall( // SAMEAS: arm
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
@@ -2272,7 +2272,7 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
   __ JumpIfNotSmi(code, &slow);
 
   // Convert the smi code to uint16.
-  __ land(code, code, Operand(Smi::FromInt(0xffff)));
+  __ and_(code, code, Operand(Smi::FromInt(0xffff)));
 
   StringCharFromCodeGenerator generator(code, r0);
   generator.GenerateFast(masm());
@@ -2298,7 +2298,7 @@ Handle<Code> CallStubCompiler::CompileStringFromCharCodeCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileMathFloorCall(
+Handle<Code> CallStubCompiler::CompileMathFloorCall( // SAMEAS: arm
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
@@ -2354,7 +2354,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   // updating the HeapNumber value address, as vldr expects a multiple
   // of 4 offset.
   __ Ldrd(r4, r5, FieldMemOperand(r0, HeapNumber::kValueOffset));
-  UNIMPLEMENTED();
+  UNIMPLEMENTED(); // TODONOW
 
   // Check for NaN, Infinities and -0.
   // They are invariant through a Math.Floor call, so just
@@ -2368,7 +2368,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   __ bt(&just_return);
   // Test for values that can be exactly represented as a
   // signed 32-bit integer.
-  __ TryDoubleToInt32Exact(r0, dr0, dr2);
+  UNIMPLEMENTED();
   // If exact, check smi
   // TODO(ivoire): is TryDoubleToInt32Exact comparing ?
   __ b(eq, &smi_check);
@@ -2400,7 +2400,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 }
 
 
-Handle<Code> CallStubCompiler::CompileMathAbsCall(
+Handle<Code> CallStubCompiler::CompileMathAbsCall( // SAMEAS: arm
     Handle<Object> object,
     Handle<JSObject> holder,
     Handle<Cell> cell,
@@ -2443,13 +2443,13 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
 
   // Do bitwise not or do nothing depending on the sign of the
   // argument.
-  __ asr(r1, r0, Operand(kBitsPerInt - 1));
-  __ eor(r1, r0, r1);
+  __ asr(r1, r0, Operand(kBitsPerInt - 1)); // DIFF: codegen
+  __ eor(r1, r0, r1); // DIFF: codegen
 
   // Add 1 or do nothing depending on the sign of the argument.
-  __ asr(r0, r0, Operand(kBitsPerInt - 1));
-  __ sub(r0, r1, r0);
-  __ cmpge(r0, Operand(0));
+  __ asr(r0, r0, Operand(kBitsPerInt - 1)); // DIFF: codegen
+  __ sub(r0, r1, r0); // DIFF: codegen
+  __ cmpge(r0, Operand(0)); // DIFF: codegen
 
   // If the result is still negative, go to the slow case.
   // This only happens for the most negative smi.

@@ -43,8 +43,27 @@ int Register::NumAllocatableRegisters() {
 }
 
 
+int DwVfpRegister::NumRegisters() {
+  return kMaxNumRegisters;
+}
+
+
 int DwVfpRegister::NumAllocatableRegisters() {
-  return kMaxNumAllocatableRegisters;
+  return NumRegisters() - kNumReservedRegisters;
+}
+
+
+int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
+  //ASSERT(!reg.is(kDoubleRegZero)); // SH4: not reserved on SH4
+  //ASSERT(!reg.is(kScratchDoubleReg)); // SH4: not reserved on SH4
+  ASSERT(reg.is_valid());
+  return reg.code() / 2;
+}
+
+
+DwVfpRegister DwVfpRegister::FromAllocationIndex(int index) {
+  ASSERT(index >= 0 && index < NumAllocatableRegisters());
+  return from_code(index * 2);
 }
 
 

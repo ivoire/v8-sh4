@@ -1736,17 +1736,16 @@
       }
       break;
     }
+#endif
   /* fabs <FREG_N> 1111nnnn01011101 */
   case 214:      
     {
       int n = (iword >> 8) & 0xf;
       {
-        FP_UNARY (n, fabs);
-        /* FIXME: FR (n) &= 0x7fffffff; */
+        dabs(n);
       }
       break;
     }
-#endif
   /* fcnvds <DR_N>,FPUL 1111nnnn10111101 */
   case 215:      
     {
@@ -1857,16 +1856,16 @@
       }
       break;
     }
-#if 0
   /* fneg <FREG_N> 1111nnnn01001101 */
   case 222:      
     {
       int n = (iword >> 8) & 0xf;
       {
-        FP_UNARY (n, -);
+        dneg(n);
       }
       break;
     }
+#if 0
   /* fpchg 1111011111111101 */
   case 223:      
     {
@@ -1909,15 +1908,17 @@
       }
       break;
     }
+#endif
   /* fsqrt <FREG_N> 1111nnnn01101101 */
   case 227:      
     {
       int n = (iword >> 8) & 0xf;
       {
-        FP_UNARY (n, sqrt);
+        dsqrt(n);
       }
       break;
     }
+#if 0
   /* fsrra <FREG_N> 1111nnnn01111101 */
   case 228:      
     {

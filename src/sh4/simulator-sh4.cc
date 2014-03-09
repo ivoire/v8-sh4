@@ -867,6 +867,9 @@ void Simulator::set_fregister(int reg, int32_t value) {
   if (reg >= num_fregisters) return;
   // End stupid code.
 
+  if (::v8::internal::FLAG_trace_sim_regs && dump_set_register)
+    PrintF("W[%4s 0x%08x]", FPURegisters::Name(reg, false/*!is_double*/), value);
+
   if (!(reg % 2))
     fpu_registers_[reg / 2].f.low = value;
   else
@@ -880,10 +883,17 @@ int32_t Simulator::get_fregister(int reg) const {
   if (reg >= num_fregisters) return 0;
   // End stupid code.
 
+  int32_t value;
+
   if (!(reg % 2))
-    return fpu_registers_[reg / 2].f.low;
+    value = fpu_registers_[reg / 2].f.low;
   else
-    return fpu_registers_[reg / 2].f.high;
+    value = fpu_registers_[reg / 2].f.high;
+
+  if (::v8::internal::FLAG_trace_sim_regs && dump_get_register)
+    PrintF("R[%4s 0x%08x]", FPURegisters::Name(reg, false/*!is_double*/), value);
+
+  return value;
 }
 
 
@@ -893,6 +903,9 @@ void Simulator::set_dregister(int reg, double value) {
   // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
   if (register_num >= num_dregisters) return;
   // End stupid code.
+
+  if (::v8::internal::FLAG_trace_sim_regs && dump_set_register)
+    PrintF("W[%4s %.2f]", FPURegisters::Name(reg, true/*is_double*/), value);
 
   fpu_registers_[register_num].d = value;
 }
@@ -905,7 +918,12 @@ double Simulator::get_dregister(int reg) const {
   if (register_num >= num_dregisters) return 0;
   // End stupid code.
 
-  return fpu_registers_[register_num].d;
+  double value = fpu_registers_[register_num].d;
+
+  if (::v8::internal::FLAG_trace_sim_regs && dump_get_register)
+    PrintF("R[%4s %.2f]", FPURegisters::Name(reg, true/*is_double*/), value);
+
+  return value;
 }
 
 
@@ -932,44 +950,66 @@ int32_t Simulator::get_pc() const {
 
 
 void Simulator::set_sregister(int num, int32_t value) {
+  const char *sreg = NULL;
   switch (num) {
   case mach:
     sregs_.mach = value;
+    sreg = "MACH";
     break;
   case macl:
     sregs_.macl = value;
+    sreg = "MACL";
     break;
   case pr:
     sregs_.pr = value;
+    sreg = "PR";
     break;
   case fpul:
     sregs_.fpul = value;
+    sreg = "FPUL";
     break;
   case fpscr:
     sregs_.fpscr = value;
+    sreg = "FPSCR";
     break;
   default:
-    UNIMPLEMENTED();
+    UNREACHABLE();
   }
+  if (::v8::internal::FLAG_trace_sim_regs && dump_set_register)
+    PrintF("W[%s 0x%08x]", sreg, value);
 }
 
 
 int32_t Simulator::get_sregister(int num) {
+  const char *sreg = NULL;
+  int32_t value = -1;
   switch (num) {
   case mach:
-    return sregs_.mach;
+    value =  sregs_.mach;
+    sreg = "MACH";
+    break;
   case macl:
-    return sregs_.macl;
+    value =  sregs_.macl;
+    sreg = "MACL";
+    break;
   case pr:
-    return sregs_.pr;
+    value =  sregs_.pr;
+    sreg = "PR";
+    break;
   case fpul:
-    return sregs_.fpul;
+    value =  sregs_.fpul;
+    sreg = "FPUL";
+    break;
   case fpscr:
-    return sregs_.fpscr;
+    value =  sregs_.fpscr;
+    sreg = "FPSCR";
+    break;
   default:
     UNREACHABLE();
-    return -1;
   }
+  if (::v8::internal::FLAG_trace_sim_regs && dump_set_register)
+    PrintF("R[%s 0x%08x]", sreg, value);
+  return value;
 }
 
 
@@ -1794,6 +1834,27 @@ void Simulator::ddiv(int n, int m) {
   set_dregister(n, dn / dm);
 }
 
+
+void Simulator::dsqrt(int n) {
+  ASSERT(FPSCR_PR);
+  double dn = get_dregister(n);
+
+  set_dregister(n, sqrt(dn));
+}
+
+void Simulator::dabs(int n) {
+  ASSERT(FPSCR_PR);
+  double dn = get_dregister(n);
+
+  set_dregister(n, fabs(dn));
+}
+
+void Simulator::dneg(int n) {
+  ASSERT(FPSCR_PR);
+  double dn = get_dregister(n);
+
+  set_dregister(n, -dn);
+}
 
 } }  // namespace v8::internal
 

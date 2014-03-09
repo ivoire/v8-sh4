@@ -163,16 +163,15 @@ bool LCodeGen::GeneratePrologue() { // SAMEAS: arm
 
   if (info()->saves_caller_doubles()) {
     Comment(";;; Save clobbered callee double registers");
-    __ nop(); // TODO: FPU
-    //int count = 0;
-    //BitVector* doubles = chunk()->allocated_double_registers();
-    //BitVector::Iterator save_iterator(doubles);
-    //while (!save_iterator.Done()) {
-    //  __ vstr(DwVfpRegister::FromAllocationIndex(save_iterator.Current()),
-    //          MemOperand(sp, count * kDoubleSize));
-    //  save_iterator.Advance();
-    //  count++;
-    //}
+    int count = 0;
+    BitVector* doubles = chunk()->allocated_double_registers();
+    BitVector::Iterator save_iterator(doubles);
+    while (!save_iterator.Done()) {
+      __ vstr(DwVfpRegister::FromAllocationIndex(save_iterator.Current()),
+              MemOperand(sp, count * kDoubleSize));
+      save_iterator.Advance();
+      count++;
+    }
   }
 
   // Possibly allocate a local context.
@@ -373,9 +372,8 @@ Register LCodeGen::ToRegister(int index) const { // SAMEAS: arm
 }
 
 
-DwVfpRegister LCodeGen::ToDoubleRegister(int index) const {
-  UNIMPLEMENTED();
-  return no_dreg;
+DwVfpRegister LCodeGen::ToDoubleRegister(int index) const { // SAMEAS: arm
+  return DwVfpRegister::FromAllocationIndex(index);
 }
 
 
@@ -412,17 +410,42 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) { // SAMEAS:
 }
 
 
-DwVfpRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
-  UNIMPLEMENTED();
-  return no_dreg;
+DwVfpRegister LCodeGen::ToDoubleRegister(LOperand* op) const { // SAMEAS: arm
+  ASSERT(op->IsDoubleRegister());
+  return ToDoubleRegister(op->index());
 }
 
 
 DwVfpRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
                                                SwVfpRegister flt_scratch,
                                                DwVfpRegister dbl_scratch) {
-  UNIMPLEMENTED();
-  return no_dreg;
+  if (op->IsDoubleRegister()) {
+    return ToDoubleRegister(op->index());
+  } else if (op->IsConstantOperand()) {
+    LConstantOperand* const_op = LConstantOperand::cast(op);
+    HConstant* constant = chunk_->LookupConstant(const_op);
+    Handle<Object> literal = constant->handle(isolate());
+    Representation r = chunk_->LookupLiteralRepresentation(const_op);
+    if (r.IsInteger32()) {
+      ASSERT(literal->IsNumber());
+      // SH4: note flt_scratch is not used
+      __ mov(ip, Operand(static_cast<int32_t>(literal->Number())));
+      __ vcvt_f64_s32(dbl_scratch, ip); // DIFF: codegen
+      return dbl_scratch;
+    } else if (r.IsDouble()) {
+      Abort(kUnsupportedDoubleImmediate);
+    } else if (r.IsTagged()) {
+      Abort(kUnsupportedTaggedImmediate);
+    }
+  } else if (op->IsStackSlot() || op->IsArgument()) {
+    // TODO(regis): Why is vldr not taking a MemOperand?
+    // __ vldr(dbl_scratch, ToMemOperand(op));
+    MemOperand mem_op = ToMemOperand(op);
+    __ vldr(dbl_scratch, mem_op.rn(), mem_op.offset());
+    return dbl_scratch;
+  }
+  UNREACHABLE();
+  return dbl_scratch;
 }
 
 
@@ -1450,12 +1473,17 @@ void LCodeGen::DoBranch(LBranch* instr) { // SAMEAS: arm
     EmitBranch(instr, ne);
   } else if (r.IsDouble()) {
     ASSERT(!info()->IsStub());
-    __ UNIMPLEMENTED_BREAK();
-    // DwVfpRegister reg = ToDoubleRegister(instr->value());
-    // // Test the double value. Zero and NaN are false.
-    // __ VFPCompareAndSetFlags(reg, 0.0);
-    // __ cmp(r0, r0, vs);  // If NaN, set the Z flag. (NaN -> false)
-    // EmitBranch(instr, ne);
+    Label is_false;
+    DwVfpRegister reg = ToDoubleRegister(instr->value());
+    DwVfpRegister dbl_scratch = double_scratch0();
+    // Test the double value. Zero and NaN are false.
+    __ dcmpeq(reg, reg);
+    __ bf_near(&is_false);
+    __ vmov(dbl_scratch, 0.0);
+    __ dcmpeq(reg, dbl_scratch);
+    __ bt_near(&is_false);
+    EmitBranch(instr, al);
+    __ bind(&is_false);
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->value());
@@ -1624,6 +1652,45 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) { // SAM
 }
 
 
+// SH4 Specific:
+// Emits a modified cond when comparing doible or jump to
+// the nan label.
+static void EmitVFPCompare(LCodeGen* codegen,
+                           Condition *cond,
+                           DwVfpRegister double1,
+                           DwVfpRegister double2,
+                           Label *nan)
+{
+  // TODO: may move this to macro-assembler-sh4.cc
+  // Test for NaN
+  codegen-> __ dcmpeq(double1, double1);
+  codegen-> __ bf(nan);
+  codegen-> __ dcmpeq(double2, double2);
+  codegen-> __ bf(nan);
+
+  // Generate code eand modify condition
+  switch (*cond) {
+  case eq:
+    codegen-> __ dcmpeq(double1, double2);
+    *cond = t;
+    break;
+  case ne:
+    codegen-> __ dcmpeq(double1, double2);
+    *cond = f;
+    break;
+  case gt:
+    codegen-> __ dcmpgt(double1, double2);
+    *cond = t;
+    break;
+  case lt:
+    codegen-> __ dcmpgt(double2, double1);
+    *cond = t;
+    break;
+  default:
+    UNIMPLEMENTED();
+  }
+}
+
 void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) { // SAMEAS: arm
   LOperand* left = instr->left();
   LOperand* right = instr->right();
@@ -1638,13 +1705,10 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) { // S
     EmitGoto(next_block);
   } else {
     if (instr->is_double()) {
-      __ UNIMPLEMENTED_BREAK();
-      // // Compare left and right operands as doubles and load the
+      // Compare left and right operands as doubles and load the
+      // If a NaN is involved, i.e. the result is unordered (V set),
       // // resulting flags into the normal status register.
-      // __ VFPCompareAndSetFlags(ToDoubleRegister(left), ToDoubleRegister(right));
-      // // If a NaN is involved, i.e. the result is unordered (V set),
-      // // jump to false block label.
-      // __ b(vs, instr->FalseLabel(chunk_));
+      EmitVFPCompare(this, &cond, ToDoubleRegister(left), ToDoubleRegister(right), instr->FalseLabel(chunk_)); // DIFF: codegen
     } else {
       if (right->IsConstantOperand()) {
         int32_t value = ToInteger32(LConstantOperand::cast(right));
@@ -1828,16 +1892,15 @@ void LCodeGen::DoReturn(LReturn* instr) { // SAMEAS: arm
   }
   if (info()->saves_caller_doubles()) {
     ASSERT(NeedsEagerFrame());
-    __ nop(); // TODO: FPU
-    // BitVector* doubles = chunk()->allocated_double_registers();
-    // BitVector::Iterator save_iterator(doubles);
-    // int count = 0;
-    // while (!save_iterator.Done()) {
-    //   __ vldr(DwVfpRegister::FromAllocationIndex(save_iterator.Current()),
-    //            MemOperand(sp, count * kDoubleSize));
-    //   save_iterator.Advance();
-    //   count++;
-    // }
+    BitVector* doubles = chunk()->allocated_double_registers();
+    BitVector::Iterator save_iterator(doubles);
+    int count = 0;
+    while (!save_iterator.Done()) {
+      __ vldr(DwVfpRegister::FromAllocationIndex(save_iterator.Current()),
+              MemOperand(sp, count * kDoubleSize));
+      save_iterator.Advance();
+      count++;
+    }
   }
   int no_frame_start = -1;
   if (NeedsEagerFrame()) {
@@ -1914,9 +1977,8 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) { // SAMEAS: arm
   }
 
   if (instr->hydrogen()->representation().IsDouble()) {
-    __ UNIMPLEMENTED_BREAK();
-    //DwVfpRegister result = ToDoubleRegister(instr->result());
-    //__ vldr(result, FieldMemOperand(object, offset));
+    DwVfpRegister result = ToDoubleRegister(instr->result());
+    __ vldr(result, FieldMemOperand(object, offset));
     return;
   }
 

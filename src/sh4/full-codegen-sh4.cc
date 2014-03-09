@@ -1616,7 +1616,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
 }
 
 
-void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
+void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) { // SAMEAS: arm
   Comment cmnt(masm_, "[ RegExpLiteral");
   Label materialized;
   // Registers will be used as follows:
@@ -1632,8 +1632,8 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
       FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
   __ ldr(r5, FieldMemOperand(r4, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmpeq(r5, ip);
-  __ bf_near(&materialized);
+  __ cmpeq(r5, ip); // DIFF: codegen
+  __ bf_near(&materialized); // DIFF: codegen
 
   // Create regexp literal using runtime function.
   // Result will be in r0.
@@ -1648,7 +1648,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
   Label allocated, runtime_allocate;
   __ Allocate(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
-  __ jmp_near(&allocated);
+  __ jmp_near(&allocated); // DIFF: codegen
 
   __ bind(&runtime_allocate);
   __ mov(r0, Operand(Smi::FromInt(size)));
@@ -1661,7 +1661,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // r0: Newly allocated regexp.
   // r5: Materialized regexp.
   // r2: temp.
-  __ CopyFields(r0, r5, dr0, size / kPointerSize);
+  __ CopyFields(r0, r5, d0, size / kPointerSize);
   context()->Plug(r0);
 }
 
@@ -3388,8 +3388,8 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   __ bind(&slow_allocate_heapnumber);
   // Allocate a heap number.
   __ CallRuntime(Runtime::kNumberAlloc, 0);
-  // r4 is caller saved on sh4
-  __ push(r0);
+  // __ mov(r4, Operand(r0)); // r4 is caller saved on sh4, push on stack instead
+  __ push(r0); // DIFF: codegen
 
   __ bind(&heapnumber_allocated);
 
@@ -3397,9 +3397,9 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   __ PrepareCallCFunction(1, r0);
-  __ ldr(r4,
+  __ ldr(sh4_r4, // SH4: argument 1: DIFF: codegen
          ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ ldr(r4, FieldMemOperand(r0, GlobalObject::kNativeContextOffset));
+  __ ldr(sh4_r4, FieldMemOperand(sh4_r4, GlobalObject::kNativeContextOffset));  // SH4: argument 1: DIFF: codegen
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
   // 0x41300000 is the top half of 1.0 x 2^20 as a double.
@@ -3407,16 +3407,15 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   __ mov(r1, Operand(0x41000000));
   __ orr(r1, r1, Operand(0x300000));
   // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
-  __ movd(dr2, r0, r1);
+  __ vmov(d1, r0, r1); // d7 for ARM // DIFF: codegen
   // Move 0x4130000000000000 to VFP.
   __ mov(r0, Operand::Zero());
-  __ movd(dr4, r0, r1);
+  __ vmov(d2, r0, r1); // d8 for ARM // DIFF: codegen
   // Subtract and store the result in the heap number.
-  __ fsub(dr2, dr4);
+  __ vsub(d1, d1, d2);
   __ sub(r0, r4, Operand(kHeapObjectTag));
-  __ dstr(dr2, MemOperand(r0, HeapNumber::kValueOffset));
-  // Get back from the stack (sh4 specific)
-  __ pop(r0);
+  __ vstr(d1, MemOperand(r0, HeapNumber::kValueOffset)); // DIFF: codegen
+  __ pop(r0); // Get back from stack, see above // DIFF: codegen
 
   context()->Plug(r0);
 }

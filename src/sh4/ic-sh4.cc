@@ -1250,7 +1250,7 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 }
 
 
-static void KeyedStoreGenerateGenericHelper(
+static void KeyedStoreGenerateGenericHelper( // SAMEAS: arm
     MacroAssembler* masm,
     Label* fast_object,
     Label* fast_double,
@@ -1289,8 +1289,8 @@ static void KeyedStoreGenerateGenericHelper(
   // It's irrelevant whether array is smi-only or not when writing a smi.
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   ASSERT(!value.is(ip) && !address.is(ip) && !key.is(ip));
-  __ lsl(ip, key, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ str(value, MemOperand(address, ip));
+  __ lsl(ip, key, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+  __ str(value, MemOperand(address, ip)); // DIFF: codegen
   __ Ret();
 
   __ bind(&non_smi_value);
@@ -1306,6 +1306,7 @@ static void KeyedStoreGenerateGenericHelper(
     __ str(scratch_value, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  ASSERT(!value.is(ip) && !address.is(ip) && !key.is(ip));
   __ lsl(ip, key, Operand(kPointerSizeLog2 - kSmiTagSize));
   __ add(address, address, ip);
   __ str(value, MemOperand(address));
@@ -1325,10 +1326,10 @@ static void KeyedStoreGenerateGenericHelper(
     // Check for fast double array case. If this fails, call through to the
     // runtime.
     __ CompareRoot(elements_map, Heap::kFixedDoubleArrayMapRootIndex);
-    __ bf(slow);
+    __ b(ne, slow);
   }
   __ bind(&fast_double_without_map_check);
-  __ StoreNumberToDoubleElements(value, key, elements, r3, dr0,
+  __ StoreNumberToDoubleElements(value, key, elements, r3, d0,
                                  &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
@@ -1341,7 +1342,7 @@ static void KeyedStoreGenerateGenericHelper(
   // Transition the array appropriately depending on the value type.
   __ ldr(r4, FieldMemOperand(value, HeapObject::kMapOffset));
   __ CompareRoot(r4, Heap::kHeapNumberMapRootIndex);
-  __ bf(&non_double_value);
+  __ b(ne, &non_double_value);
 
   // Value is a double. Transition FAST_SMI_ELEMENTS ->
   // FAST_DOUBLE_ELEMENTS and complete the store.

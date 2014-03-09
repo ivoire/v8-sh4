@@ -720,7 +720,7 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
 // Handle the case where the lhs and rhs are the same object.
 // Equality is almost reflexive (everything but NaN), so this is a test
 // for "identity and not NaN".
-static void EmitIdenticalObjectComparison(MacroAssembler* masm,
+static void EmitIdenticalObjectComparison(MacroAssembler* masm, // SAMEAS: arm
                                           Label* slow,
                                           Condition cond) {
   Label not_identical;
@@ -733,15 +733,15 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   // They are both equal and they are not both Smis so both of them are not
   // Smis.  If it's not a heap number, then return equal.
   if (cond == lt || cond == gt) {
-    __ CompareObjectType(r0, r4, r4, FIRST_SPEC_OBJECT_TYPE, ge);
-    __ bt(slow);
+    __ CompareObjectType(r0, r4, r4, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+    __ bt(slow); // DIFF: codegen
   } else {
-    __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE, eq);
-    __ bt(&heap_number);
+    __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE, eq); // DIFF: codegen
+    __ b(eq, &heap_number);
     // Comparing JS objects with <=, >= is complicated.
     if (cond != eq) {
-      __ cmpge(r4, Operand(FIRST_SPEC_OBJECT_TYPE));
-      __ bt(slow);
+      __ cmpge(r4, Operand(FIRST_SPEC_OBJECT_TYPE)); // DIFF: ocdegen
+      __ bt(slow); // DIFF: codegen
       // Normally here we fall through to return_equal, but undefined is
       // special: (undefined == undefined) == true, but
       // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
@@ -792,18 +792,18 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
     __ b(ne, &return_equal);
 
     // Shift out flag and all exponent bits, retaining only mantissa.
-    __ lsl(r2, r2, Operand(HeapNumber::kNonMantissaBitsInTopWord));
+    __ lsl(r2, r2, Operand(HeapNumber::kNonMantissaBitsInTopWord)); // DIFF: codegen
     // Or with all low-bits of mantissa.
     __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-    __ orr(r0, r3, r2);
-    __ tst(r0, r0);
+    __ orr(r0, r3, r2); // DIFF: codegen
+    __ tst(r0, r0); // Tests if all-0 // DIFF: codegen
     // For equal we already have the right value in r0:  Return zero (equal)
     // if all bits in mantissa are zero (it's an Infinity) and non-zero if
     // not (it's a NaN).  For <= and >= we need to load r0 with the failing
     // value if it's a NaN.
     if (cond != eq) {
       // All-zero means Infinity means equal.
-      __ Ret(eq);
+      __ Ret(t); // Returns if all-0 // DIFF: codegen
       if (cond == le) {
         __ mov(r0, Operand(GREATER));  // NaN <= NaN should fail.
       } else {
@@ -819,7 +819,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
 
 
 // See comment at call site.
-static void EmitSmiNonsmiComparison(MacroAssembler* masm,
+static void EmitSmiNonsmiComparison(MacroAssembler* masm, // SAMEAS: arm
                                     Register lhs,
                                     Register rhs,
                                     Label* lhs_not_nan,
@@ -829,16 +829,16 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
          (lhs.is(r1) && rhs.is(r0)));
 
   Label rhs_is_smi;
-  __ JumpIfSmi(rhs, &rhs_is_smi, Label::kNear);
+  __ JumpIfSmi(rhs, &rhs_is_smi, Label::kNear); // DIFF: codegen
 
   // Lhs is a Smi.  Check whether the rhs is a heap number.
-  __ CompareObjectType(rhs, r4, r4, HEAP_NUMBER_TYPE, eq);
+  __ CompareObjectType(rhs, r4, r4, HEAP_NUMBER_TYPE, eq); // DIFF: codegen
   if (strict) {
     // If rhs is not a number and lhs is a Smi then strict equality cannot
     // succeed.  Return non-equal
     // If rhs is r0 then there is already a non zero value in it.
     if (!rhs.is(r0)) {
-      __ mov(r0, Operand(NOT_EQUAL), ne);
+      __ mov(r0, Operand(NOT_EQUAL), ne); // DIFF: codegen
     }
     __ Ret(ne);
   } else {
@@ -849,7 +849,9 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Lhs is a smi, rhs is a number.
   // Convert lhs to a double in d7.
-  __ UNIMPLEMENTED_BREAK();
+  __ SmiToDouble(d7, lhs);
+  // Load the double from rhs, tagged HeapNumber r0, to d6.
+  __ vldr(d6, rhs, HeapNumber::kValueOffset - kHeapObjectTag);
 
   // We now have both loaded as doubles but we can skip the lhs nan check
   // since it's a smi.
@@ -857,13 +859,13 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   __ bind(&rhs_is_smi);
   // Rhs is a smi.  Check whether the non-smi lhs is a heap number.
-  __ CompareObjectType(lhs, r4, r4, HEAP_NUMBER_TYPE, eq);
+  __ CompareObjectType(lhs, r4, r4, HEAP_NUMBER_TYPE, eq); // DIFF: codegen
   if (strict) {
     // If lhs is not a number and rhs is a smi then strict equality cannot
     // succeed.  Return non-equal.
     // If lhs is r0 then there is already a non zero value in it.
     if (!lhs.is(r0)) {
-      __ mov(r0, Operand(NOT_EQUAL), ne);
+      __ mov(r0, Operand(NOT_EQUAL), ne); // DIFF: codegen
     }
     __ Ret(ne);
   } else {
@@ -874,13 +876,15 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Rhs is a smi, lhs is a heap number.
   // Load the double from lhs, tagged HeapNumber r1, to d7.
-  __ UNIMPLEMENTED_BREAK();
+  __ vldr(d7, lhs, HeapNumber::kValueOffset - kHeapObjectTag);
+  // Convert rhs to a double in d6              .
+  __ SmiToDouble(d6, rhs);
   // Fall through to both_loaded_as_doubles.
 }
 
 
 // See comment at call site.
-static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
+static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm, // SAMEAS: arm
                                            Register lhs,
                                            Register rhs) {
     ASSERT((lhs.is(r0) && rhs.is(r1)) ||
@@ -893,8 +897,8 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     Label first_non_object;
     // Get the type of the first operand into r2 and compare it with
     // FIRST_SPEC_OBJECT_TYPE.
-    __ CompareObjectType(rhs, r2, r2, FIRST_SPEC_OBJECT_TYPE, ge);
-    __ bf_near(&first_non_object);
+    __ CompareObjectType(rhs, r2, r2, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+    __ bf_near(&first_non_object); // DIFF: codegen
 
     // Return non-zero (r0 is not zero)
     Label return_not_equal;
@@ -906,8 +910,8 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     __ cmp(r2, Operand(ODDBALL_TYPE));
     __ b(eq, &return_not_equal);
 
-    __ CompareObjectType(lhs, r3, r3, FIRST_SPEC_OBJECT_TYPE, ge);
-    __ bt(&return_not_equal);
+    __ CompareObjectType(lhs, r3, r3, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+    __ bt(&return_not_equal); // DIFF: codegen
 
     // Check for oddballs: true, false, null, undefined.
     __ cmp(r3, Operand(ODDBALL_TYPE));
@@ -923,7 +927,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
 
 
 // See comment at call site.
-static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
+static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm, // SAMEAS: arm
                                        Register lhs,
                                        Register rhs,
                                        Label* both_loaded_as_doubles,
@@ -932,15 +936,16 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
   ASSERT((lhs.is(r0) && rhs.is(r1)) ||
          (lhs.is(r1) && rhs.is(r0)));
 
-  __ CompareObjectType(rhs, r3, r2, HEAP_NUMBER_TYPE, eq);
-  __ b(ne, not_heap_numbers);
+  __ CompareObjectType(rhs, r3, r2, HEAP_NUMBER_TYPE, eq); // DIFF: codegen
+  __ b(f, not_heap_numbers); // DIFF: codegen
   __ ldr(r2, FieldMemOperand(lhs, HeapObject::kMapOffset));
   __ cmp(r2, r3);
   __ b(ne, slow);  // First was a heap number, second wasn't.  Go slow case.
 
   // Both are heap numbers.  Load them up then jump to the code we have
   // for that.
-  __ UNIMPLEMENTED_BREAK();
+  __ vldr(d6, rhs, HeapNumber::kValueOffset - kHeapObjectTag);
+  __ vldr(d7, lhs, HeapNumber::kValueOffset - kHeapObjectTag);
   __ jmp(both_loaded_as_doubles);
 }
 
@@ -1008,10 +1013,53 @@ static void ICCompareStub_CheckInputType(MacroAssembler* masm,
 }
 
 
+// SH4 Specific:
+// Factored out the compatison of double registers
+// into EmitVFPCompareAndBranch function
+static void EmitVFPCompareAndBranch(MacroAssembler* masm,
+                                    Register result,
+                                    DwVfpRegister double1,
+                                    DwVfpRegister double2,
+                                    Label *nan)
+{
+  // SH4: the following code is equivalent to the ARM sequence
+  // __ VFPCompareAndSetFlags(d7, d6);
+  // __ b(vs, &is_nan);
+  // __ mov(result, Operand(EQUAL), LeaveCC, eq);
+  // __ mov(result, Operand(LESS), LeaveCC, lt);
+  // __ mov(result, Operand(GREATER), LeaveCC, gt);
+  // TODO: May be moved int macro-assembler-sh4.cc
+
+  Label done;
+  // Test for NaN
+  __ dcmpeq(double1, double1);
+  __ bf(nan);
+  __ dcmpeq(double2, double2);
+  __ bf(nan);
+
+  // Test for eq, lt and gt
+  Label equal, greater;
+  __ dcmpeq(double1, double2);
+  __ bt_near(&equal);
+  __ dcmpgt(double1, double2);
+  __ bt_near(&greater);
+
+  __ mov(result, Operand(LESS));
+  __ b_near(&done);
+
+  __ bind(&equal);
+  __ mov(r0, Operand(EQUAL));
+  __ b_near(&done);
+
+  __ bind(&greater);
+  __ mov(r0, Operand(GREATER));
+  __ bind(&done);
+}
+
 // On entry r1 and r2 are the values to be compared.
 // On exit r0 is 0, positive or negative to indicate the result of
 // the comparison.
-void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
+void ICCompareStub::GenerateGeneric(MacroAssembler* masm) { // SAMEAS: arm
   Register lhs = r1;
   Register rhs = r0;
   Condition cc = GetCondition();
@@ -1026,9 +1074,9 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   Label not_two_smis, smi_done;
   __ orr(r2, r1, r0);
   __ JumpIfNotSmi(r2, &not_two_smis, Label::kNear);
-  __ asr(r1, r1, Operand(1));
-  __ asr(r0, r0, Operand(1));
-  __ sub(r0, r1, r0);
+  __ asr(r1, r1, Operand(1)); // DIFF: codegen
+  __ asr(r0, r0, Operand(1)); // DIFF: codegen
+  __ sub(r0, r1, r0); // DIFF: codegen
   __ Ret();
   __ bind(&not_two_smis);
 
@@ -1043,7 +1091,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // be strictly equal if the other is a HeapNumber.
   STATIC_ASSERT(kSmiTag == 0);
   ASSERT_EQ(0, Smi::FromInt(0));
-  __ land(r2, lhs, rhs);
+  __ and_(r2, lhs, Operand(rhs));
   __ JumpIfNotSmi(r2, &not_smis);
   // One operand is a smi.  EmitSmiNonsmiComparison generates code that can:
   // 1) Return the answer.
@@ -1057,34 +1105,13 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   EmitSmiNonsmiComparison(masm, lhs, rhs, &lhs_not_nan, &slow, strict());
 
   __ bind(&both_loaded_as_doubles);
-  // The arguments have been converted to doubles and stored in dr0 and dr2, if
+  // The arguments have been converted to doubles and stored in d6 and d7, if
   // FPU is supported, or in r0, r1, r2, and r3.
   Isolate* isolate = masm->isolate();
   __ bind(&lhs_not_nan);
 
-  // Test for NaN
   Label nan;
-  __ dcmpeq(dr0, dr0);
-  __ bf_near(&nan);
-  __ dcmpeq(dr2, dr2);
-  __ bf_near(&nan);
-
-  // Test for eq, lt and gt
-  Label equal, greater;
-  __ dcmpeq(dr2, dr0);
-  __ bt_near(&equal);
-  __ dcmpgt(dr2, dr0);
-  __ bt_near(&greater);
-
-  __ mov(r0, Operand(LESS));
-  __ rts();
-
-  __ bind(&equal);
-  __ mov(r0, Operand(EQUAL));
-  __ rts();
-
-  __ bind(&greater);
-  __ mov(r0, Operand(GREATER));
+  EmitVFPCompareAndBranch(masm, r0, d7, d6, &nan); // DIFF: codegen
   __ rts();
 
   __ bind(&nan);
@@ -1218,9 +1245,9 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
-  // Untagged case: double input in dr2, double result goes
-  //   into dr2.
+void TranscendentalCacheStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
+  // Untagged case: double input in d2, double result goes
+  //   into d2.
   // Tagged case: tagged input on top of stack and in r0,
   //   tagged result (heap number) goes into r0.
 
@@ -1240,10 +1267,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     // Input is a smi. Convert to double and load the low and high words
     // of the double into r2, r3.
-    // TODO(ivoire) ??
-    __ asr(scratch0, r0, Operand(kSmiTagSize));
-    __ dfloat(dr0, scratch0);
-    __ movd(r2, r3, dr0);
+    __ SmiToDouble(d7, r0);
+    __ vmov(r2, r3, d7);
     __ b(&loaded);
 
     __ bind(&input_not_smi);
@@ -1255,23 +1280,24 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
                 DONT_DO_SMI_CHECK);
     // Input is a HeapNumber. Load it to a double register and store the
     // low and high words into r2, r3.
-    __ dldr(dr0, FieldMemOperand(r0, HeapNumber::kValueOffset));
-    __ movd(r2, r3, dr0);
+    __ vldr(d0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ vmov(r2, r3, d0);
   } else {
-    UNREACHABLE();
+    // Input is untagged double in d2. Output goes to d2.
+    __ vmov(r2, r3, d2);
   }
   __ bind(&loaded);
   // r2 = low 32 bits of double value
   // r3 = high 32 bits of double value
   // Compute hash (the shifts are arithmetic):
   //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
-  __ eor(r1, r2, r3);
-  __ asr(scratch0, r1, Operand(16));
+  __ eor(r1, r2, Operand(r3));
+  __ asr(scratch0, r1, Operand(16)); // DIFF: codegen
   __ eor(r1, r1, scratch0);
-  __ asr(scratch0, r1, Operand(8));
+  __ asr(scratch0, r1, Operand(8)); // DIFF: codegen
   __ eor(r1, r1, scratch0);
   ASSERT(IsPowerOf2(TranscendentalCache::SubCache::kCacheSize));
-  __ land(r1, r1, Operand(TranscendentalCache::SubCache::kCacheSize - 1)); // ?
+  __ And(r1, r1, Operand(TranscendentalCache::SubCache::kCacheSize - 1));
 
   // r2 = low 32 bits of double value.
   // r3 = high 32 bits of double value.
@@ -1305,17 +1331,17 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 #endif
 
   // Find the address of the r1'st entry in the cache, i.e., &r0[r1*12].
-  __ lsl(scratch0, r1, Operand(1));
+  __ lsl(scratch0, r1, Operand(1)); // DIFF: codegen
   __ add(r1, r1, scratch0);
-  __ lsl(scratch0, r1, Operand(2));
+  __ lsl(scratch0, r1, Operand(2)); // DIFF: codegen
   __ add(cache_entry, cache_entry, scratch0);
   // Check if cache matches: Double value is stored in uint32_t[2] array.
-  __ ldr(r4, MemOperand(cache_entry, 0));
-  __ ldr(r5, MemOperand(cache_entry, 4));
-  __ ldr(r6, MemOperand(cache_entry, 8));
+  __ ldr(r4, MemOperand(cache_entry, 0)); // DIFF: codegen
+  __ ldr(r5, MemOperand(cache_entry, 4)); // DIFF: codegen
+  __ ldr(r6, MemOperand(cache_entry, 8)); // DIFF: codegen
   __ cmp(r2, r4);
-  __ b(ne, &calculate);
-  __ cmp(r3, r5);
+  __ b(ne, &calculate); // DIFF: codegen
+  __ cmp(r3, r5); // DIFF: codegen
   __ b(ne, &calculate);
 
   scratch1 = r4;  // Start of scratch1 range.
@@ -1327,10 +1353,10 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   if (tagged) {
     // Pop input value from stack and load result into r0.
     __ pop();
-    __ mov(r0, r6);
+    __ mov(r0, Operand(r6));
   } else {
     // Load result into dr2.
-     __ dldr(dr2, FieldMemOperand(r6, HeapNumber::kValueOffset));
+     __ vldr(d2, FieldMemOperand(r6, HeapNumber::kValueOffset));
   }
   __ Ret();
 
@@ -1343,7 +1369,61 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime_function, 1, 1);
   } else {
-    UNREACHABLE();
+    Label no_update;
+    Label skip_cache;
+
+    // Call C function to calculate the result and update the cache.
+    // r0: precalculated cache entry address.
+    // r2 and r3: parts of the double value.
+    // Store r0, r2 and r3 on stack for later before calling C function.
+    __ Push(r3, r2, cache_entry);
+    GenerateCallCFunction(masm, scratch0);
+    __ GetCFunctionDoubleResult(d2);
+
+    // Try to update the cache. If we cannot allocate a
+    // heap number, we return the result without updating.
+    __ Pop(r3, r2, cache_entry);
+    __ LoadRoot(r5, Heap::kHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(r6, scratch0, scratch1, r5, &no_update);
+    __ vstr(d2, FieldMemOperand(r6, HeapNumber::kValueOffset));
+    __ ldr(r2, MemOperand(cache_entry, 0)); // DIFF: codegen
+    __ ldr(r3, MemOperand(cache_entry, 4)); // DIFF: codegen
+    __ ldr(r6, MemOperand(cache_entry, 8)); // DIFF: codegen
+    __ Ret();
+
+    __ bind(&invalid_cache);
+    // The cache is invalid. Call runtime which will recreate the
+    // cache.
+    __ LoadRoot(r5, Heap::kHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(r0, scratch0, scratch1, r5, &skip_cache);
+    __ vstr(d2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(r0);
+      __ CallRuntime(RuntimeFunction(), 1);
+    }
+    __ vldr(d2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ Ret();
+
+    __ bind(&skip_cache);
+    // Call C function to calculate the result and answer directly
+    // without updating the cache.
+    GenerateCallCFunction(masm, scratch0);
+    __ GetCFunctionDoubleResult(d2);
+    __ bind(&no_update);
+
+    // We return the value in d2 without adding it to the cache, but
+    // we cause a scavenging GC so that future allocations will succeed.
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+
+      // Allocate an aligned object larger than a HeapNumber.
+      ASSERT(4 * kPointerSize >= HeapNumber::kSize);
+      __ mov(scratch0, Operand(4 * kPointerSize));
+      __ push(scratch0);
+      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    }
+    __ Ret();
   }
 }
 
@@ -1354,7 +1434,7 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
 
   __ push(lr);
   __ PrepareCallCFunction(0, 1, scratch);
-  __ movd(dr4, r0, r1);
+  __ movd(sh4_dr4, r0, r1); // SH4: argument in dr4 // DIFF: codegen
   AllowExternalCallThatCantCauseGC scope(masm);
   switch (type_) {
     case TranscendentalCache::SIN:
@@ -1395,8 +1475,214 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 }
 
 
-void MathPowStub::Generate(MacroAssembler* masm) {
-  __ UNIMPLEMENTED_BREAK();
+// TODONOW: wrong
+// Maybe due to bad register in dr4 parameter or return value dr0
+void MathPowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
+  const Register base = r1;
+  const Register exponent = r2;
+  const Register heapnumbermap = r5;
+  const Register heapnumber = r0;
+  const DwVfpRegister double_base = d1;
+  const DwVfpRegister double_exponent = d2;
+  const DwVfpRegister double_result = d3;
+  const DwVfpRegister double_scratch = d0;
+  // const SwVfpRegister single_scratch = s0; // DIFF: codegen
+  const Register scratch = r9;
+  const Register scratch2 = r4;
+
+  Label call_runtime, done, int_exponent;
+  if (exponent_type_ == ON_STACK) {
+    Label base_is_smi, unpack_exponent;
+    // The exponent and base are supplied as arguments on the stack.
+    // This can only happen if the stub is called from non-optimized code.
+    // Load input parameters from stack to double registers.
+    __ ldr(base, MemOperand(sp, 1 * kPointerSize));
+    __ ldr(exponent, MemOperand(sp, 0 * kPointerSize));
+
+    __ LoadRoot(heapnumbermap, Heap::kHeapNumberMapRootIndex);
+
+    __ UntagAndJumpIfSmi(scratch, base, &base_is_smi);
+    __ ldr(scratch, FieldMemOperand(base, JSObject::kMapOffset));
+    __ cmp(scratch, heapnumbermap);
+    __ b(ne, &call_runtime);
+
+    __ vldr(double_base, FieldMemOperand(base, HeapNumber::kValueOffset));
+    __ jmp(&unpack_exponent);
+
+    __ bind(&base_is_smi);
+    __ vcvt_f64_s32(double_base, scratch); // DIFF: codegen
+    __ bind(&unpack_exponent);
+    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
+
+    __ ldr(scratch, FieldMemOperand(exponent, JSObject::kMapOffset));
+    __ cmp(scratch, heapnumbermap);
+    __ b(ne, &call_runtime);
+    __ vldr(double_exponent,
+            FieldMemOperand(exponent, HeapNumber::kValueOffset));
+  } else if (exponent_type_ == TAGGED) {
+    // Base is already in double_base.
+    __ UntagAndJumpIfSmi(scratch, exponent, &int_exponent);
+
+    __ vldr(double_exponent,
+            FieldMemOperand(exponent, HeapNumber::kValueOffset));
+  }
+
+  if (exponent_type_ != INTEGER) {
+    Label int_exponent_convert;
+    Label not_uint_exponent_convert;
+    // Detect integer exponents stored as double.
+    // SH4: do a double -> signed -> double convert
+    // SH4: if not equal after the convert or not unsigned, fallback
+    __ idouble(scratch, double_exponent); // DIFF: codegen
+    __ dfloat(double_scratch, scratch); // DIFF: codegen
+    __ dcmpeq(double_scratch, double_exponent);
+    __ bf_near(&not_uint_exponent_convert);
+    __ cmpge(scratch, Operand(0));
+    __ bt(&int_exponent_convert);
+    __ bind(&not_uint_exponent_convert);
+
+    if (exponent_type_ == ON_STACK) {
+      // Detect square root case.  Crankshaft detects constant +/-0.5 at
+      // compile time and uses DoMathPowHalf instead.  We then skip this check
+      // for non-constant cases of +/-0.5 as these hardly occur.
+      Label not_plus_half;
+
+      // Test for 0.5.
+      __ vmov(double_scratch, 0.5, scratch);
+      __ dcmpeq(double_exponent, double_scratch); // DIFF: codegen
+      __ b(ne, &not_plus_half);
+
+      // Calculates square root of base.  Check for the special case of
+      // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
+      __ vmov(double_scratch, -V8_INFINITY, scratch);
+      __ dcmpeq(double_base, double_scratch); // DIFF: codegen
+      __ vneg(double_result, double_scratch, eq);
+      __ b(eq, &done);
+
+      // Add +0 to convert -0 to +0.
+      __ vmov(double_scratch, 0.0); // DIFF: codegen
+      __ vadd(double_scratch, double_base, double_scratch); // DIFF: codegen
+      __ vsqrt(double_result, double_scratch);
+      __ jmp(&done);
+
+      __ bind(&not_plus_half);
+      __ vmov(double_scratch, -0.5); // DIFF: codegen
+      __ dcmpeq(double_exponent, double_scratch); // DIFF: codegen
+      __ b(ne, &call_runtime);
+
+      // Calculates square root of base.  Check for the special case of
+      // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
+      __ vmov(double_scratch, -V8_INFINITY, scratch);
+      __ dcmpeq(double_base, double_scratch); // DIFF: codegen
+      __ vmov(double_scratch, 0.0); // DIFF: codegen
+      __ vmov(double_result, double_scratch, eq); // DIFF: codegen
+      __ b(eq, &done);
+
+      // Add +0 to convert -0 to +0.
+      __ vmov(double_scratch, 0.0); // DIFF: codegen
+      __ vadd(double_scratch, double_base, double_scratch); // DIFF: codegen
+      __ vmov(double_result, 1.0); // DIFF: codegen
+      __ vsqrt(double_scratch, double_scratch);
+      __ vdiv(double_result, double_result, double_scratch);
+      __ jmp(&done);
+    }
+
+    __ push(lr);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ PrepareCallCFunction(0, 2, scratch);
+      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ CallCFunction(
+          ExternalReference::power_double_double_function(masm->isolate()),
+          0, 2);
+    }
+    __ pop(lr);
+    __ GetCFunctionDoubleResult(double_result);
+    __ jmp(&done);
+
+    __ bind(&int_exponent_convert);
+    // SH4: did a double -> signed -> double convert: see above
+    // SH4: thus the double can be converted to a int (actually unsigned)
+    __ idouble(scratch, double_exponent); // DIFF: codegen
+  }
+
+  // Calculate power with integer exponent.
+  __ bind(&int_exponent);
+
+  // Get two copies of exponent in the registers scratch and exponent.
+  if (exponent_type_ == INTEGER) {
+    __ mov(scratch, exponent);
+  } else {
+    // Exponent has previously been stored into scratch as untagged integer.
+    __ mov(exponent, scratch);
+  }
+  __ vmov(double_scratch, double_base);  // Back up base.
+  __ vmov(double_result, 1.0); // DIFF: codegen
+
+  // Get absolute value of exponent.
+  Label skip_abs;
+  __ cmpge(scratch, Operand::Zero());
+  __ bt_near(&skip_abs);
+  __ mov(scratch2, Operand::Zero());
+  __ sub(scratch, scratch2, scratch);
+  __ bind(&skip_abs);
+
+  Label while_true;
+  __ bind(&while_true);
+  __ tst(scratch, Operand(1)); // Set T if lower bit not set // DIFF: codegen
+  __ vmul(double_result, double_result, double_scratch, f); // DIFF: codegen
+  __ asr(scratch, scratch, Operand(1)); // DIFF: codegen
+  __ cmpeq(scratch, Operand(0)); // DIFF: codegen
+  __ vmul(double_scratch, double_scratch, double_scratch, f); // DIFF: codegen
+  __ bf_near(&while_true);
+
+  __ cmpge(exponent, Operand::Zero()); // DIFF: codegen
+  __ b(t, &done); // DIFF: codegen
+  __ vmov(double_scratch, 1.0); // DIFF: codegen
+  __ vdiv(double_result, double_scratch, double_result);
+  // Test whether result is zero.  Bail out to check for subnormal result.
+  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
+  __ vmov(double_scratch, 0.0);
+  __ dcmpeq(double_result, double_scratch);
+  __ b(ne, &done);
+  // double_exponent may not containe the exponent value if the input was a
+  // smi.  We set it with exponent value before bailing out.
+  __ vcvt_f64_s32(double_exponent, exponent); // DIFF: codegen
+
+  // Returning or bailing out.
+  Counters* counters = masm->isolate()->counters();
+  if (exponent_type_ == ON_STACK) {
+    // The arguments are still on the stack.
+    __ bind(&call_runtime);
+    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+
+    // The stub is called from non-optimized code, which expects the result
+    // as heap number in exponent.
+    __ bind(&done);
+    __ AllocateHeapNumber(
+        heapnumber, scratch, scratch2, heapnumbermap, &call_runtime);
+    __ vstr(double_result,
+            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
+    ASSERT(heapnumber.is(r0));
+    __ IncrementCounter(counters->math_pow(), 1, scratch, scratch2);
+    __ Ret(2);
+  } else {
+    __ push(lr);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ PrepareCallCFunction(0, 2, scratch);
+      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ CallCFunction(
+          ExternalReference::power_double_double_function(masm->isolate()),
+          0, 2);
+    }
+    __ pop(lr);
+    __ GetCFunctionDoubleResult(double_result);
+
+    __ bind(&done);
+    __ IncrementCounter(counters->math_pow(), 1, scratch, scratch2);
+    __ Ret();
+  }
 }
 
 
@@ -1556,6 +1842,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     ASSERT(masm->pc_offset() - old_pc == 3 * Assembler::kInstrSize);
 #endif
   }
+
+  __ VFPEnsureFPSCRState(r2);
 
   if (always_allocate) {
     // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
@@ -1739,9 +2027,12 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) { // SAM
   __ push(pr);
   __ pushm(kCalleeSaved);
 
-  // SH4: We don't need to save the callee saved double registers:
-  // we only use the caller saved ones.
-  (void)0; // DIFF: codegen
+  // Save callee-saved vfp registers: push {sh4_dr12,sh4_dr14}
+  __ push(sh4_dr14);
+  __ push(sh4_dr12);
+  // Set up the reserved register for 0.0.
+  //__ vmov(kDoubleRegZero, 0.0); // TODO: is it neede for SH4?
+  __ VFPEnsureFPSCRState(r0); // use r0 as scratch here instead of r4 // DIFF: codegen
 
   // Move the registers to use ARM ABI (and JS ABI)
   __ mov(r0, r4);
@@ -1757,8 +2048,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) { // SAM
 
   // Set up argv in r4.
   int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
-  // TODO(ivoire): double registers ?
-  // offset_to_argv += kNumDoubleCalleeSaved * kDoubleSize; // DIFF: codegen
+  offset_to_argv += kNumDoubleCalleeSaved * kDoubleSize;
   __ ldr(r4, MemOperand(sp, offset_to_argv));
 
   // Push a frame with special values setup to mark it as an entry frame.
@@ -1893,9 +2183,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) { // SAM
     __ movpc(pr); // DIFF: codegen
   }
 #endif
-  // Restore callee-saved vfp registers.
-  // SH4: Nothing to do here, we use only caller saved FP registers.
-  (void)0; // DIFF: codegen
+  // Restore callee-saved vfp registers: pop {sh4_r12, sh4_r14}
+  __ pop(sh4_dr12);
+  __ pop(sh4_dr14);
 
   __ popm(kCalleeSaved); // DIFF: codegen
   __ pop(pr); // DIFF: codegen
@@ -2565,7 +2855,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
       Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
 
   // Copy the JS object part.
-  __ CopyFields(r0, r4, dr0, JSObject::kHeaderSize / kPointerSize);
+  __ CopyFields(r0, r4, d0, JSObject::kHeaderSize / kPointerSize);
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
@@ -4540,7 +4830,7 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
 }
 
 
-void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
+void ICCompareStub::GenerateSmis(MacroAssembler* masm) { // SAMEAS: arm
   ASSERT(state_ == CompareIC::SMI);
   Label miss;
   __ orr(r2, r1, r0);
@@ -4548,8 +4838,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
   if (GetCondition() == eq) {
     // For equality we do not care about the sign of the result.
-    __ sub(r0, r0, r1);
-    __ tst(r0, r0);     // TODO(stm): why setting CC? is it used?
+    __ sub(r0, r0, r1); // SetCC is not necessary // DIFF: codegen
   } else {
     // Untag before subtracting to avoid handling overflow.
     __ SmiUntag(r1);
@@ -4563,7 +4852,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
+void ICCompareStub::GenerateNumbers(MacroAssembler* masm) { // SAMEAS: arm
   ASSERT(state_ == CompareIC::NUMBER);
 
   Label generic_stub;
@@ -4578,7 +4867,59 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   }
 
   // Inlining the double comparison and falling back to the general compare
-  __ UNIMPLEMENTED_BREAK();
+  // stub if NaN is involved.
+  // Load left and right operand.
+  Label done, left, left_smi, right_smi;
+  __ JumpIfSmi(r0, &right_smi);
+  __ CheckMap(r0, r2, Heap::kHeapNumberMapRootIndex, &maybe_undefined1,
+              DONT_DO_SMI_CHECK);
+  __ sub(r2, r0, Operand(kHeapObjectTag));
+  __ vldr(d1, r2, HeapNumber::kValueOffset);
+  __ b(&left);
+  __ bind(&right_smi);
+  __ SmiToDouble(d1, r0);
+
+  __ bind(&left);
+  __ JumpIfSmi(r1, &left_smi);
+  __ CheckMap(r1, r2, Heap::kHeapNumberMapRootIndex, &maybe_undefined2,
+              DONT_DO_SMI_CHECK);
+  __ sub(r2, r1, Operand(kHeapObjectTag));
+  __ vldr(d0, r2, HeapNumber::kValueOffset);
+  __ b(&done);
+  __ bind(&left_smi);
+  __ SmiToDouble(d0, r1);
+
+  __ bind(&done);
+  // Compare operands.
+  // Don't base result on status bits when a NaN is involved.
+  // Return a result of -1, 0, or 1, based on status bits.
+  EmitVFPCompareAndBranch(masm, r0, d0, d1, &unordered); // DIFF: codegen
+  __ Ret();
+
+  __ bind(&unordered);
+  __ bind(&generic_stub);
+  ICCompareStub stub(op_, CompareIC::GENERIC, CompareIC::GENERIC,
+                     CompareIC::GENERIC);
+  __ Jump(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+
+  __ bind(&maybe_undefined1);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
+    __ b(ne, &miss);
+    __ JumpIfSmi(r1, &unordered);
+    __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE, eq); // DIFF: codegen
+    __ b(f, &maybe_undefined2); // DIFF: codegen
+    __ jmp(&unordered);
+  }
+
+  __ bind(&maybe_undefined2);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ CompareRoot(r1, Heap::kUndefinedValueRootIndex);
+    __ b(eq, &unordered);
+  }
+
+  __ bind(&miss);
+  GenerateMiss(masm);
 }
 
 
@@ -4813,8 +5154,7 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
   // GC safe. The RegExp backend also relies on this.
   __ str(pr, MemOperand(sp, 0));
   __ jsr(ip);  // Call the C++ function.
-  // TODO(ivoire): is it needed for sh4 ?
-  //__ VFPEnsureFPSCRState(r2);
+  __ VFPEnsureFPSCRState(r2);
   __ ldr(pr, MemOperand(sp, 0));
   __ rts();
 }

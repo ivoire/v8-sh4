@@ -115,6 +115,12 @@ enum CheckForInexactConversion {
   kDontCheckForInexactConversion
 };
 
+// ARM emulation: VFP FPSCR constants.
+enum VFPConversionMode {
+  kFPSCRRounding = 0,
+  kDefaultRoundToZero = 1
+};
+
 
 // -----------------------------------------------------------------------------
 // Instruction abstraction.
