@@ -1593,23 +1593,23 @@ void Simulator::CallInternal(byte* entry) {
   // Set up the callee-saved registers with a known value. To be able to check
   // that they are preserved properly across JS execution.
   int32_t callee_saved_value = icount_;
-  set_register(r8, callee_saved_value);
-  set_register(r9, callee_saved_value);
-  set_register(r10, callee_saved_value);
-  set_register(r11, callee_saved_value);
-  set_register(r12, callee_saved_value);
-  set_register(r13, callee_saved_value);
+  set_register(r8, callee_saved_value + 8);
+  set_register(r9, callee_saved_value + 9);
+  set_register(r10, callee_saved_value + 10);
+  set_register(r11, callee_saved_value + 11);
+  set_register(r12, callee_saved_value + 12);
+  set_register(r13, callee_saved_value + 13);
 
   // Start the simulation
   Execute();
 
   // Check that the callee-saved registers have been preserved.
-  CHECK_EQ(callee_saved_value, get_register(r8));
-  CHECK_EQ(callee_saved_value, get_register(r9));
-  CHECK_EQ(callee_saved_value, get_register(r10));
-  CHECK_EQ(callee_saved_value, get_register(r11));
-  CHECK_EQ(callee_saved_value, get_register(r12));
-  CHECK_EQ(callee_saved_value, get_register(r13));
+  CHECK_EQ(callee_saved_value + 8, get_register(r8));
+  CHECK_EQ(callee_saved_value + 9, get_register(r9));
+  CHECK_EQ(callee_saved_value + 10, get_register(r10));
+  CHECK_EQ(callee_saved_value + 11, get_register(r11));
+  CHECK_EQ(callee_saved_value + 12, get_register(r12));
+  CHECK_EQ(callee_saved_value + 13, get_register(r13));
 
   // Restore callee-saved registers with the original value.
   set_register(r8, r8_val);
