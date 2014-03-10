@@ -737,7 +737,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Optionally save all double registers.
   if (save_doubles) {
     RECORD_LINE();
-    // TODO(stm): save doubles // DIFF: codegen
+    SaveFPRegs(sp, ip); // Note: this modifies sp
+    // Note that d0 will be accessible at
+    //   fp - 2 * kPointerSize - DwVfpRegister::kMaxNumRegisters * kDoubleSize,
+    // since the sp slot and code slot were pushed after the fp.
   }
 
   // Reserve place for the return address and stack space and align the frame
@@ -801,7 +804,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   RECORD_LINE();
   // Optionally restore all double registers.
   if (save_doubles) {
-    // TODO(stm): save doubles // DIFF: codegen
+    // Calculate the stack location of the saved doubles and restore them.
+    const int offset = 2 * kPointerSize;
+    sub(r3, fp,
+        Operand(offset + DwVfpRegister::kMaxNumRegisters * kDoubleSize));
+    RestoreFPRegs(r3, ip); // Note: this modifies r3, don't use fp/sp directly
   }
 
   // Clear top frame.
@@ -3028,19 +3035,20 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
 
 
 void MacroAssembler::SaveFPRegs(Register location, Register scratch) {
-  UNIMPLEMENTED_BREAK();
-  // vstm(db_w, location, d16, d31, ne);
-  // sub(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
-  // vstm(db_w, location, d0, d15);
+  // SH4: scratch is not used
+  sub(location, location, Operand(DwVfpRegister::kMaxNumRegisters * kDoubleSize));
+  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; i++) {
+    vstr(DwVfpRegister::from_code(i * 2), MemOperand(location, i * kDoubleSize));
+  }
 }
 
 
 void MacroAssembler::RestoreFPRegs(Register location, Register scratch) {
-  UNIMPLEMENTED_BREAK();
-  // CheckFor32DRegs(scratch);
-  // vldm(ia_w, location, d0, d15);
-  // vldm(ia_w, location, d16, d31, ne);
-  // add(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
+  // SH4: scratch is not used
+  for (int i = DwVfpRegister::kMaxNumRegisters - 1; i >= 0; i--) {
+    vldr(DwVfpRegister::from_code(i * 2), MemOperand(location, i * kDoubleSize));
+  }
+  add(location, location, Operand(DwVfpRegister::kMaxNumRegisters * kDoubleSize));
 }
 
 

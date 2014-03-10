@@ -1456,7 +1456,9 @@ void LCodeGen::EmitBranch(InstrType instr, Condition condition) { // SAMEAS: arm
 
 template<class InstrType>
 void LCodeGen::EmitFalseBranch(InstrType instr, Condition condition) {
-  __ UNIMPLEMENTED_BREAK();
+  int false_block = instr->FalseDestination(chunk_);
+  ASSERT(condition == eq || condition == ne || condition == al); // DIFF: codegen
+  __ b(condition, chunk_->GetAssemblyLabel(false_block));
 }
 
 
@@ -1476,15 +1478,11 @@ void LCodeGen::DoBranch(LBranch* instr) { // SAMEAS: arm
     ASSERT(!info()->IsStub());
     Label is_false;
     DwVfpRegister reg = ToDoubleRegister(instr->value());
-    DwVfpRegister dbl_scratch = double_scratch0();
     // Test the double value. Zero and NaN are false.
-    __ dcmpeq(reg, reg);
-    __ bf_near(&is_false);
-    __ vmov(dbl_scratch, 0.0);
-    __ dcmpeq(reg, dbl_scratch);
-    __ bt_near(&is_false);
-    EmitBranch(instr, al);
-    __ bind(&is_false);
+    __ dcmpeq(reg, reg); // DIFF: codegen
+    EmitFalseBranch(instr, ne); // NaN
+    __ dcmpeq(reg, kDoubleRegZero); // DIFF: codegen
+    EmitBranch(instr, ne);
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->value());
@@ -1502,13 +1500,13 @@ void LCodeGen::DoBranch(LBranch* instr) { // SAMEAS: arm
       EmitBranch(instr, al);
     } else if (type.IsHeapNumber()) {
       ASSERT(!info()->IsStub());
-      __ UNIMPLEMENTED_BREAK();
-      // DwVfpRegister dbl_scratch = double_scratch0();
-      // __ vldr(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
-      // // Test the double value. Zero and NaN are false.
-      // __ VFPCompareAndSetFlags(dbl_scratch, 0.0);
-      // __ cmp(r0, r0, vs);  // If NaN, set the Z flag. (NaN)
-      // EmitBranch(instr, ne);
+      DwVfpRegister dbl_scratch = double_scratch0();
+      __ vldr(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
+      // Test the double value. Zero and NaN are false.
+      __ dcmpeq(dbl_scratch, dbl_scratch); // DIFF: codegen
+      EmitFalseBranch(instr, ne); // NaN
+      __ dcmpeq(dbl_scratch, kDoubleRegZero); // DIFF: codegen
+      EmitBranch(instr, ne);
     } else if (type.IsString()) {
       ASSERT(!info()->IsStub());
       __ ldr(ip, FieldMemOperand(reg, String::kLengthOffset));
@@ -1586,17 +1584,18 @@ void LCodeGen::DoBranch(LBranch* instr) { // SAMEAS: arm
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
         // heap number -> false iff +0, -0, or NaN.
-        __ UNIMPLEMENTED_BREAK();
-        // DwVfpRegister dbl_scratch = double_scratch0();
-        // Label not_heap_number;
-        // __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-        // __ b(ne, &not_heap_number);
-        // __ vldr(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
-        // __ VFPCompareAndSetFlags(dbl_scratch, 0.0);
-        // __ cmp(r0, r0, vs);  // NaN -> false.
-        // __ b(eq, instr->FalseLabel(chunk_));  // +0, -0 -> false.
-        // __ b(instr->TrueLabel(chunk_));
-        // __ bind(&not_heap_number);
+        DwVfpRegister dbl_scratch = double_scratch0();
+        Label not_heap_number;
+        __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+        __ bf_near(&not_heap_number);
+        __ vldr(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
+        // Test the double value. Zero and NaN are false.
+        __ dcmpeq(dbl_scratch, dbl_scratch); // DIFF: codegen
+        __ b(ne, instr->FalseLabel(chunk_));
+        __ dcmpeq(dbl_scratch, kDoubleRegZero); // DIFF: codegen
+        __ b(eq, instr->FalseLabel(chunk_));
+        __ b(instr->TrueLabel(chunk_));
+        __ bind(&not_heap_number);
       }
 
       if (!expected.IsGeneric()) {
@@ -2063,7 +2062,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) { // SAMEAS: arm
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    __ UNIMPLEMENTED_BREAK();
+    __ UNIMPLEMENTED_BREAK(); // TODO: FPU
     //DwVfpRegister result = ToDoubleRegister(instr->result());
     //Operand operand = key_is_constant
     //    ? Operand(constant_key << element_size_shift)
@@ -2518,7 +2517,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) { // SAMEAS: arm
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
-    __ UNIMPLEMENTED_BREAK();
+    __ UNIMPLEMENTED_BREAK(); // TODO: FPU
     //DwVfpRegister value = ToDoubleRegister(instr->value());
     //__ vstr(value, FieldMemOperand(object, offset));
     return;
@@ -2647,7 +2646,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) { // SAMEAS: arm
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    __ UNIMPLEMENTED_BREAK();
+    __ UNIMPLEMENTED_BREAK(); // TODO: FPU
     // Register address = scratch0();
     // DwVfpRegister value(ToDoubleRegister(instr->value()));
     // if (key_is_constant) {
@@ -2730,7 +2729,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) { // SAMEAS: arm
   }
 
   if (instr->NeedsCanonicalization()) {
-      __ UNIMPLEMENTED_BREAK();
+      __ UNIMPLEMENTED_BREAK(); // TODO: FPU
     // // Force a canonical NaN.
     // if (masm()->emit_debug_code()) {
     //   __ vmrs(ip);
@@ -3012,7 +3011,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) { // SAMEAS: arm
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment());
 
-    __ UNIMPLEMENTED_BREAK();
+    __ UNIMPLEMENTED_BREAK(); // TODO: FPU
     // __ sub(ip, scratch2, Operand(kHeapObjectTag));
     // __ vldr(double_scratch2, ip, HeapNumber::kValueOffset);
     // __ TryDoubleToInt32Exact(input_reg, double_scratch2, double_scratch);

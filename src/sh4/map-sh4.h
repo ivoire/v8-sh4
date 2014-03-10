@@ -43,14 +43,26 @@
 #define r15 "Unexpected"
 
 // Mapping from ARM VFP doubles to SH4 Doubles
+// This is a name mapping allowing reuse of ARM
+// code without modifying register names.
+// Unfortunately ARM features 16 double registers
+// whereas for SH4 we use only the 8 registers
+// of the bank 0.
+// Also ARM callee saved are d8-d15 while
+// SH4 callee-saved are dr12-dr14 (only 2).
+// Arm defines a Zero reg and a scratch reg
+// both callee saved, hence we use the two
+// SH4 callee saved for this.
 #define d0 sh4_dr0
 #define d1 sh4_dr2
 #define d2 sh4_dr4
 #define d3 sh4_dr6
-#define d4 sh4_dr8
-#define d5 sh4_dr10
-#define d6 sh4_dr12
-#define d7 sh4_dr14
+#define d4 "Unexpected: no free register"
+#define d5 "Unexpected: no free register"
+#define d6 sh4_dr8
+#define d7 sh4_dr10
+#define d14 "Unexpected: use kDoubleZeroReg(sh4_dr12)"
+#define d15 "Unexpected: use kDoubleScratchReg(sh4_dr14)"
 #else
 // Second include, we undefine the mapping
 #undef MAP_SH4

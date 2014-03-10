@@ -369,8 +369,11 @@ const DwVfpRegister sh4_dr10  = {  10 };
 const DwVfpRegister sh4_dr12  = {  12 };
 const DwVfpRegister sh4_dr14  = {  14 };
 
-// TODO(ivoire): is it ok ?
-#define kScratchDoubleReg dr10
+// SH4: define kScratchDoubleReg and kDoubleRegZero
+// take callee saved registers as on ARM such that they
+// are preserved accross C calls.
+#define kDoubleRegZero sh4_dr12 // d14 for ARM (ref map-sh4.h)
+#define kScratchDoubleReg sh4_dr14 // d15 for ARM (ref map-sh4.h)
 
 enum Condition {
   // any value < 0 is considered no_condition

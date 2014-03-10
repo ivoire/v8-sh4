@@ -1387,7 +1387,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     }
     LOperand* dividend = UseRegister(instr->left());
     LOperand* divisor = UseRegister(instr->right());
-    LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d4);
+    LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d3); // d4 for ARM // DIFF: codegen
     LDivI* div = new(zone()) LDivI(dividend, divisor, temp);
     return AssignEnvironment(DefineAsRegister(div));
   } else if (instr->representation().IsDouble()) {

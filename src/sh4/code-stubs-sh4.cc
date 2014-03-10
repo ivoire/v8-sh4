@@ -1223,7 +1223,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   const Register scratch = r1;
 
   if (save_doubles_ == kSaveFPRegs) {
-    __ UNIMPLEMENTED_BREAK();
+    __ SaveFPRegs(sp, scratch);
   }
   const int argument_count = 1;
   const int fp_argument_count = 0;
@@ -1237,7 +1237,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
       argument_count);
   __ pop(r4); // DIFF: codegen
   if (save_doubles_ == kSaveFPRegs) {
-    __ UNIMPLEMENTED_BREAK();
+    __ RestoreFPRegs(sp, scratch);
   }
   __ popm(kCallerSaved); // DIFF: codegen
   __ pop(pr);            // Also pop pr to get Ret(0).
@@ -1475,7 +1475,6 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 }
 
 
-// TODONOW: wrong
 // Maybe due to bad register in dr4 parameter or return value dr0
 void MathPowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   const Register base = r1;
@@ -1560,8 +1559,7 @@ void MathPowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
       __ b(eq, &done);
 
       // Add +0 to convert -0 to +0.
-      __ vmov(double_scratch, 0.0); // DIFF: codegen
-      __ vadd(double_scratch, double_base, double_scratch); // DIFF: codegen
+      __ vadd(double_scratch, double_base, kDoubleRegZero);
       __ vsqrt(double_result, double_scratch);
       __ jmp(&done);
 
@@ -1574,13 +1572,11 @@ void MathPowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
       // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
       __ vmov(double_scratch, -V8_INFINITY, scratch);
       __ dcmpeq(double_base, double_scratch); // DIFF: codegen
-      __ vmov(double_scratch, 0.0); // DIFF: codegen
-      __ vmov(double_result, double_scratch, eq); // DIFF: codegen
+      __ vmov(double_result, kDoubleRegZero, eq);
       __ b(eq, &done);
 
       // Add +0 to convert -0 to +0.
-      __ vmov(double_scratch, 0.0); // DIFF: codegen
-      __ vadd(double_scratch, double_base, double_scratch); // DIFF: codegen
+      __ vadd(double_scratch, double_base, kDoubleRegZero);
       __ vmov(double_result, 1.0); // DIFF: codegen
       __ vsqrt(double_scratch, double_scratch);
       __ vdiv(double_result, double_result, double_scratch);
@@ -1642,8 +1638,7 @@ void MathPowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   __ vdiv(double_result, double_scratch, double_result);
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
-  __ vmov(double_scratch, 0.0);
-  __ dcmpeq(double_result, double_scratch);
+  __ dcmpeq(double_result, kDoubleRegZero); // DIFF: codegen
   __ b(ne, &done);
   // double_exponent may not containe the exponent value if the input was a
   // smi.  We set it with exponent value before bailing out.
@@ -1709,7 +1704,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 }
 
 
-void CodeStub::GenerateFPStubs(Isolate* isolate) {
+void CodeStub::GenerateFPStubs(Isolate* isolate) { // SAMEAS: arm
   SaveFPRegsMode mode = kSaveFPRegs;
   CEntryStub save_doubles(1, mode);
   StoreBufferOverflowStub stub(mode);
@@ -2031,7 +2026,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) { // SAM
   __ push(sh4_dr14);
   __ push(sh4_dr12);
   // Set up the reserved register for 0.0.
-  //__ vmov(kDoubleRegZero, 0.0); // TODO: is it neede for SH4?
+  __ vmov(kDoubleRegZero, 0.0);
   __ VFPEnsureFPSCRState(r0); // use r0 as scratch here instead of r4 // DIFF: codegen
 
   // Move the registers to use ARM ABI (and JS ABI)
