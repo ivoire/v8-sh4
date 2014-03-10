@@ -76,7 +76,9 @@ typedef Object* (*F5)(double x, double y, int p2, int p3, int p4);
 TEST(0) {
   BEGIN();
 
+  PROLOGUE();
   __ add(r0, r4, r5);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -93,8 +95,10 @@ TEST(0) {
 TEST(1) {
   BEGIN();
 
+  PROLOGUE();
   __ add(r0, r4, r5);
   __ add(r0, r0, Operand(123456789), r4);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -111,8 +115,10 @@ TEST(1) {
 TEST(2) {
   BEGIN();
 
+  PROLOGUE();
   __ add(r0, r4, r5);
   __ sub(r0, r0, Operand(987654), r4);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -129,8 +135,10 @@ TEST(2) {
 TEST(3) {
   BEGIN();
 
+  PROLOGUE();
   __ rsb(r0, r4, r5);
   __ rsb(r0, r0, Operand(5678), r4);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -147,8 +155,10 @@ TEST(3) {
 TEST(4) {
   BEGIN();
 
+  PROLOGUE();
   __ asl(r0, r4, Operand(17), r1);
   __ asl(r0, r0, Operand(1));
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -165,11 +175,13 @@ TEST(4) {
 TEST(5) {
   BEGIN();
 
+  PROLOGUE();
   __ asr(r1, r4, r5, false, r3);
   __ asr(r1, r1, Operand(1), r3);
   __ asr(r4, r4, r5, false, r3);
   __ asr(r4, r4, Operand(2), r3);
   __ add(r0, r4, r1);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -187,7 +199,9 @@ TEST(5) {
 TEST(5b) {
   BEGIN();
 
+  PROLOGUE();
   __ asr(r0, r4, r5, false, r3);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -219,7 +233,9 @@ TEST(5b) {
 TEST(5c) {
   BEGIN();
 
+  PROLOGUE();
   __ asr(r0, r4, r5, true, r3);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -245,6 +261,7 @@ TEST(5c) {
 TEST(6) {
   BEGIN();
 
+  PROLOGUE();
   __ lsl(r0, r4, Operand(14), r1);
   __ lsl(r0, r0, Operand(1));
   __ lsl(r4, r0, Operand(2));
@@ -254,6 +271,7 @@ TEST(6) {
   __ lsl(r4, r4, r1);
   __ lsl(r1, r4, r1);
   __ mov(r0, r1);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -271,7 +289,9 @@ TEST(6) {
 TEST(6b) {
   BEGIN();
 
+  PROLOGUE();
   __ lsl(r0, r4, r5, false, r3);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -304,7 +324,9 @@ TEST(6b) {
 TEST(6c) {
   BEGIN();
 
+  PROLOGUE();
   __ lsl(r0, r4, r5, true, r3);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -363,7 +385,9 @@ TEST(7) {
 TEST(7b) {
   BEGIN();
 
+  PROLOGUE();
   __ lsr(r0, r4, r5, false, r3);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -395,7 +419,9 @@ TEST(7b) {
 TEST(7c) {
   BEGIN();
 
+  PROLOGUE();
   __ lsr(r0, r4, r5, true, r3);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -421,9 +447,11 @@ TEST(7c) {
 TEST(8) {
   BEGIN();
 
+  PROLOGUE();
   __ mov(r0, r4);
   for (int i = 0; i < 10000; i++)
     __ add(r0, r0, Operand(1));
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -576,6 +604,7 @@ TEST(12) {
 
   Label error;
 
+  PROLOGUE();
   __ pushm(r4.bit() | r5.bit() | r6.bit() | r7.bit());
   __ popm(r0.bit() | r1.bit() | r2.bit() | r3.bit());
 
@@ -599,11 +628,13 @@ TEST(12) {
   __ pop(r1);
   __ add(r0, r0, r1);
 
+  EPILOGUE();
   __ rts();
 
 
   __ bind(&error);
   __ mov(r0, Operand(0));
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -622,6 +653,7 @@ TEST(13) {
 
   Label error;
 
+  PROLOGUE();
   __ mov(r0, Operand(2));
   __ push(r0);
   __ mov(r0, Operand(3));
@@ -652,6 +684,7 @@ TEST(13) {
   __ pop(r1);
   __ pop(r1);
   __ pop(r1);
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
@@ -660,6 +693,7 @@ TEST(13) {
   __ pop(r1);
   __ pop(r1);
   __ mov(r0, Operand(0));
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -1438,6 +1472,8 @@ TEST(24) {
 
   __ bind(&error);
   __ mov(r0, Operand(1));
+  EPILOGUE();
+  __ rts();
 
   JIT();
 #ifdef DEBUG
@@ -1957,8 +1993,8 @@ TEST(33) {
   B_LINE(f, &error);
 
   // All ok
-  EPILOGUE();
   __ mov(r0, Operand(0));
+  EPILOGUE();
   __ rts();
 
   __ bind(&error);
@@ -2210,11 +2246,13 @@ TEST(memcpy) {
 TEST(cp_0) {
   BEGIN();
 
+  PROLOGUE();
   __ mov(r0, Operand(0));
   __ mov(r1, Operand(123456789));
   for (int i = 0; i < 512; i++)
     __ add(r0, Operand(1));
   __ add(r0, r1, r0);
+  EPILOGUE();
   __ rts();
 
   JIT();
@@ -2232,6 +2270,7 @@ TEST(cp_1) {
   BEGIN();
   i::FLAG_code_comments = true;
 
+  PROLOGUE();
   __ mov(r0, Operand(0));
   __ RecordComment("constant pool mov");
   __ mov(r0, Operand(0xf00d));
@@ -2239,6 +2278,7 @@ TEST(cp_1) {
   __ RecordComment("2nd comment");
   __ mov(r1, Operand(0x0d060000));
   __ add(r0, r0, r1);
+  EPILOGUE();
   __ rts();
 
   JIT();
