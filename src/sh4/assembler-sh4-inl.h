@@ -339,16 +339,16 @@ bool Operand::is_reg() const {
 
 
 MemOperand::MemOperand(Register Rx, int32_t offset, AddrMode mode) {
-  rm_ = Rx;
-  rn_ = no_reg;
+  rn_ = Rx;
+  roffset_ = no_reg;
   offset_ = offset;
   mode_ = mode;
 }
 
 
 MemOperand::MemOperand(Register Rd, Register offset) {
-  rm_ = Rd;
-  rn_ = offset;
+  rn_ = Rd;
+  roffset_ = offset;
   offset_ = 0;
   mode_ = Offset;
 }
@@ -662,14 +662,15 @@ void Assembler::rts() {
 
 
 void Assembler::ldr(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   switch(src.mode_) {
   case PreIndex:
-    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
-    mov(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
+    mov(Rd, MemOperand(src.rn_, 0), rtmp);
     break;
   case PostIndex:
-    mov(Rd, MemOperand(src.rm_, 0), rtmp);
-    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    mov(Rd, MemOperand(src.rn_, 0), rtmp);
+    add(src.rn_, src.rn_, Operand(src.offset()), rtmp);
     break;
   case Offset:
     mov(Rd, src, rtmp);
@@ -679,14 +680,15 @@ void Assembler::ldr(Register Rd, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::ldrh(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   switch(src.mode_) {
   case PreIndex:
-    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
-    movw(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
+    movw(Rd, MemOperand(src.rn_, 0), rtmp);
     break;
   case PostIndex:
-    movw(Rd, MemOperand(src.rm_, 0), rtmp);
-    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    movw(Rd, MemOperand(src.rn_, 0), rtmp);
+    add(src.rn_, src.rn_, Operand(src.offset()), rtmp);
     break;
   case Offset:
     movw(Rd, src, rtmp);
@@ -695,14 +697,15 @@ void Assembler::ldrh(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   switch(src.mode_) {
   case PreIndex:
-    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
-    movsw(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
+    movsw(Rd, MemOperand(src.rn_, 0), rtmp);
     break;
   case PostIndex:
-    movsw(Rd, MemOperand(src.rm_, 0), rtmp);
-    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    movsw(Rd, MemOperand(src.rn_, 0), rtmp);
+    add(src.rn_, src.rn_, Operand(src.offset()), rtmp);
     break;
   case Offset:
     movsw(Rd, src, rtmp);
@@ -712,14 +715,15 @@ void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::ldrb(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   switch(src.mode_) {
   case PreIndex:
-    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
-    movb(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
+    movb(Rd, MemOperand(src.rn_, 0), rtmp);
     break;
   case PostIndex:
-    movb(Rd, MemOperand(src.rm_, 0), rtmp);
-    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    movb(Rd, MemOperand(src.rn_, 0), rtmp);
+    add(src.rn_, src.rn_, Operand(src.offset()), rtmp);
     break;
   case Offset:
     movb(Rd, src, rtmp);
@@ -728,14 +732,15 @@ void Assembler::ldrb(Register Rd, const MemOperand& src, Register rtmp) {
 }
 
 void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
+  ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   switch(src.mode_) {
   case PreIndex:
-    add(src.rm_ , src.rm_, Operand(src.offset()), rtmp);
-    movsb(Rd, MemOperand(src.rm_, 0), rtmp);
+    add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
+    movsb(Rd, MemOperand(src.rn_, 0), rtmp);
     break;
   case PostIndex:
-    movsb(Rd, MemOperand(src.rm_, 0), rtmp);
-    add(src.rm_, src.rm_, Operand(src.offset()), rtmp);
+    movsb(Rd, MemOperand(src.rn_, 0), rtmp);
+    add(src.rn_, src.rn_, Operand(src.offset()), rtmp);
     break;
   case Offset:
     movsb(Rd, src, rtmp);
@@ -745,14 +750,15 @@ void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
 
 
 void Assembler::str(Register Rs, const MemOperand& dst, Register rtmp) {
+  ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
   switch(dst.mode_) {
   case PreIndex:
-    add(dst.rm_ , dst.rm_, Operand(dst.offset()), rtmp);
-    mov(MemOperand(dst.rm_, 0), Rs, rtmp);
+    add(dst.rn_ , dst.rn_, Operand(dst.offset()), rtmp);
+    mov(MemOperand(dst.rn_, 0), Rs, rtmp);
     break;
   case PostIndex:
-    mov(MemOperand(dst.rm_, 0), Rs, rtmp);
-    add(dst.rm_, dst.rm_, Operand(dst.offset()), rtmp);
+    mov(MemOperand(dst.rn_, 0), Rs, rtmp);
+    add(dst.rn_, dst.rn_, Operand(dst.offset()), rtmp);
     break;
   case Offset:
     mov(dst, Rs, rtmp);
@@ -762,14 +768,15 @@ void Assembler::str(Register Rs, const MemOperand& dst, Register rtmp) {
 
 
 void Assembler::strh(Register Rs, const MemOperand& dst, Register rtmp) {
+  ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
   switch(dst.mode_) {
   case PreIndex:
-    add(dst.rm_ , dst.rm_, Operand(dst.offset()), rtmp);
-    movw(MemOperand(dst.rm_, 0), Rs, rtmp);
+    add(dst.rn_ , dst.rn_, Operand(dst.offset()), rtmp);
+    movw(MemOperand(dst.rn_, 0), Rs, rtmp);
     break;
   case PostIndex:
-    movw(MemOperand(dst.rm_, 0), Rs, rtmp);
-    add(dst.rm_, dst.rm_, Operand(dst.offset()), rtmp);
+    movw(MemOperand(dst.rn_, 0), Rs, rtmp);
+    add(dst.rn_, dst.rn_, Operand(dst.offset()), rtmp);
     break;
   case Offset:
     movw(dst, Rs, rtmp);
@@ -779,14 +786,15 @@ void Assembler::strh(Register Rs, const MemOperand& dst, Register rtmp) {
 
 
 void Assembler::strb(Register Rs, const MemOperand& dst, Register rtmp) {
+  ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
   switch(dst.mode_) {
   case PreIndex:
-    add(dst.rm_ , dst.rm_, Operand(dst.offset()), rtmp);
-    movb(MemOperand(dst.rm_, 0), Rs, rtmp);
+    add(dst.rn_ , dst.rn_, Operand(dst.offset()), rtmp);
+    movb(MemOperand(dst.rn_, 0), Rs, rtmp);
     break;
   case PostIndex:
-    movb(MemOperand(dst.rm_, 0), Rs, rtmp);
-    add(dst.rm_, dst.rm_, Operand(dst.offset()), rtmp);
+    movb(MemOperand(dst.rn_, 0), Rs, rtmp);
+    add(dst.rn_, dst.rn_, Operand(dst.offset()), rtmp);
     break;
   case Offset:
     movb(dst, Rs, rtmp);

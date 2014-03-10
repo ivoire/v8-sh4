@@ -559,21 +559,22 @@ class MemOperand BASE_EMBEDDED {
   INLINE(explicit MemOperand(Register Rd, Register offset));
 
   void set_offset(int32_t offset) {
-      ASSERT(rn_.is(no_reg));
+      ASSERT(roffset_.is(no_reg));
       offset_ = offset;
   }
 
   uint32_t offset() const {
-      ASSERT(rn_.is(no_reg));
+      ASSERT(roffset_.is(no_reg));
       return offset_;
   }
 
   Register rn() const { return rn_; }
-  Register rm() const { return rm_; }
+  Register roffset() const { return roffset_; }
+  AddrMode am() const { return mode_; }
 
  private:
-  Register rm_;
-  Register rn_;
+  Register rn_;  // base
+  Register roffset_; // register offset
   int32_t offset_;
   AddrMode mode_;
 

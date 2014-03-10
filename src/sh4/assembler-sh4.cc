@@ -1512,18 +1512,18 @@ void Assembler::mov(Register Rd, const Operand& src, Condition cond) {
 
 void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
-  if (src.rn_.is_valid()) {
+  if (src.roffset_.is_valid()) {
     ASSERT(rtmp.is_valid());
-    add(rtmp, src.rm_, src.rn_);
+    add(rtmp, src.rn_, src.roffset_);
     movl_indRs_(rtmp, Rd);
   } else {
     if (src.offset_ == 0) {
-      movl_indRs_(src.rm_, Rd);
+      movl_indRs_(src.rn_, Rd);
     } else if (FITS_SH4_movl_dispRs(src.offset_)) {
-      movl_dispRs_(src.offset_, src.rm_, Rd);
+      movl_dispRs_(src.offset_, src.rn_, Rd);
     } else {
       ASSERT(rtmp.is_valid());
-      add(rtmp, src.rm_, Operand(src.offset_));
+      add(rtmp, src.rn_, Operand(src.offset_));
       movl_indRs_(rtmp, Rd);
     }
   }
@@ -1532,14 +1532,14 @@ void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
 
 void Assembler::movsb(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
-  if (src.rn_.is_valid()) {
-    add(rtmp, src.rm_, src.rn_);
+  if (src.roffset_.is_valid()) {
+    add(rtmp, src.rn_, src.roffset_);
     movb_indRs_(rtmp, Rd);
   } else {
     if (src.offset_ == 0) {
-      movb_indRs_(src.rm_, Rd);
+      movb_indRs_(src.rn_, Rd);
     } else {
-      add(rtmp, src.rm_, Operand(src.offset_));
+      add(rtmp, src.rn_, Operand(src.offset_));
       movb_indRs_(rtmp, Rd);
     }
   }
@@ -1555,14 +1555,14 @@ void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
 
 void Assembler::movsw(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
-  if (src.rn_.is_valid()) {
-    add(rtmp, src.rm_, src.rn_);
+  if (src.roffset_.is_valid()) {
+    add(rtmp, src.rn_, src.roffset_);
     movw_indRs_(rtmp, Rd);
   } else {
     if (src.offset_ == 0) {
-      movw_indRs_(src.rm_, Rd);
+      movw_indRs_(src.rn_, Rd);
     } else {
-      add(rtmp, src.rm_, Operand(src.offset_));
+      add(rtmp, src.rn_, Operand(src.offset_));
       movw_indRs_(rtmp, Rd);
     }
   }
@@ -1595,15 +1595,15 @@ void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds) {
 
 void Assembler::fldr(SwVfpRegister dst, const MemOperand& src, Register rtmp) { 
   ASSERT(src.mode_ == Offset);
-  if (src.rn_.is_valid()) {
-    add(rtmp, src.rm_, src.rn_);
+  if (src.roffset_.is_valid()) {
+    add(rtmp, src.rn_, src.roffset_);
     fmov_indRs_(rtmp, dst);
   } else {
     if (src.offset_ == 0) {
-      fmov_indRs_(src.rm_, dst);
+      fmov_indRs_(src.rn_, dst);
     } else {
-      ASSERT(src.rn_.is(no_reg));
-      add(rtmp, src.rm_, Operand(src.offset_));
+      ASSERT(src.roffset_.is(no_reg));
+      add(rtmp, src.rn_, Operand(src.offset_));
       fmov_indRs_(rtmp, dst);
     }
   }
@@ -1612,26 +1612,26 @@ void Assembler::fldr(SwVfpRegister dst, const MemOperand& src, Register rtmp) {
 
 void Assembler::dldr(DwVfpRegister dst, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
-  if (src.rn_.is_valid()) {
+  if (src.roffset_.is_valid()) {
     UNIMPLEMENTED();
   } else {
     fldr(dst.low(), src, rtmp);
-    fldr(dst.high(), MemOperand(src.rm_, src.offset_ + 4), rtmp);
+    fldr(dst.high(), MemOperand(src.rn_, src.offset_ + 4), rtmp);
   }
 }
 
 
 void Assembler::fstr(SwVfpRegister src, const MemOperand& dst, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
-  if (dst.rn_.is_valid()) {
-    add(rtmp, dst.rm_ ,dst.rn_);
+  if (dst.roffset_.is_valid()) {
+    add(rtmp, dst.rn_ ,dst.roffset_);
     fmov_indRd_(src, rtmp);
   } else {
     if (dst.offset_ == 0) {
-      fmov_indRd_(src, dst.rm_);
+      fmov_indRd_(src, dst.rn_);
     } else {
-      ASSERT(dst.rn_.is(no_reg));
-      add(rtmp, dst.rm_, Operand(dst.offset_));
+      ASSERT(dst.roffset_.is(no_reg));
+      add(rtmp, dst.rn_, Operand(dst.offset_));
       fmov_indRd_(src, rtmp);
     }
   }
@@ -1640,11 +1640,11 @@ void Assembler::fstr(SwVfpRegister src, const MemOperand& dst, Register rtmp) {
 
 void Assembler::dstr(DwVfpRegister src, const MemOperand& dst, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
-  if (dst.rn_.is_valid()) {
+  if (dst.roffset_.is_valid()) {
     UNIMPLEMENTED();
   } else {
     fstr(src.low(), dst, rtmp);
-    fstr(src.high(), MemOperand(dst.rm_, dst.offset_ + 4), rtmp);
+    fstr(src.high(), MemOperand(dst.rn_, dst.offset_ + 4), rtmp);
   }
 }
 
@@ -1714,18 +1714,18 @@ void Assembler::isingle(Register Rd, SwVfpRegister Fs) {
 
 void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
-  if (dst.rn_.is_valid()) {
-    add(rtmp, dst.rm_, dst.rn_);
+  if (dst.roffset_.is_valid()) {
+    add(rtmp, dst.rn_, dst.roffset_);
     movl_indRd_(Rd, rtmp);
   } else {
     if (dst.offset_ == 0) {
-      movl_indRd_(Rd, dst.rm_);
+      movl_indRd_(Rd, dst.rn_);
     } else {
       if (FITS_SH4_movl_dispRd(dst.offset_)) {
-        movl_dispRd_(Rd, dst.offset_, dst.rm_);
+        movl_dispRd_(Rd, dst.offset_, dst.rn_);
       } else {
         ASSERT(!Rd.is(rtmp));
-        add(rtmp, dst.rm_, Operand(dst.offset_));
+        add(rtmp, dst.rn_, Operand(dst.offset_));
         movl_indRd_(Rd, rtmp);
       }
     }
@@ -1735,15 +1735,15 @@ void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
 
 void Assembler::movb(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
-  if (dst.rn_.is_valid()) {
-    add(rtmp, dst.rm_, dst.rn_);
+  if (dst.roffset_.is_valid()) {
+    add(rtmp, dst.rn_, dst.roffset_);
     movb_indRd_(Rd, rtmp);
   } else {
     if (dst.offset_ == 0) {
-      movb_indRd_(Rd, dst.rm_);
+      movb_indRd_(Rd, dst.rn_);
     } else {
       ASSERT(!Rd.is(rtmp));
-      add(rtmp, dst.rm_, Operand(dst.offset_));
+      add(rtmp, dst.rn_, Operand(dst.offset_));
       movb_indRd_(Rd, rtmp);
     }
   }
@@ -1752,15 +1752,15 @@ void Assembler::movb(const MemOperand& dst, Register Rd, Register rtmp) {
 
 void Assembler::movw(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
-  if (dst.rn_.is_valid()) {
-    add(rtmp, dst.rm_, dst.rn_);
+  if (dst.roffset_.is_valid()) {
+    add(rtmp, dst.rn_, dst.roffset_);
     movw_indRd_(Rd, rtmp);
   } else {
     if (dst.offset_ == 0) {
-      movw_indRd_(Rd, dst.rm_);
+      movw_indRd_(Rd, dst.rn_);
     } else {
       ASSERT(!Rd.is(rtmp));
-      add(rtmp, dst.rm_, Operand(dst.offset_));
+      add(rtmp, dst.rn_, Operand(dst.offset_));
       movw_indRd_(Rd, rtmp);
     }
   }

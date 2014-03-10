@@ -595,17 +595,17 @@ MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
 
 void MacroAssembler::Ldrd(Register dst1, Register dst2,
                           const MemOperand& src) {
-  ASSERT(src.rn().is(no_reg));
+  ASSERT(src.am() == Offset);
+  ASSERT(src.roffset().is(no_reg));
   ASSERT_EQ(0, dst1.code() % 2);
   ASSERT_EQ(dst1.code() + 1, dst2.code());
   ASSERT(!dst1.is(sh4_ip) && !dst2.is(sh4_ip));
   ASSERT(!dst1.is(sh4_rtmp) && !dst2.is(sh4_rtmp));
 
-  // TODO(ivoire): use FPU ?
   {
     MemOperand src2(src);
     src2.set_offset(src2.offset() + 4);
-    if (dst1.is(src.rm())) {
+    if (dst1.is(src.rn())) {
       ldr(dst2, src2);
       ldr(dst1, src);
     } else {
@@ -618,13 +618,13 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
 
 void MacroAssembler::Strd(Register src1, Register src2,
                           const MemOperand& dst) {
-  ASSERT(dst.rn().is(no_reg));
+  ASSERT(dst.am() == Offset);
+  ASSERT(dst.roffset().is(no_reg));
   ASSERT_EQ(0, src1.code() % 2);
   ASSERT_EQ(src1.code() + 1, src2.code());
   ASSERT(!src1.is(sh4_ip) && !src2.is(sh4_ip));
   ASSERT(!src1.is(sh4_rtmp) && !src2.is(sh4_rtmp));
 
-  // TODO(ivoire): use FPU ?
   {
     MemOperand dst2(dst);
     dst2.set_offset(dst2.offset() + 4);

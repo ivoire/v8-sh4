@@ -441,6 +441,8 @@ DwVfpRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
     // TODO(regis): Why is vldr not taking a MemOperand?
     // __ vldr(dbl_scratch, ToMemOperand(op));
     MemOperand mem_op = ToMemOperand(op);
+    ASSERT(mem_op.am() == Offset);
+    ASSERT(mem_op.roffset().is(no_reg));
     __ vldr(dbl_scratch, mem_op.rn(), mem_op.offset());
     return dbl_scratch;
   }
