@@ -1,4 +1,4 @@
-unsigned short sh_jump_table[65536]={
+static const unsigned short sh_jump_table[65536]={
 /* 0x0 */
  1, 2, 3, 5,15,16,17,18,22,32,36,40,44,45,46,47,
  1, 2, 3, 0,15,16,17,18,28,29,36,43,44,45,46,47,

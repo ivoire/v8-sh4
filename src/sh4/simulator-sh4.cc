@@ -1447,6 +1447,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
 #define SEXTW(value)        ((int) ((short) value))
 #define sbit                ((unsigned int) 1 << 31)
 
+// Include the jump table globally to avoid local construction
+// which kills performance
+#include "sh4/jump-table-sh4.h"
 
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
@@ -1478,7 +1481,6 @@ void Simulator::InstructionDecode(Instruction* instr) {
       iword == kStoppoint) {
     SoftwareInterrupt(instr, iword);
   } else {
-#include "sh4/jump-table-sh4.h"
 #include "sh4/autogen-simulator-sh4.cc"
   }
 
@@ -1519,7 +1521,6 @@ void Simulator::InstructionDecodeDelaySlot(Instruction* instr) {
       iword == kStoppoint) {
     SoftwareInterrupt(instr, iword);
   } else {
-#include "sh4/jump-table-sh4.h"
 #include "sh4/autogen-simulator-sh4.cc"
   }
 
