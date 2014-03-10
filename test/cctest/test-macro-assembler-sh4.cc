@@ -37,17 +37,8 @@
 using namespace v8::internal;
 
 
-typedef int (*F0)(int p0, int p1, int p2, int p3, int p4);
+typedef Object* (*F0)(int p0, int p1, int p2, int p3, int p4);
 
-
-static v8::Persistent<v8::Context> env;
-
-
-static void InitializeVM() {
-  if (env.IsEmpty()) {
-    env = v8::Context::New();
-  }
-}
 
 // We allow use of callee saved r8-r11 for the regression tests
 #define PROLOGUE() \
@@ -58,7 +49,7 @@ static void InitializeVM() {
   __ push(r11); \
   __ push(roots); \
   ExternalReference roots_address = \
-    ExternalReference::roots_address(assm.isolate()); \
+    ExternalReference::roots_array_start(assm.isolate()); \
   __ mov(roots, Operand(roots_address)); \
   } while (0)
 
@@ -94,9 +85,9 @@ static void InitializeVM() {
   i::FLAG_enable_slow_asserts = false;                  \
                                                         \
   CcTest::InitializeVM();                               \
-  Isolate* isolate = Isolate::Current();                \
-  HandleScope handles(isolate);                         \
-  MacroAssembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = CcTest::i_isolate();               \
+  HandleScope scope(isolate);                         \
+  MacroAssembler assm(isolate, NULL, 0);
 
 #define JIT()                                                           \
   CodeDesc desc;                                                        \
@@ -123,11 +114,7 @@ static void InitializeVM() {
     } \
   } while (0);
 
-#if defined(USE_SIMULATOR)
 # define CAST(a) reinterpret_cast<int>((a))
-#else
-# define CAST(a) (a)
-#endif
 
 // Test Move(...)
 TEST(sh4_ma_0) {
@@ -138,7 +125,7 @@ TEST(sh4_ma_0) {
   PROLOGUE();
 
   // Verify Move with Immediate
-  __ Move(r0, Handle<Object>(reinterpret_cast<Object *>(0x12345678)));
+  __ Move(r0, Handle<Object>(reinterpret_cast<Object *>(0x12345678), isolate));
   __ mov(r1, Operand(0x12345678));
   __ cmp(r0, r1);
   B_LINE(ne, &error);
@@ -194,22 +181,34 @@ TEST(sh4_ma_1) {
   CMT("Verify Bfc(0xfdeccdefu, 0, 32) == 0");
   __ mov(r0, Operand(0xfdeccdefu));
   __ mov(r1, r0);
-  __ Bfc(r1, 0, 32);  // a full clear
+  __ Bfc(r1, r1, 0, 32);  // a full clear
   __ cmp(r1, Operand(0));
+  B_LINE(ne, &error);
+  CMT("Verify Bfc(0xfdeccdefu, 0, 0) == 0xfdeccdefu");
+  __ mov(r0, Operand(0xfdeccdefu));
+  __ mov(r1, r0);
+  __ Bfc(r1, r1, 0, 0);  // a mov
+  __ cmp(r1, Operand(0xfdeccdefu));
+  B_LINE(ne, &error);
+  CMT("Verify Bfc(0xfdeccdefu, 4, 0) == 0xfdeccdefu");
+  __ mov(r0, Operand(0xfdeccdefu));
+  __ mov(r1, r0);
+  __ Bfc(r1, r1, 4, 0);  // a mov whatever lsb
+  __ cmp(r1, Operand(0xfdeccdefu));
   B_LINE(ne, &error);
   CMT("Verify Bfc(0xfdeccdefu, 0, 31) == 0x80000000");
   __ mov(r1, r0);
-  __ Bfc(r1, 0, 31);
+  __ Bfc(r1, r1, 0, 31);
   __ cmp(r1, Operand(0x80000000u));
   B_LINE(ne, &error);
   CMT("Verify Bfc(0xfdeccdefu, 1, 31) == 0x80000000");
   __ mov(r1, r0);
-  __ Bfc(r1, 1, 30);
+  __ Bfc(r1, r1, 1, 30);
   __ cmp(r1, Operand(0x80000001u));
   B_LINE(ne, &error);
   CMT("Verify Bfc(0xfdeccdefu, 9, 16) == 0xfc0001ef");
   __ mov(r1, r0);
-  __ Bfc(r1, 9, 16);
+  __ Bfc(r1, r1, 9, 16);
   __ cmp(r1, Operand(0xfc0001efu));
   B_LINE(ne, &error);
 
@@ -254,6 +253,13 @@ TEST(sh4_ma_1) {
   __ mov(r0, Operand(0xfdeccdefu));
   __ mov(r1, r0);
   __ Bfi(r1, r2, r4, 0, 0);  // a nop
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+  CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 4, 0) == 0xfdeccdef");
+  __ mov(r2, Operand(0xaaaaaa));
+  __ mov(r0, Operand(0xfdeccdefu));
+  __ mov(r1, r0);
+  __ Bfi(r1, r2, r4, 0, 0);  // a nop whatever lsb
   __ cmp(r1, r0);
   B_LINE(ne, &error);
   CMT("Verify Bfi(0xfdeccdef, 0xaaaaaaaa, 0, 32) == 0xaaaaaaaa");
@@ -563,37 +569,37 @@ TEST(sh4_ma_5) {
   Label no_map1, no_map2, no_map3, no_map4, no_map5, skip_no_map1;
   __ mov(r0, Operand(2));  // Smi integer 1
   __ CheckMap(r0, r1/*scratch*/, GLOBAL_CONTEXT_MAP(),
-              &no_map1, false);  // Check that Smi fails
+              &no_map1, DO_SMI_CHECK);  // Check that Smi fails
   B_LINE(al, &error);  // should not be there
   __ bind(&no_map1);
 
   __ mov(r0, Operand(EMPTY_STRING()));  // String object
   __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(),
-              &no_map2, false);  // Not the right map
+              &no_map2, DO_SMI_CHECK);  // Not the right map
   B_LINE(al, &error);  // should not be there
   __ bind(&no_map2);
 
   __ mov(r0, Operand(EMPTY_STRING()));  // String object
   __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(),
-              &no_map3, true);  // Heap object but not the right map
+              &no_map3, DO_SMI_CHECK);  // Heap object but not the right map
   B_LINE(al, &error);  // should not be there
   __ bind(&no_map3);
 
   __ mov(r0, Operand(EMPTY_STRING()));  // String object
   __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex,
-              &no_map4, true);  // Heap object but not the right map
+              &no_map4, DONT_DO_SMI_CHECK);  // Heap object but not the right map
   B_LINE(al, &error);  // should not be there
   __ bind(&no_map4);
 
   __ mov(r0, Operand(NAN_VALUE()));  // HeapNumber object
   __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(),
-               &no_map5, false);  // This is the right map
+               &no_map5, DO_SMI_CHECK);  // This is the right map
   __ CheckMap(r0, r1/*scratch*/, HEAP_NUMBER_MAP(),
-               &no_map5, true);
+               &no_map5, DONT_DO_SMI_CHECK);
   __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex,
-               &no_map5, false);
+               &no_map5, DO_SMI_CHECK);
   __ CheckMap(r0, r1/*scratch*/, Heap::kHeapNumberMapRootIndex,
-               &no_map5, true);
+               &no_map5, DONT_DO_SMI_CHECK);
   __ jmp(&skip_no_map1);
   __ bind(&no_map5);
   B_LINE(al, &error);  // should not be there
@@ -682,7 +688,7 @@ TEST(sh4_ma_6) {
 
   Label not_smi1, not_smi2, not_smi3, skip_smi1;
   __ mov(r0, Operand(0xc0000000));
-  __ TrySmiTag(r0, &not_smi1, r1/*scratch*/);
+  __ TrySmiTag(r0, &not_smi1);
   __ cmp(r0, Operand(0x80000000));
   B_LINE(ne, &error);
   __ jmp(&skip_smi1);
@@ -691,12 +697,12 @@ TEST(sh4_ma_6) {
   __ bind(&skip_smi1);
 
   __ mov(r0, Operand(0x80000000));  // not a smi
-  __ TrySmiTag(r0, &not_smi2, r1/*scratch*/);
+  __ TrySmiTag(r0, &not_smi2);
   B_LINE(ne, &error);
   __ bind(&not_smi2);
 
   __ mov(r0, Operand(0x40000000));  // not a smi
-  __ TrySmiTag(r0, &not_smi3, r1/*scratch*/);
+  __ TrySmiTag(r0, &not_smi3);
   B_LINE(ne, &error);
   __ bind(&not_smi3);
 
@@ -872,60 +878,61 @@ TEST(sh4_ma_6) {
 
 
 // Test ConvertToInt32()
-TEST(sh4_ma_7) {
-  BEGIN();
+// TODO(stm): Test TryDoubleToInt32 new interface
+// TEST(sh4_ma_7) {
+//   BEGIN();
 
-  Label error;
-  PROLOGUE();
+//   Label error;
+//   PROLOGUE();
 
-  Label not_int32_1, skip_int32_1, not_int32_2, not_int32_3;
-  Handle<Object> num;
-  CMT("Check ConvertToInt32(4.1) == 4");
-  num = assm.isolate()->factory()->NewNumber(4.1, TENURED);
-  __ mov(r0, Operand(4));
-  __ mov(r1, Operand(num));
-  __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_1);
-  __ cmp(r2, r0);
-  B_LINE(ne, &error);
-  __ jmp(&skip_int32_1);
-  __ bind(&not_int32_1);
-  B_LINE(al, &error);
-  __ bind(&skip_int32_1);
+//   Label not_int32_1, skip_int32_1, not_int32_2, not_int32_3;
+//   Handle<Object> num;
+//   CMT("Check ConvertToInt32(4.1) == 4");
+//   num = assm.isolate()->factory()->NewNumber(4.1, TENURED);
+//   __ mov(r0, Operand(4));
+//   __ mov(r1, Operand(num));
+//   __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_1);
+//   __ cmp(r2, r0);
+//   B_LINE(ne, &error);
+//   __ jmp(&skip_int32_1);
+//   __ bind(&not_int32_1);
+//   B_LINE(al, &error);
+//   __ bind(&skip_int32_1);
 
-  CMT("Check ConvertToInt32(nan) == not int32");
-  __ mov(r1, Operand(NAN_VALUE()));
-  __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_2);
-  B_LINE(al, &error);
-  __ bind(&not_int32_2);
+//   CMT("Check ConvertToInt32(nan) == not int32");
+//   __ mov(r1, Operand(NAN_VALUE()));
+//   __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_2);
+//   B_LINE(al, &error);
+//   __ bind(&not_int32_2);
 
-  CMT("Check ConvertToInt32(0X80000000) == not int32");
-  num = assm.isolate()->factory()->NewNumber(static_cast<double>(0x80000000U),
-                                             TENURED);
-  __ mov(r1, Operand(num));
-  __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_3);
-  B_LINE(al, &error);
-  __ bind(&not_int32_3);
+//   CMT("Check ConvertToInt32(0X80000000) == not int32");
+//   num = assm.isolate()->factory()->NewNumber(static_cast<double>(0x80000000U),
+//                                              TENURED);
+//   __ mov(r1, Operand(num));
+//   __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_3);
+//   B_LINE(al, &error);
+//   __ bind(&not_int32_3);
 
-  // All ok.
-  __ mov(r0, Operand(0));
-  EPILOGUE();
-  __ rts();
+//   // All ok.
+//   __ mov(r0, Operand(0));
+//   EPILOGUE();
+//   __ rts();
 
-  __ bind(&error);
-  __ mov(r0, r10);
-  EPILOGUE();
-  __ rts();
+//   __ bind(&error);
+//   __ mov(r0, r10);
+//   EPILOGUE();
+//   __ rts();
 
-  JIT();
-#ifdef DEBUG
-  Code::cast(code)->Print();
-#endif
+//   JIT();
+// #ifdef DEBUG
+//   Code::cast(code)->Print();
+// #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
-  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
-  ::printf("f() = %d\n", res);
-  CHECK_EQ(0, res);
-}
+//   F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+//   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+//   ::printf("f() = %d\n", res);
+//   CHECK_EQ(0, res);
+// }
 
 // Test CountLeadingZeros
 TEST(sh4_ma_8) {

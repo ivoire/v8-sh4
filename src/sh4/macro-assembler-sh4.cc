@@ -267,12 +267,19 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2) {
 }
 
 
-void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width) {
-  ASSERT(lsb < 32);
+void MacroAssembler::Ubfx(Register dst, Register src, int lsb, int width) {
+  ASSERT(0 <= lsb && lsb < 32);
+  ASSERT(0 < width && width <= 32);
+  ASSERT(lsb + width <= 32);
 
-  int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+  if (width == 32) {
+    mov(dst, src);
+    return;
+  }
+  uint32_t mask = (~0U >> (32 - (width + lsb))) -
+    (lsb == 0 ? 0: (~0U >> (32 - lsb)));
   RECORD_LINE();
-  land(dst, src1, Operand(mask));
+  land(dst, src, Operand((int)mask));
   if (lsb != 0) {
     RECORD_LINE();
     lsr(dst, dst, Operand(lsb));
@@ -280,11 +287,19 @@ void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width) {
 }
 
 
-void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width) {
-  ASSERT(!dst.is(sh4_rtmp) && !src1.is(sh4_rtmp));
-  ASSERT(lsb < 32);
-    int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
-  land(dst, src1, Operand(mask));
+void MacroAssembler::Sbfx(Register dst, Register src, int lsb, int width) {
+  ASSERT(0 <= lsb && lsb < 32);
+  ASSERT(0 < width && width <= 32);
+  ASSERT(lsb + width <= 32);
+  ASSERT(!dst.is(sh4_rtmp) && !src.is(sh4_rtmp));
+
+  if (width == 32) {
+    mov(dst, src);
+    return;
+  }
+  uint32_t mask = (~0U >> (32 - (width + lsb))) -
+    (lsb == 0 ? 0: (~0U >> (32 - lsb)));
+  land(dst, src, Operand(mask));
   int shift_up = 32 - lsb - width;
   int shift_down = lsb + shift_up;
   if (shift_up != 0) {
@@ -302,21 +317,40 @@ void MacroAssembler::Bfi(Register dst,
                          int lsb,
                          int width) {
   ASSERT(0 <= lsb && lsb < 32);
-  ASSERT(0 <= width && width < 32);
-  ASSERT(lsb + width < 32);
+  ASSERT(0 <= width && width <= 32);
+  ASSERT(lsb + width <= 32);
   ASSERT(!dst.is(src) && !dst.is(scratch));
+
   if (width == 0) return;
-  int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
-  bic(dst, dst, Operand(mask));
-  land(scratch, src, Operand((1 << width) - 1));
+  if (width == 32) {
+    mov(dst, src);
+    return;
+  }
+  uint32_t dst_mask = (~0U >> (32 - (width + lsb))) -
+    (lsb == 0 ? 0: (~0U >> (32 - lsb)));
+  uint32_t src_mask = (~0U >> (32 - width));
+  bic(dst, dst, Operand(dst_mask));
+  land(scratch, src, Operand(src_mask));
   lsl(scratch, scratch, Operand(lsb));
   orr(dst, dst, scratch);
 }
 
 
 void MacroAssembler::Bfc(Register dst, Register src, int lsb, int width) {
-  ASSERT(lsb < 32);
-  int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+  ASSERT(0 <= lsb && lsb < 32);
+  ASSERT(0 <= width && width <= 32);
+  ASSERT(lsb + width <= 32);
+
+  if (width == 0) {
+    mov(dst, src);
+    return;
+  }
+  if (width == 32) {
+    mov(dst, Operand(0));
+    return;
+  }
+  uint32_t mask = (~0U >> (32 - (width + lsb))) -
+    (lsb == 0 ? 0: (~0U >> (32 - lsb)));
   RECORD_LINE();
   land(dst, src, Operand(~mask));
 }

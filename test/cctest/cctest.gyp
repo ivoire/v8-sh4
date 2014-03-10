@@ -155,6 +155,7 @@
         ['v8_target_arch=="sh4"', {
           'sources': [
             'test-assembler-sh4.cc',
+            'test-macro-assembler-sh4.cc',
             'test-sh4.cc'
           ],
         }],
