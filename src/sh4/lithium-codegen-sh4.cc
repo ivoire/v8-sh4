@@ -240,7 +240,7 @@ void LCodeGen::GenerateOsrPrologue() { // SAMEAS: arm
 }
 
 
-bool LCodeGen::GenerateDeferredCode() {
+bool LCodeGen::GenerateDeferredCode() { // SAEMAS: arm
   ASSERT(is_generating());
   if (deferred_.length() > 0) {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
@@ -261,20 +261,19 @@ bool LCodeGen::GenerateDeferredCode() {
         ASSERT(!frame_is_built_);
         ASSERT(info()->IsStub());
         frame_is_built_ = true;
-        __ UNIMPLEMENTED_BREAK();
-        //__ stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
-        //__ mov(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
-        //__ push(scratch0());
-        //__ add(fp, sp, Operand(2 * kPointerSize));
+        // SH4: sameas MacroAssembler::Prologue for BUILD_STUB_FRAME
+        __ Push(pr, fp, cp); // DIFF: codegen
+        __ Push(Smi::FromInt(StackFrame::STUB)); // DIFF: codegen
+        // Adjust FP to point to saved FP.
+        __ add(fp, sp, Operand(2 * kPointerSize));
         Comment(";;; Deferred code");
       }
       code->Generate();
       if (NeedsDeferredFrame()) {
         Comment(";;; Destroy frame");
         ASSERT(frame_is_built_);
-        __ UNIMPLEMENTED_BREAK();
-        //__ pop(ip);
-        //__ ldm(ia_w, sp, cp.bit() | fp.bit() | lr.bit());
+        __ Pop(ip); // Drop STUB kind // DIFF: codegen
+        __ Pop(pr, fp, cp); // DIFF: codegen
         frame_is_built_ = false;
       }
       __ jmp(code->exit());
