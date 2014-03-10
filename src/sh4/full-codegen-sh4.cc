@@ -1225,7 +1225,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) { // SAMEAS: a
   // Get the current entry of the array into register r3.
   __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ lsl(r3, r0, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+  __ GetPointerOffsetFromSmiKey(r3, r0); // DIFF: codegen
   __ ldr(r3, MemOperand(r2, r3)); // DIFF: codegen
 
   // Get the expected map from the stack or a smi in the
@@ -3092,8 +3092,8 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ add(r4, r4, Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Calculate the end of the descriptor array.
   __ mov(r2, r4);
-  __ lsl(ip, r3, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r2, r2, ip);
+  __ GetPointerOffsetFromSmiKey(ip, r3); // DIFF: codegen
+  __ add(r2, r2, ip); // DIFF: codegen
 
   // Loop through all the keys in the descriptor array. If one of these is the
   // string "valueOf" the result is false.
@@ -3918,9 +3918,9 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   // r2 now holds finger offset as a smi.
   __ add(r3, cache, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   // r3 now points to the start of fixed array elements.
-  __ lsl(r2, r2, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r3, r3, r2);
-  __ ldr(r2, MemOperand(r3));
+  __ GetPointerOffsetFromSmiKey(r2, r2); // DIFF: codegen
+  __ add(r3, r3, r2); // DIFF: codegen
+  __ ldr(r2, MemOperand(r3)); // DIFF: codegen
   // Note side effect of PreIndex: r3 now points to the key of the pair.
   __ cmp(key, r2);
   __ b(ne, &not_found, Label::kNear);

@@ -505,10 +505,12 @@ class Operand BASE_EMBEDDED {
   //INLINE(static Operand SmiUntag(Register rm)) {
   //  return Operand(rm, ASR, kSmiTagSize);
   //}
+  // Not available on SH4: use MacroAssembler::GetPointerOffsetFromSmiKey(res, key)
   //INLINE(static Operand PointerOffsetFromSmiKey(Register key)) {
   //  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   //  return Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize);
   //}
+  // Not available on SH4: use MacroAssembler::GetDoubleOffsetFromSmiKey(reg, key)
   //INLINE(static Operand DoubleOffsetFromSmiKey(Register key)) {
   //  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
   //  return Operand(key, LSL, kDoubleSizeLog2 - kSmiTagSize);

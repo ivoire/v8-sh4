@@ -292,8 +292,8 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   __ bt(out_of_range);
   // Fast case: Do the load.
   __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ lsl(scratch2, key, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ ldr(scratch2, MemOperand(scratch1, scratch2));
+  __ GetPointerOffsetFromSmiKey(scratch2, key); // DIFF: codegen
+  __ ldr(scratch2, MemOperand(scratch1, scratch2)); // DIFF: codegen
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
   __ cmp(scratch2, ip);
   // In case the loaded value is the_hole we have to consult GetProperty
@@ -1289,7 +1289,7 @@ static void KeyedStoreGenerateGenericHelper( // SAMEAS: arm
   // It's irrelevant whether array is smi-only or not when writing a smi.
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   ASSERT(!value.is(ip) && !address.is(ip) && !key.is(ip));
-  __ lsl(ip, key, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+  __ GetPointerOffsetFromSmiKey(ip, key); // DIFF: codegen
   __ str(value, MemOperand(address, ip)); // DIFF: codegen
   __ Ret();
 
@@ -1307,8 +1307,8 @@ static void KeyedStoreGenerateGenericHelper( // SAMEAS: arm
   }
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   ASSERT(!value.is(ip) && !address.is(ip) && !key.is(ip));
-  __ lsl(ip, key, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ add(address, address, ip);
+  __ GetPointerOffsetFromSmiKey(ip, key); // DIFF: codegen
+  __ add(address, address, ip); // DIFF: codegen
   __ str(value, MemOperand(address));
   // Update write barrier for the elements array address.
   __ mov(scratch_value, value);  // Preserve the value which is returned.

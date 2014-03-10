@@ -1951,7 +1951,7 @@ void MacroAssembler::CompareRoot(Register obj,
 }
 
 
-void MacroAssembler::CheckFastElements(Register map,
+void MacroAssembler::CheckFastElements(Register map, // SAMEAS: arm
                                        Register scratch,
                                        Label* fail) {
   STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
@@ -1959,8 +1959,8 @@ void MacroAssembler::CheckFastElements(Register map,
   STATIC_ASSERT(FAST_ELEMENTS == 2);
   STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
   ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  cmphi(scratch, Operand(Map::kMaximumBitField2FastHoleyElementValue));
-  bt(fail);
+  cmphi(scratch, Operand(Map::kMaximumBitField2FastHoleyElementValue)); // DIFF: codegen
+  bt(fail); // DIFF: codegen
 }
 
 
@@ -1990,7 +1990,7 @@ void MacroAssembler::CheckFastSmiElements(Register map,
 }
 
 
-void MacroAssembler::StoreNumberToDoubleElements(
+void MacroAssembler::StoreNumberToDoubleElements( // SAMEAS: arm
                                       Register value_reg,
                                       Register key_reg,
                                       Register elements_reg,
@@ -2025,8 +2025,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   SmiToDouble(double_scratch, value_reg);
 
   bind(&store);
-  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
-  lsl(scratch1, key_reg, Operand(kDoubleSizeLog2 - kSmiTagSize));
+  GetDoubleOffsetFromSmiKey(scratch1, key_reg);
   add(scratch1, elements_reg, scratch1);
   vstr(double_scratch,
        FieldMemOperand(scratch1,

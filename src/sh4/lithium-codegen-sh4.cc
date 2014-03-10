@@ -2147,7 +2147,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) { // SAMEAS: arm
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ lsl(scratch, key, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+      __ GetPointerOffsetFromSmiKey(scratch, key); // DIFF: codegen
       __ add(scratch, elements, scratch); // DIFF: codegen
     } else {
       __ lsl(scratch, key, Operand(kPointerSizeLog2)); // DIFF: codegen
@@ -2770,7 +2770,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) { // SAMEAS: arm
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ lsl(scratch, key, Operand(kPointerSizeLog2 - kSmiTagSize)); // DIFF: codegen
+      __ GetPointerOffsetFromSmiKey(scratch, key); // DIFF: codegen
       __ add(scratch, elements, scratch); // DIFF: codegen
     } else {
       __ lsl(scratch, key, Operand(kPointerSizeLog2)); // DIFF: codegen

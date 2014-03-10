@@ -1125,7 +1125,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // here which will cause r2 to become negative.
     __ sub(r2, sp, r2);
     // Check if the arguments will overflow the stack.
-    __ lsl(ip, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
+    __ GetPointerOffsetFromSmiKey(ip, r0);
     __ cmpgt(r2, ip);
     __ bt_near(&okay);  // Signed comparison.
 
@@ -1280,7 +1280,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(fp, -3 * kPointerSize));
   __ mov(sp, fp);
   __ Pop(pr, fp);
-  __ lsl(ip, r1, Operand(kPointerSizeLog2 - kSmiTagSize));
+  __ GetPointerOffsetFromSmiKey(ip, r1);
   __ add(sp, sp, ip);
   __ add(sp, sp, Operand(kPointerSize));  // adjust for receiver
 }
@@ -1312,7 +1312,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r1: function
     // r2: expected number of arguments
     // r3: code entry to call
-    __ lsl(r0, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
+    __ GetPointerOffsetFromSmiKey(r0, r0);
     __ add(r0, fp, r0);
     // adjust for return address and receiver
     __ add(r0, r0, Operand(2 * kPointerSize));
@@ -1345,7 +1345,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r1: function
     // r2: expected number of arguments
     // r3: code entry to call
-    __ lsl(r0, r0, Operand(kPointerSizeLog2 - kSmiTagSize));
+    __ GetPointerOffsetFromSmiKey(r0, r0);
     __ add(r0, fp, r0);
 
     // Copy the arguments (including the receiver) to the new stack frame.

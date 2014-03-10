@@ -2539,8 +2539,8 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Read the argument from the stack and return it.
   __ sub(r3, r0, r1);
-  __ lsl(r0, r3, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r3, fp, r0);
+  __ GetPointerOffsetFromSmiKey(r3, r3);
+  __ add(r3, fp, r3);
   __ ldr(r0, MemOperand(r3, kDisplacement));
   __ rts();
 
@@ -2554,8 +2554,8 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Read the argument from the adaptor frame and return it.
   __ sub(r3, r0, r1);
-  __ lsl(r0, r3, Operand(kPointerSizeLog2 - kSmiTagSize));
-  __ add(r3, r2, r0);
+  __ GetPointerOffsetFromSmiKey(r3, r3);
+  __ add(r3, r2, r3);
   __ ldr(r0, MemOperand(r3, kDisplacement));
   __ rts();
 
@@ -2828,7 +2828,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ bind(&adaptor_frame);
   __ ldr(r1, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ str(r1, MemOperand(sp, 0));
-  __ lsl(r3, r1, Operand(kPointerSizeLog2 - kSmiTagSize));
+  __ GetPointerOffsetFromSmiKey(r3, r1);
   __ add(r3, r2, r3);
   __ add(r3, r3, Operand(StandardFrameConstants::kCallerSPOffset));
   __ str(r3, MemOperand(sp, 1 * kPointerSize));
@@ -3776,7 +3776,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
   // At this point code register contains smi tagged ASCII char code.
-  __ lsl(ip, code_, Operand(kPointerSizeLog2 - kSmiTagSize));
+  __ GetPointerOffsetFromSmiKey(ip, code_);
   __ add(result_, result_, ip);
   __ ldr(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
   __ CompareRoot(result_, Heap::kUndefinedValueRootIndex);

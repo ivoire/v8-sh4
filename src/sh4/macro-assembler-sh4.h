@@ -1219,6 +1219,18 @@ class MacroAssembler: public Assembler {
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
 
+  // SH4: use this in place of missing Operand::PointerOffsetFromSmiKey
+  inline void GetPointerOffsetFromSmiKey(Register dst, Register key) {
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    lsl(dst, key, Operand(kPointerSizeLog2 - kSmiTagSize));
+  }
+
+  // SH4: use this in place of missing Operand::DoubleOffsetFromSmiKey
+  inline void GetDoubleOffsetFromSmiKey(Register dst, Register key) {
+    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
+    lsl(dst, key, Operand(kDoubleSizeLog2 - kSmiTagSize));
+  }
+
   // Abort execution if argument is not a string, enabled via --debug-code.
   void AssertString(Register object);
 
