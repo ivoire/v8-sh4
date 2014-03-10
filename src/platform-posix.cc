@@ -149,6 +149,10 @@ int OS::ActivationFrameAlignment() {
   return 8;
 #elif V8_TARGET_ARCH_MIPS
   return 8;
+#elif V8_TARGET_ARCH_SH4
+  // SH4 ABI requires 4. Though use 8 to have the same
+  // value as the default simulator alignment (FLAG_sim_stack_alignment).
+  return 8;
 #else
   // Otherwise we just assume 16 byte alignment, i.e.:
   // - With gcc 4.4 the tree vectorization optimizer can generate code

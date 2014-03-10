@@ -757,7 +757,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
 
 int MacroAssembler::ActivationFrameAlignment() {
-  // TODO(ivoire): is it useful ?
 #if V8_HOST_ARCH_SH4
   // Running on the real platform. Use the alignment as mandated by the local
   // environment.
