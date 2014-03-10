@@ -156,7 +156,8 @@
           'sources': [
             'test-assembler-sh4.cc',
             'test-macro-assembler-sh4.cc',
-            'test-sh4.cc'
+            'test-sh4.cc',
+            'test-regressions-sh4.cc'
           ],
         }],
         [ 'OS=="linux"', {

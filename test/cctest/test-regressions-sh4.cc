@@ -30,135 +30,136 @@
 #include "v8.h"
 
 #include "api.h"
+#include "factory.h"
+#include "objects.h"
 #include "cctest.h"
-#include "frames-inl.h"
-#include "string-stream.h"
+#include "zone-inl.h"
 
-using ::v8::ObjectTemplate;
-using ::v8::Value;
-using ::v8::Context;
-using ::v8::Local;
-using ::v8::String;
-using ::v8::Script;
-using ::v8::Function;
-using ::v8::AccessorInfo;
-using ::v8::Extension;
+using namespace v8::internal;
 
-// Simply returns the undefined object
-static v8::Handle<Value> CallBack(Local<String> name,
-                                    const AccessorInfo& info) {
-  return v8::Undefined();
-}
+// TODO(stm): check for activation in new code base
+// // Simply returns the undefined object
+// static v8::Handle<Value> CallBack(Local<String> name,
+//                                     const AccessorInfo& info) {
+//   return v8::Undefined();
+// }
 
-// Regression test for a defect in -use-ic mode.
-// The bug returns a:
-// Fatal error in src/objects.h, line 732
-// CHECK(!IsFailure()) failed
-// The problem was in sh4 MacroAssembler::TryCallApiFunctionAndReturn()
-// that used r0 as scratch register for DirectCEntryStub().
-// This scratch must not be a return value register.
-// Note: 3 iterations of the loop are necessary to exhibit the issue.
-THREADED_TEST(IssueLoadCallback) {
-  v8::HandleScope scope;
-  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
-  i::StringStream::ClearMentionedObjectCache();
-  obj->SetAccessor(v8_str("xxx"), CallBack);
-  LocalContext env;
-  env->Global()->Set(v8_str("obj"), obj->NewInstance());
-  Script::Compile(String::New(
-      "function foo() {"
-      "  return obj.xxx;"
-      "}"
-      "for (var i = 0; i < 3; i++) {"
-      "  foo();"
-      "}"))->Run();
-}
+// // Regression test for a defect in -use-ic mode.
+// // The bug returns a:
+// // Fatal error in src/objects.h, line 732
+// // CHECK(!IsFailure()) failed
+// // The problem was in sh4 MacroAssembler::TryCallApiFunctionAndReturn()
+// // that used r0 as scratch register for DirectCEntryStub().
+// // This scratch must not be a return value register.
+// // Note: 3 iterations of the loop are necessary to exhibit the issue.
+// THREADED_TEST(IssueLoadCallback) {
+//   v8::HandleScope scope;
+//   v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
+//   i::StringStream::ClearMentionedObjectCache();
+//   obj->SetAccessor(v8_str("xxx"), CallBack);
+//   LocalContext env;
+//   env->Global()->Set(v8_str("obj"), obj->NewInstance());
+//   Script::Compile(String::New(
+//       "function foo() {"
+//       "  return obj.xxx;"
+//       "}"
+//       "for (var i = 0; i < 3; i++) {"
+//       "  foo();"
+//       "}"))->Run();
+// }
 
-// Regression test for a defect in -use-ic mode.
-// Handling of non-smi value on sh4 was wrong in
-// KeyedLoadStubCompiler::GenerateLoadExternalArray().
-// Used to return -1 instead of INT_MAX.
-// Note: 3 iterations of the loop are necessary to exhibit the issue.
-THREADED_TEST(IssueKeyedLoadExtIntArray) {
-  v8::HandleScope scope;
-  LocalContext context;
-  v8::Handle<v8::Object> obj = v8::Object::New();
-  int kElementCount = 1;
-  int32_t* array_data =
-    static_cast<int32_t*>(malloc(kElementCount * sizeof(int32_t)));
-  array_data[0] = 2147483647; // Initialize the first element with MAX_INT
-  obj->SetIndexedPropertiesToExternalArrayData(array_data,
-                                               v8::kExternalIntArray,
-                                               kElementCount);
-  context->Global()->Set(v8_str("ext_array"), obj);
-  const char* boundary_program =
-      "var res = 0;"
-      "for (var i = 0; i < 3; i++) {"
-      "  res = ext_array[0];" // Get the first element
-      "}"
-      "res;";
-  v8::Handle<v8::Value> result = CompileRun(boundary_program);
-  CHECK_EQ((int64_t)2147483647, result->IntegerValue());
-}
+// // Regression test for a defect in -use-ic mode.
+// // Handling of non-smi value on sh4 was wrong in
+// // KeyedLoadStubCompiler::GenerateLoadExternalArray().
+// // Used to return -1 instead of INT_MAX.
+// // Note: 3 iterations of the loop are necessary to exhibit the issue.
+// THREADED_TEST(IssueKeyedLoadExtIntArray) {
+//   v8::HandleScope scope;
+//   LocalContext context;
+//   v8::Handle<v8::Object> obj = v8::Object::New();
+//   int kElementCount = 1;
+//   int32_t* array_data =
+//     static_cast<int32_t*>(malloc(kElementCount * sizeof(int32_t)));
+//   array_data[0] = 2147483647; // Initialize the first element with MAX_INT
+//   obj->SetIndexedPropertiesToExternalArrayData(array_data,
+//                                                v8::kExternalIntArray,
+//                                                kElementCount);
+//   context->Global()->Set(v8_str("ext_array"), obj);
+//   const char* boundary_program =
+//       "var res = 0;"
+//       "for (var i = 0; i < 3; i++) {"
+//       "  res = ext_array[0];" // Get the first element
+//       "}"
+//       "res;";
+//   v8::Handle<v8::Value> result = CompileRun(boundary_program);
+//   CHECK_EQ((int64_t)2147483647, result->IntegerValue());
+// }
 
-// Regression test for a defect in the actual number of argument count.
-// Handling of actual arguments was wrong when the arguments number
-// was greater than the formal arguments number in
-// Builtins::Generate_ArgumentsAdaptorTrampoline().
-// Used to return always 0 (formal arguments number of Foo)
-// in this test instead of the actual arguments number.
-THREADED_TEST(IssueActualArgumentsNum) {
-  v8::HandleScope scope;
-  LocalContext context;
-  CompileRun(
-    "function Foo() {"
-    "  return arguments.length;"
-    "}");
-  Local<Function> Foo =
-      Local<Function>::Cast(context->Global()->Get(v8_str("Foo")));
+// // Regression test for a defect in the actual number of argument count.
+// // Handling of actual arguments was wrong when the arguments number
+// // was greater than the formal arguments number in
+// // Builtins::Generate_ArgumentsAdaptorTrampoline().
+// // Used to return always 0 (formal arguments number of Foo)
+// // in this test instead of the actual arguments number.
+// THREADED_TEST(IssueActualArgumentsNum) {
+//   v8::HandleScope scope;
+//   LocalContext context;
+//   CompileRun(
+//     "function Foo() {"
+//     "  return arguments.length;"
+//     "}");
+//   Local<Function> Foo =
+//       Local<Function>::Cast(context->Global()->Get(v8_str("Foo")));
 
-  v8::Handle<Value>* args0 = NULL;
-  Local<v8::Integer> l0 = Local<v8::Integer>::Cast(Foo->Call(Foo, 0, args0));
-  CHECK_EQ((int64_t)0, l0->Value());
+//   v8::Handle<Value>* args0 = NULL;
+//   Local<v8::Integer> l0 = Local<v8::Integer>::Cast(Foo->Call(Foo, 0, args0));
+//   CHECK_EQ((int64_t)0, l0->Value());
 
-  v8::Handle<Value> args1[] = { v8_num(1.1) };
-  Local<v8::Integer> l1 = Local<v8::Integer>::Cast(Foo->Call(Foo, 1, args1));
-  CHECK_EQ((int64_t)1, l1->Value());
+//   v8::Handle<Value> args1[] = { v8_num(1.1) };
+//   Local<v8::Integer> l1 = Local<v8::Integer>::Cast(Foo->Call(Foo, 1, args1));
+//   CHECK_EQ((int64_t)1, l1->Value());
 
-  v8::Handle<Value> args2[] = { v8_num(2.2),
-                                v8_num(3.3) };
-  Local<v8::Integer> l2 = Local<v8::Integer>::Cast(Foo->Call(Foo, 2, args2));
-  CHECK_EQ((int64_t)2, l2->Value());
+//   v8::Handle<Value> args2[] = { v8_num(2.2),
+//                                 v8_num(3.3) };
+//   Local<v8::Integer> l2 = Local<v8::Integer>::Cast(Foo->Call(Foo, 2, args2));
+//   CHECK_EQ((int64_t)2, l2->Value());
 
-  v8::Handle<Value> args3[] = { v8_num(4.4),
-                                v8_num(5.5),
-                                v8_num(6.6) };
-  Local<v8::Integer> l3 = Local<v8::Integer>::Cast(Foo->Call(Foo, 3, args3));
-  CHECK_EQ((int64_t)3, l3->Value());
+//   v8::Handle<Value> args3[] = { v8_num(4.4),
+//                                 v8_num(5.5),
+//                                 v8_num(6.6) };
+//   Local<v8::Integer> l3 = Local<v8::Integer>::Cast(Foo->Call(Foo, 3, args3));
+//   CHECK_EQ((int64_t)3, l3->Value());
 
-  v8::Handle<Value> args4[] = { v8_num(7.7),
-                                v8_num(8.8),
-                                v8_num(9.9),
-                                v8_num(10.11) };
-  Local<v8::Integer> l4 = Local<v8::Integer>::Cast(Foo->Call(Foo, 4, args4));
-  CHECK_EQ((int64_t)4, l4->Value());
-}
+//   v8::Handle<Value> args4[] = { v8_num(7.7),
+//                                 v8_num(8.8),
+//                                 v8_num(9.9),
+//                                 v8_num(10.11) };
+//   Local<v8::Integer> l4 = Local<v8::Integer>::Cast(Foo->Call(Foo, 4, args4));
+//   CHECK_EQ((int64_t)4, l4->Value());
+// }
+
 
 // Extracted from test-api/CatchStackOverflow
 // Fails with a sigsegv on sh4 QEMU.
-// Reduce the stack size (in Kb) when running cctest, for instance: cctest -stack_size=256 ...
 TEST(IssueCatchStackOverflow) {
-  v8::HandleScope scope;
+  i::FLAG_stack_size = 400; // Reduce stack size to speedup test
+  CcTest::InitializeVM();
+  HandleScope scope(CcTest::i_isolate());
   LocalContext context;
   v8::TryCatch try_catch;
-  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(
+  const char *source_exception =
     "function f() {"
     "  return f();"
     "}"
     ""
-    "f();"));
-  v8::Handle<v8::Value> result = script->Run();
-  CHECK(result.IsEmpty());
+    "f();";
+  CompileRun(source_exception);
+  CHECK(try_catch.HasCaught());
+  v8::Handle<v8::Message> message = try_catch.Message();
+  CHECK(!message.IsEmpty());
+  CHECK_EQ(1, message->GetLineNumber());
+  v8::String::Utf8Value message_str(message->Get());
+  CHECK(strstr(*message_str, "Maximum call stack size exceeded"));
 }
 
 
@@ -168,7 +169,8 @@ TEST(IssueCatchStackOverflow) {
 // The problem was in assembler-sh4 where one must call
 // positions_recorder()->WriteRecordedPositions() for all jsr/jmp
 TEST(IssueTryCatchSourceInfo) {
-  v8::HandleScope scope;
+  CcTest::InitializeVM();
+  HandleScope scope(CcTest::i_isolate());
   LocalContext context;
   v8::TryCatch try_catch;
   const char* source_exception = "function f(){throw 1;} f()";
@@ -188,12 +190,16 @@ TEST(IssueTryCatchSourceInfo) {
 // This guard was moved such tha eval location is
 // correctly setup.
 TEST(IssueEvalStackTrace) {
-  v8::HandleScope scope;
+  CcTest::InitializeVM();
+  HandleScope scope(CcTest::i_isolate());
   LocalContext context;
   v8::TryCatch try_catch;
+  const char *source_exception = "try { eval(\"FAIL\") } catch(e) { e.stack }";
   v8::Handle<v8::Script> script =
-    v8::Script::Compile(v8::String::New("try { eval(\"FAIL\") } catch(e) { e.stack }"));
-  v8::internal::Handle<v8::internal::String> result = v8::Utils::OpenHandle(*v8::Handle<v8::String>::Cast(script->Run()));
-  // Check that the returned string contains an eval location
-  CHECK(strstr(*(*result)->ToCString(), "eval at") != NULL);
+    v8::Script::Compile(v8::String::New(source_exception));
+  v8::Handle<v8::String> result = v8::Handle<v8::String>::Cast(script->Run());
+  v8::String::Utf8Value message_str(result);
+  CHECK(strstr(*message_str, "FAIL is not defined")); // Check error
+  CHECK(strstr(*message_str, "at eval")); // check that there is a stack trace
+  CHECK(strstr(*message_str, "(eval at")); // check that source info is present
 }
