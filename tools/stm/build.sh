@@ -31,6 +31,20 @@ vfp3=${vfp3:-on}
 logging=${logging:-off}
 prof=${prof:-off}
 tests=${tests:-""}
+profile_gcov=${profile_gcov:-off}
+
+# gcov profiling only works in debug mode
+if [ "$profile_gcov" = on -a "$mode" = release ]; then
+    echo "error: cannot compile for both mode=release and profile_gcov=on. Use mode=debug for coverage." >&2
+    exit 1
+fi
+# Add the right flags
+if [ "$profile_gcov" = on ]; then
+  export CFLAGS="--coverage"
+  export CXXFLAGS="--coverage"
+  export LDFLAGS="--coverage"
+fi
+
 
 make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} ${jobs+-j$jobs} "$@"
 
