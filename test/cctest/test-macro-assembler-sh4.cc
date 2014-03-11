@@ -885,11 +885,6 @@ static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   *hi = i >> 32;
 }
 
-static void UInt64AsTwoUInt32(int64_t i, uint32_t* lo, uint32_t* hi) {
-  *lo = i & 0xffffffff;
-  *hi = i >> 32;
-}
-
 // Test TryDoubleToInt32Exact()
 TEST(sh4_ma_7) {
   BEGIN();
@@ -927,7 +922,7 @@ TEST(sh4_ma_7) {
   B_LINE(eq, &error); // error if found exact
 
   CMT("Check TryDoubleToInt32Exact(+inf) -> not exact");
-  UInt64AsTwoUInt32(V8_INFINITY, &low, &high);
+  DoubleAsTwoUInt32(V8_INFINITY, &low, &high);
   __ mov(r1, Operand(low));
   __ mov(r2, Operand(high));
   __ movd(sh4_dr0, r1, r2);

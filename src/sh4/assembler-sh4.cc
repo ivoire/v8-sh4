@@ -60,18 +60,9 @@ ExternalReference ExternalReference::cpu_features() {
 // snapshot.
 static unsigned CpuFeaturesImpliedByCompiler() {
   unsigned answer = 0;
-#ifdef CAN_USE_FPU_INSTRUCTIONS
-  answer |= 1u << FPU;
-#endif  // def CAN_USE_FPU_INSTRUCTIONS
 
-#ifdef __sh__
-  // If the compiler is allowed to use FPU then we can use FPU too in our code
-  // generation even when generating snapshots.  This won't work for cross
-  // compilation.
-#if(defined(__SH_FPU_ANY__) && __SH_FPU_ANY__ != 0)
+  // SH4: Assume SH4-300 with FPU
   answer |= 1u << FPU;
-#endif  // defined(__SH_FPU_ANY__) && __SH_FPU_ANY__ != 0
-#endif  // def __sh__
 
   return answer;
 }
@@ -96,21 +87,6 @@ void CpuFeatures::Probe() {
     PrintFeatures();
     return;
   }
-
-#ifndef __sh__
-  // For the simulator=sh4 build, use FPU when FLAG_enable_fpu is enabled.
-  if (FLAG_enable_fpu) {
-    supported_ |= 1u << FPU;
-  }
-#else  // def __sh__
-  // Probe for additional features not already known to be available.
-  if (!IsSupported(FPU) && OS::SHCpuHasFeature(FPU)) {
-    // This implementation also sets the FPU flags if runtime
-    // detection of FPU returns true.
-    supported_ |= 1u << FPU;
-    found_by_runtime_probing_only_ |= 1u << FPU;
-  }
-#endif
 }
 
 

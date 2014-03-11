@@ -59,6 +59,12 @@ using namespace ::v8::internal;
   do { \
     ASM("sw $sp, %0" : "=g" (sp_addr)); \
   } while (0)
+#elif defined(__SH4__)
+#define GET_STACK_POINTER() \
+  static int sp_addr = 0; \
+  do { \
+    ASM("mov r15, %0" : "=r" (sp_addr)); \
+  } while (0)
 #else
 #error Host architecture was not detected as supported by v8
 #endif

@@ -66,20 +66,6 @@ UnaryMathFunction CreateExpFunction() {
   return NULL;
 }
 
-#if defined(V8_HOST_ARCH_SH4)
-OS::MemCopyUint8Function CreateMemCopyUint8Function(
-      OS::MemCopyUint8Function stub) {
- UNIMPLEMENTED();
-}
-
-
-// Convert 8 to 16. The number of character to copy must be at least 8.
-OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
-      OS::MemCopyUint16Uint8Function stub) {
-  UNIMPLEMENTED();
-}
-#endif
-
 #undef __
 
 

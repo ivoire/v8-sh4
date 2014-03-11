@@ -275,6 +275,8 @@ void OS::DebugBreak() {
   asm("bkpt 0");
 #elif V8_HOST_ARCH_MIPS
   asm("break");
+#elif V8_HOST_ARCH_SH4
+  asm("ldtlb");
 #elif V8_HOST_ARCH_IA32
 #if defined(__native_client__)
   asm("hlt");
