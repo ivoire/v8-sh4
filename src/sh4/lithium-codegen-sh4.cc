@@ -2907,10 +2907,64 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 }
 
 
-void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
+void LCodeGen::DoDeferredNumberTagI(LInstruction* instr, // SAMEAS: arm
                                     LOperand* value,
                                     IntegerSignedness signedness) {
-  __ UNIMPLEMENTED_BREAK();
+  Label slow;
+  Register src = ToRegister(value);
+  Register dst = ToRegister(instr->result());
+  DwVfpRegister dbl_scratch = double_scratch0();
+
+  // Preserve the value of all registers.
+  PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+
+  Label done;
+  if (signedness == SIGNED_INT32) {
+    // There was overflow, so bits 30 and 31 of the original integer
+    // disagree. Try to allocate a heap number in new space and store
+    // the value in there. If that fails, call the runtime system.
+    if (dst.is(src)) {
+      __ SmiUntag(src, dst);
+      __ eor(src, src, Operand(0x80000000));
+    }
+    __ vcvt_f64_s32(dbl_scratch, src); // DIFF: codegen
+  } else {
+    __ vcvt_f64_u32(dbl_scratch, src); // DIFF: codegen
+  }
+
+  if (FLAG_inline_new) {
+    __ LoadRoot(scratch0(), Heap::kHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(r5, r3, r4, scratch0(), &slow, DONT_TAG_RESULT);
+    __ Move(dst, r5);
+    __ b(&done);
+  }
+
+  // Slow case: Call the runtime system to do the number allocation.
+  __ bind(&slow);
+
+  // TODO(3095996): Put a valid pointer value in the stack slot where the result
+  // register is stored, as this register is in the pointer map, but contains an
+  // integer value.
+  __ mov(ip, Operand::Zero());
+  __ StoreToSafepointRegisterSlot(ip, dst);
+  // NumberTagI and NumberTagD use the context from the frame, rather than
+  // the environment's HContext or HInlinedContext value.
+  // They only call Runtime::kAllocateHeapNumber.
+  // The corresponding HChange instructions are added in a phase that does
+  // not have easy access to the local context.
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
+  __ Move(dst, r0);
+  __ sub(dst, dst, Operand(kHeapObjectTag));
+
+  // Done. Put the value in dbl_scratch into the value of the allocated heap
+  // number.
+  __ bind(&done);
+  __ vstr(dbl_scratch, dst, HeapNumber::kValueOffset);
+  __ add(dst, dst, Operand(kHeapObjectTag));
+  __ StoreToSafepointRegisterSlot(dst, dst);
 }
 
 
@@ -2957,8 +3011,8 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) { // SAMEAS: arm
   Register input_reg = ToRegister(instr->value());
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
-  //LowDwVfpRegister double_scratch = double_scratch0();
-  //DwVfpRegister double_scratch2 = ToDoubleRegister(instr->temp2());
+  DwVfpRegister double_scratch = double_scratch0();
+  DwVfpRegister double_scratch2 = ToDoubleRegister(instr->temp2());
 
   ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
   ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
@@ -2969,6 +3023,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) { // SAMEAS: arm
   // The carry flag is set when we reach this deferred code as we just executed
   // SmiUntag(heap_object, SetCC).
   STATIC_ASSERT(kHeapObjectTag == 1);
+  // SH4: it was a tagged object (ref LCodeGen::DoTaggedToI()), recreate the tag
   __ add(scratch2, input_reg, Operand(input_reg)); // DIFF: codegen
   __ lor(scratch2, scratch2, Operand(kHeapObjectTag)); // DIFF: codegen
 
@@ -3011,19 +3066,18 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) { // SAMEAS: arm
     // Deoptimize if we don't have a heap number.
     DeoptimizeIf(ne, instr->environment());
 
-    __ UNIMPLEMENTED_BREAK(); // TODO: FPU
-    // __ sub(ip, scratch2, Operand(kHeapObjectTag));
-    // __ vldr(double_scratch2, ip, HeapNumber::kValueOffset);
-    // __ TryDoubleToInt32Exact(input_reg, double_scratch2, double_scratch);
-    // DeoptimizeIf(ne, instr->environment());
+    __ sub(ip, scratch2, Operand(kHeapObjectTag));
+    __ vldr(double_scratch2, ip, HeapNumber::kValueOffset);
+    __ TryDoubleToInt32Exact(input_reg, double_scratch2, double_scratch);
+    DeoptimizeIf(ne, instr->environment());
 
-    // if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    //   __ cmp(input_reg, Operand::Zero());
-    //   __ b(ne, &done);
-    //   __ VmovHigh(scratch1, double_scratch2);
-    //   __ tst(scratch1, Operand(HeapNumber::kSignMask));
-    //   DeoptimizeIf(ne, instr->environment());
-    // }
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ cmp(input_reg, Operand::Zero());
+      __ b(ne, &done);
+      __ VmovHigh(scratch1, double_scratch2);
+      __ tst(scratch1, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(ne, instr->environment());
+    }
   }
   __ bind(&done);
 }

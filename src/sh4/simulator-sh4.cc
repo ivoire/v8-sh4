@@ -735,7 +735,15 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   sregs_.macl = 0;
   sregs_.pr = 0;
   sregs_.fpul = 0;
-  sregs_.fpscr = 1 | 1 << 19;
+
+  /* Set fpscr as defined by the default Linux ABI. */
+  sregs_.fpscr =
+    (0 <<  0) | /* RM:0 round to nearest */
+    (0 << 18) | /* DN:0 support denormalized */
+    (1 << 19) | /* PR:1 double arithmetic */
+    (0 << 20) | /* SZ:0 32 bit fmov */
+    (0 << 21) | /* FR:0 FPU register bank 0 */
+    0; /* All FPU exceptions disabled */
 
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave

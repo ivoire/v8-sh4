@@ -874,17 +874,10 @@ class Assembler : public AssemblerBase {
   void dfloat(DwVfpRegister Dd, const Operand &src, Register rtmp = sh4_rtmp);
 
   // Double conversion from unsigned int register: Dd = (double)Rs(unsigned)
-  void dufloat(DwVfpRegister Dd, Register Rs, DwVfpRegister drtmp, Register rtmp);
+  void dufloat(DwVfpRegister Dd, Register Rs, Register rtmp = sh4_rtmp);
 
-  // Interger conversion from double: Rs = (int)Dd
+  // Integer conversion from double: Rs = (int)Dd
   void idouble(Register Rd, DwVfpRegister Ds, Register fpscr = no_reg);
-  // Interger conversion from dingle: Rs = (int)Frs
-  void isingle(Register Rd, SwVfpRegister Frs);
-
-  // Conversion from simple to double
-  void fcnvsd(DwVfpRegister Dd, SwVfpRegister Fs)   { flds_FPUL_(Fs); fcnvsd_FPUL_double_(Dd); }
-  // Conversion from double to simple
-  void fcnvds(SwVfpRegister Fd, DwVfpRegister Ds)   { fcnvds_double_FPUL_(Ds); fsts_FPUL_(Fd); }
 
   // Double comparisons
   void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Ds, Dd); }
@@ -936,10 +929,13 @@ class Assembler : public AssemblerBase {
                     Condition cond = al);
   void vcvt_f64_u32(DwVfpRegister dst,
                     Register src,
-                    DwVfpRegister drtmp,
                     VFPConversionMode mode = kDefaultRoundToZero,
                     Condition cond = al,
                     Register rtmp = sh4_rtmp);
+  void vcvt_s32_f64(Register dst,
+                    DwVfpRegister src,
+                    VFPConversionMode mode = kDefaultRoundToZero,
+                    Condition cond = al);
 
   void vmov(DwVfpRegister dst, double imm,
             Register scratch = no_reg,
@@ -947,6 +943,8 @@ class Assembler : public AssemblerBase {
   void vmov(DwVfpRegister dst, DwVfpRegister src, Condition cond = al);
   void vmov(DwVfpRegister dst, Register src1, Register src2, Condition cond = al);
   void vmov(Register dst1, Register dst2, DwVfpRegister src, Condition cond = al);
+  void vmov(SwVfpRegister dst, Register src, Condition cond = al);
+  void vmov(Register dst, SwVfpRegister src, Condition cond = al);
 
   void vneg(DwVfpRegister dst, DwVfpRegister src, const Condition cond = al);
   void vabs(DwVfpRegister dst, DwVfpRegister src, const Condition cond = al);
@@ -1124,6 +1122,8 @@ class Assembler : public AssemblerBase {
 
   void movd(DwVfpRegister Dd, Register Rs1, Register Rs2);
   void movd(Register Rd1, Register Rd2, DwVfpRegister Ds);
+  void movf(SwVfpRegister Fd, Register Rs);
+  void movf(Register Rd, SwVfpRegister Fs);
 
   inline void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
   inline void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);

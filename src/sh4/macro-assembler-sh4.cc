@@ -682,6 +682,44 @@ void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
 }
 
 
+void MacroAssembler::Vmov(const DwVfpRegister dst,
+                          const double imm,
+                          const Register scratch) {
+  // SH4: scratch is not used
+  static const DoubleRepresentation minus_zero(-0.0);
+  static const DoubleRepresentation zero(0.0);
+  DoubleRepresentation value(imm);
+  // Handle special values first.
+  if (value.bits == zero.bits) {
+    vmov(dst, kDoubleRegZero);
+  } else if (value.bits == minus_zero.bits) {
+    vneg(dst, kDoubleRegZero);
+  } else {
+    vmov(dst, imm, scratch);
+  }
+}
+
+
+void MacroAssembler::VmovHigh(Register dst, DwVfpRegister src) {
+  vmov(dst, src.high());
+}
+
+
+void MacroAssembler::VmovHigh(DwVfpRegister dst, Register src) {
+  vmov(dst.high(), src);
+}
+
+
+void MacroAssembler::VmovLow(Register dst, DwVfpRegister src) {
+  vmov(dst, src.low());
+}
+
+
+void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
+  vmov(dst.low(), src);
+}
+
+
 void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
 
   if (frame_mode == BUILD_STUB_FRAME) {
@@ -2277,20 +2315,36 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 
 
 void MacroAssembler::SmiToDouble(DwVfpRegister value, Register smi) {
+  ASSERT(!smi.is(ip));
+  // ip is used as scratch here, be careful at call site
   SmiUntag(ip, smi);
   vcvt_f64_s32(value, ip);
 }
 
 void MacroAssembler::TestDoubleIsInt32(DwVfpRegister double_input,
                                        DwVfpRegister double_scratch) {
-  UNIMPLEMENTED();
+  ASSERT(!double_input.is(double_scratch));
+  // SH4: needs an additional scratch register, save/restore ip
+  push(ip);
+  vcvt_s32_f64(ip, double_input);
+  vcvt_f64_s32(double_scratch, ip);
+  pop(ip);
+  dcmpeq(double_input, double_scratch);
+  // The T bit is cleared if ot's an int32 (ref to TryDoubleToInt32Exact)
 }
 
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DwVfpRegister double_input,
                                            DwVfpRegister double_scratch) {
-  UNIMPLEMENTED();
+  ASSERT(!double_input.is(double_scratch));
+  vcvt_s32_f64(result, double_input);
+  vcvt_f64_s32(double_scratch, result);
+  dcmpeq(double_input, double_scratch);
+  // The T bit will be cleared if not exact (i.e. test with ne or f)
+  // as in:
+  // TryDoubleToInt32Exact(...)
+  // b(ne, &not_exact);
 }
 
 
@@ -2304,22 +2358,60 @@ void MacroAssembler::TryInt32Floor(Register result,
 }
 
 
-void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
+void MacroAssembler::TryInlineTruncateDoubleToI(Register result, // SAMEAS: arm
                                                 DwVfpRegister double_input,
                                                 Label* done) {
-  UNIMPLEMENTED();
+  vcvt_s32_f64(result, double_input); // DIFF: codegen
+
+  // If result is not saturated (0x7fffffff or 0x80000000), we are done.
+  sub(ip, result, Operand(1));
+  cmpge(ip, Operand(0x7ffffffe)); // DIFF; codegen
+  b(f, done); // DIFF; codegen
 }
 
 
-void MacroAssembler::TruncateDoubleToI(Register result,
+void MacroAssembler::TruncateDoubleToI(Register result, // SAMEAS: arm
                                        DwVfpRegister double_input) {
-  UNIMPLEMENTED();
+  Label done;
+
+  TryInlineTruncateDoubleToI(result, double_input, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  push(lr);
+  sub(sp, sp, Operand(kDoubleSize));  // Put input on stack.
+  vstr(double_input, MemOperand(sp, 0));
+
+  DoubleToIStub stub(sp, result, 0, true, true);
+  CallStub(&stub);
+
+  add(sp, sp, Operand(kDoubleSize));
+  pop(lr);
+
+  bind(&done);
 }
 
 
-void MacroAssembler::TruncateHeapNumberToI(Register result,
+void MacroAssembler::TruncateHeapNumberToI(Register result, // SAMEAS: arm
                                            Register object) {
-  UNIMPLEMENTED_BREAK();
+  Label done;
+  DwVfpRegister double_scratch = kScratchDoubleReg;
+  ASSERT(!result.is(object));
+
+  vldr(double_scratch,
+       MemOperand(object, HeapNumber::kValueOffset - kHeapObjectTag));
+  TryInlineTruncateDoubleToI(result, double_scratch, &done);
+
+  // If we fell through then inline version didn't succeed - call stub instead.
+  push(lr);
+  DoubleToIStub stub(object,
+                     result,
+                     HeapNumber::kValueOffset - kHeapObjectTag,
+                     true,
+                     true);
+  CallStub(&stub);
+  pop(lr);
+
+  bind(&done);
 }
 
 
@@ -2357,7 +2449,6 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst,
 void MacroAssembler::CallRuntime(const Runtime::Function* f,
                                  int num_arguments,
                                  SaveFPRegsMode save_doubles) {
-  ASSERT(save_doubles == kDontSaveFPRegs);
   // All parameters are on the stack.  r0 has the return value after call.
 #ifdef DEBUG
   // Clobber parameter registers on entry.

@@ -1938,16 +1938,30 @@
       int n = (iword >> 8) & 0xf;
       {
         if (FPSCR_PR) {
-          if (isnan(get_dregister(n)))
+          double src = get_dregister(n);
+          unsigned flags = get_sregister(fpscr);
+          flags &= ~(0x3f << 12); /* Clear the 6 Cause bits. */
+          if (isnan(src)) {
             set_sregister(fpul, 0x80000000);
-          else
-            set_sregister(fpul, (int32_t) get_dregister(n));
+            flags |= (1<<16)/*CauseV*/;
+          } else {
+            double trc = trunc(src);
+            if ((isinf(src) && src > 0) || trc > 2147483647) {
+              set_sregister(fpul, 2147483647);
+              flags |= (1<<16)/*CauseV*/;
+            } else if ((isinf(src) && src < 0) || trc < (-2147483647-1)) {
+              set_sregister(fpul, -2147483647-1);
+              flags |= (1<<16)/*CauseV*/;
+            } else {
+              set_sregister(fpul, (int)trc);
+              if (src != trc)
+                flags |= (1<<12)/*CauseI*/;
+            }
+            set_sregister(fpscr, flags);
+          }
         }
         else {
-          if (isnan((float)get_fregister(n)))
-            set_sregister(fpul, 0x80000000);
-          else
-            set_sregister(fpul, (int) get_fregister(n));
+          UNIMPLEMENTED();
         }
       }
       break;

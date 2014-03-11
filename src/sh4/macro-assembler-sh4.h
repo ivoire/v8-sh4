@@ -410,6 +410,14 @@ class MacroAssembler: public Assembler {
     VFPCanonicalizeNaN(value, value, cond);
   }
 
+  void Vmov(const DwVfpRegister dst,
+            const double imm,
+            const Register scratch = no_reg);
+
+  void VmovHigh(Register dst, DwVfpRegister src);
+  void VmovHigh(DwVfpRegister dst, Register src);
+  void VmovLow(Register dst, DwVfpRegister src);
+  void VmovLow(DwVfpRegister dst, Register src);
 
   // ---------------------------------------------------------------------------
   // Support for marking unimplemented code generator function
@@ -898,11 +906,13 @@ class MacroAssembler: public Assembler {
 
   // Check if a double can be exactly represented as a signed 32-bit integer.
   // Z flag set to one if true.
+  // SH4: T flaq set if true, use an additional scratch Register
   void TestDoubleIsInt32(DwVfpRegister double_input,
                          DwVfpRegister double_scratch);
 
   // Try to convert a double to a signed 32-bit integer.
   // Z flag set to one and result assigned if the conversion is exact.
+  // SH4: T flaq set if conversion is exact
   void TryDoubleToInt32Exact(Register result,
                              DwVfpRegister double_input,
                              DwVfpRegister double_scratch);

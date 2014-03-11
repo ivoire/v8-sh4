@@ -877,62 +877,86 @@ TEST(sh4_ma_6) {
 }
 
 
-// Test ConvertToInt32()
-// TODO(stm): Test TryDoubleToInt32 new interface
-// TEST(sh4_ma_7) {
-//   BEGIN();
+static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
+  uint64_t i;
+  OS::MemCopy(&i, &d, 8);
 
-//   Label error;
-//   PROLOGUE();
+  *lo = i & 0xffffffff;
+  *hi = i >> 32;
+}
 
-//   Label not_int32_1, skip_int32_1, not_int32_2, not_int32_3;
-//   Handle<Object> num;
-//   CMT("Check ConvertToInt32(4.1) == 4");
-//   num = assm.isolate()->factory()->NewNumber(4.1, TENURED);
-//   __ mov(r0, Operand(4));
-//   __ mov(r1, Operand(num));
-//   __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_1);
-//   __ cmp(r2, r0);
-//   B_LINE(ne, &error);
-//   __ jmp(&skip_int32_1);
-//   __ bind(&not_int32_1);
-//   B_LINE(al, &error);
-//   __ bind(&skip_int32_1);
+static void UInt64AsTwoUInt32(int64_t i, uint32_t* lo, uint32_t* hi) {
+  *lo = i & 0xffffffff;
+  *hi = i >> 32;
+}
 
-//   CMT("Check ConvertToInt32(nan) == not int32");
-//   __ mov(r1, Operand(NAN_VALUE()));
-//   __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_2);
-//   B_LINE(al, &error);
-//   __ bind(&not_int32_2);
+// Test TryDoubleToInt32Exact()
+TEST(sh4_ma_7) {
+  BEGIN();
 
-//   CMT("Check ConvertToInt32(0X80000000) == not int32");
-//   num = assm.isolate()->factory()->NewNumber(static_cast<double>(0x80000000U),
-//                                              TENURED);
-//   __ mov(r1, Operand(num));
-//   __ ConvertToInt32(r1, r2, r3, r4, dr0, &not_int32_3);
-//   B_LINE(al, &error);
-//   __ bind(&not_int32_3);
+  Label error;
+  PROLOGUE();
 
-//   // All ok.
-//   __ mov(r0, Operand(0));
-//   EPILOGUE();
-//   __ rts();
+  uint32_t low, high;
 
-//   __ bind(&error);
-//   __ mov(r0, r10);
-//   EPILOGUE();
-//   __ rts();
+  CMT("Check TryDoubleToInt32Exact(4.0) -> exact");
+  DoubleAsTwoUInt32(4.0, &low, &high);
+  __ mov(r0, Operand(4));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ TryDoubleToInt32Exact(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  B_LINE(ne, &error); // error if not found exact
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
 
-//   JIT();
-// #ifdef DEBUG
-//   Code::cast(code)->Print();
-// #endif
+  CMT("Check TryDoubleToInt32Exact(4.1) -> not exact");
+  DoubleAsTwoUInt32(4.1, &low, &high);
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ TryDoubleToInt32Exact(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  B_LINE(eq, &error); // error if found exact
 
-//   F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
-//   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
-//   ::printf("f() = %d\n", res);
-//   CHECK_EQ(0, res);
-// }
+  CMT("Check TryDoubleToInt32Exact(0x80000000) -> not exact (overflow)");
+  DoubleAsTwoUInt32((double)0x80000000U, &low, &high);
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ TryDoubleToInt32Exact(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  B_LINE(eq, &error); // error if found exact
+
+  CMT("Check TryDoubleToInt32Exact(+inf) -> not exact");
+  UInt64AsTwoUInt32(V8_INFINITY, &low, &high);
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ TryDoubleToInt32Exact(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  B_LINE(eq, &error); // error if found exact
+
+  // TODO(stm)
+  // CMT("Check TryDoubleToInt32Exact(nan) -> not exact");
+
+  // All ok.
+  __ mov(r0, Operand(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
 
 // Test CountLeadingZeros
 TEST(sh4_ma_8) {

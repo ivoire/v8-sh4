@@ -1888,22 +1888,29 @@ TEST(30) {
 }
 
 
+// Test Assembler::dfloat()
 TEST(31) {
-  Label end;
-
   BEGIN();
+
   PROLOGUE();
+  Label error;
+
+  // Check (double)123
   __ dfloat(sh4_dr0, Operand(123));
-  __ mov(r0, Operand(0));
-
   __ dcmpeq(sh4_dr0, sh4_dr4);
-  __ bt(&end);
+  B_LINE(f, &error);
 
-  __ mov(r0, Operand(1));
+  // Check (double)(int)0x80000000
+  __ dfloat(sh4_dr0, Operand(0x80000000));
+  __ dcmpeq(sh4_dr0, sh4_dr6);
+  B_LINE(f, &error);
+
+  __ mov(r0, Operand(0));
   EPILOGUE();
   __ rts();
 
-  __ bind(&end);
+  __ bind(&error);
+  __ mov(r0, r10);
   EPILOGUE();
   __ rts();
 
@@ -1914,9 +1921,54 @@ TEST(31) {
 
   F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
 #if defined(USE_SIMULATOR)
-  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 123, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 123.0, (double)(int)0x80000000));
 #else
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123, 0, 0, 0, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123.0, (double)(int)0x80000000, 0, 0, 0));
+#endif
+  CHECK_EQ(0, res);
+}
+
+// Test Assembler::dufloat()
+// SH4: dufloat implementation is complicated as unsigned conversion is
+// not available on HW. Thus, test some case where the unsigned value would
+// overflow a signed convertion (0x80000000U for instance).
+TEST(31b) {
+  BEGIN();
+
+  PROLOGUE();
+  Label error;
+
+  // Check (double)123
+  __ mov(r0, Operand(123));
+  __ dufloat(sh4_dr0, r0);
+  __ dcmpeq(sh4_dr0, sh4_dr4);
+  B_LINE(f, &error);
+
+  // Check (double)0x80000000U
+  __ mov(r0, Operand(0x80000000));
+  __ dufloat(sh4_dr0, r0);
+  __ dcmpeq(sh4_dr0, sh4_dr6);
+  B_LINE(f, &error);
+
+  __ mov(r0, Operand(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  Code::cast(code)->Print();
+#endif
+
+  F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+#if defined(USE_SIMULATOR)
+  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 123.0, (double)0x80000000U));
+#else
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123.0, (double)0x80000000U, 0, 0, 0));
 #endif
   CHECK_EQ(0, res);
 }
@@ -1983,13 +2035,40 @@ TEST(33) {
   Label error;
   PROLOGUE();
 
-  __ idouble(r1, sh4_dr4);
+  // Check (int)4212.0
+  __ idouble(r1, sh4_dr4, r2/*FPSCR*/);
+  __ tst(r2, Operand(1<<16/*CauseV bit*/)); // Check is valid
+  B_LINE(f, &error);
+  __ tst(r2, Operand(1<<12/*CauseI bit*/)); // Check is exact
+  B_LINE(f, &error);
   __ cmpeq(r1, Operand(4212));
   B_LINE(f, &error);
 
+  // Check (int)(double)0x80000000U (overflows)
+  __ idouble(r1, sh4_dr6, r2/*FPSCR*/);
+  __ tst(r2, Operand(1<<16/*CauseV bit*/)); // Check is invalid
+  B_LINE(t, &error);
+
+  __ cmpeq(r1, Operand(0x7fffffff)); // Check is clamped to MAX_INT
+  B_LINE(f, &error);
+
+  // Check int->double->int provde same result
   __ dfloat(sh4_dr2, Operand(343575789));
-  __ idouble(r3, sh4_dr2);
+  __ idouble(r3, sh4_dr2, r2/*FPSCR*/);
+  __ tst(r2, Operand(1<<16/*CauseV bit*/)); // Check is valid
+  B_LINE(f, &error);
+  __ tst(r2, Operand(1<<12/*CauseI bit*/)); // Check is exact
+  B_LINE(f, &error);
   __ cmpeq(r3, Operand(343575789));
+  B_LINE(f, &error);
+
+  // Check that (int)sqrt(2) is inexact and truncates to 1
+  __ dfloat(sh4_dr2, Operand(2));
+  __ fsqrt(sh4_dr2);
+  __ idouble(r3, sh4_dr2, r2/*FPSCR*/);
+  __ tst(r2, Operand(1<<12/*CauseI bit*/)); // Check is inexact
+  B_LINE(t, &error);
+  __ cmpeq(r3, Operand(1)); // Check truncated to 1
   B_LINE(f, &error);
 
   // All ok
@@ -2009,9 +2088,9 @@ TEST(33) {
 
   F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
 #if defined(USE_SIMULATOR)
-  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 4212, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 4212.0, (double)0x80000000U));
 #else
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 4212, 0, 0, 0, 0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 4212.0, (double)0x80000000U, 0, 0, 0));
 #endif
   CHECK_EQ(0, res);
 }

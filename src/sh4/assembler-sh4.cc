@@ -1593,6 +1593,20 @@ void Assembler::movd(Register Rd1, Register Rd2, DwVfpRegister Ds) {
 }
 
 
+void Assembler::movf(SwVfpRegister Fd, Register Rs) {
+  // SH4: use the stack
+  push(Rs);
+  fmov_incRs_(sp, Fd);
+}
+
+
+void Assembler::movf(Register Rd, SwVfpRegister Fs) {
+  // SH4: use the stack
+  fmov_decRd_(Fs, sp);
+  pop(Rd);
+}
+
+
 void Assembler::fldr(SwVfpRegister dst, const MemOperand& src, Register rtmp) { 
   ASSERT(src.mode_ == Offset);
   if (src.roffset_.is_valid()) {
@@ -1668,7 +1682,9 @@ void Assembler::dfloat(DwVfpRegister Dd, Register Rs)
 }
 
 
-void Assembler::dufloat(DwVfpRegister Dd, Register Rs, DwVfpRegister drtmp, Register rtmp) {
+void Assembler::dufloat(DwVfpRegister Dd, Register Rs, Register rtmp) {
+  ASSERT(!Dd.is(kDoubleRegZero));
+
   Label too_large, end;
 
   // Test the sign bit to see if the conversion from unsigned to signed is safe
@@ -1684,15 +1700,17 @@ void Assembler::dufloat(DwVfpRegister Dd, Register Rs, DwVfpRegister drtmp, Regi
   // Actually if Rs is interpreted as signed, one must add 2*0x80000000 to
   // get the right value.
   bind(&too_large);
-  // TODO: eauivalent to vmov(rtmp, 4294967296.0);
-  dfloat(drtmp, Operand(0x7fffffff), rtmp);
+  push(kDoubleRegZero); // Use it as scratch
+  DwVfpRegister dbl_scratch = kDoubleRegZero;
+  // TODO: equivalent to vmov(rtmp, 4294967296.0);
+  dfloat(dbl_scratch, Operand(0x7fffffff), rtmp);
   dfloat(Dd, Operand(1), rtmp);
-  fadd(drtmp, Dd);
-  fadd(drtmp, drtmp);
+  fadd(dbl_scratch, Dd);
+  fadd(dbl_scratch, dbl_scratch);
   // END TODO
   dfloat(Dd, Rs);
-  fadd(Dd, drtmp);
-
+  fadd(Dd, dbl_scratch);
+  pop(kDoubleRegZero); // Restore double used as scratch
   bind(&end);
 }
 
@@ -1702,12 +1720,6 @@ void Assembler::idouble(Register Rd, DwVfpRegister Ds, Register fpscr)
   ftrc_double_FPUL_(Ds);
   if(!fpscr.is(no_reg))
     sts_FPSCR_(fpscr);
-  sts_FPUL_(Rd);
-}
-
-
-void Assembler::isingle(Register Rd, SwVfpRegister Fs) {
-  flds_FPUL_(Fs);
   sts_FPUL_(Rd);
 }
 
@@ -2354,9 +2366,9 @@ void Assembler::vcvt_f64_s32(DwVfpRegister dst,
                              VFPConversionMode mode,
                              Condition cond)
 {
-  Label skip;
-  ASSERT(mode == kDefaultRoundToZero);
+  // SH4: the conversion from int is always exact, ignore the conversion mode
   ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
   if (cond != al)
     b(cond == ne ? eq: ne, &skip, Label::kNear);
   dfloat(dst, src);
@@ -2366,20 +2378,37 @@ void Assembler::vcvt_f64_s32(DwVfpRegister dst,
 
 void Assembler::vcvt_f64_u32(DwVfpRegister dst,
                              Register src,
-                             DwVfpRegister drtmp,
                              VFPConversionMode mode,
                              Condition cond,
                              Register rtmp)
 {
-  Label skip;
-  ASSERT(mode == kDefaultRoundToZero);
+  // SH4: the conversion from unsigned is always exact, ignore the conversion mode
   ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
   if (cond != al)
     b(cond == ne ? eq: ne, &skip, Label::kNear);
-  dufloat(dst, src, drtmp, rtmp);
+  dufloat(dst, src, rtmp);
   if (cond != al)
     bind(&skip);
 }
+
+
+void Assembler::vcvt_s32_f64(Register dst,
+                             DwVfpRegister src,
+                             VFPConversionMode mode,
+                             Condition cond)
+{
+  // SH4: TODO(stm): check if the default conversion mode for SH4 macthes
+  ASSERT(mode == kDefaultRoundToZero);
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  idouble(dst, src);
+  if (cond != al)
+    bind(&skip);
+}
+
 
 static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;
@@ -2394,7 +2423,7 @@ void Assembler::vmov(DwVfpRegister dst,
                      Register scratch,
                      Register rtmp)
 {
-  // Note that scratch is never used, we use rtmp instead.
+  // SH4: scratch is not used, we use rtmp instead.
   uint32_t lo, hi;
   DoubleAsTwoUInt32(imm, &lo, &hi);
   // SH4: push high bits first, then low bits, such that data layout is correct
@@ -2443,6 +2472,31 @@ void Assembler::vmov(Register dst1, Register dst2, DwVfpRegister src, Condition 
   if (cond != al)
     bind(&skip);
 }
+
+
+void Assembler::vmov(SwVfpRegister dst, Register src, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  movf(dst, src);
+  if (cond != al)
+    bind(&skip);
+}
+
+
+void Assembler::vmov(Register dst, SwVfpRegister src, Condition cond)
+{
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  movf(dst, src);
+  if (cond != al)
+    bind(&skip);
+}
+
 
 void Assembler::vneg(DwVfpRegister dst, DwVfpRegister src, Condition cond)
 {
