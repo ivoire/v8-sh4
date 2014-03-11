@@ -333,15 +333,15 @@ void RegExpMacroAssemblerSH4::CheckNotBackReferenceIgnoreCase(
 
     __ Push(r4, r5, r6, r7);
     // Address of start of capture.
-    __ add(r4, r0, end_of_input_address());
+    __ add(sh4_r4, r0, end_of_input_address()); // SH4: params // DIFF: codegen
     // Address of current input position.
-    __ add(r5, current_input_offset(), end_of_input_address());
+    __ add(sh4_r5, current_input_offset(), end_of_input_address()); // SH4: params // DIFF: codegen
     // Length of capture.
-    __ mov(r6, r1);
+    __ mov(sh4_r6, r1); // SH4: params // DIFF: codegen
     // Save length on stack for use on return.
     __ push(r1);
     // Isolate.
-    __ mov(r7, Operand(ExternalReference::isolate_address(isolate())));
+    __ mov(sh4_r7, Operand(ExternalReference::isolate_address(isolate()))); // SH4: params // DIFF: codegen
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);
@@ -866,9 +866,9 @@ Handle<HeapObject> RegExpMacroAssemblerSH4::GetCode(Handle<String> source) {
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
     __ Push(r4, r5, r6, r7);
     static const int num_arguments = 3;
-    __ mov(r4, backtrack_stackpointer());
-    __ add(r5, frame_pointer(), Operand(kStackHighEnd));
-    __ mov(r6, Operand(ExternalReference::isolate_address(isolate())));
+    __ mov(sh4_r4, backtrack_stackpointer()); // SH4: params // DIFF: codegen
+    __ add(sh4_r5, frame_pointer(), Operand(kStackHighEnd)); // SH4: params // DIFF: codegen
+    __ mov(sh4_r6, Operand(ExternalReference::isolate_address(isolate()))); // SH4: params // DIFF: codegen
     __ PrepareCallCFunction(num_arguments, r0);
     ExternalReference grow_stack =
         ExternalReference::re_grow_stack(isolate());
@@ -1066,16 +1066,16 @@ void RegExpMacroAssemblerSH4::CallCheckStackGuardState(Register scratch) {
   __ PrepareCallCFunction(3, scratch);
 
   // RegExp code frame pointer.
-  __ mov(r6, frame_pointer());
+  __ mov(sh4_r6, frame_pointer()); // SH4: params // DIFF: codegen
   // Code* of self.
-  __ mov(r5, Operand(masm_->CodeObject()));
+  __ mov(sh4_r5, Operand(masm_->CodeObject())); // SH4: params // DIFF: codegen
   // We need to make room for the return address on the stack.
   int stack_alignment = OS::ActivationFrameAlignment();
   ASSERT(IsAligned(stack_alignment, kPointerSize));
   __ sub(sp, sp, Operand(stack_alignment));
 
   // r0 will point to the return address, placed by DirectCEntry.
-  __ mov(r4, sp);
+  __ mov(sh4_r4, sp);  // SH4: params // DIFF: codegen
 
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());

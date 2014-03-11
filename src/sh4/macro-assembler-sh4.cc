@@ -516,7 +516,7 @@ void MacroAssembler::RecordWrite(Register object, // SAMEAS: arm
 }
 
 
-void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
+void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests. // SAMEAS: arm
                                          Register address,
                                          Register scratch,
                                          SaveFPRegsMode fp_mode,
@@ -3246,11 +3246,6 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
                                           Register scratch) {
   ASSERT(!scratch.is(sh4_ip));
   ASSERT(!scratch.is(sh4_rtmp));
-  // Depending on the number of registers used, assert on the right scratch registers.
-  ASSERT((num_reg_arguments < 1 || !scratch.is(r4)) &&
-         (num_reg_arguments < 2 || !scratch.is(r5)) &&
-         (num_reg_arguments < 3 || !scratch.is(r6)) &&
-         (num_reg_arguments < 4 || !scratch.is(r7)));
   int frame_alignment = OS::ActivationFrameAlignment();
   int stack_passed_arguments = CalculateStackPassedWords(num_reg_arguments,
                                                          num_double_arguments);
@@ -3392,19 +3387,19 @@ void MacroAssembler::CheckPageFlag( // SAMEAS: arm
 }
 
 
-void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
+void MacroAssembler::CheckMapDeprecated(Handle<Map> map, // SAMEAS: arm
                                         Register scratch,
                                         Label* if_deprecated) {
   if (map->CanBeDeprecated()) {
     mov(scratch, Operand(map));
     ldr(scratch, FieldMemOperand(scratch, Map::kBitField3Offset));
     tst(scratch, Operand(Smi::FromInt(Map::Deprecated::kMask)));
-    b(f, if_deprecated);
+    b(ne, if_deprecated);
   }
 }
 
 
-void MacroAssembler::JumpIfBlack(Register object,
+void MacroAssembler::JumpIfBlack(Register object, // SAMEAS: arm
                                  Register scratch0,
                                  Register scratch1,
                                  Label* on_black) {
@@ -3413,7 +3408,7 @@ void MacroAssembler::JumpIfBlack(Register object,
 }
 
 
-void MacroAssembler::HasColor(Register object,
+void MacroAssembler::HasColor(Register object, // SAMEAS: arm
                               Register bitmap_scratch,
                               Register mask_scratch,
                               Label* has_color,
@@ -3428,8 +3423,8 @@ void MacroAssembler::HasColor(Register object,
   tst(ip, mask_scratch);
   b(first_bit == 1 ? eq : ne, &other_color);
   // Shift left 1 by adding.
-  add(mask_scratch, mask_scratch, mask_scratch);
-  cmpeq(mask_scratch, Operand::Zero());  // TODO(ivoire): is this correct ?
+  add(mask_scratch, mask_scratch, Operand(mask_scratch)); // DIFF: codegen
+  cmpeq(mask_scratch, Operand::Zero()); // DIFF: codegen
   b(eq, &word_boundary);
   tst(ip, mask_scratch);
   b(second_bit == 1 ? ne : eq, has_color);
@@ -3446,7 +3441,7 @@ void MacroAssembler::HasColor(Register object,
 // Detect some, but not all, common pointer-free objects.  This is used by the
 // incremental write barrier which doesn't care about oddballs (they are always
 // marked black immediately so this code is not hit).
-void MacroAssembler::JumpIfDataObject(Register value,
+void MacroAssembler::JumpIfDataObject(Register value, // SAMEAS: arm
                                       Register scratch,
                                       Label* not_data_object) {
   Label is_data_object;
@@ -3464,28 +3459,115 @@ void MacroAssembler::JumpIfDataObject(Register value,
 }
 
 
-void MacroAssembler::GetMarkBits(Register addr_reg,
+void MacroAssembler::GetMarkBits(Register addr_reg, // SAMEAS: arm
                                  Register bitmap_reg,
                                  Register mask_reg) {
   ASSERT(!AreAliased(addr_reg, bitmap_reg, mask_reg, no_reg));
-  land(bitmap_reg, addr_reg, Operand(~Page::kPageAlignmentMask));
+  and_(bitmap_reg, addr_reg, Operand(~Page::kPageAlignmentMask));
   Ubfx(mask_reg, addr_reg, kPointerSizeLog2, Bitmap::kBitsPerCellLog2);
   const int kLowBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
   Ubfx(ip, addr_reg, kLowBits, kPageSizeBits - kLowBits);
-  lsl(ip, ip, Operand(kPointerSizeLog2));
-  add(bitmap_reg, bitmap_reg, ip);
+  lsl(ip, ip, Operand(kPointerSizeLog2)); // DIFF: codegen
+  add(bitmap_reg, bitmap_reg, ip); // DIFF: codegen
   mov(ip, Operand(1));
-  lsl(mask_reg, ip, mask_reg);
+  lsl(mask_reg, ip, mask_reg); // DIFF: codegen
 }
 
 
-void MacroAssembler::EnsureNotWhite(
+void MacroAssembler::EnsureNotWhite( // SAMEAS: arm
     Register value,
     Register bitmap_scratch,
     Register mask_scratch,
     Register load_scratch,
     Label* value_is_white_and_not_data) {
-  UNIMPLEMENTED();
+  ASSERT(!AreAliased(value, bitmap_scratch, mask_scratch, ip));
+  GetMarkBits(value, bitmap_scratch, mask_scratch);
+
+  // If the value is black or grey we don't need to do anything.
+  ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+  ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
+  ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  ASSERT(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+
+  Label done;
+
+  // Since both black and grey have a 1 in the first position and white does
+  // not have a 1 there we only need to check one bit.
+  ldr(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  tst(mask_scratch, load_scratch);
+  b(ne, &done);
+
+  if (emit_debug_code()) {
+    // Check for impossible bit pattern.
+    Label ok;
+    // LSL may overflow, making the check conservative.
+    lsl(ip, mask_scratch, Operand(1)); // DIFF: codegen
+    tst(load_scratch, ip); // DIFF: codegen
+    b(eq, &ok);
+    stop("Impossible marking bit pattern");
+    bind(&ok);
+  }
+
+  // Value is white.  We check whether it is data that doesn't need scanning.
+  // Currently only checks for HeapNumber and non-cons strings.
+  Register map = load_scratch;  // Holds map while checking type.
+  Register length = load_scratch;  // Holds length of object after testing type.
+  Label is_data_object;
+
+  // Check for heap-number
+  ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));
+  CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+  mov(length, Operand(HeapNumber::kSize), eq); // DIFF: codegen
+  b(eq, &is_data_object);
+
+  // Check for strings.
+  ASSERT(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
+  ASSERT(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
+  // If it's a string and it's not a cons string then it's an object containing
+  // no GC pointers.
+  Register instance_type = load_scratch;
+  ldrb(instance_type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  tst(instance_type, Operand(kIsIndirectStringMask | kIsNotStringMask));
+  b(ne, value_is_white_and_not_data);
+  // It's a non-indirect (non-cons and non-slice) string.
+  // If it's external, the length is just ExternalString::kSize.
+  // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
+  // External strings are the only ones with the kExternalStringTag bit
+  // set.
+  ASSERT_EQ(0, kSeqStringTag & kExternalStringTag);
+  ASSERT_EQ(0, kConsStringTag & kExternalStringTag);
+  tst(instance_type, Operand(kExternalStringTag));
+  mov(length, Operand(ExternalString::kSize), ne); // DIFF: codegen
+  b(ne, &is_data_object);
+
+  // Sequential string, either ASCII or UC16.
+  // For ASCII (char-size of 1) we shift the smi tag away to get the length.
+  // For UC16 (char-size of 2) we just leave the smi tag in place, thereby
+  // getting the length multiplied by 2.
+  ASSERT(kOneByteStringTag == 4 && kStringEncodingMask == 4);
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+  ldr(ip, FieldMemOperand(value, String::kLengthOffset));
+  tst(instance_type, Operand(kStringEncodingMask));
+  Label skip1;
+  bt_near(&skip1); // DIFF: codegen
+  lsr(ip, ip, Operand(1)); // DIFF: codegen
+  bind(&skip1);
+  add(length, ip, Operand(SeqString::kHeaderSize + kObjectAlignmentMask));
+  and_(length, length, Operand(~kObjectAlignmentMask));
+
+  bind(&is_data_object);
+  // Value is a data object, and it is white.  Mark it black.  Since we know
+  // that the object is white we can make it black by flipping one bit.
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+  orr(ip, ip, Operand(mask_scratch));
+  str(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
+
+  and_(bitmap_scratch, bitmap_scratch, Operand(~Page::kPageAlignmentMask));
+  ldr(ip, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+  add(ip, ip, Operand(length));
+  str(ip, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
+
+  bind(&done);
 }
 
 

@@ -706,11 +706,29 @@ void LCodeGen::CallRuntime(const Runtime::Function* function, // SAMEAS: arm
 }
 
 
-void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
+void LCodeGen::LoadContextFromDeferred(LOperand* context) { // SAMEAS: arm
+  if (context->IsRegister()) {
+    __ Move(cp, ToRegister(context));
+  } else if (context->IsStackSlot()) {
+    __ ldr(cp, ToMemOperand(context));
+  } else if (context->IsConstantOperand()) {
+    HConstant* constant =
+        chunk_->LookupConstant(LConstantOperand::cast(context));
+    __ Move(cp, Handle<Object>::cast(constant->handle(isolate())));
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
+void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id, // SAMEAS: arm
                                        int argc,
                                        LInstruction* instr,
                                        LOperand* context) {
-  __ UNIMPLEMENTED_BREAK();
+  LoadContextFromDeferred(context);
+  __ CallRuntimeSaveDoubles(id);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), argc, Safepoint::kNoLazyDeopt);
 }
 
 
@@ -2997,13 +3015,57 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) { // SAMEAS: arm
 }
 
 
-void LCodeGen::EmitNumberUntagD(Register input_reg,
+void LCodeGen::EmitNumberUntagD(Register input_reg, // SAMEAS: arm
                                 DwVfpRegister result_reg,
                                 bool can_convert_undefined_to_nan,
                                 bool deoptimize_on_minus_zero,
                                 LEnvironment* env,
                                 NumberUntagDMode mode) {
-  __ UNIMPLEMENTED_BREAK();
+  Register scratch = scratch0();
+  ASSERT(!result_reg.is(double_scratch0()));
+  Label convert, load_smi, done;
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+    // Smi check.
+    __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
+    // Heap number map check.
+    __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
+    __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+    __ cmp(scratch, Operand(ip));
+    if (can_convert_undefined_to_nan) {
+      __ b(ne, &convert);
+    } else {
+      DeoptimizeIf(ne, env);
+    }
+    // load heap number
+    __ vldr(result_reg, input_reg, HeapNumber::kValueOffset - kHeapObjectTag);
+    if (deoptimize_on_minus_zero) {
+      __ VmovLow(scratch, result_reg);
+      __ cmp(scratch, Operand::Zero());
+      __ b(ne, &done);
+      __ VmovHigh(scratch, result_reg);
+      __ cmp(scratch, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(eq, env);
+    }
+    __ jmp(&done);
+    if (can_convert_undefined_to_nan) {
+      __ bind(&convert);
+      // Convert undefined (and hole) to NaN.
+      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+      __ cmp(input_reg, Operand(ip));
+      DeoptimizeIf(ne, env);
+      __ LoadRoot(scratch, Heap::kNanValueRootIndex);
+      __ vldr(result_reg, scratch, HeapNumber::kValueOffset - kHeapObjectTag);
+      __ jmp(&done);
+    }
+  } else {
+    __ SmiUntag(scratch, input_reg);
+    ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
+  }
+  // Smi to double register conversion
+  __ bind(&load_smi);
+  // scratch: untagged value of input_reg
+  __ vcvt_f64_s32(result_reg, scratch); // DIFF: codegen
+  __ bind(&done);
 }
 
 
@@ -3118,18 +3180,76 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) { // SAMEAS: arm
 }
 
 
-void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) { // SAMEAS: arm
+  LOperand* input = instr->value();
+  ASSERT(input->IsRegister());
+  LOperand* result = instr->result();
+  ASSERT(result->IsDoubleRegister());
+
+  Register input_reg = ToRegister(input);
+  DwVfpRegister result_reg = ToDoubleRegister(result);
+
+  HValue* value = instr->hydrogen()->value();
+  NumberUntagDMode mode = value->representation().IsSmi()
+      ? NUMBER_CANDIDATE_IS_SMI : NUMBER_CANDIDATE_IS_ANY_TAGGED;
+
+  EmitNumberUntagD(input_reg, result_reg,
+                   instr->hydrogen()->can_convert_undefined_to_nan(),
+                   instr->hydrogen()->deoptimize_on_minus_zero(),
+                   instr->environment(),
+                   mode);
 }
 
 
 void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
-  __ UNIMPLEMENTED_BREAK();
+  Register result_reg = ToRegister(instr->result());
+  Register scratch1 = scratch0();
+  DwVfpRegister double_input = ToDoubleRegister(instr->value());
+  DwVfpRegister double_scratch = double_scratch0();
+
+  if (instr->truncating()) {
+    __ TruncateDoubleToI(result_reg, double_input);
+  } else {
+    __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
+    // Deoptimize if the input wasn't a int32 (inside a double).
+    DeoptimizeIf(ne, instr->environment());
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      Label done;
+      __ cmp(result_reg, Operand::Zero());
+      __ b(ne, &done);
+      __ VmovHigh(scratch1, double_input);
+      __ tst(scratch1, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(ne, instr->environment());
+      __ bind(&done);
+    }
+  }
 }
 
 
-void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) { // SAMEAS: arm
+  Register result_reg = ToRegister(instr->result());
+  Register scratch1 = scratch0();
+  DwVfpRegister double_input = ToDoubleRegister(instr->value());
+  DwVfpRegister double_scratch = double_scratch0();
+
+  if (instr->truncating()) {
+    __ TruncateDoubleToI(result_reg, double_input);
+  } else {
+    __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
+    // Deoptimize if the input wasn't a int32 (inside a double).
+    DeoptimizeIf(ne, instr->environment());
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      Label done;
+      __ cmp(result_reg, Operand::Zero());
+      __ b(ne, &done);
+      __ VmovHigh(scratch1, double_input);
+      __ tst(scratch1, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(ne, instr->environment());
+      __ bind(&done);
+    }
+  }
+  __ SmiTag(result_reg, SetT); // DIFF: codegen
+  DeoptimizeIf(t, instr->environment());
 }
 
 
@@ -3149,13 +3269,64 @@ void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) { // SAMEAS: arm
 }
 
 
-void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) { // SAMEAS: arm
+  Register input = ToRegister(instr->value());
+  Register scratch = scratch0();
+
+  __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
+  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+
+  if (instr->hydrogen()->is_interval_check()) {
+    InstanceType first;
+    InstanceType last;
+    instr->hydrogen()->GetCheckInterval(&first, &last);
+
+
+    // If there is only one type in the interval check for equality.
+    if (first == last) {
+      __ cmpeq(scratch, Operand(first)); // DIFF: codegen
+      DeoptimizeIf(ne, instr->environment());
+    } else {
+      __ cmphs(scratch, Operand(first)); // DIFF: codegen
+      DeoptimizeIf(f, instr->environment()); // DIFF: codegen
+      // Omit check for the last type.
+      if (last != LAST_TYPE) {
+        __ cmphi(scratch, Operand(last)); // DIFF: codegen
+        DeoptimizeIf(t, instr->environment()); // DIFF: codegen
+      }
+    }
+  } else {
+    uint8_t mask;
+    uint8_t tag;
+    instr->hydrogen()->GetCheckMaskAndTag(&mask, &tag);
+
+    if (IsPowerOf2(mask)) {
+      ASSERT(tag == 0 || IsPowerOf2(tag));
+      __ tst(scratch, Operand(mask));
+      DeoptimizeIf(tag == 0 ? ne : eq, instr->environment());
+    } else {
+      __ and_(scratch, scratch, Operand(mask));
+      __ cmp(scratch, Operand(tag));
+      DeoptimizeIf(ne, instr->environment());
+    }
+  }
 }
 
 
-void LCodeGen::DoCheckValue(LCheckValue* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoCheckValue(LCheckValue* instr) { // SAMEAS: arm
+  Register reg = ToRegister(instr->value());
+  Handle<HeapObject> object = instr->hydrogen()->object().handle();
+  AllowDeferredHandleDereference smi_check;
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Register reg = ToRegister(instr->value());
+    Handle<Cell> cell = isolate()->factory()->NewCell(object);
+    __ mov(ip, Operand(Handle<Object>(cell)));
+    __ ldr(ip, FieldMemOperand(ip, Cell::kValueOffset));
+    __ cmp(reg, ip);
+  } else {
+    __ cmp(reg, Operand(object));
+  }
+  DeoptimizeIf(ne, instr->environment());
 }
 
 
@@ -3312,8 +3483,39 @@ void LCodeGen::DoAllocate(LAllocate* instr) { // SAMEAS: arm
 }
 
 
-void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoDeferredAllocate(LAllocate* instr) { // SAMEAS: arm
+  Register result = ToRegister(instr->result());
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ mov(result, Operand(Smi::FromInt(0)));
+
+  PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
+  if (instr->size()->IsRegister()) {
+    Register size = ToRegister(instr->size());
+    ASSERT(!size.is(result));
+    __ SmiTag(size);
+    __ push(size);
+  } else {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    __ Push(Smi::FromInt(size));
+  }
+
+  if (instr->hydrogen()->IsOldPointerSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsOldDataSpaceAllocation());
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
+    CallRuntimeFromDeferred(Runtime::kAllocateInOldPointerSpace, 1, instr,
+                            instr->context());
+  } else if (instr->hydrogen()->IsOldDataSpaceAllocation()) {
+    ASSERT(!instr->hydrogen()->IsNewSpaceAllocation());
+    CallRuntimeFromDeferred(Runtime::kAllocateInOldDataSpace, 1, instr,
+                            instr->context());
+  } else {
+    CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr,
+                            instr->context());
+  }
+  __ StoreToSafepointRegisterSlot(r0, result);
 }
 
 

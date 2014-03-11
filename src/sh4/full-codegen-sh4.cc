@@ -3397,9 +3397,9 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   __ PrepareCallCFunction(1, r0);
-  __ ldr(sh4_r4, // SH4: argument 1: DIFF: codegen
+  __ ldr(sh4_r4,
          ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ ldr(sh4_r4, FieldMemOperand(sh4_r4, GlobalObject::kNativeContextOffset));  // SH4: argument 1: DIFF: codegen
+  __ ldr(sh4_r4, FieldMemOperand(sh4_r4, GlobalObject::kNativeContextOffset));  // SH4: params // DIFF: codegen
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
   // 0x41300000 is the top half of 1.0 x 2^20 as a double.
@@ -3502,8 +3502,8 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ bind(&runtime);
     __ PrepareCallCFunction(2, scratch1);
     // Arguments are in r4 and r5 on sh4
-    __ mov(r4, r0);
-    __ mov(r5, Operand(index));
+    __ mov(sh4_r4, r0); // SH4: params // DIFF: codegen
+    __ mov(sh4_r5, Operand(index)); // SH4: params // DIFF: codegen
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ jmp(&done);
   }

@@ -206,7 +206,7 @@ void Deoptimizer::EntryGenerator::Generate() { // SAMEAS: arm
   // Compute the output frame in the deoptimizer.
   __ push(r0);  // Preserve deoptimizer object across call.
   // r0: deoptimizer object; r1: scratch.
-  __ mov(sh4_r4, r0); // DIFF: codegen: move R0 into SH4 first parameter
+  __ mov(sh4_r4, r0); // SH4: params // DIFF: codegen
   __ PrepareCallCFunction(1, r1);
   // Call Deoptimizer::ComputeOutputFrames().
   {

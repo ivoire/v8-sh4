@@ -831,8 +831,9 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) { // SAMEAS: 
   //   r1 - isolate
   FrameScope scope(masm, StackFrame::MANUAL);
   __ Push(pr, fp, r1, r0); // DIFF: codegen
-  __ PrepareCallCFunction(1, 0, r2);
-  __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ PrepareCallCFunction(2, 0, r2); // Actually 2 arguments // DIFF: codegen
+  __ mov(sh4_r4/*r0*/, r0); // SH4: params // DIFF: codegen
+  __ mov(sh4_r5/*r1*/, Operand(ExternalReference::isolate_address(masm->isolate()))); // SH4: params // DIFF: codegen
   __ CallCFunction(
       ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   __ Pop(pr, fp, r1, r0); // DIFF: codegen
@@ -875,8 +876,9 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) { // SAMEAS
   //   r1 - isolate
   FrameScope scope(masm, StackFrame::MANUAL);
   __ Push(pr, fp, r1, r0); // DIFF: codegen
-  __ PrepareCallCFunction(1, 0, r2);
-  __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ PrepareCallCFunction(2, 0, r2); // Actrually 2 arguments // DIFF: codegen
+  __ mov(sh4_r4/*r0*/, r0); // SH4: params // DIFF: codegen
+  __ mov(sh4_r5/*r1*/, Operand(ExternalReference::isolate_address(masm->isolate()))); // SH4: params // DIFF: codegen
   __ CallCFunction(
       ExternalReference::get_make_code_young_function(masm->isolate()), 2);
   __ Pop(pr, fp, r1, r0); // DIFF: codegen
