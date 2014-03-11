@@ -179,23 +179,40 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
-static const int kNoCodeAgeSequenceLength = 7;
+// Ref to Code::PatchPlatformCodeAge(): 8 instructions + 1 padding nop for alignment
+static const int kNoCodeAgeSequenceLength = 8 + 1;
 
 
 Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
-  UNIMPLEMENTED();
+  // SH4: assume same as Arm
+  UNREACHABLE(); // This should never be reached on Arm.
   return Handle<Object>();
 }
 
 
 Code* RelocInfo::code_age_stub() {
-  UNIMPLEMENTED();
-  return NULL;
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  // SH4: must be the same computation as in Code::GetCodeAgeAndParity
+  // and RelocInfo::set_code_age_stub().
+  byte *target_address_pointer =
+    pc_ + Assembler::kInstrSize * kNoCodeAgeSequenceLength - 4;
+  if ((long)target_address_pointer % 4 == 2)
+    target_address_pointer -= 2;
+  ASSERT((long)target_address_pointer % 4 == 0);
+  return Code::GetCodeFromTargetAddress(Memory::Address_at(target_address_pointer));
 }
 
 
 void RelocInfo::set_code_age_stub(Code* stub) {
-  UNIMPLEMENTED();
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  // SH4: must be the same computation as in Code::GetCodeAgeAndParity
+  // and RelocInfo::code_age_stub().
+  byte *target_address_pointer =
+    pc_ + Assembler::kInstrSize * kNoCodeAgeSequenceLength - 4;
+  if ((long)target_address_pointer % 4 == 2)
+      target_address_pointer -= 2;
+  ASSERT((long)target_address_pointer % 4 == 0);
+  Memory::Address_at(target_address_pointer) = stub->instruction_start();
 }
 
 

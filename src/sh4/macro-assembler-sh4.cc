@@ -730,22 +730,29 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(
         this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
-    // The following three instructions must remain together and unmodified
+    // The following instructions must remain together and unmodified
     // for code aging to work properly.
     if (isolate()->IsCodePreAgingActive()) {
       // Pre-age the code.
-      // NOTE: This code must be the same as in PatchPlatformCodeAge (codegen-sh4.cc)
-      //Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-      UNIMPLEMENTED();
-      // add(r0, pc, Operand(-8));
-      // ldr(pc, MemOperand(pc, -4));
-      // emit_code_stub_address(stub);
+      // This code must be the same as in Code::PatchPlatformCodeAge().
+      // Ref to codegen-sh4.cc.
+      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+      nop(); // This nop() is the code age marker
+      mov(r2, pr);
+      jsr_at_following_address();
+      int padding = (long)pc_ % 4 == 0 ?  1: 0;
+      align(); // align
+      emit_code_stub_address(stub);
+      if (padding) nop();
     } else {
-      // NOTE: This code must be the same as in GetNoCodeAgeSequence (codegen-sh4.cc)
+      // This code must be the same as in GetNoCodeAgeSequence()
+      // Ref to codegen-sh4.cc.
       Push(pr, fp, cp, r1);
       nop();
       // Adjust FP to point to saved FP.
       add(fp, sp, Operand(2 * kPointerSize));
+      nop();
+      nop();
     }
   }
 }

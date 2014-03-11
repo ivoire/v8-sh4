@@ -802,8 +802,41 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 }
 
 
-static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
-  __ UNIMPLEMENTED_BREAK();
+static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) { // SAMEAS: arm
+  // For now, we are relying on the fact that make_code_young doesn't do any
+  // garbage collection which allows us to save/restore the registers without
+  // worrying about which of them contain pointers. We also don't build an
+  // internal frame to make the code faster, since we shouldn't have to do stack
+  // crawls in MakeCodeYoung. This seems a bit fragile.
+
+  // SH4: r0 is not set in the Code::PatchPlatformCodeAge() (as does arm),
+  // the beginning of the patch sequence can be rematerialized
+  // by the pr set in Code::PatchPlatformCodeAge() after the call.
+  // This uses the same trick as the mips implementation.
+  // SH4: r2 was set in the Code::PatchPlatformCodeAge() to
+  // the previous value of pr. pr must be restored from it.
+
+  // Move the return address to r0.
+  __ mov(r0, pr);
+  // Adjust r0 to point to the head of the PlatformCodeAge sequence.
+  // It points 6 bytes before the end of the sequence.
+  __ sub(r0, r0,
+         Operand(kNoCodeAgeSequenceLength * Assembler::kInstrSize - 6));
+  // Restore the original return address of the function.
+  __ mov(pr, r2);
+
+  // The following registers must be saved and restored when calling through to
+  // the runtime:
+  //   r0 - contains return address (beginning of patch sequence)
+  //   r1 - isolate
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ Push(pr, fp, r1, r0); // DIFF: codegen
+  __ PrepareCallCFunction(1, 0, r2);
+  __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ CallCFunction(
+      ExternalReference::get_make_code_young_function(masm->isolate()), 2);
+  __ Pop(pr, fp, r1, r0); // DIFF: codegen
+  __ jmp(r0); // DIFF: codegen
 }
 
 #define DEFINE_CODE_AGE_BUILTIN_GENERATOR(C)                 \
@@ -819,8 +852,42 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
 
-void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
-  __ UNIMPLEMENTED_BREAK();
+void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) { // SAMEAS: arm
+  // For now, as in GenerateMakeCodeYoungAgainCommon, we are relying on the fact
+  // that make_code_young doesn't do any garbage collection which allows us to
+  // save/restore the registers without worrying about which of them contain
+  // pointers.
+
+  // Ref to Builtins::GenerateMakeCodeYoungAgainCommon() comments for this
+  // sequence on SH4.
+  // Move the return address to r0.
+  __ mov(r0, pr);
+  // Adjust r0 to point to the head of the PlatformCodeAge sequence.
+  // It points 6 bytes before the end of the sequence.
+  __ sub(r0, r0,
+         Operand(kNoCodeAgeSequenceLength * Assembler::kInstrSize - 6));
+  // Restore the original return address of the function.
+  __ mov(pr, r2);
+
+  // The following registers must be saved and restored when calling through to
+  // the runtime:
+  //   r0 - contains return address (beginning of patch sequence)
+  //   r1 - isolate
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ Push(pr, fp, r1, r0); // DIFF: codegen
+  __ PrepareCallCFunction(1, 0, r2);
+  __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
+  __ CallCFunction(
+      ExternalReference::get_make_code_young_function(masm->isolate()), 2);
+  __ Pop(pr, fp, r1, r0); // DIFF: codegen
+
+  // Perform prologue operations usually performed by the young code stub.
+  __ Push(pr, fp, cp, r1); // DIFF: codegen
+  __ add(fp, sp, Operand(2 * kPointerSize));
+
+  // Jump to point after the code-age stub.
+  __ add(r0, r0, Operand(kNoCodeAgeSequenceLength * Assembler::kInstrSize));
+  __ jmp(r0); // DIFF: codegen
 }
 
 
