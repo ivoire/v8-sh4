@@ -2930,6 +2930,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Register regexp_data = r5;
   Register last_match_info_elements = no_reg;  // will be r6;
 
+  // TODO(stm): check that subject/regexp data are preserved below
+  // Either keep these registers or use callee saved ones,
+  // May need to rework DirectCEntry Stub and CallCFunction to
+  // preserve also the ARM registers.
+  __ UNIMPLEMENTED_BREAK();
+
   // Ensure that a RegExp stack is allocated.
   Isolate* isolate = masm->isolate();
   ExternalReference address_of_regexp_stack_memory_address =
@@ -3156,10 +3162,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(r0, subject);
 
   // Move the arguments to the registers for the arguments on sh4
-  __ mov(r4, r0);
-  __ mov(r5, r1);
-  __ mov(r6, r2);
-  __ mov(r7, r3);
+  __ mov(sh4_r4, r0);
+  __ mov(sh4_r5, r1);
+  __ mov(sh4_r6, r2);
+  __ mov(sh4_r7, r3);
 
   // Locate the code entry and call it.
   __ add(r6, r6, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -5164,17 +5170,17 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
   // Place the return address on the stack, making the call
   // GC safe. The RegExp backend also relies on this.
-  __ str(pr, MemOperand(sp, 0));
-  __ jsr(ip);  // Call the C++ function.
+  __ str(lr, MemOperand(sp, 0));
+  __ jsr(ip);  // Call the C++ function. // DIFF: codegen
   __ VFPEnsureFPSCRState(r2);
-  __ ldr(pr, MemOperand(sp, 0));
-  __ rts();
+  __ ldr(lr, MemOperand(sp, 0)); // DIFF: codegen
+  __ rts();  // DIFF: codegen
 }
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
-  __ UNIMPLEMENTED_BREAK();
+  __ UNIMPLEMENTED_BREAK(); // TODO(stm): may preserve ARM callee-saved registers
 }
 
 

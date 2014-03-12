@@ -813,9 +813,12 @@ class Assembler : public AssemblerBase {
   }
 
   void jmp(Register Rd);
-  void jsr(Register Rd);
+  void jsr(Register Rd, Condition cond = al);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
   void jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp = sh4_rtmp);
+
+  // jmp/jsr aliases for ARM interface emulation (ref to src/arm/assembler-arm.h)
+  void bl(Register Rd, Condition cond = al) { jsr(Rd, cond); }
 
   void cmpeq(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmpeq_(Rs, Rd); }
   void cmpgt(Register Rd, Register Rs) { ASSERT(!Rs.is(Rd)); cmpgt_(Rs, Rd); }     // is Rd > Rs ?

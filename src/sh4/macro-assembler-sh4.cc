@@ -231,7 +231,7 @@ void MacroAssembler::UnimplementedBreak(const char *file, int line) {
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) { // SAMEAS: arm
   RECORD_LINE();
-  AllowDeferredHandleDereference smi_check;
+  AllowDeferredHandleDereference smi_check; // TODO(stm): what it it for?
   if (value->IsSmi()) {
     mov(dst, Operand(value));
   } else {
@@ -247,10 +247,16 @@ void MacroAssembler::Move(Register dst, Handle<Object> value) { // SAMEAS: arm
 }
 
 
-void MacroAssembler::Move(Register dst, Register src) {
+void MacroAssembler::Move(Register dst, Register src, Condition cond) { // SAMEAS: arm
+  ASSERT(cond == eq || cond == ne || cond == al);
   if (!dst.is(src)) {
     RECORD_LINE();
+    Label skip;
+    if (cond != al)
+      b(cond == ne ? eq: ne, &skip, Label::kNear);
     mov(dst, src);
+    if (cond != al)
+      bind(&skip);
   }
 }
 

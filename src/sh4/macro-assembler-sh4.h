@@ -148,7 +148,7 @@ class MacroAssembler: public Assembler {
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Handle<Object> value);
-  void Move(Register dst, Register src);
+  void Move(Register dst, Register src, Condition cond = al);
   void Move(DwVfpRegister dst, DwVfpRegister src);
 
   // Load an object from the root table.

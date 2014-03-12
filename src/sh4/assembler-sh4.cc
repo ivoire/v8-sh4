@@ -976,10 +976,17 @@ void Assembler::jmp(Register Rd) {
   nop_();
 }
 
-void Assembler::jsr(Register Rd) {
+void Assembler::jsr(Register Rd, Condition cond) {
+  Label skip;
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   positions_recorder()->WriteRecordedPositions(); // Record position of a jmp to code
   jsr_indRd_(Rd);
   nop_();
+  if (cond != al)
+    bind(&skip);
+
 }
 
 void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {

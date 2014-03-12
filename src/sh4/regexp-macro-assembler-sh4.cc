@@ -1062,20 +1062,21 @@ void RegExpMacroAssemblerSH4::WriteStackPointerToRegister(int reg) {
 void RegExpMacroAssemblerSH4::CallCheckStackGuardState(Register scratch) {
   // We do not have to save r5 as this value is then putted back by
   // CallCFunctionUsingStub (from the CodeObject)
+  __ UNIMPLEMENTED_BREAK(); // TODO(stm): check why this comment. Why not saving r5?
   __ Push(r4, r6, r7);
   __ PrepareCallCFunction(3, scratch);
 
   // RegExp code frame pointer.
-  __ mov(sh4_r6, frame_pointer()); // SH4: params // DIFF: codegen
+  __ mov(sh4_r6/*r2*/, frame_pointer()); // SH4: params // DIFF: codegen
   // Code* of self.
-  __ mov(sh4_r5, Operand(masm_->CodeObject())); // SH4: params // DIFF: codegen
+  __ mov(sh4_r5/*r1*/, Operand(masm_->CodeObject())); // SH4: params // DIFF: codegen
   // We need to make room for the return address on the stack.
   int stack_alignment = OS::ActivationFrameAlignment();
   ASSERT(IsAligned(stack_alignment, kPointerSize));
   __ sub(sp, sp, Operand(stack_alignment));
 
   // r0 will point to the return address, placed by DirectCEntry.
-  __ mov(sh4_r4, sp);  // SH4: params // DIFF: codegen
+  __ mov(sh4_r4/*r0*/, sp);  // SH4: params // DIFF: codegen
 
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());
@@ -1201,6 +1202,7 @@ int RegExpMacroAssemblerSH4::CheckStackGuardState(Address* return_address,
 
 MemOperand RegExpMacroAssemblerSH4::register_location(int register_index) {
   ASSERT(register_index < (1<<30));
+  UNIMPLEMENTED(); // TODO(stm): check register allocation scheme
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
@@ -1210,14 +1212,15 @@ MemOperand RegExpMacroAssemblerSH4::register_location(int register_index) {
 
 
 void RegExpMacroAssemblerSH4::CheckPosition(int cp_offset,
-                                            Label* on_outside_input) {
-  __ cmpge(current_input_offset(), Operand(-cp_offset * char_size()));
-  BranchOrBacktrack(eq, on_outside_input);
+                                            Label* on_outside_input) { // SAMEAS: arm
+  __ cmpge(current_input_offset(), Operand(-cp_offset * char_size())); // DIFF: codegen
+  BranchOrBacktrack(eq, on_outside_input); // DIFF: codegen
 }
 
 
-void RegExpMacroAssemblerSH4::BranchOrBacktrack(Condition condition,
+void RegExpMacroAssemblerSH4::BranchOrBacktrack(Condition condition, // SAMEAS: arm
                                                 Label* to) {
+  ASSERT(cond == eq || cond == ne || cond == al);
   if (condition == al) {  // Unconditional.
     if (to == NULL) {
       Backtrack();
@@ -1234,12 +1237,8 @@ void RegExpMacroAssemblerSH4::BranchOrBacktrack(Condition condition,
 }
 
 
-void RegExpMacroAssemblerSH4::SafeCall(Label* to, Condition cond) {
-  Label skip;
-  ASSERT(cond == eq || cond == ne);
-  __ b(NegateCondition(cond), &skip, Label::kNear);
-  __ jsr(to);
-  __ bind(&skip);
+void RegExpMacroAssemblerSH4::SafeCall(Label* to, Condition cond) { // SAMEAS: arm
+  __ bl(to, cond); // DIFF: codegen
 }
 
 
