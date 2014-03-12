@@ -302,7 +302,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     // it will be restored in the builtins stubs.
     // Use the special method jsr_at_code_stub_address()
     // that will link and jump to the address emitted just after by
-    // emit_code_stub_address().
+    // dd(reinterpret_cast<uint32_t>(stub->instruction_start()))
     // The generated pr will be 6 bytes before the end of the sequence
     // whatever the sequence alignment.
     // The head of the sequence will be rematerialized from it in the
@@ -317,7 +317,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     patcher.masm()->jsr_at_following_address();
     int padding = ((long)sequence + patcher.masm()->pc_offset()) % 4 == 0 ?  1: 0;
     patcher.masm()->align(); // align for address below
-    patcher.masm()->emit_code_stub_address(stub);
+    patcher.masm()->dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
     // if not previously aligned, add the nop at the end
     if (padding) patcher.masm()->nop();
     // The sequence length is supposed to be:

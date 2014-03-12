@@ -1261,8 +1261,6 @@ class Assembler : public AssemblerBase {
 
   // Link and jump at the aligned adress just following this instruction.
   void jsr_at_following_address(Register rtmp = sh4_rtmp);
-  // Emits the address of the code stub's first instruction.
-  void emit_code_stub_address(Code* stub);
 
   // Return in Rd the value of pc_after + offset.
   // Where pc_after is the pc after this operation.

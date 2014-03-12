@@ -742,7 +742,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       jsr_at_following_address();
       int padding = (long)pc_ % 4 == 0 ?  1: 0;
       align(); // align
-      emit_code_stub_address(stub);
+      dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
       if (padding) nop();
     } else {
       // This code must be the same as in GetNoCodeAgeSequence()
