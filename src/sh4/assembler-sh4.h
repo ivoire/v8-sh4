@@ -1005,6 +1005,10 @@ class Assembler : public AssemblerBase {
             Register rtmp = sh4_rtmp);
   void subv(Register Rd, Register Rs, const Operand& src,
             Register rtmp = sh4_rtmp);
+  void rsbv(Register Rd, Register Rs, const Operand& src,
+                   Register rtmp = sh4_rtmp);
+  void rsbv(Register Rd, Register Rs, Register Rt);
+
 
   void addc(Register Rd, Register Rs, Register Rt);
   void subc(Register Rd, Register Rs, Register Rt, Register rtmp = sh4_rtmp);

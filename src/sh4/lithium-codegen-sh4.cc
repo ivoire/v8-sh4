@@ -1136,9 +1136,8 @@ void LCodeGen::DoMulI(LMulI* instr) { // SAMEAS: arm
     switch (constant) {
       case -1:
         if (overflow) {
-          __ UNIMPLEMENTED_BREAK();
-          // __ rsb(result, left, Operand::Zero(), SetCC);
-          // DeoptimizeIf(vs, instr->environment());
+          __ rsbv(result, left, Operand::Zero()); // DIFF: codegen
+          DeoptimizeIf(t, instr->environment()); // DIFF: codegen
         } else {
           __ rsb(result, left, Operand::Zero());
         }
@@ -1191,17 +1190,17 @@ void LCodeGen::DoMulI(LMulI* instr) { // SAMEAS: arm
     Register right = ToRegister(right_op);
 
     if (overflow) {
-      __ UNIMPLEMENTED_BREAK();
-      //Register scratch = scratch0();
-      // // scratch:result = left * right.
-      // if (instr->hydrogen()->representation().IsSmi()) {
-      //   __ SmiUntag(result, left);
-      //   __ smull(result, scratch, result, right);
-      // } else {
-      //   __ smull(result, scratch, left, right);
-      // }
-      // __ cmp(scratch, Operand(result, ASR, 31));
-      // DeoptimizeIf(ne, instr->environment());
+      Register scratch = scratch0();
+      // scratch:result = left * right.
+      if (instr->hydrogen()->representation().IsSmi()) {
+        __ SmiUntag(result, left);
+        __ dmuls(result, scratch, result, right); // DIFF: codegen
+      } else {
+        __ dmuls(result, scratch, left, right); // DIFF: codegen
+      }
+      __ asr(ip, result, Operand(31)); // DIFF: codegen
+      __ cmp(scratch, ip); // DIFF: codegen
+      DeoptimizeIf(ne, instr->environment());
     } else {
       if (instr->hydrogen()->representation().IsSmi()) {
         __ SmiUntag(result, left);
@@ -1211,15 +1210,17 @@ void LCodeGen::DoMulI(LMulI* instr) { // SAMEAS: arm
       }
     }
 
-    if (bailout_on_minus_zero) {
-      __ UNIMPLEMENTED_BREAK();
-      //Label done;
-      // __ teq(left, Operand(right));
-      // __ b(pl, &done);
-      // // Bail out if the result is minus zero.
-      // __ cmp(result, Operand::Zero());
-      // DeoptimizeIf(eq, instr->environment());
-      // __ bind(&done);
+    if (bailout_on_minus_zero) { // DIFF: codegen
+      Label done;
+      Register scratch = scratch0(); // DIFF: codegen
+      // Done if none is negative (i.e. none as high bit set)
+      __ lxor(scratch, left, right); // DIFF: codegen
+      __ cmpge(scratch, Operand(0)); // DIFF: codegen
+      __ bt(&done);
+      // Bail out if the result is minus zero.
+      __ cmp(result, Operand::Zero());
+      DeoptimizeIf(eq, instr->environment());
+      __ bind(&done);
     }
   }
 }

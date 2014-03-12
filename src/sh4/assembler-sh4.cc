@@ -512,6 +512,7 @@ void Assembler::subv(Register Rd, Register Rs, const Operand& src,
   }
 }
 
+
 void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
   // Clear T bit before using subc
   clrt_();
@@ -528,6 +529,23 @@ void Assembler::subc(Register Rd, Register Rs, Register Rt, Register rtmp) {
     subc_(Rt, Rd);
   }
 }
+
+
+void Assembler::rsbv(Register Rd, Register Rs, const Operand& src,
+    Register rtmp) {
+  if (src.is_reg()) {
+    rsbv(Rd, Rs, src.rm());
+    return;
+  }
+  mov(rtmp, src);
+  subv(Rd, rtmp, Rs);
+}
+
+
+void Assembler::rsbv(Register Rd, Register Rs, Register Rt) {
+  subv(Rd, Rt, Rs);
+}
+
 
 // TODO(stm): check why asl is useful? Is it like lsl?
 void Assembler::asl(Register Rd, Register Rs, const Operand& imm,

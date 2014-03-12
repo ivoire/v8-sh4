@@ -50,17 +50,17 @@ namespace internal {
   // ARM to SH4 mapping
 #include "map-sh4.h"
 
-static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
+static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, // SAMEAS: arm
                                             Register type,
                                             Label* global_object) {
   // Register usage:
   //   type: holds the receiver instance type on entry.
-  __ cmpeq(type, Operand(JS_GLOBAL_OBJECT_TYPE));
-  __ bt(global_object);
-  __ cmpeq(type, Operand(JS_BUILTINS_OBJECT_TYPE));
-  __ bt(global_object);
-  __ cmpeq(type, Operand(JS_GLOBAL_PROXY_TYPE));
-  __ bt(global_object);
+  __ cmp(type, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ b(eq, global_object);
+  __ cmp(type, Operand(JS_BUILTINS_OBJECT_TYPE));
+  __ b(eq, global_object);
+  __ cmp(type, Operand(JS_GLOBAL_PROXY_TYPE));
+  __ b(eq, global_object);
 }
 
 
