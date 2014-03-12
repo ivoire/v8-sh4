@@ -1457,7 +1457,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Both the key and the length of FixedArray are smis.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ cmphs(key, ip);
-  __ bf(&slow);
+  __ bt(&slow);
   __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ cmp(elements_map,
          Operand(masm->isolate()->factory()->fixed_array_map()));
