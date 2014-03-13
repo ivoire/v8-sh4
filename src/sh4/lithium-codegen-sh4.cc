@@ -1077,8 +1077,124 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 }
 
 
-void LCodeGen::DoModI(LModI* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoModI(LModI* instr) { // SAMEAS: arm
+  HMod* hmod = instr->hydrogen();
+  HValue* left = hmod->left();
+  HValue* right = hmod->right();
+  if (hmod->HasPowerOf2Divisor()) {
+    // TODO(svenpanne) We should really do the strength reduction on the
+    // Hydrogen level.
+    Register left_reg = ToRegister(instr->left());
+    Register result_reg = ToRegister(instr->result());
+
+    // Note: The code below even works when right contains kMinInt.
+    int32_t divisor = Abs(right->GetInteger32Constant());
+
+    Label left_is_not_negative, done;
+    if (left->CanBeNegative()) {
+      __ cmpge(left_reg, Operand::Zero()); // DIFF: codegen
+      __ b(t, &left_is_not_negative); // DIFF: codegen
+      __ rsb(result_reg, left_reg, Operand::Zero());
+      __ and_(result_reg, result_reg, Operand(divisor - 1));
+      __ rsb(result_reg, result_reg, Operand::Zero()); // DIFF: codegen
+      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        __ cmp(result_reg, Operand(0)); // DIFF: codegen
+        DeoptimizeIf(eq, instr->environment());
+      }
+      __ b(&done);
+    }
+
+    __ bind(&left_is_not_negative);
+    __ and_(result_reg, left_reg, Operand(divisor - 1));
+    __ bind(&done);
+
+  } else if (hmod->fixed_right_arg().has_value) {
+    Register left_reg = ToRegister(instr->left());
+    Register right_reg = ToRegister(instr->right());
+    Register result_reg = ToRegister(instr->result());
+
+    int32_t divisor = hmod->fixed_right_arg().value;
+    ASSERT(IsPowerOf2(divisor));
+
+    // Check if our assumption of a fixed right operand still holds.
+    __ cmp(right_reg, Operand(divisor));
+    DeoptimizeIf(ne, instr->environment());
+
+    Label left_is_not_negative, done;
+    if (left->CanBeNegative()) {
+      __ cmpge(left_reg, Operand::Zero()); // DIFF: codegen
+      __ b(f, &left_is_not_negative); // DIFF: codegen
+      __ rsb(result_reg, left_reg, Operand::Zero());
+      __ and_(result_reg, result_reg, Operand(divisor - 1));
+      __ rsb(result_reg, result_reg, Operand::Zero()); // DIFF: codegen
+      if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        __ cmp(result_reg, Operand(0));
+        DeoptimizeIf(eq, instr->environment());
+      }
+      __ b(&done);
+    }
+
+    __ bind(&left_is_not_negative);
+    __ and_(result_reg, left_reg, Operand(divisor - 1));
+    __ bind(&done);
+
+  } else if (CpuFeatures::IsSupported(SUDIV)) {
+    UNIMPLEMENTED(); // SH4: no SUDIV // DIFF: codegen
+  } else {
+    // General case, without any SDIV support.
+    Register left_reg = ToRegister(instr->left());
+    Register right_reg = ToRegister(instr->right());
+    Register result_reg = ToRegister(instr->result());
+    Register scratch = scratch0();
+    ASSERT(!scratch.is(left_reg));
+    ASSERT(!scratch.is(right_reg));
+    ASSERT(!scratch.is(result_reg));
+    DwVfpRegister dividend = ToDoubleRegister(instr->temp());
+    DwVfpRegister divisor = ToDoubleRegister(instr->temp2());
+    ASSERT(!divisor.is(dividend));
+    DwVfpRegister quotient = double_scratch0();
+    ASSERT(!quotient.is(dividend));
+    ASSERT(!quotient.is(divisor));
+
+    Label done;
+    // Check for x % 0, we have to deopt in this case because we can't return a
+    // NaN.
+    if (right->CanBeZero()) {
+      __ cmp(right_reg, Operand::Zero());
+      DeoptimizeIf(eq, instr->environment());
+    }
+
+    __ Move(result_reg, left_reg);
+    // Load the arguments in VFP registers. The divisor value is preloaded
+    // before. Be careful that 'right_reg' is only live on entry.
+    // TODO(svenpanne) The last comments seems to be wrong nowadays.
+    __ vcvt_f64_s32(dividend, left_reg); // DIFF: codegen
+    __ vcvt_f64_s32(divisor, right_reg); // DIFF: codegen
+
+    // We do not care about the sign of the divisor. Note that we still handle
+    // the kMinInt % -1 case correctly, though.
+    __ vabs(divisor, divisor);
+    // Compute the quotient and round it to a 32bit integer.
+    __ vdiv(quotient, dividend, divisor);
+    __ vcvt_s32_f64(scratch, quotient); // DIFF: codegen
+    __ vcvt_f64_s32(quotient, scratch); // DIFF: codegen
+
+    // Compute the remainder in result.
+    __ vmul(double_scratch0(), divisor, quotient);
+    __ vcvt_s32_f64(scratch, double_scratch0()); // DIFF: codegen
+    __ sub(result_reg, left_reg, scratch); // DIFF: codegen
+
+    // If we care about -0, test if the dividend is <0 and the result is 0.
+    if (left->CanBeNegative() &&
+        hmod->CanBeZero() &&
+        hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ cmp(result_reg, Operand(0)); // DIFF: codegen
+      __ b(ne, &done);
+      __ cmpge(left_reg, Operand::Zero()); // DIFF: codegen
+      DeoptimizeIf(f, instr->environment()); // DIFF: codegen
+    }
+    __ bind(&done);
+  }
 }
 
 
