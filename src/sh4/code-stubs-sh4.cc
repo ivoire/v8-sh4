@@ -951,7 +951,7 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm, // SAMEAS: arm
 
 
 // Fast negative check for internalized-to-internalized equality.
-static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
+static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm, // SAMEAS: arm
                                                      Register lhs,
                                                      Register rhs,
                                                      Label* possible_strings,
@@ -966,8 +966,8 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ b(ne, &object_test, Label::kNear);
   __ tst(r2, Operand(kIsNotInternalizedMask));
   __ b(ne, possible_strings);
-  __ CompareObjectType(lhs, r3, r3, FIRST_NONSTRING_TYPE, ge);
-  __ bt(not_both_strings);
+  __ CompareObjectType(lhs, r3, r3, FIRST_NONSTRING_TYPE, ge); // DIFF: codegen
+  __ bt(not_both_strings); // DIFF: codegen
   __ tst(r3, Operand(kIsNotInternalizedMask));
   __ b(ne, possible_strings);
 
@@ -977,18 +977,18 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ Ret();
 
   __ bind(&object_test);
-  __ cmpge(r2, Operand(FIRST_SPEC_OBJECT_TYPE));
-  __ bf(not_both_strings);
-  __ CompareObjectType(lhs, r2, r3, FIRST_SPEC_OBJECT_TYPE, ge);
-  __ bf(not_both_strings);
+  __ cmpge(r2, Operand(FIRST_SPEC_OBJECT_TYPE)); // DIFF: codegen
+  __ bf(not_both_strings); // DIFF: codegen
+  __ CompareObjectType(lhs, r2, r3, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+  __ bf(not_both_strings); // DIFF: codegen
   // If both objects are undetectable, they are equal. Otherwise, they
   // are not equal, since they are different objects and an object is not
   // equal to undefined.
   __ ldr(r3, FieldMemOperand(rhs, HeapObject::kMapOffset));
   __ ldrb(r2, FieldMemOperand(r2, Map::kBitFieldOffset));
   __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
-  __ land(r0, r2, r3);
-  __ land(r0, r0, Operand(1 << Map::kIsUndetectable));
+  __ and_(r0, r2, r3);
+  __ and_(r0, r0, Operand(1 << Map::kIsUndetectable));
   __ eor(r0, r0, Operand(1 << Map::kIsUndetectable));
   __ Ret();
 }
@@ -2198,7 +2198,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) { // SAM
 // In this case the offset to the inline site to patch is passed on the stack,
 // in the safepoint slot for register r4.
 // (See LCodeGen::DoInstanceOfKnownGlobal)
-void InstanceofStub::Generate(MacroAssembler* masm) {
+void InstanceofStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   // Call site inlining and patching implies arguments in registers.
   ASSERT(HasArgsInRegisters() || !HasCallSiteInlineCheck());
   // ReturnTrueFalse is only implemented for inlined call sites.
@@ -2325,7 +2325,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Before null, smi and string value checks, check that the rhs is a function
   // as for a non-function rhs an exception needs to be thrown.
   __ JumpIfSmi(function, &slow);
-  __ CompareObjectType(function, scratch2, scratch, JS_FUNCTION_TYPE, eq);
+  __ CompareObjectType(function, scratch2, scratch, JS_FUNCTION_TYPE, eq); // DIFF: codegen
   __ b(ne, &slow);
 
   // Null is not instance of anything.
@@ -2361,11 +2361,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     }
     __ cmp(r0, Operand::Zero());
     Label ltrue, lfalse;
-    __ bf_near(&lfalse);
-    __ LoadRoot(r0, Heap::kTrueValueRootIndex);
-    __ jmp_near(&ltrue);
+    __ bf_near(&lfalse); // DIFF: codegen
+    __ LoadRoot(r0, Heap::kTrueValueRootIndex); // DIFF: codegen
+    __ jmp_near(&ltrue); // DIFF: codegen
     __ bind(&lfalse);
-    __ LoadRoot(r0, Heap::kFalseValueRootIndex);
+    __ LoadRoot(r0, Heap::kFalseValueRootIndex); // DIFF: codegen
     __ bind(&ltrue);
     __ Ret(HasArgsInRegisters() ? 0 : 2);
   }
@@ -2433,7 +2433,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
+void StoreArrayLengthStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   // This accepts as a receiver anything JSArray::SetElementsLength accepts
   // (currently anything except for external arrays which means anything with
   // elements of FixedArray type).  Value must be a number, but only smis are
@@ -2470,14 +2470,14 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(receiver, &miss);
 
   // Check that the object is a JS array.
-  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE, eq);
+  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE, eq); // DIFF: codegen
   __ b(ne, &miss);
 
   // Check that elements are FixedArray.
   // We rely on StoreIC_ArrayLength below to deal with all types of
   // fast elements (including COW).
   __ ldr(scratch, FieldMemOperand(receiver, JSArray::kElementsOffset));
-  __ CompareObjectType(scratch, scratch, scratch, FIXED_ARRAY_TYPE, eq);
+  __ CompareObjectType(scratch, scratch, scratch, FIXED_ARRAY_TYPE, eq); // DIFF: codegen
   __ b(ne, &miss);
 
   // Check that the array has fast properties, otherwise the length
@@ -2950,7 +2950,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the first argument is a JSRegExp object.
   __ ldr(r0, MemOperand(sp, kJSRegExpOffset));
   __ JumpIfSmi(r0, &runtime);
-  __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE, eq);
+  __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE, eq); // DIFF: codegen
   __ b(ne, &runtime);
 
   // Check that the RegExp has been compiled (data contains a fixed array).
@@ -2958,7 +2958,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ SmiTst(regexp_data);
     __ Check(ne, kUnexpectedTypeForRegExpDataFixedArrayExpected);
-    __ CompareObjectType(regexp_data, r0, r0, FIXED_ARRAY_TYPE, eq);
+    __ CompareObjectType(regexp_data, r0, r0, FIXED_ARRAY_TYPE, eq); // DIFF: codegen
     __ Check(eq, kUnexpectedTypeForRegExpDataFixedArrayExpected);
   }
 
@@ -3234,7 +3234,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ ldr(r0, MemOperand(sp, kLastMatchInfoOffset));
   __ JumpIfSmi(r0, &runtime);
-  __ CompareObjectType(r0, r2, r2, JS_ARRAY_TYPE, eq);
+  __ CompareObjectType(r0, r2, r2, JS_ARRAY_TYPE, eq); // DIFF: codegen
   __ b(ne, &runtime);
   // Check that the JSArray is in fast case.
   __ ldr(last_match_info_elements,
@@ -3448,7 +3448,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm) {
+static void GenerateRecordCallTarget(MacroAssembler* masm) { // SAMEAS: arm
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
@@ -3467,7 +3467,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
-  __ cmpeq(r3, r1);
+  __ cmp(r3, r1);
   __ b(eq, &done);
 
   // If we came here, we need to see if we are the array function.
@@ -3480,7 +3480,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // Make sure the function is the Array() function
   __ LoadArrayFunction(r3);
-  __ cmpeq(r1, r3);
+  __ cmp(r1, r3);
   __ b(ne, &megamorphic);
   __ jmp(&done);
 
@@ -3502,7 +3502,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&initialize);
   // Make sure the function is the Array() function
   __ LoadArrayFunction(r3);
-  __ cmpeq(r1, r3);
+  __ cmp(r1, r3);
   __ b(ne, &not_array_function);
 
   // The target function is the Array constructor,
@@ -3979,7 +3979,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
 
     // If entry is undefined no string with this hash can be found.
     Label is_string;
-    __ CompareObjectType(candidate, scratch, scratch, ODDBALL_TYPE, eq);
+    __ CompareObjectType(candidate, scratch, scratch, ODDBALL_TYPE, eq); // DIFF: codegen
     __ b(ne, &is_string, Label::kNear);
 
     __ cmp(undefined, candidate);
@@ -5105,19 +5105,19 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
+void ICCompareStub::GenerateObjects(MacroAssembler* masm) { // SAMEAS: arm
   ASSERT(state_ == CompareIC::OBJECT);
   Label miss;
-  __ land(r2, r1, r0);
-  __ JumpIfSmi(r2, &miss, Label::kNear);
+  __ and_(r2, r1, Operand(r0));
+  __ JumpIfSmi(r2, &miss, Label::kNear); // DIFF: codegen
 
-  __ CompareObjectType(r0, r2, r2, JS_OBJECT_TYPE, eq);
+  __ CompareObjectType(r0, r2, r2, JS_OBJECT_TYPE, eq); // DIFF: codegen
   __ b(ne, &miss, Label::kNear);
-  __ CompareObjectType(r1, r2, r2, JS_OBJECT_TYPE, eq);
+  __ CompareObjectType(r1, r2, r2, JS_OBJECT_TYPE, eq); // DIFF: codegen
   __ b(ne, &miss, Label::kNear);
 
   ASSERT(GetCondition() == eq);
-  __ sub(r0, r0, r1);
+  __ sub(r0, r0, Operand(r1));
   __ Ret();
 
   __ bind(&miss);
@@ -6218,7 +6218,7 @@ void InternalArrayConstructorStub::GenerateCase( // SAMEAS: arm
 }
 
 
-void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
+void InternalArrayConstructorStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   // ----------- S t a t e -------------
   //  -- r0 : argc
   //  -- r1 : constructor

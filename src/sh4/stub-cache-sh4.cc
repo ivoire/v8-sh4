@@ -341,7 +341,7 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
 }
 
 
-void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
+void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm, // SAMEAS: arm
                                            Register receiver,
                                            Register scratch,
                                            Label* miss_label) {
@@ -349,7 +349,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
   __ JumpIfSmi(receiver, miss_label);
 
   // Check that the object is a JS array.
-  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE, eq);
+  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE, eq); // DIFF: codegen
   __ b(ne, miss_label);
 
   // Load length directly from the JS array.
@@ -745,7 +745,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
 }
 
 
-void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
+void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm, // SAMEAS: arm
                                             Label* label,
                                             Handle<Name> name) {
   if (!label->is_unused()) {
@@ -755,7 +755,7 @@ void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
 }
 
 
-static void GenerateCallFunction(MacroAssembler* masm,
+static void GenerateCallFunction(MacroAssembler* masm, // SAMEAS: arm
                                  Handle<Object> object,
                                  const ParameterCount& arguments,
                                  Label* miss,
@@ -767,8 +767,8 @@ static void GenerateCallFunction(MacroAssembler* masm,
 
   // Check that the function really is a function.
   __ JumpIfSmi(r1, miss);
-  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq);
-  __ bf(miss);
+  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq); // DIFF: codegen
+  __ bf(miss); // DIFF: codegen
 
   // Patch the receiver on the stack with the global proxy if
   // necessary.
@@ -785,7 +785,7 @@ static void GenerateCallFunction(MacroAssembler* masm,
 }
 
 
-static void PushInterceptorArguments(MacroAssembler* masm,
+static void PushInterceptorArguments(MacroAssembler* masm, // SAMEAS: arm
                                      Register receiver,
                                      Register holder,
                                      Register name,
@@ -1594,7 +1594,7 @@ void CallStubCompiler::GenerateGlobalReceiverCheck(Handle<JSObject> object,
 }
 
 
-void CallStubCompiler::GenerateLoadFunctionFromCell(
+void CallStubCompiler::GenerateLoadFunctionFromCell( // SAMEAS: arm
     Handle<Cell> cell,
     Handle<JSFunction> function,
     Label* miss) {
@@ -1610,8 +1610,8 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(
     // function can all use this call IC. Before we load through the
     // function, we have to verify that it still is a function.
     __ JumpIfSmi(r1, miss);
-    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq);
-    __ b(ne, miss);
+    __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq); // DIFF: codegen
+    __ b(f, miss); // DIFF: codegen
 
     // Check the shared function info. Make sure it hasn't changed.
     __ Move(r3, Handle<SharedFunctionInfo>(function->shared()));
@@ -2595,8 +2595,8 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
 
     case STRING_CHECK:
       // Check that the object is a string.
-      __ CompareObjectType(r1, r3, r3, FIRST_NONSTRING_TYPE, ge);
-      __ bt(&miss);
+      __ CompareObjectType(r1, r3, r3, FIRST_NONSTRING_TYPE, ge); // DIFF: codegen
+      __ bt(&miss); // DIFF: codegen
       // Check that the maps starting from the prototype haven't changed.
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::STRING_FUNCTION_INDEX, r0, &miss);
@@ -2607,8 +2607,8 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
 
     case SYMBOL_CHECK:
       // Check that the object is a symbol.
-      __ CompareObjectType(r1, r1, r3, SYMBOL_TYPE, eq);
-      __ bf(&miss);
+      __ CompareObjectType(r1, r1, r3, SYMBOL_TYPE, eq); // DIFF: codegen
+      __ bf(&miss); // DIFF: codegen
       // Check that the maps starting from the prototype haven't changed.
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::SYMBOL_FUNCTION_INDEX, r0, &miss);
@@ -2621,8 +2621,8 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       Label fast;
       // Check that the object is a smi or a heap number.
       __ JumpIfSmi(r1, &fast);
-      __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE, eq);
-      __ bf(&miss);
+      __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE, eq); // DIFF: codegen
+      __ bf(&miss); // DIFF: codegen
       __ bind(&fast);
       // Check that the maps starting from the prototype haven't changed.
       GenerateDirectLoadGlobalFunctionPrototype(
@@ -2636,11 +2636,11 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       Label fast;
       // Check that the object is a boolean.
       __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-      __ cmpeq(r1, ip);
-      __ bf(&fast);
+      __ cmp(r1, ip);
+      __ b(eq, &fast);
       __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-      __ cmpeq(r1, ip);
-      __ bf(&miss);
+      __ cmp(r1, ip);
+      __ b(ne, &miss);
       __ bind(&fast);
       // Check that the maps starting from the prototype haven't changed.
       GenerateDirectLoadGlobalFunctionPrototype(

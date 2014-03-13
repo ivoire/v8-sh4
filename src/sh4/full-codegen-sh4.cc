@@ -2996,7 +2996,7 @@ void FullCodeGenerator::EmitIsObject(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3010,15 +3010,15 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(r0, if_false);
-  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge);
+  __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(t, if_true, if_false, fall_through);
+  Split(t, if_true, if_false, fall_through); // DIFF: codegen
 
   context()->Plug(if_true, if_false);
 }
 
 
-void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3132,7 +3132,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 }
 
 
-void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3146,15 +3146,15 @@ void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(r0, if_false);
-  __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE, eq);
+  __ CompareObjectType(r0, r1, r2, JS_FUNCTION_TYPE, eq); // DIFF: codegen
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
+  Split(t, if_true, if_false, fall_through); // DIFF: codegen
 
   context()->Plug(if_true, if_false);
 }
 
 
-void FullCodeGenerator::EmitIsArray(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsArray(CallRuntime* expr) { // SAEMAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3168,15 +3168,15 @@ void FullCodeGenerator::EmitIsArray(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(r0, if_false);
-  __ CompareObjectType(r0, r1, r1, JS_ARRAY_TYPE, eq);
+  __ CompareObjectType(r0, r1, r1, JS_ARRAY_TYPE, eq); // DIFF: codegen
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
+  Split(eq, if_true, if_false, fall_through); // DIFF: codegen
 
   context()->Plug(if_true, if_false);
 }
 
 
-void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) {
+  void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3190,16 +3190,16 @@ void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(r0, if_false);
-  __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE, eq);
+  __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE, eq); // DIFF: codegen
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
+  Split(t, if_true, if_false, fall_through); // DIFF: codegen
 
   context()->Plug(if_true, if_false);
 }
 
 
 
-void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) { // SAMEAS: arm
   ASSERT(expr->arguments()->length() == 0);
 
   Label materialize_true, materialize_false;
@@ -3230,7 +3230,7 @@ void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) {
+void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
 
@@ -3254,7 +3254,7 @@ void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitArguments(CallRuntime* expr) {
+void FullCodeGenerator::EmitArguments(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3269,7 +3269,7 @@ void FullCodeGenerator::EmitArguments(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
+void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) { // SAMEAS: arm
   ASSERT(expr->arguments()->length() == 0);
   Label exit;
   // Get the number of formal parameters.
@@ -3279,7 +3279,7 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &exit, Label::kNear);
+  __ b(ne, &exit, Label::kNear); // DIFF: codegen
 
   // Arguments adaptor case: Read the arguments length from the
   // adaptor frame.
@@ -3290,7 +3290,7 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
+void FullCodeGenerator::EmitClassOf(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   Label done, null, function, non_function_constructor;
@@ -3298,47 +3298,48 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   VisitForAccumulatorValue(args->at(0));
 
   // If the object is a smi, we return null.
-  __ JumpIfSmi(r0, &null, Label::kNear);
+  __ JumpIfSmi(r0, &null, Label::kNear); // DIFF: codegen
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
   // Assume that there are only two callable types, and one of them is at
   // either end of the type range for JS object types. Saves extra comparisons.
   STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-  __ CompareObjectType(r0, r0, r1, FIRST_SPEC_OBJECT_TYPE, ge);
-  // Map is now in r0.
-  __ bf_near(&null);
+  __ CompareObjectType(r0, r0, r1, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+  // Map is now in r0 and type is in r1.
+  __ bf_near(&null); // DIFF: codegen
   STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
                 FIRST_SPEC_OBJECT_TYPE + 1);
-  __ bt(&function);
+  __ cmp(r1, Operand(FIRST_SPEC_OBJECT_TYPE)); // SH4: redo the cmp // DIFF: codegen
+  __ bt_near(&function); // Compare for equality // DIFF: codegen
 
-  __ cmpeq(r1, Operand(LAST_SPEC_OBJECT_TYPE));
+  __ cmp(r1, Operand(LAST_SPEC_OBJECT_TYPE));
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
                 LAST_SPEC_OBJECT_TYPE - 1);
-  __ bt(&function);
+  __ bt_near(&function); // DIFF: codegen
   // Assume that there is no larger type.
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
   // Check if the constructor in the map is a JS function.
   __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
   __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE, eq);
-  __ b(ne, &non_function_constructor, Label::kNear);
+  __ bt_near(&non_function_constructor); // DIFF: codegen
 
   // r0 now contains the constructor function. Grab the
   // instance class name from there.
   __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kInstanceClassNameOffset));
-  __ b_near(&done);
+  __ b_near(&done); // DIFF: codegen
 
   // Functions have class 'Function'.
   __ bind(&function);
   __ LoadRoot(r0, Heap::kfunction_class_stringRootIndex);
-  __ jmp_near(&done);
+  __ jmp_near(&done); // DIFF: codegen
 
   // Objects with a non-function constructor have class 'Object'.
   __ bind(&non_function_constructor);
   __ LoadRoot(r0, Heap::kObject_stringRootIndex);
-  __ jmp_near(&done);
+  __ jmp_near(&done); // DIFF: codegen
 
   // Non-JS objects have class null.
   __ bind(&null);
@@ -3445,7 +3446,7 @@ void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
+void FullCodeGenerator::EmitValueOf(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));  // Load the object.
@@ -3454,8 +3455,8 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
   // If the object is a smi return the object.
   __ JumpIfSmi(r0, &done, Label::kNear);
   // If the object is not a value type, return the object.
-  __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE, eq);
-  __ bf_near(&done);
+  __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE, eq); // DIFF: codegen
+  __ bf_near(&done); // DIFF: codegen
   __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
 
   __ bind(&done);
@@ -3463,7 +3464,7 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
+void FullCodeGenerator::EmitDateField(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   ASSERT_NE(NULL, args->at(1)->AsLiteral());
@@ -3478,8 +3479,8 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   Register scratch1 = r1;
 
   __ JumpIfSmi(object, &not_date_object);
-  __ CompareObjectType(object, scratch1, scratch1, JS_DATE_TYPE, eq);
-  __ bf(&not_date_object);
+  __ CompareObjectType(object, scratch1, scratch1, JS_DATE_TYPE, eq); // DIFF: codegen
+  __ bf(&not_date_object); // DIFF: codegen
 
   if (index->value() == 0) {
     __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
@@ -3490,8 +3491,8 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
       __ mov(scratch1, Operand(stamp));
       __ ldr(scratch1, MemOperand(scratch1));
       __ ldr(scratch0, FieldMemOperand(object, JSDate::kCacheStampOffset));
-      __ cmpeq(scratch1, scratch0);
-      __ bf(&runtime);
+      __ cmp(scratch1, scratch0);
+      __ b(ne,&runtime);
       __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset +
                                              kPointerSize * index->value()));
       __ jmp(&done);
@@ -3499,8 +3500,8 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ bind(&runtime);
     __ PrepareCallCFunction(2, scratch1);
     // Arguments are in r4 and r5 on sh4
-    __ mov(sh4_r4, r0); // SH4: params // DIFF: codegen
-    __ mov(sh4_r5, Operand(index)); // SH4: params // DIFF: codegen
+    __ mov(sh4_r4/*r0*/, r0); // SH4: params // DIFF: codegen
+    __ mov(sh4_r5/*r1*/, Operand(index)); // SH4: params // DIFF: codegen
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ jmp(&done);
   }
@@ -3608,7 +3609,7 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
+void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));  // Load the object.
@@ -3620,7 +3621,7 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
   __ JumpIfSmi(r1, &done);
 
   // If the object is not a value type, return the value.
-  __ CompareObjectType(r1, r2, r2, JS_VALUE_TYPE, eq);
+  __ CompareObjectType(r1, r2, r2, JS_VALUE_TYPE, eq); // DIFF: codegen
   __ b(ne, &done);
 
   // Store the value.
@@ -3840,7 +3841,7 @@ void FullCodeGenerator::EmitMathSqrt(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
+void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() >= 2);
 
@@ -3853,8 +3854,8 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   Label runtime, done;
   // Check for non-function argument (including proxy).
   __ JumpIfSmi(r0, &runtime);
-  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE, eq);
-  __ bf(&runtime);
+  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE, eq); // DIFF: codegen
+  __ bf(&runtime); // DIFF: codegen
 
   // InvokeFunction requires the function in r1. Move it in there.
   __ mov(r1, result_register());
@@ -3873,7 +3874,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
+void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) { // SAMEAS: arm
   RegExpConstructResultStub stub;
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 3);
@@ -3885,7 +3886,7 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
+void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
   ASSERT_NE(NULL, args->at(0)->AsLiteral());
@@ -3922,10 +3923,10 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   __ ldr(r2, MemOperand(r3)); // DIFF: codegen
   // Note side effect of PreIndex: r3 now points to the key of the pair.
   __ cmp(key, r2);
-  __ b(ne, &not_found, Label::kNear);
+  __ b(ne, &not_found, Label::kNear); // DIFF: codegen
 
   __ ldr(r0, MemOperand(r3, kPointerSize));
-  __ b_near(&done);
+  __ b_near(&done); // DIFF: codegen
 
   __ bind(&not_found);
   // Call runtime to perform the lookup.
@@ -3937,7 +3938,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsRegExpEquivalent(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsRegExpEquivalent(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
 
@@ -3954,19 +3955,19 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(CallRuntime* expr) {
   __ cmp(left, right);
   __ b(eq, &ok, Label::kNear);
   // Fail if either is a non-HeapObject.
-  __ land(tmp, left, right);
-  __ JumpIfSmi(tmp, &fail, Label::kNear);
+  __ and_(tmp, left, right);
+  __ JumpIfSmi(tmp, &fail, Label::kNear); // DIFF: codegen
   __ ldr(tmp, FieldMemOperand(left, HeapObject::kMapOffset));
   __ ldrb(tmp2, FieldMemOperand(tmp, Map::kInstanceTypeOffset));
   __ cmp(tmp2, Operand(JS_REGEXP_TYPE));
   __ b(ne, &fail, Label::kNear);
   __ ldr(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
   __ cmp(tmp, tmp2);
-  __ b(ne, &fail, Label::kNear);
+  __ b(ne, &fail, Label::kNear); // DIFF: codegen
   __ ldr(tmp, FieldMemOperand(left, JSRegExp::kDataOffset));
   __ ldr(tmp2, FieldMemOperand(right, JSRegExp::kDataOffset));
   __ cmp(tmp, tmp2);
-  __ b(eq, &ok, Label::kNear);
+  __ b(eq, &ok, Label::kNear); // DIFF: codegen
   __ bind(&fail);
   __ LoadRoot(r0, Heap::kFalseValueRootIndex);
   __ jmp_near(&done);
@@ -3978,7 +3979,7 @@ void FullCodeGenerator::EmitIsRegExpEquivalent(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
+void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   VisitForAccumulatorValue(args->at(0));
 
@@ -3998,7 +3999,7 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
+void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));
@@ -4039,8 +4040,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // Check that the array is a JSArray.
   __ JumpIfSmi(array, &bailout);
-  __ CompareObjectType(array, scratch, array_length, JS_ARRAY_TYPE, eq);
-  __ b(ne, &bailout);
+  __ CompareObjectType(array, scratch, array_length, JS_ARRAY_TYPE, eq); // DIFF: codegen
+  __ bf(&bailout); // DIFF: codegen
 
   // Check that the array has fast elements.
   __ CheckFastElements(scratch, array_length, &bailout);
@@ -4065,8 +4066,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ mov(string_length, Operand::Zero());
   __ add(element,
          elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ lsl(elements_end, array_length, Operand(kPointerSizeLog2));
-  __ add(elements_end, element, elements_end);
+  __ lsl(elements_end, array_length, Operand(kPointerSizeLog2)); // DIFF: codegen
+  __ add(elements_end, element, elements_end); // DIFF: codegen
   // Loop condition: while (element < elements_end).
   // Live values in registers:
   //   elements: Fixed array of strings.
@@ -4076,8 +4077,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //   element: Current array element.
   //   elements_end: Array end.
   if (generate_debug_code_) {
-    __ cmpgt(array_length, Operand::Zero());
-    __ Assert(eq, kNoEmptyArraysHereInEmitFastAsciiArrayJoin);
+    __ cmpgt(array_length, Operand::Zero()); // DIFF: codegen
+    __ Assert(t, kNoEmptyArraysHereInEmitFastAsciiArrayJoin); // DIFF: codegen
   }
   __ bind(&loop);
   __ ldr(string, MemOperand(element, kPointerSize, PostIndex));
@@ -4086,10 +4087,10 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
   __ JumpIfInstanceTypeIsNotSequentialAscii(scratch, scratch, &bailout);
   __ ldr(scratch, FieldMemOperand(string, SeqOneByteString::kLengthOffset));
-  __ addv(string_length, string_length, scratch);
-  __ b(t, &bailout);
-  __ cmpge(element, elements_end);
-  __ bf(&loop);
+  __ addv(string_length, string_length, scratch); // DIFF: codegen
+  __ b(t, &bailout); // DIFF: codegen
+  __ cmpge(element, elements_end); // DIFF: codegen
+  __ bf(&loop); // DIFF: codegen
 
   // If array_length is 1, return elements[0], a string.
   __ cmp(array_length, Operand(1));
@@ -4116,15 +4117,15 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // smi but the other values are, so the result is a smi
   __ ldr(scratch, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
   __ sub(string_length, string_length, scratch);
-  __ dmuls(scratch, ip, array_length, scratch);
+  __ smull(scratch, ip, array_length, scratch);
   // Check for smi overflow. No overflow if higher 33 bits of 64-bit result are
   // zero.
   __ cmp(ip, Operand::Zero());
   __ b(ne, &bailout);
   __ tst(scratch, Operand(0x80000000));
   __ b(ne, &bailout);
-  __ addv(string_length, string_length, scratch);
-  __ b(t, &bailout);
+  __ addv(string_length, string_length, scratch); // DIFF: codegen
+  __ b(t, &bailout); // DIFF: codegen
   __ SmiUntag(string_length);
 
   // Get first element in the array to free up the elements register to be used
@@ -4147,8 +4148,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // Prepare for looping. Set up elements_end to end of the array. Set
   // result_pos to the position of the result where to write the first
   // character.
-  __ lsl(elements_end, array_length, Operand(kPointerSizeLog2));
-  __ add(elements_end, element, elements_end);
+  __ lsl(elements_end, array_length, Operand(kPointerSizeLog2)); // DIFF: codegen
+  __ add(elements_end, element, elements_end); // DIFF: codegen
   result_pos = array_length;  // End of live range for array_length.
   array_length = no_reg;
   __ add(result_pos,
@@ -4157,10 +4158,10 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // Check the length of the separator.
   __ ldr(scratch, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
-  __ cmpeq(scratch, Operand(Smi::FromInt(1)));
-  __ bt(&one_char_separator);
-  __ cmpgt(scratch, Operand(Smi::FromInt(1)));
-  __ bt(&long_separator);
+  __ cmp(scratch, Operand(Smi::FromInt(1)));
+  __ b(eq, &one_char_separator);
+  __ cmpgt(scratch, Operand(Smi::FromInt(1))); // DIFF: codegen
+  __ bt(&long_separator); // DIFF: codegen
 
   // Empty separator case
   __ bind(&empty_separator_loop);
@@ -4177,8 +4178,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
          string,
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
   __ CopyBytes(string, result_pos, string_length, scratch);
-  __ cmpge(element, elements_end);
-  __ bf(&empty_separator_loop);  // End while (element < elements_end).
+  __ cmpge(element, elements_end); // DIFF: codegen
+  __ bf(&empty_separator_loop);  // End while (element < elements_end). // DIFF: codegen
   ASSERT(result.is(r0));
   __ b(&done);
 
@@ -4198,8 +4199,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //   separator: Single separator ASCII char (in lower byte).
 
   // Copy the separator character to the result.
-  __ strb(separator, MemOperand(result_pos));
-  __ add(result_pos, result_pos, Operand(1));
+  __ strb(separator, MemOperand(result_pos)); // DIFF: codegen
+  __ add(result_pos, result_pos, Operand(1)); // DIFF: codegen
 
   // Copy next array element to the result.
   __ bind(&one_char_separator_loop_entry);
@@ -4210,8 +4211,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
          string,
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
   __ CopyBytes(string, result_pos, string_length, scratch);
-  __ cmpge(element, elements_end);
-  __ bf(&one_char_separator_loop);  // End while (element < elements_end).
+  __ cmpge(element, elements_end); // DIFF: codegen
+  __ bf(&one_char_separator_loop);  // End while (element < elements_end). // DIFF: codegen
   ASSERT(result.is(r0));
   __ b(&done);
 
@@ -4240,8 +4241,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
          string,
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
   __ CopyBytes(string, result_pos, string_length, scratch);
-  __ cmpge(element, elements_end);
-  __ bf(&long_separator_loop);  // End while (element < elements_end).
+  __ cmpge(element, elements_end); // DIFF: codegen
+  __ bf(&long_separator_loop);  // End while (element < elements_end). // DIFF: codegen
   ASSERT(result.is(r0));
   __ b(&done);
 
@@ -4621,7 +4622,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 }
 
 
-void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
+void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr, // SAMEAS: arm
                                                  Expression* sub_expr,
                                                  Handle<String> check) {
   Label materialize_true, materialize_false;
@@ -4645,15 +4646,15 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else if (check->Equals(isolate()->heap()->string_string())) {
     __ JumpIfSmi(r0, if_false);
     // Check for undetectable objects => false.
-    __ CompareObjectType(r0, r0, r1, FIRST_NONSTRING_TYPE, ge);
-    __ bt(if_false);
+    __ CompareObjectType(r0, r0, r1, FIRST_NONSTRING_TYPE, ge); // DIFF: codegen
+    __ bt(if_false); // DIFF: codegen
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
     __ tst(r1, Operand(1 << Map::kIsUndetectable));
     Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->symbol_string())) {
     __ JumpIfSmi(r0, if_false);
-    __ CompareObjectType(r0, r0, r1, SYMBOL_TYPE, eq);
-    Split(eq, if_true, if_false, fall_through);
+    __ CompareObjectType(r0, r0, r1, SYMBOL_TYPE, eq); // DIFF: codegen
+    Split(t, if_true, if_false, fall_through); // DIFF: codegen
   } else if (check->Equals(isolate()->heap()->boolean_string())) {
     __ CompareRoot(r0, Heap::kTrueValueRootIndex);
     __ b(eq, if_true);
@@ -4676,9 +4677,9 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else if (check->Equals(isolate()->heap()->function_string())) {
     __ JumpIfSmi(r0, if_false);
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    __ CompareObjectType(r0, r0, r1, JS_FUNCTION_TYPE, eq);
-    __ b(eq, if_true);
-    __ cmpeq(r1, Operand(JS_FUNCTION_PROXY_TYPE));
+    __ CompareObjectType(r0, r0, r1, JS_FUNCTION_TYPE, eq); // DIFF: codegen
+    __ b(t, if_true);
+    __ cmp(r1, Operand(JS_FUNCTION_PROXY_TYPE));
     Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->object_string())) {
     __ JumpIfSmi(r0, if_false);
@@ -4687,10 +4688,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
       __ b(eq, if_true);
     }
     // Check for JS objects => true.
-    __ CompareObjectType(r0, r0, r1, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, ge);
-    __ bf(if_false);
-    __ CompareInstanceType(r0, r1, LAST_NONCALLABLE_SPEC_OBJECT_TYPE, gt);
-    __ bt(if_false);
+    __ CompareObjectType(r0, r0, r1, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+    __ bf(if_false); // DIFF: codegen
+    __ CompareInstanceType(r0, r1, LAST_NONCALLABLE_SPEC_OBJECT_TYPE, gt); // DIFF: codegen
+    __ bt(if_false); // DIFF: codegen
     // Check for undetectable objects => false.
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
     __ tst(r1, Operand(1 << Map::kIsUndetectable));

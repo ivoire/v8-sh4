@@ -66,7 +66,7 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, // SAMEAS: arm
 
 // Generated code falls through if the receiver is a regular non-global
 // JS object with slow properties and no interceptors.
-static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm,
+static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm, // SAMEAS: arm
                                                 Register receiver,
                                                 Register elements,
                                                 Register t0,
@@ -84,8 +84,8 @@ static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm,
   __ JumpIfSmi(receiver, miss);
 
   // Check that the receiver is a valid JS object.
-  __ CompareObjectType(receiver, t0, t1, FIRST_SPEC_OBJECT_TYPE, ge);
-  __ bf(miss);
+  __ CompareObjectType(receiver, t0, t1, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+  __ bf(miss); // DIFF: codegen
 
   // If this assert fails, we have to check upper bound too.
   STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
@@ -101,8 +101,8 @@ static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm,
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ ldr(t1, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
-  __ cmpeq(t1, ip);
-  __ bf(miss);
+  __ cmp(t1, ip);
+  __ b(ne, miss);
 }
 
 
@@ -305,7 +305,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
 
 // Checks whether a key is an array index string or a unique name.
 // Falls through if a key is a unique name.
-static void GenerateKeyNameCheck(MacroAssembler* masm,
+static void GenerateKeyNameCheck(MacroAssembler* masm, // SAMEAS: arm
                                  Register key,
                                  Register map,
                                  Register hash,
@@ -314,9 +314,11 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
   // The key is not a smi.
   Label unique;
   // Is it a name?
-  __ CompareObjectType(key, map, hash, LAST_UNIQUE_NAME_TYPE, hi);
-  __ bt(not_unique);
+  __ CompareObjectType(key, map, hash, LAST_UNIQUE_NAME_TYPE, hi); // DIFF: codegen
+  __ bt(not_unique); // DIFF: codegen
   STATIC_ASSERT(LAST_UNIQUE_NAME_TYPE == FIRST_NONSTRING_TYPE);
+  // SH4: map reg contains the map and hash reg contains the type
+  __ cmp(hash, Operand(LAST_UNIQUE_NAME_TYPE)); // SH4: redo compare // DIFF: codegen
   __ b(eq, &unique);
 
   // Is the string an array index, with cached numeric value?
@@ -341,7 +343,7 @@ Object* CallIC_Miss(Arguments args);
 
 // The generated code does not accept smi keys.
 // The generated code falls through if both probes miss.
-void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
+void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm, // SAMEAS: arm
                                                int argc,
                                                Code::Kind kind,
                                                Code::ExtraICState extra_state) {
@@ -367,8 +369,8 @@ void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   //
   // Check for number.
   __ JumpIfSmi(r1, &number, Label::kNear);
-  __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE, eq);
-  __ bf_near(&non_number);
+  __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE, eq); // DIFF: codegen
+  __ bf_near(&non_number); // DIFF: codegen
   __ bind(&number);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::NUMBER_FUNCTION_INDEX, r1);
@@ -376,8 +378,8 @@ void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 
   // Check for string.
   __ bind(&non_number);
-  __ cmphs(r3, Operand(FIRST_NONSTRING_TYPE));
-  __ bt_near(&non_string);
+  __ cmphs(r3, Operand(FIRST_NONSTRING_TYPE)); // DIFF: codegen
+  __ bt_near(&non_string); // DIFF: codegen
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
       masm, Context::STRING_FUNCTION_INDEX, r1);
   __ b(&probe);
@@ -403,7 +405,7 @@ void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
 }
 
 
-static void GenerateFunctionTailCall(MacroAssembler* masm,
+static void GenerateFunctionTailCall(MacroAssembler* masm, // SAMEAS: arm
                                      int argc,
                                      Label* miss,
                                      Register scratch) {
@@ -413,8 +415,8 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
   __ JumpIfSmi(r1, miss);
 
   // Check that the value is a JSFunction.
-  __ CompareObjectType(r1, scratch, scratch, JS_FUNCTION_TYPE, eq);
-  __ bf(miss);
+  __ CompareObjectType(r1, scratch, scratch, JS_FUNCTION_TYPE, eq); // DIFF: codegen
+  __ bf(miss); // DIFF: codegen
 
   // Invoke the function.
   ParameterCount actual(argc);
@@ -445,7 +447,7 @@ void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
 }
 
 
-void CallICBase::GenerateMiss(MacroAssembler* masm,
+void CallICBase::GenerateMiss(MacroAssembler* masm, // SAMEAS: arm
                               int argc,
                               IC::UtilityId id,
                               Code::ExtraICState extra_state) {
@@ -478,7 +480,7 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
     __ CallStub(&stub);
 
     // Move result to r1 and leave the internal frame.
-    __ mov(r1, r0);
+    __ mov(r1, Operand(r0));
   }
 
   // Check if the receiver is a global object of some sort.
@@ -487,10 +489,10 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
     Label invoke, global;
     __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
     __ JumpIfSmi(r2, &invoke, Label::kNear);
-    __ CompareObjectType(r2, r3, r3, JS_GLOBAL_OBJECT_TYPE, eq);
-    __ bt_near(&global);
-    __ cmpeq(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
-    __ bf_near(&invoke);
+    __ CompareObjectType(r2, r3, r3, JS_GLOBAL_OBJECT_TYPE, eq); // DIFF: codegen
+    __ bt_near(&global); // DIFF: codegen
+    __ cmp(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
+    __ bf_near(&invoke); // DIFF: codegen
 
     // Patch the receiver on the stack.
     __ bind(&global);
@@ -669,7 +671,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateNormal(MacroAssembler* masm) {
+void LoadIC::GenerateNormal(MacroAssembler* masm) { // SAMEAS: arm
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -689,7 +691,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
+void LoadIC::GenerateMiss(MacroAssembler* masm) { // SAMEAS: arm
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -709,7 +711,7 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) { // SAMEAS: arm
   // ---------- S t a t e --------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -723,7 +725,7 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
+static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm, // SAMEAS: arm
                                                 Register object,
                                                 Register key,
                                                 Register scratch1,
@@ -738,8 +740,8 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // requires access checks.
   __ JumpIfSmi(object, slow_case);
   // Check that the object is some kind of JSObject.
-  __ CompareObjectType(object, scratch1, scratch2, FIRST_JS_RECEIVER_TYPE, ge);
-  __ bf(slow_case);
+  __ CompareObjectType(object, scratch1, scratch2, FIRST_JS_RECEIVER_TYPE, ge); // DIFF: codegen
+  __ bf(slow_case); // DIFF: codegen
 
   // Check that the key is a positive smi.
   __ tst(key, Operand(0x80000001));
@@ -754,8 +756,8 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // to the unmapped lookup with the parameter map in scratch1.
   __ ldr(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
   __ sub(scratch2, scratch2, Operand(Smi::FromInt(2)));
-  __ cmphs(key, scratch2);
-  __ b(t, unmapped_case);
+  __ cmphs(key, scratch2); // DIFF: codegen
+  __ b(t, unmapped_case); // DIFF: codegen
 
   // Load element index and check whether it is the hole.
   const int kOffset =

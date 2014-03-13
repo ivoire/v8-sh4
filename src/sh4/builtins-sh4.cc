@@ -659,7 +659,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm, // SAMEAS: arm
     // If the type of the result (stored in its map) is less than
     // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
     __ CompareObjectType(r0, r1, r3, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
-    __ bt(&exit);
+    __ bt(&exit); // DIFF: codegen
 
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.

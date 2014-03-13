@@ -1166,6 +1166,9 @@ class Assembler : public AssemblerBase {
   void mul(Register Rd, Register Rs, Register Rt);
   void dmuls(Register dstL, Register dstH, Register src1, Register src2);
 
+  // Mul aliases for ARM emulation
+  void smull(Register dstL, Register dstH, Register src1, Register src2) { dmuls(dstL, dstH, src1, src2); }
+
   void nop() { nop_(); }
 
   void push(Register src);
