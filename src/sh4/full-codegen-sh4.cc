@@ -3512,7 +3512,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
+void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string, // SAMEAS: arm
                                                   Register index,
                                                   Register value,
                                                   uint32_t encoding_mask) {
@@ -3522,11 +3522,11 @@ void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string,
   __ Check(eq, kNonSmiValue);
 
   __ ldr(ip, FieldMemOperand(string, String::kLengthOffset));
-  __ cmp(index, ip);
-  __ Check(lt, kIndexIsTooLarge);
+  __ cmpge(index, ip); // DIFF: codegen
+  __ Check(f, kIndexIsTooLarge); // DIFF: codegen
 
-  __ cmp(index, Operand(Smi::FromInt(0)));
-  __ Check(ge, kIndexIsNegative);
+  __ cmpge(index, Operand(Smi::FromInt(0))); // DIFF: codegen
+  __ Check(t, kIndexIsNegative); // DIFF: codegen
 
   __ ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
   __ ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
