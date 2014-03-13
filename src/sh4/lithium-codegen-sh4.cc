@@ -2358,18 +2358,19 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) { // SAMEAS: arm
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    __ UNIMPLEMENTED_BREAK(); // TODO: FPU
-    //DwVfpRegister result = ToDoubleRegister(instr->result());
-    //Operand operand = key_is_constant
-    //    ? Operand(constant_key << element_size_shift)
-    //    : Operand(key, LSL, shift_size);
-    //__ add(scratch0(), external_pointer, operand);
-    //if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-    //  __ vldr(double_scratch0().low(), scratch0(), additional_offset);
-    //  __ vcvt_f64_f32(result, double_scratch0().low());
-    //} else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-    //  __ vldr(result, scratch0(), additional_offset);
-    //}
+    DwVfpRegister result = ToDoubleRegister(instr->result());
+    if (key_is_constant) {
+      __ add(scratch0(), external_pointer, Operand(constant_key << element_size_shift)); // DIFF: codegen
+    } else {
+      __ lsl(scratch0(), key, Operand(shift_size)); // DIFF: codegen
+      __ add(scratch0(), external_pointer, scratch0()); // DIFF: codegen
+    }
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+     __ vldr(double_scratch0().low(), scratch0(), additional_offset);
+     __ vcvt_f64_f32(result, double_scratch0().low());
+    } else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
+     __ vldr(result, scratch0(), additional_offset);
+    }
   } else {
     Register result = ToRegister(instr->result());
     MemOperand mem_operand = PrepareKeyedOperand(
@@ -2813,9 +2814,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) { // SAMEAS: arm
     ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
-    __ UNIMPLEMENTED_BREAK(); // TODO: FPU
-    //DwVfpRegister value = ToDoubleRegister(instr->value());
-    //__ vstr(value, FieldMemOperand(object, offset));
+    DwVfpRegister value = ToDoubleRegister(instr->value());
+    __ vstr(value, FieldMemOperand(object, offset));
     return;
   }
 
@@ -2942,25 +2942,25 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) { // SAMEAS: arm
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    __ UNIMPLEMENTED_BREAK(); // TODO: FPU
-    // Register address = scratch0();
-    // DwVfpRegister value(ToDoubleRegister(instr->value()));
-    // if (key_is_constant) {
-    //   if (constant_key != 0) {
-    //     __ add(address, external_pointer,
-    //            Operand(constant_key << element_size_shift));
-    //   } else {
-    //     address = external_pointer;
-    //   }
-    // } else {
-    //   __ add(address, external_pointer, Operand(key, LSL, shift_size));
-    // }
-    // if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-    //    __ vcvt_f32_f64(double_scratch0().low(), value);
-    //    __ vstr(double_scratch0().low(), address, additional_offset);
-    // } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-    //   __ vstr(value, address, additional_offset);
-    // }
+    Register address = scratch0();
+    DwVfpRegister value(ToDoubleRegister(instr->value()));
+    if (key_is_constant) {
+      if (constant_key != 0) {
+        __ add(address, external_pointer,
+               Operand(constant_key << element_size_shift));
+      } else {
+        address = external_pointer;
+      }
+    } else {
+      __ lsl(address, key, Operand(shift_size)); // DIFF: codegen
+      __ add(address, external_pointer, address);
+    }
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
+       __ vcvt_f32_f64(double_scratch0().low(), value);
+       __ vstr(double_scratch0().low(), address, additional_offset);
+    } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
+      __ vstr(value, address, additional_offset);
+    }
   } else {
     Register value(ToRegister(instr->value()));
     MemOperand mem_operand = PrepareKeyedOperand(
@@ -2999,10 +2999,10 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) { // SAMEAS: arm
 
 
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) { // SAMEAS: arm
-  //DwVfpRegister value = ToDoubleRegister(instr->value());
+  DwVfpRegister value = ToDoubleRegister(instr->value());
   Register elements = ToRegister(instr->elements());
   Register scratch = scratch0();
-  //DwVfpRegister double_scratch = double_scratch0();
+  DwVfpRegister double_scratch = double_scratch0();
   bool key_is_constant = instr->key()->IsConstantOperand();
 
   // Calculate the effective address of the slot in the array to store the
@@ -3025,19 +3025,18 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) { // SAMEAS: arm
   }
 
   if (instr->NeedsCanonicalization()) {
-      __ UNIMPLEMENTED_BREAK(); // TODO: FPU
-    // // Force a canonical NaN.
+    // Force a canonical NaN.
+    // SH4: no matching support for NaN mode check
     // if (masm()->emit_debug_code()) {
     //   __ vmrs(ip);
     //   __ tst(ip, Operand(kVFPDefaultNaNModeControlBit));
     //   __ Assert(ne, kDefaultNaNModeNotSet);
     // }
-    // __ VFPCanonicalizeNaN(double_scratch, value);
-    // __ vstr(double_scratch, scratch,
-    //         instr->additional_index() << element_size_shift);
+    __ VFPCanonicalizeNaN(double_scratch, value);
+    __ vstr(double_scratch, scratch,
+            instr->additional_index() << element_size_shift);
   } else {
-    __ UNIMPLEMENTED_BREAK();
-    //__ vstr(value, scratch, instr->additional_index() << element_size_shift);
+    __ vstr(value, scratch, instr->additional_index() << element_size_shift);
   }
 }
 

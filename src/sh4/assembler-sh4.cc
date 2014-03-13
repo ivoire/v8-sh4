@@ -2427,13 +2427,49 @@ void Assembler::vcvt_s32_f64(Register dst,
                              VFPConversionMode mode,
                              Condition cond)
 {
-  // SH4: TODO(stm): check if the default conversion mode for SH4 macthes
+  // SH4: The unique conversion mode to interger is truncation (i.e. round to zero)
   ASSERT(mode == kDefaultRoundToZero);
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
   if (cond != al)
     b(cond == ne ? eq: ne, &skip, Label::kNear);
   idouble(dst, src);
+  if (cond != al)
+    bind(&skip);
+}
+
+
+void Assembler::vcvt_f64_f32(DwVfpRegister dst,
+                             SwVfpRegister src,
+                             VFPConversionMode mode,
+                             Condition cond)
+{
+  // SH4: Conversion to double is with no loss of precision.
+  ASSERT(mode == kDefaultRoundToZero);
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  fcnvsd(dst, src);
+  if (cond != al)
+    bind(&skip);
+}
+
+
+void Assembler::vcvt_f32_f64(SwVfpRegister dst,
+                             DwVfpRegister src,
+                             VFPConversionMode mode,
+                             Condition cond)
+{
+  // SH4: TODO(stm) Default conversion is round to nearest even
+  // though the default in this implementation is round to zero.
+  // May have to change the FPSCR flags setting.
+  ASSERT(mode == kDefaultRoundToZero);
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
+  fcnvds(dst, src);
   if (cond != al)
     bind(&skip);
 }

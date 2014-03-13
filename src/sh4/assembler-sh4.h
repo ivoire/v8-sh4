@@ -882,6 +882,11 @@ class Assembler : public AssemblerBase {
   // Integer conversion from double: Rs = (int)Dd
   void idouble(Register Rd, DwVfpRegister Ds, Register fpscr = no_reg);
 
+  // Conversion from simple to double
+  void fcnvsd(DwVfpRegister Dd, SwVfpRegister Fs)   { flds_FPUL_(Fs); fcnvsd_FPUL_double_(Dd); }
+  // Conversion from double to simple
+  void fcnvds(SwVfpRegister Fd, DwVfpRegister Ds)   { fcnvds_double_FPUL_(Ds); fsts_FPUL_(Fd); }
+
   // Double comparisons
   void dcmpeq(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpeq_double_(Ds, Dd); }
   void dcmpgt(DwVfpRegister Dd, DwVfpRegister Ds)   { fcmpgt_double_(Ds, Dd); }
@@ -939,6 +944,14 @@ class Assembler : public AssemblerBase {
                     DwVfpRegister src,
                     VFPConversionMode mode = kDefaultRoundToZero,
                     Condition cond = al);
+  void vcvt_f64_f32(const DwVfpRegister dst,
+                    const SwVfpRegister src,
+                    VFPConversionMode mode = kDefaultRoundToZero,
+                    const Condition cond = al);
+  void vcvt_f32_f64(const SwVfpRegister dst,
+                    const DwVfpRegister src,
+                    VFPConversionMode mode = kDefaultRoundToZero,
+                    const Condition cond = al);
 
   void vmov(DwVfpRegister dst, double imm,
             Register scratch = no_reg,
