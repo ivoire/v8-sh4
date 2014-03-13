@@ -284,7 +284,11 @@ DEFINE_bool(trap_on_stub_deopt, false,
             "put a break point before deoptimizing a stub")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
+#if defined(V8_TARGET_ARCH_SH4)
+DEFINE_bool(use_osr, false, "use on-stack replacement")
+#else
 DEFINE_bool(use_osr, true, "use on-stack replacement")
+#endif
 DEFINE_bool(array_bounds_checks_elimination, true,
             "perform array bounds checks elimination")
 DEFINE_bool(array_bounds_checks_hoisting, false,
