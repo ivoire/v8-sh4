@@ -5840,20 +5840,109 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
+void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) { // SAMEAS: arm
   if (masm->isolate()->function_entry_hook() != NULL) {
-    PredictableCodeSizeScope predictable(masm, 5 * Assembler::kInstrSize);
+    // Needs a predicatable code size for computing the start of the sequence
+    // from the return address in the called stub. Ref to ::Generate().
+    // SH4: needa align start for predictable code size
+    int pc_offset = masm->pc_offset();
+    ASSERT((long)pc_offset % 4 == 0);
+    int expected_size =
+      3 * Assembler::kInstrSize /* Pushes */ +
+      masm->CallSize((unsigned char *)NULL,
+                     pc_offset + 3 * Assembler::kInstrSize/* Pushes */,
+                     RelocInfo::CODE_TARGET) +
+      3 * Assembler::kInstrSize /* Pops */;
+    PredictableCodeSizeScope predictable(masm, expected_size);
     AllowStubCallsScope allow_stub_calls(masm, true);
     ProfileEntryHookStub stub;
+    /* This entry will be generated for all JSEntry stubs, and
+       call CEntry stubs, thus care must be taken to preserve all
+       registered used here, and ::Generate() must do the same. */
     __ push(pr);
+    /* SH4: need to save rtmp/ip, used as scratches by macro-assembler-sh4. */
+    __ Push(sh4_rtmp, sh4_ip);  // DIFF: codegen
     __ CallStub(&stub);
+    // Following restore must match the one at the end of ::Generate()
+    __ Pop(sh4_rtmp, sh4_ip);  // DIFF: codegen
     __ pop(pr);
   }
 }
 
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  __ UNIMPLEMENTED_BREAK();
+  // The entry hook is a "push lr" (+ "push sh4_rtmp/sh4_ip" for SH4)
+  // instruction, followed by a call.
+  // Ref to ::MaybeCallEntryHook() for the sequence.
+  const int32_t kReturnAddressDistanceFromFunctionStart =
+    3 * Assembler::kInstrSize /* Pushes */ +
+    masm->CallSize((unsigned char *)NULL,
+                   0 + 3 * Assembler::kInstrSize/* Pushes */,
+                   RelocInfo::CODE_TARGET);
+
+  // This should contain all kCallerSaved registers.
+  RegList kSavedRegs = kCallerSaved;
+  kSavedRegs |=
+    1 << sh4_r8/*r5*/.code(); // SH4: use r8 below
+  // SH4: the JS scratches sh4_ip and sh4_rtmp were already saved
+  // in the MaybeGenerateHook sequence.
+  // No need to save them again, though they will be restored at the end
+  // of this sequence.
+
+
+  // We also save lr, so the count here is one higher than the mask indicates.
+  int32_t kNumSavedRegs = NumRegs(kSavedRegs);
+
+  ASSERT((kCallerSaved & kSavedRegs) == kCallerSaved);
+
+  // Save all caller-save registers as this may be called from anywhere.
+  __ pushm(kSavedRegs); // DIFF: codegen
+
+  // Compute the function's address for the first argument.
+  __ mov(sh4_r4, lr); // DIFF: codegen
+  __ sub(sh4_r4/*r0*/, sh4_r4, Operand(kReturnAddressDistanceFromFunctionStart)); // SH4: params // DIFF: codegen
+
+  // The caller's return address is above the saved temporaries.
+  // Grab that for the second argument to the hook.
+  __ add(sh4_r5/*r1*/, sp, Operand(kNumSavedRegs * kPointerSize)); // SH4: params // DIFF: codegen
+
+  // Align the stack if necessary.
+  int frame_alignment = masm->ActivationFrameAlignment();
+  if (frame_alignment > kPointerSize) {
+    __ mov(sh4_r8/*r5*/, sp); // SH4: use a callee saved // DIFF: codegen
+    ASSERT(IsPowerOf2(frame_alignment));
+    __ and_(sp, sp, Operand(-frame_alignment));
+  }
+
+#if V8_HOST_ARCH_SH4
+  int32_t entry_hook =
+      reinterpret_cast<int32_t>(masm->isolate()->function_entry_hook());
+  __ mov(ip, Operand(entry_hook));
+#else
+  // Under the simulator we need to indirect the entry hook through a
+  // trampoline function at a known address.
+  // It additionally takes an isolate as a third parameter
+  __ mov(sh4_r6/*r2*/, Operand(ExternalReference::isolate_address(masm->isolate())));
+
+  ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
+  __ mov(ip, Operand(ExternalReference(&dispatcher,
+                                       ExternalReference::BUILTIN_CALL,
+                                       masm->isolate())));
+#endif
+  __ Call(ip);
+
+  // Restore the stack pointer if needed.
+  if (frame_alignment > kPointerSize) {
+    __ mov(sp, sh4_r8/*r5*/);
+  }
+
+  // Also pop pc to get Ret(0).
+  __ popm(kSavedRegs); // DIFF: codegen
+
+  // Following restore must match the one at the end of ::MaybeCallEntryHook()
+  __ Pop(sh4_rtmp, sh4_ip);  // DIFF: codegen
+  __ pop(pr);
+  __ rts();
 }
 
 
