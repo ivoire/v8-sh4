@@ -2773,20 +2773,56 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
-void MacroAssembler::LoadTransitionedArrayMapConditional(
+void MacroAssembler::LoadTransitionedArrayMapConditional( // SAMEAS: arm
     ElementsKind expected_kind,
     ElementsKind transitioned_kind,
     Register map_in_out,
     Register scratch,
     Label* no_map_match) {
-  UNIMPLEMENTED_BREAK();
+  // Load the global or builtins object from the current context.
+  ldr(scratch,
+      MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  ldr(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
+
+  // Check that the function's map is the same as the expected cached map.
+  ldr(scratch,
+      MemOperand(scratch,
+                 Context::SlotOffset(Context::JS_ARRAY_MAPS_INDEX)));
+  size_t offset = expected_kind * kPointerSize +
+      FixedArrayBase::kHeaderSize;
+  ldr(ip, FieldMemOperand(scratch, offset));
+  cmp(map_in_out, ip);
+  b(ne, no_map_match);
+
+  // Use the transitioned cached map.
+  offset = transitioned_kind * kPointerSize +
+      FixedArrayBase::kHeaderSize;
+  ldr(map_in_out, FieldMemOperand(scratch, offset));
 }
 
 
-void MacroAssembler::LoadInitialArrayMap(
+void MacroAssembler::LoadInitialArrayMap( // SAMEAS: arm
     Register function_in, Register scratch,
     Register map_out, bool can_have_holes) {
-  UNIMPLEMENTED_BREAK();
+  ASSERT(!function_in.is(map_out));
+  Label done;
+  ldr(map_out, FieldMemOperand(function_in,
+                               JSFunction::kPrototypeOrInitialMapOffset));
+  if (!FLAG_smi_only_arrays) {
+    ElementsKind kind = can_have_holes ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
+    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+                                        kind,
+                                        map_out,
+                                        scratch,
+                                        &done);
+  } else if (can_have_holes) {
+    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+                                        FAST_HOLEY_SMI_ELEMENTS,
+                                        map_out,
+                                        scratch,
+                                        &done);
+  }
+  bind(&done);
 }
 
 
