@@ -2975,13 +2975,89 @@ void MacroAssembler::JumpIfNotHeapNumber(Register object,
 }
 
 
-void MacroAssembler::LookupNumberStringCache(Register object,
+void MacroAssembler::LookupNumberStringCache(Register object, // SAMEAS: arm
                                              Register result,
                                              Register scratch1,
                                              Register scratch2,
                                              Register scratch3,
                                              Label* not_found) {
-  UNIMPLEMENTED_BREAK();
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch3;
+
+  // Load the number string cache.
+  LoadRoot(number_string_cache, Heap::kNumberStringCacheRootIndex);
+
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  ldr(mask, FieldMemOperand(number_string_cache, FixedArray::kLengthOffset));
+  // Divide length by two (length is a smi).
+  asr(mask, mask, Operand(kSmiTagSize + 1)); // DIFF: codegen
+  sub(mask, mask, Operand(1));  // Make mask.
+
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value, and the hash for
+  // doubles is the xor of the upper and lower words. See
+  // Heap::GetNumberStringCache.
+  Label is_smi;
+  Label load_result_from_cache;
+  JumpIfSmi(object, &is_smi);
+  CheckMap(object,
+           scratch1,
+           Heap::kHeapNumberMapRootIndex,
+           not_found,
+           DONT_DO_SMI_CHECK);
+
+  STATIC_ASSERT(8 == kDoubleSize);
+  add(scratch1,
+      object,
+      Operand(HeapNumber::kValueOffset - kHeapObjectTag));
+  ldr(scratch2, MemOperand(scratch1, 4)); // DIFF: codegen
+  ldr(scratch1, MemOperand(scratch1, 0)); // DIFF: codegen
+  eor(scratch1, scratch1, Operand(scratch2));
+  and_(scratch1, scratch1, Operand(mask));
+
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  lsl(scratch1, scratch1, Operand(kPointerSizeLog2 + 1)); // DIFF: codegen
+  add(scratch1,
+      number_string_cache,
+      scratch1); // DIFF: codegen
+
+  Register probe = mask;
+  ldr(probe, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
+  JumpIfSmi(probe, not_found);
+  sub(scratch2, object, Operand(kHeapObjectTag));
+  vldr(sh4_dr0, scratch2, HeapNumber::kValueOffset); // DIFF: codegen
+  sub(probe, probe, Operand(kHeapObjectTag));
+  vldr(sh4_dr2, probe, HeapNumber::kValueOffset); // DIFF: codegen
+  dcmpeq(sh4_dr0, sh4_dr2); // DIFF: codegen
+  b(ne, not_found);  // The cache did not contain this value.
+  b(&load_result_from_cache);
+
+  bind(&is_smi);
+  Register scratch = scratch1;
+  asr(scratch, object, Operand(1)); // DIFF: codegen
+  and_(scratch, mask, scratch); // DIFF: codegen
+  // Calculate address of entry in string cache: each entry consists
+  // of two pointer sized fields.
+  lsl(scratch, scratch, Operand(kPointerSizeLog2 + 1)); // DIFF: codegen
+  add(scratch,
+      number_string_cache,
+      scratch); // DIFF: codegen
+
+  // Check if the entry is the smi we are looking for.
+  ldr(probe, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  cmp(object, probe);
+  b(ne, not_found);
+
+  // Get the result from the cache.
+  bind(&load_result_from_cache);
+  ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize + kPointerSize));
+  IncrementCounter(isolate()->counters()->number_to_string_native(),
+                   1,
+                   scratch1,
+                   scratch2);
 }
 
 

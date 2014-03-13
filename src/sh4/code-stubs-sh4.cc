@@ -4324,7 +4324,7 @@ void SubStringStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
+void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm, // SAMEAS: arm
                                                       Register left,
                                                       Register right,
                                                       Register scratch1,
@@ -4363,7 +4363,7 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 }
 
 
-void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
+void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm, // SAMEAS: arm
                                                         Register left,
                                                         Register right,
                                                         Register scratch1,
@@ -4376,10 +4376,10 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Find minimum length and length difference.
   __ ldr(scratch1, FieldMemOperand(left, String::kLengthOffset));
   __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
-  __ cmpgt(scratch1, scratch2); // for cond mov below
   __ sub(scratch3, scratch1, scratch2);
   Register length_delta = scratch3;
-  __ mov(scratch1, scratch2, t);
+  __ cmpgt(scratch1, scratch2); // DIFF: codegen
+  __ mov(scratch1, scratch2, t); // DIFF: codegen
   Register min_length = scratch1;
   STATIC_ASSERT(kSmiTag == 0);
   __ cmpeq(min_length, Operand::Zero());
@@ -4394,7 +4394,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ bind(&compare_lengths);
   ASSERT(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
   // Use length_delta as result if it's zero.
-  __ mov(r0, length_delta);
+  __ mov(r0, length_delta); // DIFF: codegen
   __ cmpgt(r0, Operand(0));
   __ mov(r0, Operand(Smi::FromInt(GREATER)), t);
   __ cmpge(r0, Operand(0));
@@ -4404,15 +4404,17 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ bind(&result_not_equal);
   // Conditionally update the result based either on length_delta or
   // the last comparion performed in the loop above.
-  __ cmpgt(scratch2, scratch4);
+  // SH4: suppose that the comparison is scratch2 vs scratch4
+  // ref to GenerateAsciiCharsCompareLoop
+  __ cmpgt(scratch2, scratch4); // DIFF: codegen
   __ mov(r0, Operand(Smi::FromInt(GREATER)), t);
-  __ cmpge(scratch2, scratch4);
-  __ mov(r0, Operand(Smi::FromInt(LESS)), f);
+  __ cmpge(scratch2, scratch4); // DIFF: codegen
+  __ mov(r0, Operand(Smi::FromInt(LESS)), f); // DIFF: codegen
   __ Ret();
 }
 
 
-void StringCompareStub::GenerateAsciiCharsCompareLoop(
+void StringCompareStub::GenerateAsciiCharsCompareLoop( // SAMEAS: arm
     MacroAssembler* masm,
     Register left,
     Register right,
@@ -4426,8 +4428,8 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   __ SmiUntag(length);
   __ add(scratch1, length,
          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ add(left, left, scratch1);
-  __ add(right, right, scratch1);
+  __ add(left, left, Operand(scratch1));
+  __ add(right, right, Operand(scratch1));
   __ rsb(length, length, Operand::Zero());
   Register index = length;  // index = -length;
 
@@ -4436,15 +4438,16 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   __ bind(&loop);
   __ ldrb(scratch1, MemOperand(left, index));
   __ ldrb(scratch2, MemOperand(right, index));
-  __ cmp(scratch1, scratch2);
+  // SH4: scratch1 and scratch2 must be kept the last chars. Ref to call site.
+  __ cmp(scratch1, scratch2); // SH4: must not change // DIFF: codegen
   __ b(ne, chars_not_equal);
-  __ add(index, index, Operand(1));
-  __ tst(index, index);
+  __ add(index, index, Operand(1)); // DIFF: codegen
+  __ tst(index, index); // DIFF: codegen
   __ b(ne, &loop);
 }
 
 
-void StringCompareStub::Generate(MacroAssembler* masm) {
+void StringCompareStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   Label runtime;
 
   Counters* counters = masm->isolate()->counters();
@@ -4629,9 +4632,9 @@ void StringAddStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   Label non_ascii, allocated, ascii_data;
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ tst(r4, Operand(kStringEncodingMask));
-  __ bt(&non_ascii); // DIFF: codegen
+  __ b(eq, &non_ascii); // DIFF: codegen
   __ tst(r5, Operand(kStringEncodingMask)); // DIFF: codegen
-  __ bt(&non_ascii); // DIFF: codegen
+  __ b(eq, &non_ascii);
 
   // Allocate an ASCII cons string.
   __ bind(&ascii_data);
@@ -4681,7 +4684,7 @@ void StringAddStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   Label non_ascii_data;
   __ tst(r4, Operand(kOneByteDataHintMask));
   __ bt_near(&non_ascii_data); // DIFF: codegen
-  __ tst(r5, Operand(kOneByteDataHintMask)); // DIFF/ codegen
+  __ tst(r5, Operand(kOneByteDataHintMask)); // DIFF: codegen
   __ b(ne, &ascii_data);
   __ bind(&non_ascii_data);
   __ eor(r4, r4, Operand(r5));
@@ -4811,19 +4814,19 @@ void StringAddStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
+void StringAddStub::GenerateRegisterArgsPush(MacroAssembler* masm) { // SAMEAS: arm
   __ push(r0);
   __ push(r1);
 }
 
 
-void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm) {
+void StringAddStub::GenerateRegisterArgsPop(MacroAssembler* masm) { // SAMEAS: arm
   __ pop(r1);
   __ pop(r0);
 }
 
 
-void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
+void StringAddStub::GenerateConvertArgument(MacroAssembler* masm, // SAMEAS: arm
                                             int stack_offset,
                                             Register arg,
                                             Register scratch1,
@@ -4834,8 +4837,8 @@ void StringAddStub::GenerateConvertArgument(MacroAssembler* masm,
   // First check if the argument is already a string.
   Label not_string, done;
   __ JumpIfSmi(arg, &not_string);
-  __ CompareObjectType(arg, scratch1, scratch1, FIRST_NONSTRING_TYPE, ge);
-  __ bf(&done);
+  __ CompareObjectType(arg, scratch1, scratch1, FIRST_NONSTRING_TYPE, ge); // DIFF: codegen
+  __ bf(&done); // DIFF: codegen
 
   // Check the number to string cache.
   __ bind(&not_string);
