@@ -45,7 +45,7 @@ if [ "$profile_gcov" = on ]; then
   export LDFLAGS="--coverage"
 fi
 
-
+set -x
 make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} ${jobs+-j$jobs} "$@"
 
 #  sh4.debug snapshot=off regexp=interpreted debuggersupport=off -j4
