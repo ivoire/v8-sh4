@@ -46,7 +46,6 @@ typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 #define __ assm.
 
 TEST(0) {
-  i::FLAG_disable_native_files = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
