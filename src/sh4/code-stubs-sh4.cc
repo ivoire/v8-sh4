@@ -5863,7 +5863,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) { // SAMEAS:
     /* SH4: need to save rtmp/ip, used as scratches by macro-assembler-sh4. */
     __ Push(sh4_rtmp, sh4_ip);  // DIFF: codegen
     __ CallStub(&stub);
-    // Following restore must match the one at the end of ::Generate()
+    // SH4: restore
     __ Pop(sh4_rtmp, sh4_ip);  // DIFF: codegen
     __ pop(pr);
   }
@@ -5886,15 +5886,15 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
     1 << sh4_r8/*r5*/.code(); // SH4: use r8 below
   // SH4: the JS scratches sh4_ip and sh4_rtmp were already saved
   // in the MaybeGenerateHook sequence.
-  // No need to save them again, though they will be restored at the end
-  // of this sequence.
 
 
   // We also save lr, so the count here is one higher than the mask indicates.
-  int32_t kNumSavedRegs = NumRegs(kSavedRegs);
+  int32_t kNumSavedRegs = NumRegs(kSavedRegs) + 1;
 
   ASSERT((kCallerSaved & kSavedRegs) == kCallerSaved);
 
+  // SH4: push PR
+  __ push(pr); // DIFF: codegen
   // Save all caller-save registers as this may be called from anywhere.
   __ pushm(kSavedRegs); // DIFF: codegen
 
@@ -5904,7 +5904,9 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // The caller's return address is above the saved temporaries.
   // Grab that for the second argument to the hook.
-  __ add(sh4_r5/*r1*/, sp, Operand(kNumSavedRegs * kPointerSize)); // SH4: params // DIFF: codegen
+  // SH4: it is above the saved temporaries plus the 2 slots
+  // for sh4_ip and sh4_rtmp: ref to MaybeCallEntryHook()
+  __ add(sh4_r5/*r1*/, sp, Operand((kNumSavedRegs + 2) * kPointerSize)); // SH4: params // DIFF: codegen
 
   // Align the stack if necessary.
   int frame_alignment = masm->ActivationFrameAlignment();
@@ -5938,11 +5940,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Also pop pc to get Ret(0).
   __ popm(kSavedRegs); // DIFF: codegen
-
-  // Following restore must match the one at the end of ::MaybeCallEntryHook()
-  __ Pop(sh4_rtmp, sh4_ip);  // DIFF: codegen
-  __ pop(pr);
-  __ rts();
+  __ pop(pr); // DIFF: codegen
+  __ rts(); // we just restored pr // DIFF: codegen
 }
 
 
