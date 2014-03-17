@@ -156,8 +156,8 @@ TEST(4) {
   BEGIN();
 
   PROLOGUE();
-  __ asl(r0, r4, Operand(17), r1);
-  __ asl(r0, r0, Operand(1));
+  __ lsl(r0, r4, Operand(17), r1);
+  __ lsl(r0, r0, Operand(1));
   EPILOGUE();
   __ rts();
 

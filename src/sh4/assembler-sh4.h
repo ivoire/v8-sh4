@@ -1042,10 +1042,8 @@ class Assembler : public AssemblerBase {
   void asr(Register Rd, Register Rs, Register Rt, bool in_range = false, Register rtmp = sh4_rtmp);
   void asr(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
-  // arithmetic shift left
-  void asl(Register Rd, Register Rs, const Operand& imm,
-           Register rtmp = sh4_rtmp);
 
+  // logical shifts
   void lsl(Register Rd, Register Rs, const Operand& imm,
            Register rtmp = sh4_rtmp);
   void lsl(Register Rd, Register Rs, Register Rt, bool wrap = false, Register rtmp = sh4_rtmp);

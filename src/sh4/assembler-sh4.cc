@@ -547,25 +547,6 @@ void Assembler::rsbv(Register Rd, Register Rs, Register Rt) {
 }
 
 
-// TODO(stm): check why asl is useful? Is it like lsl?
-void Assembler::asl(Register Rd, Register Rs, const Operand& imm,
-                    Register rtmp) {
-  if (imm.is_reg())
-    UNIMPLEMENTED();
-
-  ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
-  if (Rs.code() != Rd.code())
-    mov_(Rs, Rd);
-  if (imm.imm32_ == 1) {
-    shal_(Rd);
-  } else {
-    ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
-    mov_imm_(imm.imm32_, rtmp);
-    shad_(rtmp, Rd);
-  }
-}
-
-
 void Assembler::asr(Register Rd, Register Rs, Register Rt, bool in_range, Register rtmp) {
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp) && !Rt.is(rtmp));
   // If !in_range, we must clamp shift value to 31 max
@@ -597,7 +578,8 @@ void Assembler::asr(Register Rd, Register Rs, const Operand& imm,
   ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
-  // Note that we do not want to modify the T bit, hence shar is prohibited
+  // Note that we do not want to modify the T bit, hence shar is prohibited for >> 1
+  // TODO(stm): may add a specific interface for >>1 that sets the T bit
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
   mov_imm_(-imm.imm32_, rtmp);
   shad_(rtmp, Rd);
@@ -612,7 +594,8 @@ void Assembler::lsl(Register Rd, Register Rs, const Operand& imm,
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
   if (imm.imm32_ == 1) {
-    shll_(Rd); // TODO(stm) this one modified the T bit: fix it
+    // SH4: shll must not be used here as it sets the T bit
+    add(Rd, Rd, Rd); // x + x == x << 1
   } else if (imm.imm32_ == 2) {
     shll2_(Rd);
   } else {
@@ -656,9 +639,9 @@ void Assembler::lsr(Register Rd, Register Rs, const Operand& imm,
   ASSERT(imm.imm32_ >= 0 && imm.imm32_ < 32);
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
-  if (imm.imm32_ == 1) {
-    shlr_(Rd); // TODO(stm) this one modified the T bit: fix it
-  } else if (imm.imm32_ == 2) {
+  // Note that we do not want to modify the T bit, hence shlr is prohibited for >> 1
+  // TODO(stm): may add a specific interface for >>1 that sets the T bit
+  if (imm.imm32_ == 2) {
     shlr2_(Rd);
   } else {
     ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));

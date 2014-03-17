@@ -651,26 +651,14 @@ void Assembler::rsb(Register Rd, Register Rs, Register Rt) {
 
 void Assembler::rsb(Register Rd, Register Rs, const Operand& src,
                     Condition cond, Register rtmp) {
-  ASSERT(cond == ne || cond == eq);
-  if (src.is_reg()) {
-    UNIMPLEMENTED();
-  }
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   ASSERT(!src.is_reg());
-  if (src.imm32_ == 0 && src.rmode_ == RelocInfo::NONE32) {
-    if (cond == eq)
-      bf_(0);           // Jump after sequence if T bit is false
-    else
-      bt_(0);           // Jump after sequence if T bit is true
-    neg_(Rs, Rd);
-  } else {
-    Label end;
-    if (cond == eq)
-      bf_near(&end);           // Jump after sequence if T bit is false
-    else
-      bt_near(&end);           // Jump after sequence if T bit is true
-    rsb(Rd, Rs, src, rtmp);
-    bind(&end);
-  }
+  rsb(Rd, Rs, src, rtmp);
+  if (cond != al)
+    bind(&skip);
 }
 
 
