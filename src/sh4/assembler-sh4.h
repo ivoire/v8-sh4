@@ -738,7 +738,10 @@ class Assembler : public AssemblerBase {
   // register.
   static const int kPcLoadDelta = 2;
 
-  static const int kJSReturnSequenceInstructions = 6;
+  static const int kJSReturnSequenceInstructions = 0; // TODO(stm): implemented with debug-sh4.cc
+  static const int kDebugBreakSlotInstructions = 0; // TODO(stm): implemented with debug-sh4.cc
+  static const int kDebugBreakSlotLength =
+      kDebugBreakSlotInstructions * kInstrSize;
 
   // branch type
   enum branch_type {

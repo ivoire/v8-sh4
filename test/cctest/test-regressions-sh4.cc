@@ -185,10 +185,8 @@ TEST(IssueTryCatchSourceInfo) {
 // Extracted from mjsunit/stack-traces.js
 // Does not return the correct eval location
 // when compiled with debuggersupport=off.
-// This has been corrected in compiler.cc/MakeFunctionInfo()
-// where the code was guarded by ENABLE_DEBUGGER_SUPPORT.
-// This guard was moved such tha eval location is
-// correctly setup.
+// For SH4, we activate debuggersupport=on but skip tests in
+// test-debug.cc until SH4 debug-sh4.cc is implemented (ref test-debug.cc).
 TEST(IssueEvalStackTrace) {
   CcTest::InitializeVM();
   HandleScope scope(CcTest::i_isolate());

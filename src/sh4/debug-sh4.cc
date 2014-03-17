@@ -35,15 +35,15 @@
 namespace v8 {
 namespace internal {
 
+// TODO(stm): remove SH4 check in cctest/test-debug.cc when debug support is implemented there
 #ifdef ENABLE_DEBUGGER_SUPPORT
-bool BreakLocationIterator::IsDebugBreakAtReturn() {
-  UNIMPLEMENTED();
-  return false;
+bool BreakLocationIterator::IsDebugBreakAtReturn() { // SAMEAS: arm
+  return Debug::IsDebugBreakAtReturn(rinfo());
 }
 
 
 void BreakLocationIterator::SetDebugBreakAtReturn() {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED(); // TODO(stm): implement it with RelocInfo::IsPatchedReturnSequence()
 }
 
 
@@ -56,19 +56,17 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() {
 // A debug break in the frame exit code is identified by the JS frame exit code
 // having been patched with a call instruction.
 bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
-  UNIMPLEMENTED();
-  return false;
+  return false; // TODO(stm): implement it with BreakLocationIterator::SetDebugBreakAtReturn()
 }
 
 
 bool BreakLocationIterator::IsDebugBreakAtSlot() {
-  UNIMPLEMENTED();
-  return false;
+  return false; // TODO(stm): implement it with BreakLocationIterator::SetDebugBreakAtSlot()
 }
 
 
 void BreakLocationIterator::SetDebugBreakAtSlot() {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED(); // TODO(stm): implement it with RelocInfo::IsPatchedDebugBreakSlotSequence()
 }
 
 

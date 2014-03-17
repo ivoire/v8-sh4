@@ -27,6 +27,8 @@
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
+#if !defined(V8_TARGET_ARCH_SH4) // SH4: enable debug support for compilation but not for tests
+
 #include <stdlib.h>
 
 #include "v8.h"
@@ -7560,5 +7562,5 @@ TEST(LiveEditDisabled) {
   CompileRun("%LiveEditCompareStrings('', '')");
 }
 
-
+#endif  // !defined(V8_TARGET_ARCH_SH4)
 #endif  // ENABLE_DEBUGGER_SUPPORT

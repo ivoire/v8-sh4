@@ -255,14 +255,13 @@ Object** RelocInfo::call_object_address() {
 
 
 bool RelocInfo::IsPatchedReturnSequence() {
-  UNIMPLEMENTED();
-  return false;
+  return false; // TODO(stm): implement it with BreakLocationIterator::SetDebugBreakAtReturn()
 }
 
 
 bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
   UNIMPLEMENTED();
-  return false;
+  return false; // TODO(stm): implement it with BreakLocationIterator::SetDebugBreakAtSlot()
 }
 
 
