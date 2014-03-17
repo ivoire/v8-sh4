@@ -3323,7 +3323,7 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) { // SAMEAS: arm
   // Check if the constructor in the map is a JS function.
   __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
   __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE, eq);
-  __ bt_near(&non_function_constructor); // DIFF: codegen
+  __ bf_near(&non_function_constructor); // DIFF: codegen
 
   // r0 now contains the constructor function. Grab the
   // instance class name from there.
