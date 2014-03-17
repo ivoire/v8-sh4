@@ -1209,8 +1209,112 @@ void LCodeGen::EmitSignedIntegerDivisionByConstant(
 }
 
 
-void LCodeGen::DoDivI(LDivI* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoDivI(LDivI* instr) { // SAMEAS: arm
+  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+    const Register dividend = ToRegister(instr->left());
+    const Register result = ToRegister(instr->result());
+    int32_t divisor = instr->hydrogen()->right()->GetInteger32Constant();
+    int32_t test_value = 0;
+    int32_t power = 0;
+
+    if (divisor > 0) {
+      test_value = divisor - 1;
+      power = WhichPowerOf2(divisor);
+    } else {
+      // Check for (0 / -x) that will produce negative zero.
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        __ cmp(dividend, Operand::Zero());
+        DeoptimizeIf(eq, instr->environment());
+      }
+      // Check for (kMinInt / -1).
+      if (divisor == -1 && instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+        __ cmp(dividend, Operand(kMinInt));
+        DeoptimizeIf(eq, instr->environment());
+      }
+      test_value = - divisor - 1;
+      power = WhichPowerOf2(-divisor);
+    }
+
+    if (test_value != 0) {
+      if (instr->hydrogen()->CheckFlag(
+          HInstruction::kAllUsesTruncatingToInt32)) {
+        __ cmpge(dividend, Operand::Zero()); // DIFF: codegen
+        __ rsb(result, result, Operand::Zero(), f/* dividend < 0*/); // DIFF: codegen
+        __ asr(result, result, Operand(power)); // DIFF: codegen
+        if (divisor > 0) __ rsb(result, result, Operand::Zero(), f/* dividend < 0*/); // DIFF: codegen
+        if (divisor < 0) __ rsb(result, result, Operand::Zero(), t/* dividend >= 0*/); // DIFF: codegen
+        return;  // Don't fall through to "__ rsb" below.
+      } else {
+        // Deoptimize if remainder is not 0.
+        __ tst(dividend, Operand(test_value));
+        DeoptimizeIf(ne, instr->environment());
+        __ asr(result, dividend, Operand(power)); // DIFF: codegen
+        if (divisor < 0) __ rsb(result, result, Operand(0));
+      }
+    } else {
+      if (divisor < 0) {
+        __ rsb(result, dividend, Operand(0));
+      } else {
+        __ Move(result, dividend);
+      }
+    }
+
+    return;
+  }
+
+  const Register left = ToRegister(instr->left());
+  const Register right = ToRegister(instr->right());
+  const Register result = ToRegister(instr->result());
+
+  // Check for x / 0.
+  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ cmp(right, Operand::Zero());
+    DeoptimizeIf(eq, instr->environment());
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label positive;
+    // SH4: redo the test in all cases
+    if (!instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+      (void)0; // DIFF: codegen
+    }
+    __ cmpge(right, Operand::Zero()); // SH4: redo the test // DIFF: codegen
+    __ b(t, &positive); // right >= 0 // DIFF: codegen
+    __ cmp(left, Operand::Zero());
+    DeoptimizeIf(eq, instr->environment());
+    __ bind(&positive);
+  }
+
+  // Check for (kMinInt / -1).
+  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+    Label left_not_min_int;
+    __ cmp(left, Operand(kMinInt));
+    __ b(ne, &left_not_min_int);
+    __ cmp(right, Operand(-1));
+    DeoptimizeIf(eq, instr->environment());
+    __ bind(&left_not_min_int);
+  }
+
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    UNREACHABLE(); // DIFF: codegen
+  } else {
+    const DoubleRegister vleft = ToDoubleRegister(instr->temp());
+    const DoubleRegister vright = double_scratch0();
+    __ vcvt_f64_s32(vleft, left); // DIFF:codegen
+    __ vcvt_f64_s32(vright, right);  // DIFF:codegen
+    __ vdiv(vleft, vleft, vright);  // vleft now contains the result.
+    __ vcvt_s32_f64(result, vleft); // DIFF: codegen
+
+    if (!instr->hydrogen()->CheckFlag(
+        HInstruction::kAllUsesTruncatingToInt32)) {
+      // Deopt if exact conversion to integer was not possible.
+      // Use vright as scratch register.
+      __ vcvt_f64_s32(double_scratch0(), result); // DIFF: codegen
+      __ dcmpeq(vleft, double_scratch0()); // DIFF: codegen
+      DeoptimizeIf(ne, instr->environment());
+    }
+  }
 }
 
 
