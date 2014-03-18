@@ -1082,6 +1082,9 @@ intptr_t PagedSpace::SizeOfFirstPage() {
 #if V8_TARGET_ARCH_MIPS
         // TODO(plind): Investigate larger code stubs size on MIPS.
         size = 480 * KB;
+#elif V8_TARGET_ARCH_SH4
+        // TODO(stm): Investigate larger code stubs size on SH4.
+        size = 540 * KB;
 #else
         size = 416 * KB;
 #endif
