@@ -104,6 +104,14 @@
   # first code page size. This is the same also for ARM. Deactivate.
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # SH4 currently built with use_ic == false in flag-definitions, skip
+  # tests that rely on use_ic
+  'test-api/PrimaryStubCache': [SKIP],
+  'test-api/SecondaryStubCache': [SKIP],
+  'test-heap/IncrementalMarkingPreservesMonomorhpicIC': [SKIP],
+  'test-heap/IncrementalMarkingClearsMonomorhpicIC': [SKIP],
+  'test-heap/IncrementalMarkingClearsPolymorhpicIC': [SKIP],
 }],  # 'arch == sh4'
 
 ##############################################################################
