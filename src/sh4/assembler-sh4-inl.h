@@ -483,9 +483,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
 
 void Assembler::deserialization_set_special_target_at(
     Address constant_pool_entry, Address target) {
-  fprintf(stderr, "%s: %p %p\n", __FUNCTION__,
-          (void *)constant_pool_entry, (void *)target);
-  UNIMPLEMENTED();
+  Memory::Address_at(constant_pool_entry) = target;
 }
 
 

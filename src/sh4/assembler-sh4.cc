@@ -132,7 +132,10 @@ const int RelocInfo::kApplyMask = 0;
 
 
 bool RelocInfo::IsCodedSpecially() {
-  UNIMPLEMENTED();
+  // The deserializer needs to know whether a pointer is specially coded.  Being
+  // specially coded on ARM means that it is a movw/movt instruction.  We don't
+  // generate those yet.
+  // SH4: always use load constant, thus false.
   return false;
 }
 
