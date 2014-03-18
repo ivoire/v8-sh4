@@ -94,6 +94,19 @@
 }],  # 'arch == mipsel'
 
 ##############################################################################
+['arch == sh4', {
+
+  ## BUG(1075): Unresolved crashes. Not observed on SH4 simulator. Activate.
+  #  'test-serialize/Deserialize': [SKIP],
+  #  'test-serialize/DeserializeAndRunScript2': [SKIP],
+
+  # Double serialization followed by serialization overflows the
+  # first code page size. This is the same also for ARM. Deactivate.
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
+  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+}],  # 'arch == sh4'
+
+##############################################################################
 ['arch == android_arm or arch == android_ia32', {
 
   # Tests crash as there is no /tmp directory in Android.
