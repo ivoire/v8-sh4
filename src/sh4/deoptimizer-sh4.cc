@@ -304,6 +304,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() { // SAMEAS: arm
     __ b(&done);
     ASSERT(masm()->pc_offset() - start == table_entry_size_);
   }
+  USE(table_start);
   ASSERT(masm()->pc_offset() - table_start == table_entry_size_ * count());  // DIFF: add global table size check
   __ bind(&done);
 }

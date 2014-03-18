@@ -241,6 +241,7 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
     patcher.masm()->add(fp, sp, Operand(2 * kPointerSize)); // 2 instr
     patcher.masm()->nop(); // padding
     patcher.masm()->nop(); // padding
+    USE(start_offset);
     ASSERT(patcher.masm()->pc_offset() - start_offset ==
            (4 + 1 + 2 + 1 + 1) * Assembler::kInstrSize);
     ASSERT(patcher.masm()->pc_offset() - start_offset ==
@@ -323,6 +324,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     // The sequence length is supposed to be:
     // (1 + 1 + 4) instructions (nop, mov, jsr_at_code_stub_address) + 4 bytes
     // plus the padding nop which is either at the end or before the jsr (align)
+    USE(start_offset);
     ASSERT(patcher.masm()->pc_offset() - start_offset ==
            (1 + 1 + 4 + 1) * Assembler::kInstrSize + 4);
     // The sequence size must be identical to the young sequence size.

@@ -95,6 +95,7 @@ void MacroAssembler::Call(Register target, Condition cond) {
   int call_offset = pc_offset();
   bind(&start);
   jsr(target);
+  USE(call_offset);
   ASSERT_EQ(CallSize(target, call_offset), SizeOfCodeGeneratedSince(&start));
 }
 
@@ -149,6 +150,7 @@ void MacroAssembler::Call(Address target,
   mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   jsr(ip);
 
+  USE(call_offset);
   ASSERT_EQ(CallSize(target, call_offset, rmode), SizeOfCodeGeneratedSince(&start));
   if (mode == NEVER_INLINE_TARGET_ADDRESS) {
     set_predictable_code_size(old_predictable_code_size);

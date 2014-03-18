@@ -466,8 +466,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
   // Actually this muist return the offset after the alignment
   // while GetCallTargetAddressOffset() must add an instruction
   // word in the misaligned case.
-  Instr first_instr = instr_at(pc);
-  ASSERT(IsMovlPcRelative(first_instr));
+  ASSERT(IsMovlPcRelative(instr_at(pc)));
   Instr possible_jsr = instr_at(pc + kInstrSize);
   if (IsJsr(possible_jsr)) {
     // Delayed constant pool

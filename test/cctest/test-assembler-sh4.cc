@@ -45,12 +45,17 @@ typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 typedef Object* (*F5)(double x, double y, int p2, int p3, int p4);
 
 
+static void set_natives(bool natives) {
+  /* Disable compilation of natives. */
+  i::FLAG_disable_native_files = !natives;
+#ifdef DEBUG
+  /* Disable slow asserts that require natives. */
+  i::FLAG_enable_slow_asserts = false;
+#endif
+}
+
 #define BEGIN()                                         \
-  /* Disable compilation of natives. */                 \
-  i::FLAG_disable_native_files = true;                  \
-  /* Disable slow asserts that require natives. */      \
-  i::FLAG_enable_slow_asserts = false;                  \
-                                                        \
+  set_natives(false);                                   \
   CcTest::InitializeVM();                               \
   Isolate* isolate = CcTest::i_isolate();               \
   HandleScope scope(isolate);                           \

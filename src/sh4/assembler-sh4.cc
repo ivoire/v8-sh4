@@ -1031,6 +1031,7 @@ void Assembler::jsr_at_following_address(Register rtmp) {
   jsr_indRd_(rtmp);
   nop_();
   // Must fix Code::PatchPlatformCodeAge() if this sequence length changes.
+  USE(start_offset);
   ASSERT(pc_offset() - start_offset == 4 * kInstrSize);
 }
 

@@ -78,15 +78,20 @@ typedef Object* (*F0)(int p0, int p1, int p2, int p3, int p4);
 
 #define STRING_MAP() (assm.isolate()->factory()->string_map())
 
+static void set_natives(bool natives) {
+  /* Disable compilation of natives. */
+  i::FLAG_disable_native_files = !natives;
+#ifdef DEBUG
+  /* Disable slow asserts that require natives. */
+  i::FLAG_enable_slow_asserts = false;
+#endif
+}
+
 #define BEGIN()                                         \
-  /* Disable compilation of natives. */                 \
-  i::FLAG_disable_native_files = true;                  \
-  /* Disable slow asserts that require natives. */      \
-  i::FLAG_enable_slow_asserts = false;                  \
-                                                        \
+  set_natives(false);                                   \
   CcTest::InitializeVM();                               \
   Isolate* isolate = CcTest::i_isolate();               \
-  HandleScope scope(isolate);                         \
+  HandleScope scope(isolate);                           \
   MacroAssembler assm(isolate, NULL, 0);
 
 #define JIT()                                                           \

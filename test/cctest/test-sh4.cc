@@ -39,12 +39,17 @@ using namespace v8::internal;
   By default use BEGIN_WITH_NATIVE(false) if natives are
   not needed. Only when needed, use BEGIN_WITH_NATIVE(true).
 */
-#define BEGIN_WITH_NATIVE(native)                       \
-  /* Set compilation of natives. */                     \
-  i::FLAG_disable_native_files = !(native);             \
-  /* Disable slow asserts that require natives. */      \
-  i::FLAG_enable_slow_asserts = false;                  \
-                                                        \
+static void set_natives(bool natives) {
+  /* Disable compilation of natives. */
+  i::FLAG_disable_native_files = !natives;
+#ifdef DEBUG
+  /* Disable slow asserts that require natives. */
+  i::FLAG_enable_slow_asserts = false;
+#endif
+}
+
+#define BEGIN_WITH_NATIVE(natives)                      \
+  set_natives(natives);                                 \
   CcTest::InitializeVM();                               \
   Isolate* isolate = CcTest::i_isolate();               \
   HandleScope scope(isolate);
