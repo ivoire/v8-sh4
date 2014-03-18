@@ -112,6 +112,17 @@
   'test-heap/IncrementalMarkingPreservesMonomorhpicIC': [SKIP],
   'test-heap/IncrementalMarkingClearsMonomorhpicIC': [SKIP],
   'test-heap/IncrementalMarkingClearsPolymorhpicIC': [SKIP],
+
+  # SH4 currently built with use_ic == false in flag-definitions, skip
+  # tests that may timeout due to unsufficiently optimized code.
+  # Actually these tests just run other tests, hence there is no
+  # strong reason to always run them
+  'test-api/ExternalArrays': [SKIP],
+  'test-api/Threading1': [SKIP],
+  'test-api/Threading2': [SKIP],
+  'test-api/Threading3': [SKIP],
+  'test-api/Threading4': [SKIP],
+
 }],  # 'arch == sh4'
 
 ##############################################################################
