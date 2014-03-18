@@ -207,9 +207,9 @@ Code* RelocInfo::code_age_stub() {
   // and RelocInfo::set_code_age_stub().
   byte *target_address_pointer =
     pc_ + Assembler::kInstrSize * kNoCodeAgeSequenceLength - 4;
-  if ((long)target_address_pointer % 4 == 2)
+  if ((uintptr_t)target_address_pointer % 4 == 2)
     target_address_pointer -= 2;
-  ASSERT((long)target_address_pointer % 4 == 0);
+  ASSERT((uintptr_t)target_address_pointer % 4 == 0);
   return Code::GetCodeFromTargetAddress(Memory::Address_at(target_address_pointer));
 }
 
@@ -220,9 +220,9 @@ void RelocInfo::set_code_age_stub(Code* stub) {
   // and RelocInfo::code_age_stub().
   byte *target_address_pointer =
     pc_ + Assembler::kInstrSize * kNoCodeAgeSequenceLength - 4;
-  if ((long)target_address_pointer % 4 == 2)
+  if ((uintptr_t)target_address_pointer % 4 == 2)
       target_address_pointer -= 2;
-  ASSERT((long)target_address_pointer % 4 == 0);
+  ASSERT((uintptr_t)target_address_pointer % 4 == 0);
   Memory::Address_at(target_address_pointer) = stub->instruction_start();
 }
 
@@ -516,7 +516,7 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
 int Assembler::align() {
   int count = 0;
-  while (((unsigned)pc_ & 0x3) != 0) {
+  while (((uintptr_t)pc_ & 0x3) != 0) {
     nop_();
     count++;
   }
@@ -526,7 +526,7 @@ int Assembler::align() {
 
 int Assembler::misalign() {
   int count = 0;
-  while (((unsigned)pc_ & 0x3) != 2) {
+  while (((uintptr_t)pc_ & 0x3) != 2) {
     nop_();
     count++;
   }

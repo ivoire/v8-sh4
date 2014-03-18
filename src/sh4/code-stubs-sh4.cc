@@ -5846,7 +5846,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) { // SAMEAS:
     // from the return address in the called stub. Ref to ::Generate().
     // SH4: needa align start for predictable code size
     int pc_offset = masm->pc_offset();
-    ASSERT((long)pc_offset % 4 == 0);
+    ASSERT(pc_offset % 4 == 0);
     int expected_size =
       3 * Assembler::kInstrSize /* Pushes */ +
       masm->CallSize((unsigned char *)NULL,

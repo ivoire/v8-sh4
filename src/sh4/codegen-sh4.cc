@@ -273,9 +273,9 @@ void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
     // instruction before.
     byte *target_address_pointer =
       sequence + Assembler::kInstrSize * kNoCodeAgeSequenceLength - 4;
-    if ((long)target_address_pointer % 4 == 2)
+    if ((uintptr_t)target_address_pointer % 4 == 2)
       target_address_pointer -= 2;
-    ASSERT((long)target_address_pointer % 4 == 0);
+    ASSERT((uintptr_t)target_address_pointer % 4 == 0);
     Address target_address = Memory::Address_at(target_address_pointer);
     Code* stub = GetCodeFromTargetAddress(target_address);
     GetCodeAgeAndParity(stub, age, parity);
@@ -315,7 +315,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     patcher.masm()->nop(); // This nop() is the code age marker
     patcher.masm()->mov(r2, pr);
     patcher.masm()->jsr_at_following_address();
-    int padding = ((long)sequence + patcher.masm()->pc_offset()) % 4 == 0 ?  1: 0;
+    int padding = ((uintptr_t)sequence + patcher.masm()->pc_offset()) % 4 == 0 ?  1: 0;
     patcher.masm()->align(); // align for address below
     patcher.masm()->dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
     // if not previously aligned, add the nop at the end

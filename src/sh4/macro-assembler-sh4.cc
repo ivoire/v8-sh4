@@ -746,7 +746,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       nop(); // This nop() is the code age marker
       mov(r2, pr);
       jsr_at_following_address();
-      int padding = (long)pc_ % 4 == 0 ?  1: 0;
+      int padding = (uintptr_t)pc_ % 4 == 0 ?  1: 0;
       align(); // align
       dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
       if (padding) nop();
