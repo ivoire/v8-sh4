@@ -3803,6 +3803,30 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) { 
 }
 
 
+void MacroAssembler::TestJSArrayForAllocationMemento( // SAMEAS: arm
+    Register receiver_reg,
+    Register scratch_reg,
+    Label* no_memento_found,
+    Condition cond) {
+  ExternalReference new_space_start =
+      ExternalReference::new_space_start(isolate());
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate());
+  add(scratch_reg, receiver_reg,
+      Operand(JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
+  cmpge(scratch_reg, Operand(new_space_start)); // DIFF: codegen
+  b(f, no_memento_found); // DIFF: codegen
+  mov(ip, Operand(new_space_allocation_top));
+  ldr(ip, MemOperand(ip));
+  cmpgt(scratch_reg, ip); // DIFF: codegen
+  b(t, no_memento_found); // DIFF: codegen
+  ldr(scratch_reg, MemOperand(scratch_reg, -AllocationMemento::kSize));
+  ASSERT_EQ(cond, eq);
+  cmpeq(scratch_reg,
+        Operand(isolate()->factory()->allocation_memento_map())); // DIFF: codegen
+}
+
+
 Register GetRegisterThatIsNotOneOf(Register reg1,
                                    Register reg2,
                                    Register reg3,

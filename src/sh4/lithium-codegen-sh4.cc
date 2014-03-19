@@ -1139,7 +1139,7 @@ void LCodeGen::DoModI(LModI* instr) { // SAMEAS: arm
     __ bind(&done);
 
   } else if (CpuFeatures::IsSupported(SUDIV)) {
-    UNIMPLEMENTED(); // SH4: no SUDIV // DIFF: codegen
+    UNREACHABLE(); // SH4: no SUDIV // DIFF: codegen
   } else {
     // General case, without any SDIV support.
     Register left_reg = ToRegister(instr->left());
@@ -2522,8 +2522,42 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) { // SAMEAS: arm
 }
 
 
-void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
-  __ UNIMPLEMENTED_BREAK();
+void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) { // SAMEAS: arm
+  Register elements = ToRegister(instr->elements());
+  bool key_is_constant = instr->key()->IsConstantOperand();
+  Register key = no_reg;
+  DwVfpRegister result = ToDoubleRegister(instr->result());
+  Register scratch = scratch0();
+
+  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
+
+  int base_offset =
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+      (instr->additional_index() << element_size_shift);
+  if (key_is_constant) {
+    int constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    if (constant_key & 0xF0000000) {
+      Abort(kArrayIndexConstantValueTooBig);
+    }
+    base_offset += constant_key << element_size_shift;
+  }
+  __ add(scratch, elements, Operand(base_offset));
+
+  if (!key_is_constant) {
+    key = ToRegister(instr->key());
+    int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
+        ? (element_size_shift - kSmiTagSize) : element_size_shift;
+    __ lsl(ip, key, Operand(shift_size)); // DIFF: codegen
+    __ add(scratch, scratch, ip); // DIFF: codegen
+  }
+
+  __ vldr(result, scratch, 0);
+
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ ldr(scratch, MemOperand(scratch, sizeof(kHoleNanLower32)));
+    __ cmp(scratch, Operand(kHoleNanUpper32));
+    DeoptimizeIf(eq, instr->environment());
+  }
 }
 
 
@@ -2589,7 +2623,7 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key,
                                          int shift_size,
                                          int additional_index,
                                          int additional_offset) {
-  __ UNIMPLEMENTED_BREAK();
+  UNIMPLEMENTED();
   return MemOperand(no_reg, 0);
 }
 
