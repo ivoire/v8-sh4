@@ -881,8 +881,8 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) { // SAMEAS
   __ PrepareCallCFunction(2, 0, r2); // Actrually 2 arguments // DIFF: codegen
   __ mov(sh4_r4/*r0*/, r0); // SH4: params // DIFF: codegen
   __ mov(sh4_r5/*r1*/, Operand(ExternalReference::isolate_address(masm->isolate()))); // SH4: params // DIFF: codegen
-  __ CallCFunction(
-      ExternalReference::get_make_code_young_function(masm->isolate()), 2);
+  __ CallCFunction(ExternalReference::get_mark_code_as_executed_function(
+        masm->isolate()), 2);
   __ Pop(pr, fp, r1, r0); // DIFF: codegen
 
   // Perform prologue operations usually performed by the young code stub.
