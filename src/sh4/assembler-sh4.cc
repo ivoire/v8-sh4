@@ -1710,28 +1710,17 @@ void Assembler::dufloat(DwVfpRegister Dd, Register Rs, Register rtmp) {
 
   Label too_large, end;
 
-  // Test the sign bit to see if the conversion from unsigned to signed is safe
+  // Performs a signed conversion first (no unsigned conversion SH4)
+  dfloat(Dd, Rs);
+
+  // Test if the unsigned integer is small enough for a signed conversion
   tst(Rs, Operand(0x80000000), rtmp);
-  bf_near(&too_large);
+  bt_near(&end);
 
-  // The unsigned integer is smal enough to be a signed one
-  lds_FPUL_(Rs);
-  float_FPUL_double_(Dd);
-  b_near(&end);
-
-  // Do some correction to convert the unsigned to a floating point value.
-  // Actually if Rs is interpreted as signed, one must add 2*0x80000000 to
-  // get the right value.
-  bind(&too_large);
+  // Otherwise it was interpreted as signed, thus we need to add 2^32.
   push(kDoubleRegZero); // Use it as scratch
   DwVfpRegister dbl_scratch = kDoubleRegZero;
-  // TODO: equivalent to vmov(rtmp, 4294967296.0);
-  dfloat(dbl_scratch, Operand(0x7fffffff), rtmp);
-  dfloat(Dd, Operand(1), rtmp);
-  fadd(dbl_scratch, Dd);
-  fadd(dbl_scratch, dbl_scratch);
-  // END TODO
-  dfloat(Dd, Rs);
+  vmov(dbl_scratch, 4294967296.0/*2^32*/, no_reg/*not used*/, rtmp);
   fadd(Dd, dbl_scratch);
   pop(kDoubleRegZero); // Restore double used as scratch
   bind(&end);
