@@ -3565,7 +3565,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq); // DIFF: codegen
   __ b(ne, &slow);
 
-  if (0 && RecordCallTarget()) { // DIFF: lithium
+  if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
   }
 
@@ -3592,7 +3592,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
 
   // Slow-case: Non-function called.
   __ bind(&slow);
-  if (0 && RecordCallTarget()) { // DIFF: lithium
+  if (RecordCallTarget()) {
     // If there is a call target cache, mark it megamorphic in the
     // non-function case.  MegamorphicSentinel is an immortal immovable
     // object (undefined) so no write barrier is needed.
@@ -3640,7 +3640,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE, eq); // DIFF: codegen
   __ b(ne, &slow);
 
-  if (0 && RecordCallTarget()) { // DIFF: lithium
+  if (RecordCallTarget()) {
     GenerateRecordCallTarget(masm);
   }
 
