@@ -1708,7 +1708,13 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   // For now we generate builtin adaptor code into a stack-allocated
   // buffer, before copying it into individual code objects. Be careful
   // with alignment, some platforms don't like unaligned code.
+#ifdef V8_TARGET_ARCH_SH4
+  // Need more space for SH4 builtins.
+  // TODO(stm): check generated code size (KeyedStoreIC::GenerateGeneric())
+  union { int force_alignment; byte buffer[10*KB]; } u;
+#else
   union { int force_alignment; byte buffer[8*KB]; } u;
+#endif
 
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.
