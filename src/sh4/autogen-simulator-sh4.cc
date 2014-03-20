@@ -1555,7 +1555,10 @@
       int n = (iword >> 8) & 0xf;
       int m = (iword >> 4) & 0xf;
       {
-        dadd(n, m);
+        if(FPSCR_PR)
+          dadd(n, m);
+        else
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1565,7 +1568,10 @@
       int n = (iword >> 8) & 0xf;
       int m = (iword >> 4) & 0xf;
       {
-        dsub(n, m);
+        if(FPSCR_PR)
+          dsub(n, m);
+        else
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1575,7 +1581,10 @@
       int n = (iword >> 8) & 0xf;
       int m = (iword >> 4) & 0xf;
       {
-        dmul(n, m);
+        if(FPSCR_PR)
+          dmul(n, m);
+        else
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1585,8 +1594,10 @@
       int n = (iword >> 8) & 0xf;
       int m = (iword >> 4) & 0xf;
       {
-        ddiv(n, m);
-        /* FIXME: check for DP and (n & 1) == 0?  */
+        if(FPSCR_PR)
+          ddiv(n, m);
+        else
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1599,7 +1610,7 @@
         if(FPSCR_PR)
           set_t_flag(get_dregister(n) == get_dregister(m));
         else
-          set_t_flag(get_fregister(n) == get_fregister(m));
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1612,7 +1623,7 @@
         if(FPSCR_PR)
           set_t_flag(get_dregister(n) > get_dregister(m));
         else
-          set_t_flag(get_fregister(n) > get_fregister(m));
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1716,7 +1727,6 @@
       }
       break;
     }
-#if 0
   /* fmov <FREG_M>,<FREG_N> 1111nnnnmmmm1100 */
   case 213:      
     {
@@ -1724,25 +1734,24 @@
       int m = (iword >> 4) & 0xf;
       {
         if (FPSCR_SZ) {
-          int ni = XD_TO_XF (n);
-          int mi = XD_TO_XF (m);
-          SET_XF (ni + 0, XF (mi + 0));
-          SET_XF (ni + 1, XF (mi + 1));
+          UNIMPLEMENTED();
         }
         else
         {
-          SET_FR (n, FR (m));
+          set_fregister(n, get_fregister(m));
         }
       }
       break;
     }
-#endif
   /* fabs <FREG_N> 1111nnnn01011101 */
   case 214:      
     {
       int n = (iword >> 8) & 0xf;
       {
-        dabs(n);
+        if (FPSCR_PR)
+          dabs(n);
+        else
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1755,6 +1764,8 @@
           RAISE_EXCEPTION();
         else
         {
+          if (!FPSCR_PR)
+            UNIMPLEMENTED();
           union
           {
             int i;
@@ -1775,6 +1786,8 @@
           RAISE_EXCEPTION();
         else
         {
+          if (!FPSCR_PR)
+            UNIMPLEMENTED();
           union
           {
             int i;
@@ -1814,8 +1827,10 @@
     {
       int n = (iword >> 8) & 0xf;
       {
-        set_fregister(n, (float)0.0);
-        /* FIXME: check for DP and (n & 1) == 0?  */
+        if (FPSCR_PR)
+          RAISE_EXCEPTION();
+        USE(n);
+        UNIMPLEMENTED();
       }
       break;
     }
@@ -1824,8 +1839,10 @@
     {
       int n = (iword >> 8) & 0xf;
       {
-        set_fregister(n, (float)1.0);
-        /* FIXME: check for DP and (n & 1) == 0?  */
+        if (FPSCR_PR)
+          RAISE_EXCEPTION();
+        USE(n);
+        UNIMPLEMENTED();
       }
       break;
     }
@@ -1852,7 +1869,7 @@
         if (FPSCR_PR)
           set_dregister(n, get_sregister(fpul));
         else
-          set_fregister(n, get_sregister(fpul));
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1861,7 +1878,10 @@
     {
       int n = (iword >> 8) & 0xf;
       {
-        dneg(n);
+        if (FPSCR_PR)
+          dneg(n);
+        else
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -1914,7 +1934,10 @@
     {
       int n = (iword >> 8) & 0xf;
       {
-        dsqrt(n);
+        if (FPSCR_PR)
+          dsqrt(n);
+        else
+          UNIMPLEMENTED();
       }
       break;
     }
@@ -2002,8 +2025,9 @@
       int n = (iword >> 8) & 0xf;
       int m = (iword >> 4) & 0xf;
       {
+        if (FPSCR_PR)
+          RAISE_EXCEPTION();
         SET_FR (n, FR (m) * FR (0) + FR (n));
-        /* FIXME: check for DP and (n & 1) == 0? */
       }
       break;
     }

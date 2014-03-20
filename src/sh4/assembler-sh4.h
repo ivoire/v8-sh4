@@ -278,7 +278,7 @@ struct DwVfpRegister {
   static const int kMaxNumRegisters = 8; // SH4: 8 doubles only (we use only FPU bank 0)
   static const int kMaxNumAllocatableRegisters = 14;  // TODO(ivoire): see src/lithium-allocator.cc:1788 !
 
-  static const int kNumReservedRegisters = 0; // TODO: SH4: do we need reserved registers? (ref ARM)
+  static const int kNumReservedRegisters = 2;
   static const int kSizeInBytes = 8;
   // Note: the number of registers can be different at snapshot and run-time.
   // Any code included in the snapshot must be able to run both with 16 or 32
@@ -297,7 +297,7 @@ struct DwVfpRegister {
     return r;
   }
 
-  // Supporting dr0 to dr8
+  // Supporting 8 first double registers
   bool is_valid() const {
     return 0 <= code_ && code_ < kMaxNumRegisters * 2 - 1 && code_ % 2 == 0;
   }

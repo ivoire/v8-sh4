@@ -54,8 +54,8 @@ int DwVfpRegister::NumAllocatableRegisters() {
 
 
 int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
-  //ASSERT(!reg.is(kDoubleRegZero)); // SH4: not reserved on SH4
-  //ASSERT(!reg.is(kScratchDoubleReg)); // SH4: not reserved on SH4
+  ASSERT(!reg.is(kDoubleRegZero));
+  ASSERT(!reg.is(kScratchDoubleReg));
   ASSERT(reg.is_valid());
   return reg.code() / 2;
 }

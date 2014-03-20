@@ -2484,9 +2484,8 @@ void Assembler::vmov(DwVfpRegister dst, DwVfpRegister src, Condition cond)
   ASSERT(cond == al || cond == ne || cond ==  eq);
   if (cond != al)
     b(cond == ne ? eq: ne, &skip, Label::kNear);
-  // SH4: TODO, use fmov instead of stack transfer
-  push(src);
-  pop(dst);
+  fmov_(src.low(), dst.low());
+  fmov_(src.high(), dst.high());
   if (cond != al)
     bind(&skip);
 }

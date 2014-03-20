@@ -1028,7 +1028,7 @@ static void EmitVFPCompareAndBranch(MacroAssembler* masm,
   // __ mov(result, Operand(EQUAL), LeaveCC, eq);
   // __ mov(result, Operand(LESS), LeaveCC, lt);
   // __ mov(result, Operand(GREATER), LeaveCC, gt);
-  // TODO: May be moved int macro-assembler-sh4.cc
+  // TODO(stm): May be moved int macro-assembler-sh4.cc
 
   Label done;
   // Test for NaN

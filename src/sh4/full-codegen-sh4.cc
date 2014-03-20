@@ -706,7 +706,6 @@ void FullCodeGenerator::Split(Condition cond,
   } else if (if_true == fall_through) {
     __ b(NegateCondition(cond), if_false);
   } else {
-    // TODO(stm): add a special case for two jumps in a row
     __ b(cond, if_true);
     __ b(if_false);
   }
