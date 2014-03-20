@@ -54,10 +54,11 @@ namespace internal {
 // class has a number of methods to emit the code which is patchable and the
 // method EmitPatchInfo to record a marker back to the patchable code.
 // On SH4 this marker is a cmp #ii, r0 operation, this limits the range
-// of #ii to -128..+127 instructions for the distance betwen the patch and
+// of #ii to 0, 255 instructions for the distance betwen the patch and
 // the label.
-// The #ii (8 bits signed value) is the delta from the pc to
-// the first instruction of the patchable code.
+// The #ii (8 bits value) is interpreted unsigned and is the delta from the pc
+// at ther marker to the first instruction of the patchable code which
+// is always emmitted before the marker.
 class JumpPatchSite BASE_EMBEDDED {
  public:
   explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
@@ -341,7 +342,7 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
   __ mov(r2, Operand(profiling_counter_));
   __ ldr(r3, FieldMemOperand(r2, Cell::kValueOffset));
   __ sub(r3, r3, Operand(Smi::FromInt(delta)));
-  __ cmpge(r3, Operand::Zero());    // TODO(ivoire: who is using it ?
+  __ cmpge(r3, Operand::Zero()); // SH4: sets the T bit if >= 0 // DIFF: codegen
   __ str(r3, FieldMemOperand(r2, Cell::kValueOffset));
 }
 
@@ -377,7 +378,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
                  Max(1, distance / kCodeSizeMultiplier));
   }
   EmitProfilingCounterDecrement(weight);
-  __ bt(&ok);
+  __ bt(&ok); // branch if >= 0 // DIFF: codegen
   __ Call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
 
   // Record a mapping of this PC offset to the OSR id.  This is used to find
@@ -420,7 +421,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       }
       EmitProfilingCounterDecrement(weight);
       Label ok;
-      __ bt(&ok);
+      __ bt(&ok); // Branch if >= 0 // DIFF: codegen
       __ push(r0);
       if (info_->ShouldSelfOptimize() && FLAG_direct_self_opt) {
         __ ldr(r2, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -2225,9 +2226,9 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // up the stack and the handlers.
   Label push_operand_holes, call_resume;
   __ bind(&push_operand_holes);
-  // TODO(ivoire): is dt && bf equivalent to sub(setcc) && b(mi)
-  __ dt(r3);
-  __ bf(&call_resume);
+  __ sub(r3, r3, Operand(1)); // DIFF/ codegen
+  __ cmpge(r3, Operand(0)); // DIFF/ codegen
+  __ bf(&call_resume); // DIFF: codegen
   __ push(r2);
   __ b(&push_operand_holes);
   __ bind(&call_resume);

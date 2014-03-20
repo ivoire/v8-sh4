@@ -396,15 +396,15 @@ class MacroAssembler: public Assembler {
   // In VFP2 it will be either the Canonical NaN or the negative version
   // of the Canonical NaN. It doesn't matter if we have two values. The aim
   // is to be sure to never generate the hole NaN.
-  // TODO: SH4. Check the behavior of SH4 there: No-op for now
+  // TODO(stm): SH4. Check the behavior of SH4 there: No-op for now
   void VFPEnsureFPSCRState(Register scratch);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
-  // TODO: SH4. Check the behavior of SH4 there: No-op for now
+  // TODO(stm): SH4. Check the behavior of SH4 there: No-op for now
   void VFPCanonicalizeNaN(const DwVfpRegister dst,
                           const DwVfpRegister src,
                           const Condition cond = al);
-  // TODO: SH4. Check the behavior of SH4 there: No-op for now
+  // TODO(stm): SH4. Check the behavior of SH4 there: No-op for now
   void VFPCanonicalizeNaN(const DwVfpRegister value,
                           const Condition cond = al) {
     VFPCanonicalizeNaN(value, value, cond);

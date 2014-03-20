@@ -524,6 +524,7 @@ else if (strcmp(cmd, "stop") == 0) {
         case 1551: psz_file = "stub-cache-sh4.cc"; break;
         case 1756: psz_file = "deoptimizer-sh4.cc"; break;
         case 2094: psz_file = "lithium-codegen-sh4.cc"; break;
+        case 1079: psz_file = "debug-sh4.cc"; break;
         default:   psz_file = "???";
         }
         PrintF("File: %s (%d)\nLine: %d\n", psz_file, file_id, sim_->get_register(Simulator::r1));

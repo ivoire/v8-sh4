@@ -181,7 +181,7 @@ void MacroAssembler::Ret(Condition cond) {
     RECORD_LINE();
     rts();
   } else {
-    // TODO: block constant pool
+    // TODO(stm): block constant pool
     RECORD_LINE();
     if (cond == eq) {
       bf_(2);

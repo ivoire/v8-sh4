@@ -296,18 +296,8 @@ bool LCodeGen::GenerateDeoptJumpTable() { // SAMEAS: arm
   // end of the jump table. We also don't consider the pc load delta.
   // Each entry in the jump table generates one instruction and inlines one
   // 32bit data after it.
-  // TODO(stm): SH4: branches can encode only 8 bits instruction words offsets
-  // This is certainly insufficient in order to encode the jump table
-  // offsets from everywhere in the code.
-  // Need to understand which branch are potentially jumping to a Deopt
-  // Jump Table.
-  // TODO(stm): should patch a 32 bit indirect branch as branch
-  // immediates are too short on SH4: ref to LCodeGen::DeoptimizeIf()
-  //if (!FITS_SH4_bt(masm()->pc_offset() + // DIFF: encoding
-  //                 deopt_jump_table_.length() *
-  //                 7/*max instructions*/ * Assembler::kInstrSize)) {
-  //  Abort(kGeneratedCodeIsTooLarge);
-  //}
+  // SH4: branches to Deopt jump table are not limited in range as they
+  // use far branch. No need to check for jump table length as on ARM.
 
   if (deopt_jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
@@ -2021,14 +2011,14 @@ static void EmitVFPCompare(LCodeGen* codegen,
                            DwVfpRegister double2,
                            Label *nan)
 {
-  // TODO: may move this to macro-assembler-sh4.cc
+  // TODO(stm): may move this to macro-assembler-sh4.cc
   // Test for NaN
   codegen-> __ dcmpeq(double1, double1);
   codegen-> __ bf(nan);
   codegen-> __ dcmpeq(double2, double2);
   codegen-> __ bf(nan);
 
-  // Generate code eand modify condition
+  // Generate code and modify condition
   switch (*cond) {
   case eq:
     codegen-> __ dcmpeq(double1, double2);

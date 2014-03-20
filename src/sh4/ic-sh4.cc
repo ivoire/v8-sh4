@@ -1633,9 +1633,9 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
 
   // The delta to the start of the map check instruction and the
   // condition code uses at the patched jump.
-  int delta = Assembler::GetCmpImmediateAsUnsigned(instr);
-  // TODO(stm): is this needed for ST40 ?
-  // delta += Assembler::GetCmpImmediateRegister(instr).code() * kOff12Mask
+  // SH4: this deleta is in the [0, 255] range, ref to class JumpPatchSite
+  // in full-codegen-sh4.cc.
+  int delta = Assembler::GetCmpImmediateAsUnsigned(instr); // DIFF: codegen
 
   // If the delta is 0 the instruction is cmp #0, r0 which also signals that
   // nothing was inlined.

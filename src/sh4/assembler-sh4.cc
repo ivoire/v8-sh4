@@ -1854,36 +1854,54 @@ void Assembler::push(const Operand& src, Register rtmp) {
 }
 
 
-void Assembler::pushm(RegList dst, bool doubles) {
-  if (!doubles) {
-    for (int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
-      if ((dst & (1 << i)) != 0) {
-        push(Register::from_code(i));
-      }
-    }
-  } else {
-    for (int16_t i = DwVfpRegister::kMaxNumRegisters - 1; i >= 0; i -= 2) {
-      if ((dst & (1 << i)) != 0) {
-        push(DwVfpRegister::from_code(i));
-      }
+void Assembler::pushm(RegList dst) {
+  for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
+    if ((dst & (1 << i)) != 0) {
+      push(Register::from_code(i));
     }
   }
 }
 
 
-void Assembler::popm(RegList src, bool doubles) {
-  if (!doubles) {
-    for (uint16_t i = 0; i < Register::kNumRegisters; i++) {
-      if ((src & (1 << i)) != 0) {
-        pop(Register::from_code(i));
-      }
+void Assembler::vpushm(RegList dst) {
+  for (int i = DwVfpRegister::kMaxNumRegisters - 1; i >= 0; i -= 2) {
+    if ((dst & (1 << i)) != 0) {
+      push(DwVfpRegister::from_code(i));
     }
-  } else {
-    for (uint16_t i = 0; i < Register::kNumRegisters; i += 2) {
-      if ((src & (1 << i)) != 0) {
-        pop(DwVfpRegister::from_code(i));
-      }
+  }
+}
+
+
+void Assembler::vpushm(DwVfpRegister first, DwVfpRegister last) {
+  ASSERT_LE(first.code(), last.code());
+  for (int i = last.code(); i >= first.code(); i -= 2) {
+    push(DwVfpRegister::from_code(i));
+  }
+}
+
+
+void Assembler::popm(RegList src) {
+  for (int i = 0; i < Register::kNumRegisters; i++) {
+    if ((src & (1 << i)) != 0) {
+      pop(Register::from_code(i));
     }
+  }
+}
+
+
+void Assembler::vpopm(RegList src) {
+  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; i += 2) {
+    if ((src & (1 << i)) != 0) {
+      pop(DwVfpRegister::from_code(i));
+    }
+  }
+}
+
+
+void Assembler::vpopm(DwVfpRegister first, DwVfpRegister last) {
+  ASSERT_LE(first.code(), last.code());
+  for (int i = first.code(); i <= last.code(); i += 2) {
+    pop(DwVfpRegister::from_code(i));
   }
 }
 
@@ -2182,7 +2200,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursiv
 
     // Emit jump over constant pool if necessary.
     if (require_jump) {
-      // TODO: pool emission might be triggered by a nop_() that should fill a branch
+      // TODO(stm): pool emission might be triggered by a nop_() that should fill a branch
       // delay slot. to avoid ILLSLOT, we lead the pool with a nop. (unless the pool
       // was forced, then we assume someone knows what is going on.)
       // there are smarter ways to handle this

@@ -69,11 +69,10 @@ void Deoptimizer::SetPlatformCompiledStubRegisters( // SAMEAS: arm
 
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  // TODO(stm): copy doubles
-  // for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-  //   double double_value = input_->GetDoubleRegister(i);
-  //   output_frame->SetDoubleRegister(i, double_value);
-  // }
+  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
+    double double_value = input_->GetDoubleRegister(i);
+    output_frame->SetDoubleRegister(i, double_value);
+  }
 }
 
 
@@ -99,21 +98,14 @@ void Deoptimizer::EntryGenerator::Generate() { // SAMEAS: arm
 
   ASSERT(NumRegs(restored_regs) == kNumberOfRegisters - 1/* sp */);
 
-  const int kDoubleRegsSize = 0;
-  //    kDoubleSize * DwVfpRegister::kMaxNumAllocatableRegisters;  TODO(stm) : FP regs
+  const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::NumAllocatableRegisters(); // DIFF: codegen
 
   // Save all allocatable VFP registers before messing with them.
-  //ASSERT(kDoubleRegZero.code() == 14);  TODO(stm) : FP regs
-  //ASSERT(kScratchDoubleReg.code() == 15);  TODO(stm) : FP regs
-
-  // Check CPU flags for number of registers, setting the Z condition flag.
-  //__ CheckFor32DRegs(ip); TODO(stm) : FP regs
-
-  // Push registers d0-d13, and possibly d16-d31, on the stack.
-  // If d16-d31 are not pushed, decrease the stack pointer instead.
-  //__ vstm(db_w, sp, d16, d31, ne);  TODO(stm) : FP regs
-  //__ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);  TODO(stm) : FP regs
-  //__ vstm(db_w, sp, d0, d13);  TODO(stm) : FP regs
+  // SH4: allocatable registers only
+  DwVfpRegister first = DwVfpRegister::FromAllocationIndex(0);
+  DwVfpRegister last =
+    DwVfpRegister::FromAllocationIndex(DwVfpRegister::NumAllocatableRegisters() - 1);
+  __ vpushm(first, last); // DIFF: codegen
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
   // TODO(1588) Note that using pc with stm is deprecated, so we should perhaps
@@ -162,19 +154,22 @@ void Deoptimizer::EntryGenerator::Generate() { // SAMEAS: arm
   ASSERT(Register::kNumRegisters == kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    // SH4: the sequence above push(sp); pushm(restored_regs); will
+    // have put in order all registers sh4_r0 to sh4_r15
     __ ldr(r2, MemOperand(sp, i * kPointerSize));
-    __ str(r2, MemOperand(r1, offset)); // TODO(stm): do we need an ordered list?
+    __ str(r2, MemOperand(r1, offset));
   }
 
   // Copy VFP registers to
   // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
-  // int double_regs_offset = FrameDescription::double_registers_offset();
-  // for (int i = 0; i < DwVfpRegister::kMaxNumAllocatableRegisters; ++i) {
-  //   int dst_offset = i * kDoubleSize + double_regs_offset;
-  //   int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
-  //   __ vldr(d0, sp, src_offset);
-  //   __ vstr(d0, r1, dst_offset);
-  // }
+  // SH4: use NumAllocatableRegisters()
+  int double_regs_offset = FrameDescription::double_registers_offset();
+  for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); ++i) { // DIFF: codegen
+    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    __ vldr(d0, sp, src_offset);
+    __ vstr(d0, r1, dst_offset);
+  }
 
   ASSERT(kSavedRegistersAreaSize ==
          ((kNumberOfRegisters + 2 /* pc and pr */) * kPointerSize)
@@ -244,20 +239,13 @@ void Deoptimizer::EntryGenerator::Generate() { // SAMEAS: arm
   __ cmpge(r4, r1); // DIFF: codegen
   __ b(f, &outer_push_loop); // DIFF: codegen
 
-  // TODO(stm): FP registers
-  // // Check CPU flags for number of registers, setting the Z condition flag.
-  // __ CheckFor32DRegs(ip);
-
-  // __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-  // int src_offset = FrameDescription::double_registers_offset();
-  // for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-  //   if (i == kDoubleRegZero.code()) continue;
-  //   if (i == kScratchDoubleReg.code()) continue;
-
-  //   const DwVfpRegister reg = DwVfpRegister::from_code(i);
-  //   __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
-  //   src_offset += kDoubleSize;
-  // }
+  __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
+  int src_offset = FrameDescription::double_registers_offset();
+  for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); ++i) { // DIFF: codegen
+    DwVfpRegister reg = DwVfpRegister::FromAllocationIndex(i); // DIFF: codegen
+    __ vldr(reg, r1, src_offset); // DIFF: codegen
+    src_offset += kDoubleSize;
+  }
 
   // Push state, pc, and continuation from the last output frame.
   __ ldr(r6, MemOperand(r2, FrameDescription::state_offset()));

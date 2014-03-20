@@ -105,8 +105,6 @@ static void ProbeTable(Isolate* isolate,
   // It's a nice optimization if this constant is encodable in the bic insn.
 
   uint32_t mask = Code::kFlagsNotUsedInLookup;
-  // TODO(ivoire): is it needed ?
-  //ASSERT(__ ImmediateFitsAddrMode1Instruction(mask));
   __ bic(flags_reg, flags_reg, Operand(mask));
   __ cmpeq(flags_reg, Operand(flags));
   __ b(ne, &miss);
@@ -2354,7 +2352,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall( // SAMEAS: arm
   // updating the HeapNumber value address, as vldr expects a multiple
   // of 4 offset.
   __ Ldrd(r4, r5, FieldMemOperand(r0, HeapNumber::kValueOffset));
-  UNIMPLEMENTED(); // TODONOW
+  UNIMPLEMENTED(); // TODO: FPU // TODO(stm)
 
   // Check for NaN, Infinities and -0.
   // They are invariant through a Math.Floor call, so just

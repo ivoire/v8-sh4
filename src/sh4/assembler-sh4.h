@@ -1174,14 +1174,18 @@ class Assembler : public AssemblerBase {
 
   void push(Register src);
   void push(DwVfpRegister src);
-  // push a genral operand on the stack: use rtmp register for that
+  // push a general operand on the stack: use rtmp register for that
   void push(const Operand& src, Register rtmp = sh4_rtmp);
-  void pushm(RegList src, bool doubles = false);
+  void pushm(RegList src);
+  void vpushm(RegList src);
+  void vpushm(DwVfpRegister first, DwVfpRegister last);
 
   void pop(Register dst);
   void pop() { add(sp, sp, Operand(kPointerSize)); }
   void pop(DwVfpRegister dst);
-  void popm(RegList dst, bool doubles = false);
+  void popm(RegList dst);
+  void vpopm(RegList dst);
+  void vpopm(DwVfpRegister first, DwVfpRegister last);
 
   inline void rts();
 
