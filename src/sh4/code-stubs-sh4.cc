@@ -544,7 +544,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
 }
 
 
-void DoubleToIStub::Generate(MacroAssembler* masm) {
+void DoubleToIStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
   Label out_of_range, only_low, negate, done;
   Register input_reg = source();
   Register result_reg = destination();
@@ -585,8 +585,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
   // the result is 0.
   // Compare exponent with 84 (compare exponent - 1 with 83).
-  __ cmpge(scratch, Operand(83));
-  __ bt(&out_of_range);
+  __ cmpge(scratch, Operand(83)); // DIFF: codegen
+  __ bt(&out_of_range); // DIFF: codegen
 
   // If we reach this code, 31 <= exponent <= 83.
   // So, we don't have to handle cases where 0 <= exponent <= 20 for
@@ -594,11 +594,11 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   // Scratch contains exponent - 1.
   // Load scratch with 52 - exponent (load with 51 - (exponent - 1)).
   __ rsb(scratch, scratch, Operand(51));
-  __ cmphi(scratch, Operand(0));
-  __ bf(&only_low);
+  __ cmpgt(scratch, Operand(0));
+  __ bf(&only_low); // branch is exponent >= 52 (52 - exponent <= 0) // DIFF: codegen
   // 21 <= exponent <= 51, shift scratch_low and scratch_high
   // to generate the result.
-  __ lsr(scratch_low, scratch_low, scratch);
+  __ lsr(scratch_low, scratch_low, scratch); // DIFF: codegen
   // Scratch contains: 52 - exponent.
   // We needs: exponent - 20.
   // So we use: 32 - scratch = 32 - 52 + exponent = exponent - 20.
@@ -608,8 +608,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   // Set the implicit 1 before the mantissa part in scratch_high.
   __ orr(result_reg, result_reg,
          Operand(1 << HeapNumber::kMantissaBitsInTopWord));
-  __ lsl(result_reg, result_reg, scratch);
-  __ orr(result_reg, scratch_low, result_reg);
+  __ lsl(result_reg, result_reg, scratch); // DIFF: codegen
+  __ orr(result_reg, scratch_low, result_reg); // DIFF: codegen
   __ b(&negate);
 
   __ bind(&out_of_range);
@@ -620,7 +620,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   // 52 <= exponent <= 83, shift only scratch_low.
   // On entry, scratch contains: 52 - exponent.
   __ rsb(scratch, scratch, Operand::Zero());
-  __ lsl(result_reg, scratch_low, scratch);
+  __ lsl(result_reg, scratch_low, scratch); // DIFF: codegen
 
   __ bind(&negate);
   // If input was positive, scratch_high ASR 31 equals 0 and
@@ -629,10 +629,10 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   // If the input was negative, we have to negate the result.
   // Input_high ASR 31 equals 0xffffffff and scratch_high LSR 31 equals 1.
   // New result = (result eor 0xffffffff) + 1 = 0 - result.
-  __ asr(scratch, scratch_high, Operand(31));
-  __ eor(result_reg, result_reg, scratch);
-  __ lsr(scratch, scratch_high, Operand(31));
-  __ add(result_reg, result_reg, scratch);
+  __ asr(scratch, scratch_high, Operand(31)); // DIFF: codegen
+  __ eor(result_reg, result_reg, scratch); // DIFF: codegen
+  __ lsr(scratch, scratch_high, Operand(31)); // DIFF: codegen
+  __ add(result_reg, result_reg, scratch); // DIFF: codegen
 
   __ bind(&done);
 
