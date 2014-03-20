@@ -53,18 +53,9 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
 #define __ masm.
 
 
-#if defined(USE_SIMULATOR)
-byte* fast_exp_arm_machine_code = NULL;
-double fast_exp_simulator(double x) {
-  UNIMPLEMENTED();
-  return 0.0;
-}
-#endif
-
-
 UnaryMathFunction CreateExpFunction() {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(stm): optionally implement fast version (ref to arm)
+  return &exp;
 }
 
 #undef __
