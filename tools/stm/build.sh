@@ -20,17 +20,11 @@ jobs=${jobs-1}
 
 # Define default build flags
 mode=${mode:-release}
-snapshot=${snapshot:-off}
-regexp=${regexp:-native}
-profilingsupport=${profilingsupport:-off}
-debuggersupport=${debuggersupport:-on}
-backtrace=${backtrace:-off}
-library=${library:-shared}
-armeabi=${armeabi:-soft}
-vfp3=${vfp3:-on}
-logging=${logging:-off}
-prof=${prof:-off}
-tests=${tests:-""}
+snapshot=${snapshot:-on}		# Default: on
+regexp=${regexp:-native}		# Default: native
+debuggersupport=${debuggersupport:-on}	# Default: on
+backtrace=${backtrace:-on}		# Default: on
+library=${library:-shared}		# Default: static
 profile_gcov=${profile_gcov:-off}
 
 # gcov profiling only works in debug mode
@@ -46,6 +40,6 @@ if [ "$profile_gcov" = on ]; then
 fi
 
 set -x
-make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} profilingsupport=${profilingsupport} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} armeabi=${armeabi} vfp3=${vfp3} logging=${logging} prof=${prof} ${jobs+-j$jobs} "$@"
+make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} ${jobs+-j$jobs} "$@"
 
 #  sh4.debug snapshot=off regexp=interpreted debuggersupport=off -j4
