@@ -996,6 +996,7 @@ class Assembler : public AssemblerBase {
   static Register GetRm(Instr instr);
   static bool IsCmpRegister(Instr instr);
   static bool IsCmpImmediate(Instr instr);
+  static bool IsTstRegister(Instr instr);
   static Register GetCmpImmediateRegister(Instr instr);
   static int GetCmpImmediateAsUnsigned(Instr instr);
   static bool IsMovImmediate(Instr instr);

@@ -457,7 +457,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
   // NOTE: this function is not equivalent to
   // GetCallTargetAddressOffset() which is independent of the
   // call location but dependent on the call alignment.
-  // Actually this muist return the offset after the alignment
+  // Actually this must return the offset after the alignment
   // while GetCallTargetAddressOffset() must add an instruction
   // word in the misaligned case.
   ASSERT(IsMovlPcRelative(instr_at(pc)));
@@ -466,8 +466,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
     // Delayed constant pool
     return pc + kNewStyleCallTargetAddressOffset;
   } else {
-    // As we go backward from the return address we do not need
-    // to account for the alignment at the start of a sequence.
+    // Do not need to account for the alignment at the start of a sequence.
     // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment
     // value.
     return pc + kOldStyleCallTargetAddressOffsetWithoutAlignment;

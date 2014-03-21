@@ -1612,17 +1612,8 @@ bool CompareIC::HasInlinedSmiCode(Address address) {
 
 
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
-  Address cmp_instruction_address;
-  Instr movl = Assembler::instr_at(address);
-  ASSERT(Assembler::IsMovlPcRelative(movl));
-  if ((movl & kOff8Mask) == 0x1) {
-    // load from an inlined constant pool
-    cmp_instruction_address = address +
-      Assembler::kOldStyleCallTargetAddressOffsetWithoutAlignment;
-  } else {
-    // constant pools are optimized
-    cmp_instruction_address = address + Assembler::kNewStyleCallTargetAddressOffset;
-  }
+  Address cmp_instruction_address =
+    Assembler::return_address_from_call_start(address);
 
   // If the instruction following the call is not a cmp #ii, rx, nothing
   // was inlined.
@@ -1659,13 +1650,26 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
 #endif
   Instr branch_instr =
       Assembler::instr_at(patch_address + Assembler::kInstrSize);
-  ASSERT(Assembler::IsCmpRegister(instr_at_patch));
-  ASSERT_EQ(Assembler::GetRn(instr_at_patch).code(),
-            Assembler::GetRm(instr_at_patch).code());
   ASSERT(Assembler::IsMovImmediate(instr_before_patch));
   ASSERT_EQ(Assembler::GetRn(instr_before_patch).code(), sh4_ip.code());
   ASSERT(Assembler::IsCondBranch(branch_instr));
+
+  CodePatcher patcher(patch_address, 2);
+  Register reg = Assembler::GetRn(instr_at_patch);
+  if (check == ENABLE_INLINED_SMI_CHECK) {
+    ASSERT(Assembler::IsCmpRegister(instr_at_patch));
+    ASSERT_EQ(Assembler::GetRn(instr_at_patch).code(),
+              Assembler::GetRm(instr_at_patch).code());
+    patcher.masm()->tst(reg, sh4_ip);
+  } else {
+    ASSERT(check == DISABLE_INLINED_SMI_CHECK);
+    ASSERT(Assembler::IsTstRegister(instr_at_patch));
+    ASSERT_EQ(Assembler::GetRm(instr_at_patch).code(), sh4_ip.code());
+    patcher.masm()->cmp(reg, reg);
+  }
+
   if (Assembler::GetCondition(branch_instr) == f) {
+    // When INLINE_SMI_CHECK
     // This is patching a "jump if not smi" site to be active.
     // Changing
     //   mov #kSmiTagMask, sh4_ip
@@ -1681,12 +1685,10 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     //   ...
     //   bra <target>
     //   skip:
-    CodePatcher patcher(patch_address, 2);
-    Register reg = Assembler::GetRn(instr_at_patch);
-    patcher.masm()->tst(reg, sh4_ip);
     patcher.EmitCondition(t);
   } else {
     ASSERT(Assembler::GetCondition(branch_instr) == t);
+    // When INLINE_SMI_CHECK
     // This is patching a "jump if smi" site to be active.
     // Changing
     //   mov #kSmiTagMask, sh4_ip
@@ -1702,9 +1704,6 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     //   ...
     //   bra <target>
     //   skip:
-    CodePatcher patcher(patch_address, 2);
-    Register reg = Assembler::GetRn(instr_at_patch);
-    patcher.masm()->tst(reg, sh4_ip);
     patcher.EmitCondition(f);
   }
 }

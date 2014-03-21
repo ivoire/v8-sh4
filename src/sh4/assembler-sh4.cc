@@ -307,7 +307,7 @@ bool Assembler::IsBf(Instr instr) {
 }
 
 Register Assembler::GetRn(Instr instr) {
-  ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
+  ASSERT(IsCmpRegister(instr) || IsTstRegister(instr) || IsMovImmediate(instr));
   Register reg;
   // extract Rn from cmp/xx Rm, Rn
   reg.code_ = (instr & 0x0F00) >> 8;
@@ -316,7 +316,7 @@ Register Assembler::GetRn(Instr instr) {
 
 
 Register Assembler::GetRm(Instr instr) {
-  ASSERT(IsCmpRegister(instr) || IsMovImmediate(instr));
+  ASSERT(IsCmpRegister(instr) || IsTstRegister(instr));
   Register reg;
   // extract Rn from cmp/xx Rm, Rn
   reg.code_ = (instr & 0x00F0) >> 4;
@@ -357,6 +357,12 @@ bool Assembler::IsCmpRegister(Instr instr) {
 bool Assembler::IsCmpImmediate(Instr instr) {
   // cmp/eq #ii, R0
   return (instr & 0xFF00) == 0x8800;
+}
+
+
+bool Assembler::IsTstRegister(Instr instr) {
+  // tst Rm, Rn
+  return (instr & 0xF00F) == 0x2008;
 }
 
 
@@ -809,11 +815,11 @@ void Assembler::lxor(Register Rd, Register Rs, Register Rt) {
 
 void Assembler::tst(Register Rd, const Operand& src, Register rtmp) {
   if (src.is_reg()) {
-    tst_(Rd, src.rm());
+    tst_(src.rm(), Rd);
   } else {
     ASSERT(!Rd.is(rtmp));
     mov(rtmp, src);
-    tst_(Rd, rtmp);
+    tst_(rtmp, Rd);
   }
 
 }
