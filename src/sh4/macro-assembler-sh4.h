@@ -1175,9 +1175,9 @@ class MacroAssembler: public Assembler {
   }
 
   void TrySmiTag(Register reg, Register src, Label* not_a_smi) {
-    addv(sh4_rtmp, reg, reg);
+    addv(sh4_rtmp, src, src);
     b(t, not_a_smi);
-    add(reg, reg, reg);
+    mov(reg, sh4_rtmp);
   }
 
   void SmiUntag(Register reg, SBit s = LeaveT) { // SH4: when s == SetT, set T bit if SMI

@@ -1113,7 +1113,7 @@ void LCodeGen::DoModI(LModI* instr) { // SAMEAS: arm
     Label left_is_not_negative, done;
     if (left->CanBeNegative()) {
       __ cmpge(left_reg, Operand::Zero()); // DIFF: codegen
-      __ b(f, &left_is_not_negative); // DIFF: codegen
+      __ b(t, &left_is_not_negative); // DIFF: codegen
       __ rsb(result_reg, left_reg, Operand::Zero());
       __ and_(result_reg, result_reg, Operand(divisor - 1));
       __ rsb(result_reg, result_reg, Operand::Zero()); // DIFF: codegen
