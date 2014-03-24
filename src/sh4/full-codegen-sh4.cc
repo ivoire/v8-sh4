@@ -3538,7 +3538,7 @@ void FullCodeGenerator::EmitSeqStringSetCharCheck(Register string, // SAMEAS: ar
 }
 
 
-void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
+void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
 
@@ -3558,11 +3558,10 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   }
 
   __ SmiUntag(value, value);
-  __ add(ip,
-         string,
-         Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-  __ lsr(value, index, Operand(kSmiTagSize));
-  __ strb(value, MemOperand(ip, value));
+  __ lsr(ip, index, Operand(kSmiTagSize)); // DIFF: codegen
+  __ add(ip, ip, string); // DIFF: codegen
+  __ add(ip, ip, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag)); // DIFF: codegen
+  __ strb(value, MemOperand(ip)); // DIFF: codegen
   context()->Plug(string);
 }
 
