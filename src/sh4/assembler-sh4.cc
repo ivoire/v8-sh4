@@ -141,7 +141,15 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
-  UNIMPLEMENTED();
+  // Patch the code at the current address with the supplied instructions.
+  Instr* pc = reinterpret_cast<Instr*>(pc_);
+  Instr* instr = reinterpret_cast<Instr*>(instructions);
+  for (int i = 0; i < instruction_count; i++) {
+    *(pc + i) = *(instr + i);
+  }
+
+  // Indicate that code has changed.
+  CPU::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
 }
 
 
@@ -318,7 +326,7 @@ Register Assembler::GetRn(Instr instr) {
 Register Assembler::GetRm(Instr instr) {
   ASSERT(IsCmpRegister(instr) || IsTstRegister(instr));
   Register reg;
-  // extract Rn from cmp/xx Rm, Rn
+  // extract Rm from cmp/xx Rm, Rn
   reg.code_ = (instr & 0x00F0) >> 4;
   return reg;
 }
@@ -336,9 +344,16 @@ bool Assembler::IsJsr(Instr instr) {
 }
 
 
-bool Assembler::IsNop(Instr instr) {
-  // nop
-  return instr == 0x0009;
+bool Assembler::IsNop(Instr instr, int type) {
+  ASSERT(type >= 0 && type <= 14); // Ref to ::nop()
+  if (type == NON_MARKING_NOP) {
+    // nop
+    return instr == 0x0009;
+  } else {
+    // mov Rm, Rn
+    return (instr & 0xF00F) == 0x6003 /*mov Rm, Rn*/ &&
+      ((instr & 0x0F00) >> 8)/*Rn*/ == ((instr & 0x00F0) >> 4)/*Rm*/;
+  }
 }
 
 
@@ -1811,6 +1826,19 @@ void Assembler::dmuls(Register dstL, Register dstH, Register src1,
 }
 
 
+// Pseudo instructions.
+void Assembler::nop(int type) {
+  // SH4: generate a SH4 nop for type 0
+  // Otherwize a mov rx, rx
+  ASSERT(0 <= type && type <= 14);  // Avoid writing sp even if harmless
+  if (type == 0) {
+    nop_();
+  } else {
+    Register reg = Register::from_code(type);
+    mov_(reg, reg);
+  }
+}
+
 void Assembler::pop(Register dst) {
   if (dst.is(pr))
     ldsl_incRd_PR_(sp);
@@ -1940,9 +1968,18 @@ void Assembler::stop(const char* msg, Condition cond) {
 
 // Debugging.
 void Assembler::RecordJSReturn() {
+  ASSERT((uintptr_t)pc_ % 4 == 0); // Must be aligned on SH4
   positions_recorder()->WriteRecordedPositions();
   CheckBuffer();
   RecordRelocInfo(RelocInfo::JS_RETURN);
+}
+
+
+void Assembler::RecordDebugBreakSlot() {
+  ASSERT((uintptr_t)pc_ % 4 == 0); // Must be aligned on SH4
+  positions_recorder()->WriteRecordedPositions();
+  CheckBuffer();
+  RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
 }
 
 
@@ -2237,8 +2274,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursiv
       // Instruction to patch must be 'MOV.L @(disp, PC), Rn' with disp == 0.
       ASSERT((instr & ((0xf << 12) | kOff8Mask)) == 0xd000);
 
-      int delta = pc_ - rinfo.pc() - kPcLoadDelta;
-      // 0 is the smallest delta:
+      int delta = pc_ - rinfo.pc() - 2;
+      // 0 is the smallest delta, 2 instrs added to PC offset on SH4:
       //   ldr rd, [pc, #0]
       //   constant pool marker
       //   data

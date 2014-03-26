@@ -33,6 +33,7 @@
 #include "sh4/constants-sh4.h"
 #include "cpu.h"
 #include "debug.h"
+#include "disasm.h"
 
 namespace v8 {
 namespace internal {
@@ -249,19 +250,40 @@ void RelocInfo::set_call_object(Object* target) {
 
 
 Object** RelocInfo::call_object_address() {
-  UNIMPLEMENTED();
-  return NULL;
+  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
+  // SH4: both sequences are identical, thus can be treated the same way
+  ASSERT(Assembler::kJSReturnSequenceInstructions ==
+         Assembler::kDebugBreakSlotInstructions);
+  // SH4: the actual position of the object address is
+  // four instrcutions after the start of the sequence.
+  // Ref to ::IsPatchedReturnSequence() for instance.
+  byte *address_pointer = pc_ + Assembler::kInstrSize * 4;
+  ASSERT((uintptr_t)address_pointer % 4 == 0);
+  return reinterpret_cast<Object**>(address_pointer);
 }
 
 
 bool RelocInfo::IsPatchedReturnSequence() {
-  return false; // TODO(stm): implement it with BreakLocationIterator::SetDebugBreakAtReturn()
+  Instr current_instr = Assembler::instr_at(pc_);
+  Instr next_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize);
+  Instr jsr_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize * 4 + 4);
+  // A patched return sequence is a call to the debug stub (ref SetDebugBreakAtSlot()):
+  //  mov.l ip, @(pc+...)
+  //  nop
+  //  bra
+  //  nop
+  //  address (4 bytes)
+  //  jsr
+  //  nop
+  return Assembler::IsMovlPcRelative(current_instr) && Assembler::IsNop(next_instr) &&
+    Assembler::IsJsr(jsr_instr);
 }
 
 
 bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  UNIMPLEMENTED();
-  return false; // TODO(stm): implement it with BreakLocationIterator::SetDebugBreakAtSlot()
+  Instr current_instr = Assembler::instr_at(pc_);
+  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
 }
 
 
@@ -419,6 +441,7 @@ Address Assembler::target_pointer_address_at(Address pc) {
 
 Address Assembler::target_pointer_at(Address pc) {
   ASSERT(IsMovlPcRelative(instr_at(pc)));
+
   return Memory::Address_at(target_pointer_address_at(pc));
 }
 

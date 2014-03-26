@@ -448,12 +448,24 @@ void FullCodeGenerator::EmitReturnSequence() {
       // tool from instrumenting as we rely on the code size here.
       int32_t sp_delta = (info_->scope()->num_parameters() + 1) * kPointerSize;
       CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
+      // SH4: we force return sequence to be at least of the
+      // same length as the expected debug return sequence.
+      // Ref to SetDebugBreakAtReturn() in debug-sh4.cc.
+      // The size does not need to be predictable, but we add some padding
+      // at the end.
+      // Not required: PredictableCodeSizeScope predictable(masm_, -1);
+      __ align(); // ALignment required on SH4 before each RecordJSReturn()
       __ RecordJSReturn();
+      int start = masm_->pc_offset();
       masm_->mov(sp, fp);
       int no_frame_start = masm_->pc_offset();
       masm_->Pop(pr, fp);
       masm_->add(sp, sp, Operand(sp_delta));
       masm_->Ret();
+      // SH4: pad return sequence with nops
+      while(masm_->pc_offset() - start < Assembler::kInstrSize *
+            Assembler::kJSReturnSequenceInstructions)
+        masm_->nop();
       info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
     }
 

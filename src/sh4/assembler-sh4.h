@@ -725,21 +725,23 @@ class Assembler : public AssemblerBase {
   //static const int kCallTargetAddressOffset = 3 * kInstrSize;
 
   // Distance between start of patched return sequence and the emitted address
-  // to jump to.
+  // to jump to. Ref to debug-sh4.cc.
   static const int kPatchReturnSequenceAddressOffset = 0 * kInstrSize;
 
   // Distance between start of patched debug break slot and the emitted address
-  // to jump to.
+  // to jump to. Ref to debug-sh4.cc.
   static const int kPatchDebugBreakSlotAddressOffset = 0 * kInstrSize;
 
-  static const int kPatchDebugBreakSlotReturnOffset = 0 * kInstrSize;
+  // Distance between the start of the break slot or return sequence and
+  // the return address after the call (the link register value).
+  static const int kPatchDebugBreakSlotReturnOffset = 8 * kInstrSize; // Ref to debug-sh4.cc.
 
   // Difference between address of current opcode and value read from pc
   // register.
-  static const int kPcLoadDelta = 2;
+  // static const int kPcLoadDelta = 0; // PC can't be read on SH4
 
-  static const int kJSReturnSequenceInstructions = 0; // TODO(stm): implemented with debug-sh4.cc
-  static const int kDebugBreakSlotInstructions = 0; // TODO(stm): implemented with debug-sh4.cc
+  static const int kJSReturnSequenceInstructions = 8; // Ref debug-sh4.cc
+  static const int kDebugBreakSlotInstructions = 8; // Ref debug-sh4.cc
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
@@ -990,7 +992,7 @@ class Assembler : public AssemblerBase {
   static bool IsBt(Instr instr);
   static bool IsBf(Instr instr);
   static bool IsJsr(Instr instr);
-  static bool IsNop(Instr instr);
+  static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
   static bool IsBra(Instr instr);
   static Register GetRn(Instr instr);
   static Register GetRm(Instr instr);
@@ -1171,7 +1173,23 @@ class Assembler : public AssemblerBase {
   // Mul aliases for ARM emulation
   void smull(Register dstL, Register dstH, Register src1, Register src2) { dmuls(dstL, dstH, src1, src2); }
 
-  void nop() { nop_(); }
+  // Pseudo instructions
+
+  // Different nop operations are used by the code generator to detect certain
+  // states of the generated code.
+  enum NopMarkerTypes {
+    NON_MARKING_NOP = 0,
+    DEBUG_BREAK_NOP,
+    // IC markers.
+    PROPERTY_ACCESS_INLINED,
+    PROPERTY_ACCESS_INLINED_CONTEXT,
+    PROPERTY_ACCESS_INLINED_CONTEXT_DONT_DELETE,
+    // Helper values.
+    LAST_CODE_MARKER,
+    FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED
+  };
+
+  void nop(int type = 0);   // 0 is the default non-marking type.
 
   void push(Register src);
   void push(DwVfpRegister src);
@@ -1239,6 +1257,9 @@ class Assembler : public AssemblerBase {
 
   // Mark address of the ExitJSFrame code.
   void RecordJSReturn();
+
+  // Mark address of a debug break slot.
+  void RecordDebugBreakSlot();
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.

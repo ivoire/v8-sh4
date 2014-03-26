@@ -3906,6 +3906,13 @@ void CodePatcher::Emit(Instr instr) {
 }
 
 
+void CodePatcher::Emit(Address addr) {
+  // SH4: must have been aligned before call
+  ASSERT(((uintptr_t)address_ + masm()->pc_offset()) % 4 == 0);
+  masm()->dd(reinterpret_cast<uint32_t>(addr));
+}
+
+
 void CodePatcher::EmitCondition(Condition cond) {
   Instr instr = Assembler::instr_at(masm_.pc_);
   ASSERT(cond == eq || cond == ne);
