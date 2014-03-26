@@ -123,10 +123,6 @@
   'test-api/Threading3': [SKIP],
   'test-api/Threading4': [SKIP],
 
-  # SH4 currently does not implement debugger support but sets
-  # ENABLE_DEBUGGER_SUPPORT, skip tests relying on actual implementation
-  'test-heap/TestCodeFlushingIncrementalAbort': [SKIP],
-
 }],  # 'arch == sh4'
 
 ##############################################################################
