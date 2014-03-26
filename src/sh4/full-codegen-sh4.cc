@@ -3386,7 +3386,7 @@ void FullCodeGenerator::EmitLog(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
+void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) { // SAMEAS: arm
   ASSERT(expr->arguments()->length() == 0);
   Label slow_allocate_heapnumber;
   Label heapnumber_allocated;
@@ -3398,17 +3398,17 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   __ bind(&slow_allocate_heapnumber);
   // Allocate a heap number.
   __ CallRuntime(Runtime::kNumberAlloc, 0);
-  // __ mov(r4, Operand(r0)); // r4 is caller saved on sh4, push on stack instead
-  __ push(r0); // DIFF: codegen
+  __ mov(r4, Operand(r0));
 
   __ bind(&heapnumber_allocated);
 
   // Convert 32 random bits in r0 to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
+  __ push(r4); // SH4: r4 is caller saved, preserve it // DIFF: codegen
   __ PrepareCallCFunction(1, r0);
   __ ldr(sh4_r4,
-         ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
+         ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX)); // DIFF: codegen
   __ ldr(sh4_r4, FieldMemOperand(sh4_r4, GlobalObject::kNativeContextOffset));  // SH4: params // DIFF: codegen
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
@@ -3422,10 +3422,11 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   __ mov(r0, Operand::Zero());
   __ vmov(d2, r0, r1); // d8 for ARM // DIFF: codegen
   // Subtract and store the result in the heap number.
-  __ vsub(d1, d1, d2);
+  __ vsub(d1, d1, d2); // DIFF: codegen
+  __ pop(r4); // SH4: restore the heap number r4 // DIFF: codegen
   __ sub(r0, r4, Operand(kHeapObjectTag));
-  __ vstr(d1, MemOperand(r0, HeapNumber::kValueOffset)); // DIFF: codegen
-  __ pop(r0); // Get back from stack, see above // DIFF: codegen
+  __ vstr(d1, r0, HeapNumber::kValueOffset);
+  __ mov(r0, r4);
 
   context()->Plug(r0);
 }
