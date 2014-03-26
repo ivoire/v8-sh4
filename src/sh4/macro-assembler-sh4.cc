@@ -685,8 +685,14 @@ void MacroAssembler::VFPEnsureFPSCRState(Register scratch) {
 void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
                                         const DwVfpRegister src,
                                         const Condition cond) {
+  ASSERT(cond == al);
   RECORD_LINE();
-  nop();  // SH4: no-op
+  Label not_a_nan;
+  dcmpeq(src, src);
+  bt_near(&not_a_nan);
+  // We have a NaN, replace by the canonical NaN value
+  vmov(dst, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+  bind(&not_a_nan);
 }
 
 
@@ -2106,7 +2112,7 @@ void MacroAssembler::StoreNumberToDoubleElements( // SAMEAS: arm
 
   vldr(double_scratch, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
   // Force a canonical NaN.
-  // SH4: mode test is not applicable
+  // SH4: no need for NaN mode check
   // if (emit_debug_code()) {
   //   vmrs(ip);
   //   tst(ip, Operand(kVFPDefaultNaNModeControlBit));

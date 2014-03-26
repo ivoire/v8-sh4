@@ -3154,7 +3154,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) { // SAMEAS: arm
 
   if (instr->NeedsCanonicalization()) {
     // Force a canonical NaN.
-    // SH4: no matching support for NaN mode check
+    // SH4: no need for NaN mode check
     // if (masm()->emit_debug_code()) {
     //   __ vmrs(ip);
     //   __ tst(ip, Operand(kVFPDefaultNaNModeControlBit));
