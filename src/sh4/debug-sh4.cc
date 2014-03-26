@@ -63,13 +63,13 @@ void BreakLocationIterator::SetDebugBreakAtReturn() { // SAMEAS: arm
   CodePatcher patcher(rinfo()->pc(), Assembler::kJSReturnSequenceInstructions);
   ASSERT((uintptr_t)rinfo()->pc() % 4 == 0); // Must be aligned: ref RecordJSReturn()
   patcher.masm()->mov(sh4_ip,
-                      Operand(reinterpret_cast<int32_t>(debug_info_->GetIsolate()->debug()->debug_break_slot()->entry()))); // Pass as int32_t to avoid emittion of relocation
+                      Operand(reinterpret_cast<int32_t>(debug_info_->GetIsolate()->debug()->debug_break_return()->entry()))); // Pass as int32_t to avoid emittion of relocation
   patcher.masm()->jsr(sh4_ip);
   ASSERT(patcher.masm()->pc_offset() - Assembler::kPatchDebugBreakSlotReturnOffset == 0);
   ASSERT(Assembler::kJSReturnSequenceInstructions * Assembler::kInstrSize ==
          patcher.masm()->pc_offset());
-  ASSERT(Assembler::target_address_at(reinterpret_cast<byte*>(rinfo()->pc() + Assembler::kPatchReturnSequenceAddressOffset)) == debug_info_->GetIsolate()->debug()->debug_break_slot()->entry());
-  ASSERT(patcher.masm()->CallSize(debug_info_->GetIsolate()->debug()->debug_break_slot()->entry(), 0, RelocInfo::NONE32) == patcher.masm()->pc_offset());
+  ASSERT(Assembler::target_address_at(reinterpret_cast<byte*>(rinfo()->pc() + Assembler::kPatchReturnSequenceAddressOffset)) == debug_info_->GetIsolate()->debug()->debug_break_return()->entry());
+  ASSERT(patcher.masm()->CallSize(debug_info_->GetIsolate()->debug()->debug_break_return()->entry(), 0, RelocInfo::NONE32) == patcher.masm()->pc_offset());
 }
 
 
