@@ -1287,7 +1287,7 @@ void LCodeGen::DoDivI(LDivI* instr) { // SAMEAS: arm
   }
 
   if (CpuFeatures::IsSupported(SUDIV)) {
-    UNREACHABLE(); // DIFF: codegen
+    UNREACHABLE(); // SH4: no SUDIV // DIFF: codegen
   } else {
     const DoubleRegister vleft = ToDoubleRegister(instr->temp());
     const DoubleRegister vright = double_scratch0();

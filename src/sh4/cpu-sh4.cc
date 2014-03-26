@@ -55,6 +55,11 @@ bool CPU::SupportsCrankshaft() {
 
 
 void CPU::FlushICache(void* start, size_t size) {
+  // Nothing to do flushing no instructions.
+  if (size == 0) {
+    return;
+  }
+
 #if defined(USE_SIMULATOR)
   Simulator::FlushICache(Isolate::Current()->simulator_i_cache(), start, size);
 #else

@@ -3247,7 +3247,7 @@ void MacroAssembler::CopyBytes(Register src, // SAMEAS: arm
   bf_near(&byte_loop);
   ldr(scratch, MemOperand(src, kPointerSize, PostIndex));
   if (CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) {
-    ASSERT(0); // SH4: not supported
+    UNREACHABLE(); // SH4: no UNALIGNED_ACCESS // DIFF: codegen
   } else {
     strb(scratch, MemOperand(dst, 1, PostIndex));
     lsr(scratch, scratch, Operand(8)); // DIFF: codegen

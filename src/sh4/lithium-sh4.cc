@@ -1389,6 +1389,7 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     }
     LOperand* dividend = UseRegister(instr->left());
     LOperand* divisor = UseRegister(instr->right());
+    ASSERT(!CpuFeatures::IsSupported(SUDIV)); // SH4: no SUBDIV // DIFF: codegen
     LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d3); // d4 for ARM // DIFF: codegen
     LDivI* div = new(zone()) LDivI(dividend, divisor, temp);
     return AssignEnvironment(DefineAsRegister(div));
@@ -1429,14 +1430,8 @@ bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
 
 HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
   if (CpuFeatures::IsSupported(SUDIV)) {
-    // A value with an integer representation does not need to be transformed.
-    if (divisor->representation().IsInteger32()) {
-      return divisor;
-    // A change from an integer32 can be replaced by the integer32 value.
-    } else if (divisor->IsChange() &&
-               HChange::cast(divisor)->from().IsInteger32()) {
-      return HChange::cast(divisor)->value();
-    }
+    UNREACHABLE(); // SH4: no SUBDIV // DIFF: codegen
+    return NULL;
   }
 
   if (divisor->IsConstant() && HConstant::cast(divisor)->HasInteger32Value()) {
@@ -1456,6 +1451,7 @@ HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   HValue* right = instr->right();
   LOperand* dividend = UseRegister(instr->left());
+  ASSERT(!CpuFeatures::IsSupported(SUDIV)); // SH4: no SUBDIV // DIFF: codegen
   LOperand* divisor = CpuFeatures::IsSupported(SUDIV)
       ? UseRegister(right)
       : UseOrConstant(right);
@@ -1489,18 +1485,8 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
                                      UseRegisterAtStart(right));
       return AssignEnvironment(DefineAsRegister(mod));
     } else if (CpuFeatures::IsSupported(SUDIV)) {
-      LModI* mod = new(zone()) LModI(UseRegister(left),
-                                     UseRegister(right));
-      LInstruction* result = DefineAsRegister(mod);
-      return (right->CanBeZero() ||
-              (left->RangeCanInclude(kMinInt) &&
-               right->RangeCanInclude(-1) &&
-               instr->CheckFlag(HValue::kBailoutOnMinusZero)) ||
-              (left->CanBeNegative() &&
-               instr->CanBeZero() &&
-               instr->CheckFlag(HValue::kBailoutOnMinusZero)))
-          ? AssignEnvironment(result)
-          : result;
+      UNREACHABLE(); // SH4: no SUBDIV // DIFF: codegen
+      return NULL;
     } else {
       LModI* mod = new(zone()) LModI(UseRegister(left),
                                      UseRegister(right),
