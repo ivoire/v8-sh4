@@ -229,13 +229,37 @@ void RelocInfo::set_code_age_stub(Code* stub) {
 
 
 Address RelocInfo::call_address() {
-  UNIMPLEMENTED();
-  return NULL;
+  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
+  // SH4: both sequences are identical, thus can be treated the same way
+  ASSERT(Assembler::kJSReturnSequenceInstructions ==
+         Assembler::kDebugBreakSlotInstructions);
+  // SH4: the actual position of the object address is
+  // four instructions after the start of the sequence.
+  // Ref to ::call_object_address() for instance.
+  byte *address_pointer = pc_ + Assembler::kInstrSize * 4;
+  ASSERT((uintptr_t)address_pointer % 4 == 0);
+   return Memory::Address_at(address_pointer);
 }
 
 
 void RelocInfo::set_call_address(Address target) {
-  UNIMPLEMENTED();
+  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
+  // SH4: both sequences are identical, thus can be treated the same way
+  ASSERT(Assembler::kJSReturnSequenceInstructions ==
+         Assembler::kDebugBreakSlotInstructions);
+  // SH4: the actual position of the object address is
+  // four instructions after the start of the sequence.
+  // Ref to ::call_object_address() for instance.
+  byte *address_pointer = pc_ + Assembler::kInstrSize * 4;
+  ASSERT((uintptr_t)address_pointer % 4 == 0);
+  Memory::Address_at(address_pointer) = target;
+  if (host() != NULL) {
+    Object* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target_code));
+  }
 }
 
 
@@ -256,7 +280,7 @@ Object** RelocInfo::call_object_address() {
   ASSERT(Assembler::kJSReturnSequenceInstructions ==
          Assembler::kDebugBreakSlotInstructions);
   // SH4: the actual position of the object address is
-  // four instrcutions after the start of the sequence.
+  // four instructions after the start of the sequence.
   // Ref to ::IsPatchedReturnSequence() for instance.
   byte *address_pointer = pc_ + Assembler::kInstrSize * 4;
   ASSERT((uintptr_t)address_pointer % 4 == 0);
