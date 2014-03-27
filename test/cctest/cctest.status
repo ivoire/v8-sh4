@@ -105,6 +105,9 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
 
+  # SH4: this test seems dependent on memory fragmentation. Harmless.
+  'test-heap/TestSizeOfObjects': [SKIP],
+
   # SH4 currently built with use_ic == false in flag-definitions, skip
   # tests that rely on use_ic
   'test-api/PrimaryStubCache': [SKIP],
@@ -122,6 +125,7 @@
   'test-api/Threading2': [SKIP],
   'test-api/Threading3': [SKIP],
   'test-api/Threading4': [SKIP],
+  'test-debug/DebugBreakLoop': [SKIP],
 
 }],  # 'arch == sh4'
 
