@@ -107,6 +107,8 @@ namespace internal {
 #define V8_TARGET_ARCH_ARM 1
 #elif defined(__MIPSEL__)
 #define V8_TARGET_ARCH_MIPS 1
+#elif defined(__SH4__)
+#define V8_TARGET_ARCH_SH4 1
 #else
 #error Target architecture was not detected as supported by v8
 #endif
@@ -157,6 +159,11 @@ namespace internal {
 #define V8_TARGET_LITTLE_ENDIAN 1
 #else
 #error Unknown target architecture endiannes
+#endif
+
+// SH4: Force interpreted regexps as they are not implemented anyway
+#if V8_TARGET_ARCH_SH4
+#define V8_INTERPRETED_REGEXP 1
 #endif
 
 // Support for alternative bool type. This is only enabled if the code is
