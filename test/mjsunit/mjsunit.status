@@ -225,6 +225,66 @@
 }],  # 'arch == mipsel'
 
 ##############################################################################
+['arch == sh4', {
+
+  # BUG(3251035): Timeouts in long looping crankshaft optimization
+  # tests. Skipping because having them timeout takes too long on the
+  # buildbot.
+  'compiler/alloc-number': [SKIP],
+  # Ok on SH4: 'compiler/array-length': [SKIP],
+  # Ok on SH4: 'compiler/assignment-deopt': [SKIP],
+  # Ok on SH4: 'compiler/deopt-args': [SKIP],
+  # Ok on SH4: 'compiler/inline-compare': [SKIP],
+  # Ok on SH4: 'compiler/inline-global-access': [SKIP],
+  # Ok on SH4: 'compiler/optimized-function-calls': [SKIP],
+  # Ok on SH4: 'compiler/pic': [SKIP],
+  # Ok on SH4: 'compiler/property-calls': [SKIP],
+  # Ok on SH4: 'compiler/recursive-deopt': [SKIP],
+  'compiler/regress-4': [SKIP],
+  # Ok on SH4: 'compiler/regress-funcaller': [SKIP],
+  'compiler/regress-rep-change': [SKIP],
+  'compiler/regress-arguments': [SKIP],
+  # Ok on SH4: 'compiler/regress-funarguments': [SKIP],
+  # Ok on SH4: 'compiler/regress-3249650': [SKIP],
+  # Ok on SH4: 'compiler/simple-deopt': [SKIP],
+  # Ok on SH4: 'regress/regress-490': [SKIP],
+  'regress/regress-634': [SKIP],
+  # Ok on SH4: 'regress/regress-create-exception': [SKIP],
+  # Ok on SH4: 'regress/regress-3218915': [SKIP],
+  # Ok on SH4: 'regress/regress-3247124': [SKIP],
+
+  # Requires bigger stack size in the Genesis and if stack size is increased,
+  # the test requires too much time to run.  However, the problem test covers
+  # should be platform-independent. Same as for ARM.
+  'regress/regress-1132': [SKIP],
+
+  # Stack manipulations in LiveEdit is not implemented for this arch.  Same as for ARM.
+  'debug-liveedit-check-stack': [SKIP],
+  'debug-liveedit-stack-padding': [SKIP],
+  'debug-liveedit-restart-frame': [SKIP],
+  'debug-liveedit-double-call': [SKIP],
+
+  # SH4: osr is not activated for SH4; skip related tests.
+  'compiler/osr-warm': [SKIP],
+  'compiler/osr-one': [SKIP],
+  'compiler/osr-nested': [SKIP],
+  'compiler/osr-big': [SKIP],
+  'regress/regress-2618': [SKIP],
+  'compiler/osr-simple': [SKIP],
+  'compiler/osr-with-args': [SKIP],
+  'compiler/osr-two': [SKIP],
+  'compiler/optimized-for-in': [SKIP],
+  'compiler/osr-alignment': [SKIP],
+  'compiler/osr-assert': [SKIP],
+
+  # SH4: crankshaft if not activated for SH4; skip related tests.
+  'array-feedback': [SKIP],
+  'osr-elements-kind': [SKIP],
+  'opt-elements-kind': [SKIP],
+
+}],  # 'arch == sh4'
+
+##############################################################################
 # Native Client uses the ARM simulator so will behave similarly to arm
 # on mjsunit tests.
 # TODO(bradchen): enable more tests for NaCl V8 when it stops using
