@@ -1480,6 +1480,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) { // SAMEAS: arm
   Register result = ToRegister(instr->result());
   Register scratch = scratch0();
   Register scratch2 = ToRegister(instr->temp1()); // DIFF: codegen
+  Label skip;
 
   if (right_op->IsRegister()) {
     // Mask the right_op operand.
@@ -1487,9 +1488,15 @@ void LCodeGen::DoShiftI(LShiftI* instr) { // SAMEAS: arm
     switch (instr->op()) {
       case Token::ROR:
         // SH4: ROR not available, use lsr/lsl and an additional scratch
+        // SH4: if 0, skip to avoid the undefined: left << (32-0) case
+        __ mov(result, left); // DIFF: codegen
+        __ cmp(scratch, Operand(0)); // DIFF: codegen
+        __ bt_near(&skip);
         __ lsr(scratch2, left, scratch, true/*in_range*/); // DIFF: codegen
+        __ rsb(scratch, scratch, Operand(32)); // DIFF: codegen
         __ lsl(scratch, left, scratch, true/*in_range*/); // DIFF: codegen
         __ lor(result, scratch, scratch2); // Diff: codegen
+        __ bind(&skip);
         break;
       case Token::SAR:
         __ asr(result, left, scratch, true/*in_range*/); // DIFF: codegen
@@ -1519,7 +1526,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) { // SAMEAS: arm
         if (shift_count != 0) {
           // SH4: ROR not available, use lsr/lsl
           __ lsr(scratch, left, Operand(shift_count)); // DIFF: codegen
-          __ lsl(result, left, Operand(shift_count)); // DIFF: codegen
+          __ lsl(result, left, Operand(32 - shift_count)); // DIFF: codegen
           __ lor(result, result, scratch); // Diff: codegen
         } else {
           __ Move(result, left);
