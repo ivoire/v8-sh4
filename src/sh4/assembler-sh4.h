@@ -149,23 +149,34 @@ const int kRegister_pr_Code = -2;
 // Core register
 struct Register {
   static const int kNumRegisters = 16;
-  static const int kMaxNumAllocatableRegisters = 14;
+  /* SH4: allocatable registers constraints:
+     - must include the cp (context register) used in lithium operands,
+     - must not include roots, fp, sp, lr,
+     - must not include scratch registers: r9, r10, r11,
+     - must be at least 5 (up to 4 operands and one result in lithium),
+     - should include all other registers.
+     SH4: the set is thus {r0-r8,r13}.
+  */
+  static const int kMaxNumAllocatableRegisters = 10;
   static const int kSizeInBytes = 4;
 
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    ASSERT(reg.code() < kNumAllocatableRegisters);
-    return reg.code();
+    int index = reg.code();
+    if (index == 13) index = 9;
+    ASSERT(index < kMaxNumAllocatableRegisters);
+    return index;
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    if (index == 9) index = 13;
     return from_code(index);
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "r0",
       "r1",
@@ -175,7 +186,9 @@ struct Register {
       "r5",
       "r6",
       "r7",
-    };
+      "r8",
+      "r13",
+   };
     return names[index];
   }
 

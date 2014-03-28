@@ -1610,7 +1610,6 @@ void MacroAssembler::Allocate(int object_size, // SAMEAS: arm
   intptr_t limit =
       reinterpret_cast<intptr_t>(allocation_limit.address());
   ASSERT((limit - top) == kPointerSize);
-  ASSERT(result.code() < ip.code());
 
 
   // Set up allocation top address register.
@@ -1733,7 +1732,6 @@ void MacroAssembler::Allocate(Register object_size, // SAMEAS: arm
   intptr_t limit =
       reinterpret_cast<intptr_t>(allocation_limit.address());
   ASSERT((limit - top) == kPointerSize);
-  ASSERT(result.code() < ip.code());
 
   // Set up allocation top address.
   RECORD_LINE();
