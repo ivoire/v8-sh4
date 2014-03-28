@@ -229,11 +229,12 @@ void LGapResolver::EmitMove(int index) { // SAMEAS: arm
       ASSERT(destination->IsStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       if (in_cycle_) {
-        if (0 /* SH4 does not have this issue*//*!destination_operand.OffsetIsUint12Encodable()*/) { // DIFF: codegen
+        if (0 /*!destination_operand.OffsetIsUint12Encodable()*/) { // DIFF: codegen
           // ip is overwritten while saving the value to the destination.
           // Therefore we can't use ip.  It is OK if the read from the source
           // destroys ip, since that happens before the value is read.
-          __ UNIMPLEMENTED_BREAK();
+          // SH4: does not have this issue. ip is not used in str.
+          UNREACHABLE();
           // __ vldr(kScratchDoubleReg.low(), source_operand);
           // __ vstr(kScratchDoubleReg.low(), destination_operand);
         } else {
@@ -255,14 +256,12 @@ void LGapResolver::EmitMove(int index) { // SAMEAS: arm
       if (cgen_->IsInteger32(constant_source)) {
         __ mov(dst, Operand(cgen_->ToRepresentation(constant_source, r)));
       } else {
-        __ UNIMPLEMENTED_BREAK();
-        // __ Move(dst, cgen_->ToHandle(constant_source));
+        __ Move(dst, cgen_->ToHandle(constant_source));
       }
     } else if (destination->IsDoubleRegister()) {
-      // DwVfpRegister result = cgen_->ToDoubleRegister(destination);
-      // double v = cgen_->ToDouble(constant_source);
-      __ UNIMPLEMENTED_BREAK();
-      // __ Vmov(result, v, ip);
+      DwVfpRegister result = cgen_->ToDoubleRegister(destination);
+      double v = cgen_->ToDouble(constant_source);
+      __ Vmov(result, v, ip);
     } else {
       ASSERT(destination->IsStackSlot());
       ASSERT(!in_cycle_);  // Constant moves happen after all cycles are gone.
