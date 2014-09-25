@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <utility>
+
 #include "v8.h"
 
 #include "global-handles.h"
@@ -41,14 +43,12 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 
 static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   Handle<Map> map = factory->NewMap(JS_WEAK_SET_TYPE, JSWeakSet::kSize);
   Handle<JSObject> weakset_obj = factory->NewJSObjectFromMap(map);
   Handle<JSWeakSet> weakset(JSWeakSet::cast(*weakset_obj));
   // Do not use handles for the hash table, it would make entries strong.
-  Object* table_obj = ObjectHashTable::Allocate(heap, 1)->ToObjectChecked();
-  ObjectHashTable* table = ObjectHashTable::cast(table_obj);
-  weakset->set_table(table);
+  Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
+  weakset->set_table(*table);
   weakset->set_next(Smi::FromInt(0));
   return weakset;
 }
@@ -56,7 +56,7 @@ static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
 static void PutIntoWeakSet(Handle<JSWeakSet> weakset,
                            Handle<JSObject> key,
                            Handle<Object> value) {
-  Handle<ObjectHashTable> table = PutIntoObjectHashTable(
+  Handle<ObjectHashTable> table = ObjectHashTable::Put(
       Handle<ObjectHashTable>(ObjectHashTable::cast(weakset->table())),
       Handle<JSObject>(JSObject::cast(*key)),
       value);
@@ -64,12 +64,14 @@ static void PutIntoWeakSet(Handle<JSWeakSet> weakset,
 }
 
 static int NumberOfWeakCalls = 0;
-static void WeakPointerCallback(v8::Isolate* isolate,
-                                v8::Persistent<v8::Value>* handle,
-                                void* id) {
-  ASSERT(id == reinterpret_cast<void*>(1234));
+static void WeakPointerCallback(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  std::pair<v8::Persistent<v8::Value>*, int>* p =
+      reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
+          data.GetParameter());
+  ASSERT_EQ(1234, p->second);
   NumberOfWeakCalls++;
-  handle->Dispose();
+  p->first->Reset();
 }
 
 
@@ -112,9 +114,10 @@ TEST(WeakSet_Weakness) {
   // Make the global reference to the key weak.
   {
     HandleScope scope(isolate);
-    global_handles->MakeWeak(key.location(),
-                             reinterpret_cast<void*>(1234),
-                             &WeakPointerCallback);
+    std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
+    GlobalHandles::MakeWeak(key.location(),
+                            reinterpret_cast<void*>(&handle_and_id),
+                            &WeakPointerCallback);
   }
   CHECK(global_handles->IsWeak(key.location()));
 
@@ -175,14 +178,15 @@ TEST(WeakSet_Shrinking) {
 // Test that weak set values on an evacuation candidate which are not reachable
 // by other paths are correctly recorded in the slots buffer.
 TEST(WeakSet_Regress2060a) {
+  if (i::FLAG_never_compact) return;
   FLAG_always_compact = true;
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      factory->NewFunction(factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
+      factory->function_string(), factory->null_value());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
@@ -210,6 +214,7 @@ TEST(WeakSet_Regress2060a) {
 // Test that weak set keys on an evacuation candidate which are reachable by
 // other strong paths are correctly recorded in the slots buffer.
 TEST(WeakSet_Regress2060b) {
+  if (i::FLAG_never_compact) return;
   FLAG_always_compact = true;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
@@ -220,8 +225,8 @@ TEST(WeakSet_Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
-      factory->NewFunction(factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
+      factory->function_string(), factory->null_value());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_pointer_space()->anchor()->next_page();

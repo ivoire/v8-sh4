@@ -27,7 +27,9 @@
 
 {
   'variables': {
+    'icu_use_data_file_flag%': 0,
     'v8_code': 1,
+    'v8_random_seed%': 314159265,
   },
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'targets': [
@@ -58,7 +60,6 @@
         ['component=="shared_library"', {
           'type': '<(component)',
           'sources': [
-            '../../src/defaults.cc',
             # Note: on non-Windows we still build this file so that gyp
             # has some sources to link into the component.
             '../../src/v8dll-main.cc',
@@ -113,10 +114,15 @@
           'dependencies': [
             'mksnapshot.<(v8_target_arch)#host',
             'js2c#host',
+            'generate_trig_table#host',
           ],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['mksnapshot.<(v8_target_arch)', 'js2c'],
+          'dependencies': [
+            'mksnapshot.<(v8_target_arch)',
+            'js2c',
+            'generate_trig_table',
+          ],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -140,6 +146,7 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
       ],
       'actions': [
@@ -155,6 +162,11 @@
             'mksnapshot_flags': [
               '--log-snapshot-positions',
               '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
+            ],
+            'conditions': [
+              ['v8_random_seed!=0', {
+                'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
+              }],
             ],
           },
           'action': [
@@ -177,15 +189,16 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '../../src/snapshot-empty.cc',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
-          'dependencies': ['js2c#host'],
+          'dependencies': ['js2c#host', 'generate_trig_table#host'],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['js2c'],
+          'dependencies': ['js2c', 'generate_trig_table'],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -195,9 +208,38 @@
         }],
       ]
     },
+    { 'target_name': 'generate_trig_table',
+      'type': 'none',
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
+      'actions': [
+        {
+          'action_name': 'generate',
+          'inputs': [
+            '../../tools/generate-trig-table.py',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
+          ],
+          'action': [
+            'python',
+            '../../tools/generate-trig-table.py',
+            '<@(_outputs)',
+          ],
+        },
+      ]
+    },
     {
       'target_name': 'v8_base.<(v8_target_arch)',
       'type': 'static_library',
+      'dependencies': [
+        'v8_libbase.<(v8_target_arch)',
+      ],
       'variables': {
         'optimize': 'max',
       },
@@ -215,12 +257,12 @@
         '../../src/allocation-tracker.h',
         '../../src/api.cc',
         '../../src/api.h',
-        '../../src/apiutils.h',
         '../../src/arguments.cc',
         '../../src/arguments.h',
         '../../src/assembler.cc',
         '../../src/assembler.h',
         '../../src/assert-scope.h',
+        '../../src/assert-scope.cc',
         '../../src/ast.cc',
         '../../src/ast.h',
         '../../src/atomicops.h',
@@ -294,14 +336,19 @@
         '../../src/execution.h',
         '../../src/extensions/externalize-string-extension.cc',
         '../../src/extensions/externalize-string-extension.h',
+        '../../src/extensions/free-buffer-extension.cc',
+        '../../src/extensions/free-buffer-extension.h',
         '../../src/extensions/gc-extension.cc',
         '../../src/extensions/gc-extension.h',
         '../../src/extensions/statistics-extension.cc',
         '../../src/extensions/statistics-extension.h',
+        '../../src/extensions/trigger-failure-extension.cc',
+        '../../src/extensions/trigger-failure-extension.h',
         '../../src/factory.cc',
         '../../src/factory.h',
         '../../src/fast-dtoa.cc',
         '../../src/fast-dtoa.h',
+        '../../src/feedback-slots.h',
         '../../src/fixed-dtoa.cc',
         '../../src/fixed-dtoa.h',
         '../../src/flag-definitions.h',
@@ -365,8 +412,6 @@
         '../../src/hydrogen-mark-deoptimize.h',
         '../../src/hydrogen-mark-unreachable.cc',
         '../../src/hydrogen-mark-unreachable.h',
-        '../../src/hydrogen-minus-zero.cc',
-        '../../src/hydrogen-minus-zero.h',
         '../../src/hydrogen-osr.cc',
         '../../src/hydrogen-osr.h',
         '../../src/hydrogen-range-analysis.cc',
@@ -379,6 +424,8 @@
         '../../src/hydrogen-representation-changes.h',
         '../../src/hydrogen-sce.cc',
         '../../src/hydrogen-sce.h',
+        '../../src/hydrogen-store-elimination.cc',
+        '../../src/hydrogen-store-elimination.h',
         '../../src/hydrogen-uint32-analysis.cc',
         '../../src/hydrogen-uint32-analysis.h',
         '../../src/i18n.cc',
@@ -402,6 +449,13 @@
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
         '../../src/lazy-instance.h',
+        # TODO(jochen): move libplatform/ files to their own target.
+        '../../src/libplatform/default-platform.cc',
+        '../../src/libplatform/default-platform.h',
+        '../../src/libplatform/task-queue.cc',
+        '../../src/libplatform/task-queue.h',
+        '../../src/libplatform/worker-thread.cc',
+        '../../src/libplatform/worker-thread.h',
         '../../src/list-inl.h',
         '../../src/list.h',
         '../../src/lithium-allocator-inl.h',
@@ -423,6 +477,7 @@
         '../../src/mark-compact.h',
         '../../src/messages.cc',
         '../../src/messages.h',
+        '../../src/msan.h',
         '../../src/natives.h',
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',
@@ -518,6 +573,7 @@
         '../../src/transitions.h',
         '../../src/type-info.cc',
         '../../src/type-info.h',
+        '../../src/types-inl.h',
         '../../src/types.cc',
         '../../src/types.h',
         '../../src/typing.cc',
@@ -534,21 +590,16 @@
         '../../src/utils.h',
         '../../src/utils/random-number-generator.cc',
         '../../src/utils/random-number-generator.h',
-        '../../src/v8-counters.cc',
-        '../../src/v8-counters.h',
         '../../src/v8.cc',
         '../../src/v8.h',
         '../../src/v8checks.h',
-        '../../src/v8conversions.cc',
-        '../../src/v8conversions.h',
         '../../src/v8globals.h',
         '../../src/v8memory.h',
         '../../src/v8threads.cc',
         '../../src/v8threads.h',
-        '../../src/v8utils.cc',
-        '../../src/v8utils.h',
         '../../src/variables.cc',
         '../../src/variables.h',
+        '../../src/vector.h',
         '../../src/version.cc',
         '../../src/version.h',
         '../../src/vm-state-inl.h',
@@ -597,7 +648,53 @@
             '../../src/arm/stub-cache-arm.cc',
           ],
         }],
-        ['v8_target_arch=="ia32" or v8_target_arch=="mac" or OS=="mac"', {
+        ['v8_target_arch=="arm64"', {
+          'sources': [  ### gcmole(arch:arm64) ###
+            '../../src/arm64/assembler-arm64.cc',
+            '../../src/arm64/assembler-arm64.h',
+            '../../src/arm64/assembler-arm64-inl.h',
+            '../../src/arm64/builtins-arm64.cc',
+            '../../src/arm64/codegen-arm64.cc',
+            '../../src/arm64/codegen-arm64.h',
+            '../../src/arm64/code-stubs-arm64.cc',
+            '../../src/arm64/code-stubs-arm64.h',
+            '../../src/arm64/constants-arm64.h',
+            '../../src/arm64/cpu-arm64.cc',
+            '../../src/arm64/cpu-arm64.h',
+            '../../src/arm64/debug-arm64.cc',
+            '../../src/arm64/decoder-arm64.cc',
+            '../../src/arm64/decoder-arm64.h',
+            '../../src/arm64/decoder-arm64-inl.h',
+            '../../src/arm64/deoptimizer-arm64.cc',
+            '../../src/arm64/disasm-arm64.cc',
+            '../../src/arm64/disasm-arm64.h',
+            '../../src/arm64/frames-arm64.cc',
+            '../../src/arm64/frames-arm64.h',
+            '../../src/arm64/full-codegen-arm64.cc',
+            '../../src/arm64/ic-arm64.cc',
+            '../../src/arm64/instructions-arm64.cc',
+            '../../src/arm64/instructions-arm64.h',
+            '../../src/arm64/instrument-arm64.cc',
+            '../../src/arm64/instrument-arm64.h',
+            '../../src/arm64/lithium-arm64.cc',
+            '../../src/arm64/lithium-arm64.h',
+            '../../src/arm64/lithium-codegen-arm64.cc',
+            '../../src/arm64/lithium-codegen-arm64.h',
+            '../../src/arm64/lithium-gap-resolver-arm64.cc',
+            '../../src/arm64/lithium-gap-resolver-arm64.h',
+            '../../src/arm64/macro-assembler-arm64.cc',
+            '../../src/arm64/macro-assembler-arm64.h',
+            '../../src/arm64/macro-assembler-arm64-inl.h',
+            '../../src/arm64/regexp-macro-assembler-arm64.cc',
+            '../../src/arm64/regexp-macro-assembler-arm64.h',
+            '../../src/arm64/simulator-arm64.cc',
+            '../../src/arm64/simulator-arm64.h',
+            '../../src/arm64/stub-cache-arm64.cc',
+            '../../src/arm64/utils-arm64.cc',
+            '../../src/arm64/utils-arm64.h',
+          ],
+        }],
+        ['v8_target_arch=="ia32"', {
           'sources': [  ### gcmole(arch:ia32) ###
             '../../src/ia32/assembler-ia32-inl.h',
             '../../src/ia32/assembler-ia32.cc',
@@ -628,7 +725,7 @@
             '../../src/ia32/stub-cache-ia32.cc',
           ],
         }],
-        ['v8_target_arch=="mipsel"', {
+        ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
             '../../src/mips/assembler-mips.cc',
             '../../src/mips/assembler-mips.h',
@@ -662,7 +759,7 @@
             '../../src/mips/stub-cache-mips.cc',
           ],
         }],
-        ['v8_target_arch=="x64" or v8_target_arch=="mac" or OS=="mac"', {
+        ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             '../../src/x64/assembler-x64-inl.h',
             '../../src/x64/assembler-x64.cc',
@@ -798,6 +895,43 @@
             ],
           },
         ],
+        ['OS=="qnx"', {
+            'link_settings': {
+              'target_conditions': [
+                ['_toolset=="host" and host_os=="linux"', {
+                  'libraries': [
+                    '-lrt'
+                  ],
+                }],
+                ['_toolset=="target"', {
+                  'libraries': [
+                    '-lbacktrace', '-lsocket'
+                  ],
+                }],
+              ],
+            },
+            'sources': [
+              '../../src/platform-posix.cc',
+            ],
+            'target_conditions': [
+              ['_toolset=="host" and host_os=="linux"', {
+                'sources': [
+                  '../../src/platform-linux.cc'
+                ],
+              }],
+              ['_toolset=="host" and host_os=="mac"', {
+                'sources': [
+                  '../../src/platform-macos.cc'
+                ],
+              }],
+              ['_toolset=="target"', {
+                'sources': [
+                  '../../src/platform-qnx.cc'
+                ],
+              }],
+            ],
+          },
+        ],
         ['OS=="freebsd"', {
             'link_settings': {
               'libraries': [
@@ -895,10 +1029,6 @@
             'BUILDING_V8_SHARED',
             'V8_SHARED',
           ],
-        }, {
-          'sources': [
-            '../../src/defaults.cc',
-          ],
         }],
         ['v8_postmortem_support=="true"', {
           'sources': [
@@ -919,6 +1049,44 @@
         ['OS=="win" and v8_enable_i18n_support==1', {
           'dependencies': [
             '<(icu_gyp_path):icudata',
+          ],
+        }],
+        ['icu_use_data_file_flag==1', {
+          'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
+        }, { # else icu_use_data_file_flag !=1
+          'conditions': [
+            ['OS=="win"', {
+              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED'],
+            }, {
+              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
+            }],
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'v8_libbase.<(v8_target_arch)',
+      # TODO(jochen): Should be a static library once it has sources in it.
+      'type': 'none',
+      'variables': {
+        'optimize': 'max',
+      },
+      'include_dirs+': [
+        '../../src',
+      ],
+      'sources': [
+        '../../src/base/macros.h',
+      ],
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+        ['component=="shared_library"', {
+          'defines': [
+            'BUILDING_V8_SHARED',
+            'V8_SHARED',
           ],
         }],
       ],
@@ -962,6 +1130,9 @@
           '../../src/regexp.js',
           '../../src/arraybuffer.js',
           '../../src/typedarray.js',
+          '../../src/weak_collection.js',
+          '../../src/promise.js',
+          '../../src/object-observe.js',
           '../../src/macros.py',
         ],
         'experimental_library_files': [
@@ -969,7 +1140,6 @@
           '../../src/symbol.js',
           '../../src/proxy.js',
           '../../src/collection.js',
-          '../../src/object-observe.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',
@@ -1064,32 +1234,6 @@
           'toolsets': ['host'],
         }, {
           'toolsets': ['target'],
-        }],
-        ['v8_compress_startup_data=="bz2"', {
-          'libraries': [
-            '-lbz2',
-          ]
-        }],
-      ],
-    },
-    {
-      'target_name': 'v8_shell',
-      'type': 'executable',
-      'dependencies': [
-        'v8'
-      ],
-      'sources': [
-        '../../samples/shell.cc',
-      ],
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }],
-        ['OS=="win"', {
-          # This could be gotten by not setting chromium_code, if that's OK.
-          'defines': ['_CRT_SECURE_NO_WARNINGS'],
         }],
         ['v8_compress_startup_data=="bz2"', {
           'libraries': [

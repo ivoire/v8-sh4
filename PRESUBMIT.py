@@ -69,15 +69,28 @@ def _SkipTreeCheck(input_api, output_api):
   return input_api.environ.get('PRESUBMIT_TREE_CHECK') == 'skip'
 
 
+def _CheckChangeLogFlag(input_api, output_api):
+  """Checks usage of LOG= flag in the commit message."""
+  results = []
+  if input_api.change.BUG and not 'LOG' in input_api.change.tags:
+    results.append(output_api.PresubmitError(
+        'An issue reference (BUG=) requires a change log flag (LOG=). '
+        'Use LOG=Y for including this commit message in the change log. '
+        'Use LOG=N or leave blank otherwise.'))
+  return results
+
+
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
+  results.extend(_CheckChangeLogFlag(input_api, output_api))
   return results
 
 
 def CheckChangeOnCommit(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
+  results.extend(_CheckChangeLogFlag(input_api, output_api))
   results.extend(input_api.canned_checks.CheckChangeHasDescription(
       input_api, output_api))
   if not _SkipTreeCheck(input_api, output_api):
@@ -85,3 +98,19 @@ def CheckChangeOnCommit(input_api, output_api):
         input_api, output_api,
         json_url='http://v8-status.appspot.com/current?format=json'))
   return results
+
+
+def GetPreferredTryMasters(project, change):
+  return {
+    'tryserver.v8': {
+      'v8_linux_rel': set(['defaulttests']),
+      'v8_linux_dbg': set(['defaulttests']),
+      'v8_linux_nosnap_rel': set(['defaulttests']),
+      'v8_linux_nosnap_dbg': set(['defaulttests']),
+      'v8_linux64_rel': set(['defaulttests']),
+      'v8_linux_arm_dbg': set(['defaulttests']),
+      'v8_linux_arm64_rel': set(['defaulttests']),
+      'v8_mac_rel': set(['defaulttests']),
+      'v8_win_rel': set(['defaulttests']),
+    },
+  }

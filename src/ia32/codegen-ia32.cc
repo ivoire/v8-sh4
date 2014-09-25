@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -57,57 +34,12 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ masm.
 
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
-  size_t actual_size;
-  // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
-                                                 &actual_size,
-                                                 true));
-  if (buffer == NULL) {
-    // Fallback to library function if function cannot be created.
-    switch (type) {
-      case TranscendentalCache::SIN: return &sin;
-      case TranscendentalCache::COS: return &cos;
-      case TranscendentalCache::TAN: return &tan;
-      case TranscendentalCache::LOG: return &log;
-      default: UNIMPLEMENTED();
-    }
-  }
-
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
-  // esp[1 * kPointerSize]: raw double input
-  // esp[0 * kPointerSize]: return address
-  // Move double input into registers.
-
-  __ push(ebx);
-  __ push(edx);
-  __ push(edi);
-  __ fld_d(Operand(esp, 4 * kPointerSize));
-  __ mov(ebx, Operand(esp, 4 * kPointerSize));
-  __ mov(edx, Operand(esp, 5 * kPointerSize));
-  TranscendentalCacheStub::GenerateOperation(&masm, type);
-  // The return value is expected to be on ST(0) of the FPU stack.
-  __ pop(edi);
-  __ pop(edx);
-  __ pop(ebx);
-  __ Ret();
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
-
-  CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-}
-
-
 UnaryMathFunction CreateExpFunction() {
-  if (!CpuFeatures::IsSupported(SSE2)) return &exp;
-  if (!FLAG_fast_math) return &exp;
+  if (!CpuFeatures::IsSupported(SSE2)) return &std::exp;
+  if (!FLAG_fast_math) return &std::exp;
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &exp;
+  if (buffer == NULL) return &std::exp;
   ExternalReference::InitializeMathExpData();
 
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
@@ -148,7 +80,7 @@ UnaryMathFunction CreateSqrtFunction() {
                                                  true));
   // If SSE2 is not available, we can use libc's implementation to ensure
   // consistency since code by fullcodegen's calls into runtime in that case.
-  if (buffer == NULL || !CpuFeatures::IsSupported(SSE2)) return &sqrt;
+  if (buffer == NULL || !CpuFeatures::IsSupported(SSE2)) return &std::sqrt;
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
   // esp[1 * kPointerSize]: raw double input
   // esp[0 * kPointerSize]: return address
@@ -1110,7 +1042,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ pshufd(input, input, static_cast<uint8_t>(0xe1));  // Order: 11 10 00 01
   __ movsd(double_scratch, Operand::StaticArray(
       temp2, times_8, ExternalReference::math_exp_log_table()));
-  __ por(input, double_scratch);
+  __ orps(input, double_scratch);
   __ mulsd(result, input);
   __ bind(&done);
 }
@@ -1118,37 +1050,33 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 #undef __
 
 
-static byte* GetNoCodeAgeSequence(uint32_t* length) {
-  static bool initialized = false;
-  static byte sequence[kNoCodeAgeSequenceLength];
-  *length = kNoCodeAgeSequenceLength;
-  if (!initialized) {
-    // The sequence of instructions that is patched out for aging code is the
-    // following boilerplate stack-building prologue that is found both in
-    // FUNCTION and OPTIMIZED_FUNCTION code:
-    CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
-    patcher.masm()->push(ebp);
-    patcher.masm()->mov(ebp, esp);
-    patcher.masm()->push(esi);
-    patcher.masm()->push(edi);
-    initialized = true;
-  }
-  return sequence;
+CodeAgingHelper::CodeAgingHelper() {
+  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
+  patcher.masm()->push(ebp);
+  patcher.masm()->mov(ebp, esp);
+  patcher.masm()->push(esi);
+  patcher.masm()->push(edi);
 }
 
 
-bool Code::IsYoungSequence(byte* sequence) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  bool result = (!memcmp(sequence, young_sequence, young_length));
-  ASSERT(result || *sequence == kCallOpcode);
+#ifdef DEBUG
+bool CodeAgingHelper::IsOld(byte* candidate) const {
+  return *candidate == kCallOpcode;
+}
+#endif
+
+
+bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
+  bool result = isolate->code_aging_helper()->IsYoung(sequence);
+  ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 
 
-void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
                                MarkingParity* parity) {
-  if (IsYoungSequence(sequence)) {
+  if (IsYoungSequence(isolate, sequence)) {
     *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
@@ -1165,10 +1093,9 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
-    CopyBytes(sequence, young_sequence, young_length);
+    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);

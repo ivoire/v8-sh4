@@ -91,13 +91,10 @@ TEST(CopyBytes) {
 
   CodeDesc desc;
   masm->GetCode(&desc);
-  Object* code = isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  F f = FUNCTION_CAST<F>(Code::cast(code)->entry());
+  F f = FUNCTION_CAST<F>(code->entry());
 
   // Initialise source data with non-zero bytes.
   for (int i = 0; i < data_size; i++) {
@@ -132,5 +129,98 @@ TEST(CopyBytes) {
 }
 
 
+typedef int (*F5)(void*, void*, void*, void*, void*);
+
+
+TEST(LoadAndStoreWithRepresentation) {
+  v8::internal::V8::Initialize(NULL);
+
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
+  __ sub(sp, sp, Operand(1 * kPointerSize));
+  Label exit;
+
+  // Test 1.
+  __ mov(r0, Operand(1));  // Test number.
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(-1));
+  __ Store(r2, MemOperand(sp, 0 * kPointerSize), Representation::UInteger8());
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(255));
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+  __ mov(r2, Operand(255));
+  __ Load(r3, MemOperand(sp, 0 * kPointerSize), Representation::UInteger8());
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+
+  // Test 2.
+  __ mov(r0, Operand(2));  // Test number.
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(-1));
+  __ Store(r2, MemOperand(sp, 0 * kPointerSize), Representation::Integer8());
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(255));
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+  __ mov(r2, Operand(-1));
+  __ Load(r3, MemOperand(sp, 0 * kPointerSize), Representation::Integer8());
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+
+  // Test 3.
+  __ mov(r0, Operand(3));  // Test number.
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(-1));
+  __ Store(r2, MemOperand(sp, 0 * kPointerSize), Representation::UInteger16());
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(65535));
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+  __ mov(r2, Operand(65535));
+  __ Load(r3, MemOperand(sp, 0 * kPointerSize), Representation::UInteger16());
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+
+  // Test 4.
+  __ mov(r0, Operand(4));  // Test number.
+  __ mov(r1, Operand(0));
+  __ str(r1, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(-1));
+  __ Store(r2, MemOperand(sp, 0 * kPointerSize), Representation::Integer16());
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ mov(r2, Operand(65535));
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+  __ mov(r2, Operand(-1));
+  __ Load(r3, MemOperand(sp, 0 * kPointerSize), Representation::Integer16());
+  __ cmp(r3, r2);
+  __ b(ne, &exit);
+
+  __ mov(r0, Operand(0));  // Success.
+  __ bind(&exit);
+  __ add(sp, sp, Operand(1 * kPointerSize));
+  __ bx(lr);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  // Call the function from C++.
+  F5 f = FUNCTION_CAST<F5>(code->entry());
+  CHECK_EQ(0, CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+}
 
 #undef __

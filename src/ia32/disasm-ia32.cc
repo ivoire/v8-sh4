@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include <assert.h>
 #include <stdio.h>
@@ -407,10 +384,11 @@ int DisassemblerIA32::PrintRightOperandHelper(
           return 2;
         } else if (base == ebp) {
           int32_t disp = *reinterpret_cast<int32_t*>(modrmp + 2);
-          AppendToBuffer("[%s*%d+0x%x]",
+          AppendToBuffer("[%s*%d%s0x%x]",
                          (this->*register_name)(index),
                          1 << scale,
-                         disp);
+                         disp < 0 ? "-" : "+",
+                         disp < 0 ? -disp : disp);
           return 6;
         } else if (index != esp && base != ebp) {
           // [base+index*scale]
@@ -434,23 +412,30 @@ int DisassemblerIA32::PrintRightOperandHelper(
         byte sib = *(modrmp + 1);
         int scale, index, base;
         get_sib(sib, &scale, &index, &base);
-        int disp =
-            mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 2) : *(modrmp + 2);
+        int disp = mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 2)
+                            : *reinterpret_cast<int8_t*>(modrmp + 2);
         if (index == base && index == rm /*esp*/ && scale == 0 /*times_1*/) {
-          AppendToBuffer("[%s+0x%x]", (this->*register_name)(rm), disp);
+          AppendToBuffer("[%s%s0x%x]",
+                         (this->*register_name)(rm),
+                         disp < 0 ? "-" : "+",
+                         disp < 0 ? -disp : disp);
         } else {
-          AppendToBuffer("[%s+%s*%d+0x%x]",
+          AppendToBuffer("[%s+%s*%d%s0x%x]",
                          (this->*register_name)(base),
                          (this->*register_name)(index),
                          1 << scale,
-                         disp);
+                         disp < 0 ? "-" : "+",
+                         disp < 0 ? -disp : disp);
         }
         return mod == 2 ? 6 : 3;
       } else {
         // No sib.
-        int disp =
-            mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 1) : *(modrmp + 1);
-        AppendToBuffer("[%s+0x%x]", (this->*register_name)(rm), disp);
+        int disp = mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 1)
+                            : *reinterpret_cast<int8_t*>(modrmp + 1);
+        AppendToBuffer("[%s%s0x%x]",
+                       (this->*register_name)(rm),
+                       disp < 0 ? "-" : "+",
+                       disp < 0 ? -disp : disp);
         return mod == 2 ? 5 : 2;
       }
       break;
@@ -881,6 +866,7 @@ static const char* F0Mnem(byte f0byte) {
     case 0xAD: return "shrd";
     case 0xAC: return "shrd";  // 3-operand version.
     case 0xAB: return "bts";
+    case 0xBD: return "bsr";
     default: return NULL;
   }
 }
@@ -1007,6 +993,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         { byte f0byte = data[1];
           const char* f0mnem = F0Mnem(f0byte);
           if (f0byte == 0x18) {
+            data += 2;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             const char* suffix[] = {"nta", "1", "2", "3"};
@@ -1042,22 +1029,30 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
-          } else if (f0byte == 0x54) {
+          } else if (f0byte >= 0x53 && f0byte <= 0x5F) {
+            const char* const pseudo_op[] = {
+              "rcpps",
+              "andps",
+              "andnps",
+              "orps",
+              "xorps",
+              "addps",
+              "mulps",
+              "cvtps2pd",
+              "cvtdq2ps",
+              "subps",
+              "minps",
+              "divps",
+              "maxps",
+            };
+
             data += 2;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("andps %s,%s",
-                           NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
-          } else if (f0byte == 0x57) {
-            data += 2;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("xorps %s,%s",
-                           NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
+            AppendToBuffer("%s %s,",
+                           pseudo_op[f0byte - 0x53],
+                           NameOfXMMRegister(regop));
+            data += PrintRightXMMOperand(data);
           } else if (f0byte == 0x50) {
             data += 2;
             int mod, regop, rm;
@@ -1066,6 +1061,17 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfCPURegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (f0byte== 0xC6) {
+            // shufps xmm, xmm/m128, imm8
+            data += 2;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            int8_t imm8 = static_cast<int8_t>(data[1]);
+            AppendToBuffer("shufps %s,%s,%d",
+                            NameOfXMMRegister(rm),
+                            NameOfXMMRegister(regop),
+                            static_cast<int>(imm8));
+            data += 2;
           } else if ((f0byte & 0xF0) == 0x80) {
             data += JumpConditional(data, branch_hint);
           } else if (f0byte == 0xBE || f0byte == 0xBF || f0byte == 0xB6 ||
@@ -1076,22 +1082,26 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             data += SetCC(data);
           } else if ((f0byte & 0xF0) == 0x40) {
             data += CMov(data);
-          } else {
+          } else if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
+            // shrd, shld, bts
             data += 2;
-            if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
-              // shrd, shld, bts
-              AppendToBuffer("%s ", f0mnem);
-              int mod, regop, rm;
-              get_modrm(*data, &mod, &regop, &rm);
-              data += PrintRightOperand(data);
-              if (f0byte == 0xAB) {
-                AppendToBuffer(",%s", NameOfCPURegister(regop));
-              } else {
-                AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
-              }
+            AppendToBuffer("%s ", f0mnem);
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            data += PrintRightOperand(data);
+            if (f0byte == 0xAB) {
+              AppendToBuffer(",%s", NameOfCPURegister(regop));
             } else {
-              UnimplementedInstruction();
+              AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
             }
+          } else if (f0byte == 0xBD) {
+            data += 2;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("%s %s,", f0mnem, NameOfCPURegister(regop));
+            data += PrintRightOperand(data);
+          } else {
+            UnimplementedInstruction();
           }
         }
         break;
@@ -1197,6 +1207,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           AppendToBuffer("mov_w ");
           data += PrintRightOperand(data);
           AppendToBuffer(",%s", NameOfCPURegister(regop));
+        } else if (*data == 0xC7) {
+          data++;
+          AppendToBuffer("%s ", "mov_w");
+          data += PrintRightOperand(data);
+          int imm = *reinterpret_cast<int16_t*>(data);
+          AppendToBuffer(",0x%x", imm);
+          data += 2;
         } else if (*data == 0x0F) {
           data++;
           if (*data == 0x38) {
@@ -1579,13 +1596,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("cvtss2sd %s,", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
-          } else  if (b2 == 0x6F) {
+          } else if (b2 == 0x6F) {
             data += 3;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("movdqu %s,", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
-          } else  if (b2 == 0x7F) {
+          } else if (b2 == 0x7F) {
             AppendToBuffer("movdqu ");
             data += 3;
             int mod, regop, rm;

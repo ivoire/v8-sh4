@@ -35,9 +35,11 @@
 #include <errno.h>
 #endif
 
+#include <utility>
 
 #include "v8.h"
 
+#include "full-codegen.h"
 #include "global-handles.h"
 #include "snapshot.h"
 #include "cctest.h"
@@ -74,16 +76,16 @@ TEST(MarkingDeque) {
 
 TEST(Promotion) {
   CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB);
+  TestHeap* heap = CcTest::test_heap();
+  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB, 0);
 
   v8::HandleScope sc(CcTest::isolate());
 
   // Allocate a fixed array in the new space.
   int array_length =
-      (Page::kMaxNonCodeHeapObjectSize - FixedArray::kHeaderSize) /
+      (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
       (4 * kPointerSize);
-  Object* obj = heap->AllocateFixedArray(array_length)->ToObjectChecked();
+  Object* obj = heap->AllocateFixedArray(array_length).ToObjectChecked();
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array should be in the new space.
@@ -99,16 +101,16 @@ TEST(Promotion) {
 
 TEST(NoPromotion) {
   CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB);
+  TestHeap* heap = CcTest::test_heap();
+  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB, 0);
 
   v8::HandleScope sc(CcTest::isolate());
 
   // Allocate a big fixed array in the new space.
   int array_length =
-      (Page::kMaxNonCodeHeapObjectSize - FixedArray::kHeaderSize) /
+      (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
       (2 * kPointerSize);
-  Object* obj = heap->AllocateFixedArray(array_length)->ToObjectChecked();
+  Object* obj = heap->AllocateFixedArray(array_length).ToObjectChecked();
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array should be in the new space.
@@ -126,7 +128,8 @@ TEST(MarkCompactCollector) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
+  TestHeap* heap = CcTest::test_heap();
+  Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<GlobalObject> global(isolate->context()->global_object());
@@ -136,76 +139,63 @@ TEST(MarkCompactCollector) {
 
   // keep allocating garbage in new space until it fails
   const int ARRAY_SIZE = 100;
-  Object* array;
-  MaybeObject* maybe_array;
+  AllocationResult allocation;
   do {
-    maybe_array = heap->AllocateFixedArray(ARRAY_SIZE);
-  } while (maybe_array->ToObject(&array));
+    allocation = heap->AllocateFixedArray(ARRAY_SIZE);
+  } while (!allocation.IsRetry());
   heap->CollectGarbage(NEW_SPACE, "trigger 2");
-
-  array = heap->AllocateFixedArray(ARRAY_SIZE)->ToObjectChecked();
+  heap->AllocateFixedArray(ARRAY_SIZE).ToObjectChecked();
 
   // keep allocating maps until it fails
-  Object* mapp;
-  MaybeObject* maybe_mapp;
   do {
-    maybe_mapp = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  } while (maybe_mapp->ToObject(&mapp));
+    allocation = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  } while (!allocation.IsRetry());
   heap->CollectGarbage(MAP_SPACE, "trigger 3");
-  mapp = heap->AllocateMap(JS_OBJECT_TYPE,
-                           JSObject::kHeaderSize)->ToObjectChecked();
+  heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize).ToObjectChecked();
 
-  // allocate a garbage
-  String* func_name = String::cast(
-      heap->InternalizeUtf8String("theFunction")->ToObjectChecked());
-  SharedFunctionInfo* function_share = SharedFunctionInfo::cast(
-      heap->AllocateSharedFunctionInfo(func_name)->ToObjectChecked());
-  JSFunction* function = JSFunction::cast(
-      heap->AllocateFunction(*isolate->function_map(),
-                             function_share,
-                             heap->undefined_value())->ToObjectChecked());
-  Map* initial_map =
-      Map::cast(heap->AllocateMap(JS_OBJECT_TYPE,
-                                  JSObject::kHeaderSize)->ToObjectChecked());
-  function->set_initial_map(initial_map);
-  JSReceiver::SetProperty(
-      global, handle(func_name), handle(function), NONE, kNonStrictMode);
+  { HandleScope scope(isolate);
+    // allocate a garbage
+    Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
+    Handle<JSFunction> function = factory->NewFunctionWithPrototype(
+        func_name, factory->undefined_value());
+    Handle<Map> initial_map = factory->NewMap(
+        JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    function->set_initial_map(*initial_map);
+    JSReceiver::SetProperty(global, func_name, function, NONE, SLOPPY).Check();
 
-  JSObject* obj = JSObject::cast(
-      heap->AllocateJSObject(function)->ToObjectChecked());
+    factory->NewJSObject(function);
+  }
+
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 4");
 
-  func_name = String::cast(
-      heap->InternalizeUtf8String("theFunction")->ToObjectChecked());
-  CHECK(JSReceiver::HasLocalProperty(global, handle(func_name)));
-  Object* func_value = isolate->context()->global_object()->
-      GetProperty(func_name)->ToObjectChecked();
-  CHECK(func_value->IsJSFunction());
-  function = JSFunction::cast(func_value);
+  { HandleScope scope(isolate);
+    Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
+    CHECK(JSReceiver::HasLocalProperty(global, func_name));
+    Handle<Object> func_value =
+        Object::GetProperty(global, func_name).ToHandleChecked();
+    CHECK(func_value->IsJSFunction());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    Handle<JSObject> obj = factory->NewJSObject(function);
 
-  obj = JSObject::cast(heap->AllocateJSObject(function)->ToObjectChecked());
-  String* obj_name =
-      String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  JSReceiver::SetProperty(
-      global, handle(obj_name), handle(obj), NONE, kNonStrictMode);
-  String* prop_name =
-      String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  JSReceiver::SetProperty(
-      handle(obj), handle(prop_name), twenty_three, NONE, kNonStrictMode);
+    Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
+    JSReceiver::SetProperty(global, obj_name, obj, NONE, SLOPPY).Check();
+    Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+    Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
+  }
 
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
 
-  obj_name =
-      String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  CHECK(JSReceiver::HasLocalProperty(global, handle(obj_name)));
-  CHECK(isolate->context()->global_object()->
-        GetProperty(obj_name)->ToObjectChecked()->IsJSObject());
-  obj = JSObject::cast(isolate->context()->global_object()->
-                       GetProperty(obj_name)->ToObjectChecked());
-  prop_name =
-      String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
-  CHECK(obj->GetProperty(prop_name) == Smi::FromInt(23));
+  { HandleScope scope(isolate);
+    Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
+    CHECK(JSReceiver::HasLocalProperty(global, obj_name));
+    Handle<Object> object =
+        Object::GetProperty(global, obj_name).ToHandleChecked();
+    CHECK(object->IsJSObject());
+    Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+    CHECK_EQ(*Object::GetProperty(object, prop_name).ToHandleChecked(),
+             Smi::FromInt(23));
+  }
 }
 
 
@@ -245,12 +235,14 @@ TEST(MapCompact) {
 
 
 static int NumberOfWeakCalls = 0;
-static void WeakPointerCallback(v8::Isolate* isolate,
-                                v8::Persistent<v8::Value>* handle,
-                                void* id) {
-  ASSERT(id == reinterpret_cast<void*>(1234));
+static void WeakPointerCallback(
+    const v8::WeakCallbackData<v8::Value, void>& data) {
+  std::pair<v8::Persistent<v8::Value>*, int>* p =
+      reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
+          data.GetParameter());
+  ASSERT_EQ(1234, p->second);
   NumberOfWeakCalls++;
-  handle->Dispose();
+  p->first->Reset();
 }
 
 
@@ -258,41 +250,47 @@ TEST(ObjectGroups) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
   GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-  Heap* heap = CcTest::heap();
+  TestHeap* heap = CcTest::test_heap();
   NumberOfWeakCalls = 0;
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   Handle<Object> g1s2 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   Handle<Object> g1c1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
-  global_handles->MakeWeak(g1s1.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
-  global_handles->MakeWeak(g1s2.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
-  global_handles->MakeWeak(g1c1.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
+      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
+  std::pair<Handle<Object>*, int> g1s1_and_id(&g1s1, 1234);
+  GlobalHandles::MakeWeak(g1s1.location(),
+                          reinterpret_cast<void*>(&g1s1_and_id),
+                          &WeakPointerCallback);
+  std::pair<Handle<Object>*, int> g1s2_and_id(&g1s2, 1234);
+  GlobalHandles::MakeWeak(g1s2.location(),
+                          reinterpret_cast<void*>(&g1s2_and_id),
+                          &WeakPointerCallback);
+  std::pair<Handle<Object>*, int> g1c1_and_id(&g1c1, 1234);
+  GlobalHandles::MakeWeak(g1c1.location(),
+                          reinterpret_cast<void*>(&g1c1_and_id),
+                          &WeakPointerCallback);
 
   Handle<Object> g2s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   Handle<Object> g2s2 =
-    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   Handle<Object> g2c1 =
-    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
-  global_handles->MakeWeak(g2s1.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
-  global_handles->MakeWeak(g2s2.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
-  global_handles->MakeWeak(g2c1.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
+    global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
+  std::pair<Handle<Object>*, int> g2s1_and_id(&g2s1, 1234);
+  GlobalHandles::MakeWeak(g2s1.location(),
+                          reinterpret_cast<void*>(&g2s1_and_id),
+                          &WeakPointerCallback);
+  std::pair<Handle<Object>*, int> g2s2_and_id(&g2s2, 1234);
+  GlobalHandles::MakeWeak(g2s2.location(),
+                          reinterpret_cast<void*>(&g2s2_and_id),
+                          &WeakPointerCallback);
+  std::pair<Handle<Object>*, int> g2c1_and_id(&g2c1, 1234);
+  GlobalHandles::MakeWeak(g2c1.location(),
+                          reinterpret_cast<void*>(&g2c1_and_id),
+                          &WeakPointerCallback);
 
   Handle<Object> root = global_handles->Create(*g1s1);  // make a root.
 
@@ -319,9 +317,10 @@ TEST(ObjectGroups) {
   CHECK_EQ(0, NumberOfWeakCalls);
 
   // Weaken the root.
-  global_handles->MakeWeak(root.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
+  std::pair<Handle<Object>*, int> root_and_id(&root, 1234);
+  GlobalHandles::MakeWeak(root.location(),
+                          reinterpret_cast<void*>(&root_and_id),
+                          &WeakPointerCallback);
   // But make children strong roots---all the objects (except for children)
   // should be collectable now.
   global_handles->ClearWeakness(g1c1.location());
@@ -347,12 +346,12 @@ TEST(ObjectGroups) {
   CHECK_EQ(5, NumberOfWeakCalls);
 
   // And now make children weak again and collect them.
-  global_handles->MakeWeak(g1c1.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
-  global_handles->MakeWeak(g2c1.location(),
-                           reinterpret_cast<void*>(1234),
-                           &WeakPointerCallback);
+  GlobalHandles::MakeWeak(g1c1.location(),
+                          reinterpret_cast<void*>(&g1c1_and_id),
+                          &WeakPointerCallback);
+  GlobalHandles::MakeWeak(g2c1.location(),
+                          reinterpret_cast<void*>(&g2c1_and_id),
+                          &WeakPointerCallback);
 
   heap->CollectGarbage(OLD_POINTER_SPACE);
   CHECK_EQ(7, NumberOfWeakCalls);
@@ -390,7 +389,7 @@ TEST(EmptyObjectGroups) {
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> object = global_handles->Create(
-      CcTest::heap()->AllocateFixedArray(1)->ToObjectChecked());
+      CcTest::test_heap()->AllocateFixedArray(1).ToObjectChecked());
 
   TestRetainedObjectInfo info;
   global_handles->AddObjectGroup(NULL, 0, &info);
@@ -479,35 +478,6 @@ static intptr_t MemoryInUse() {
   }
   close(fd);
   return memory_use;
-}
-
-
-TEST(BootUpMemoryUse) {
-  intptr_t initial_memory = MemoryInUse();
-  // Avoid flakiness.
-  FLAG_crankshaft = false;
-  FLAG_concurrent_recompilation = false;
-
-  // Only Linux has the proc filesystem and only if it is mapped.  If it's not
-  // there we just skip the test.
-  if (initial_memory >= 0) {
-    CcTest::InitializeVM();
-    intptr_t delta = MemoryInUse() - initial_memory;
-    printf("delta: %" V8_PTR_PREFIX "d kB\n", delta / 1024);
-    if (sizeof(initial_memory) == 8) {  // 64-bit.
-      if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 4000 * 1024);
-      } else {
-        CHECK_LE(delta, 4500 * 1024);
-      }
-    } else {                            // 32-bit.
-      if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 3100 * 1024);
-      } else {
-        CHECK_LE(delta, 3450 * 1024);
-      }
-    }
-  }
 }
 
 

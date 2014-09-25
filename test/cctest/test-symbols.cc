@@ -33,11 +33,11 @@ TEST(Create) {
     symbols[i]->Print();
 #endif
 #if VERIFY_HEAP
-    symbols[i]->Verify();
+    symbols[i]->ObjectVerify();
 #endif
   }
 
-  CcTest::heap()->PerformScavenge();
+  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
   // All symbols should be distinct.

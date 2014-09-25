@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
@@ -113,16 +90,21 @@ struct TickSample;
   V(BUILTIN_TAG,                    "Builtin")                          \
   V(CALL_DEBUG_BREAK_TAG,           "CallDebugBreak")                   \
   V(CALL_DEBUG_PREPARE_STEP_IN_TAG, "CallDebugPrepareStepIn")           \
-  V(CALL_IC_TAG,                    "CallIC")                           \
   V(CALL_INITIALIZE_TAG,            "CallInitialize")                   \
   V(CALL_MEGAMORPHIC_TAG,           "CallMegamorphic")                  \
   V(CALL_MISS_TAG,                  "CallMiss")                         \
   V(CALL_NORMAL_TAG,                "CallNormal")                       \
   V(CALL_PRE_MONOMORPHIC_TAG,       "CallPreMonomorphic")               \
+  V(LOAD_INITIALIZE_TAG,            "LoadInitialize")                   \
+  V(LOAD_PREMONOMORPHIC_TAG,        "LoadPreMonomorphic")               \
+  V(LOAD_MEGAMORPHIC_TAG,           "LoadMegamorphic")                  \
+  V(STORE_INITIALIZE_TAG,           "StoreInitialize")                  \
+  V(STORE_PREMONOMORPHIC_TAG,       "StorePreMonomorphic")              \
+  V(STORE_GENERIC_TAG,              "StoreGeneric")                     \
+  V(STORE_MEGAMORPHIC_TAG,          "StoreMegamorphic")                 \
   V(KEYED_CALL_DEBUG_BREAK_TAG,     "KeyedCallDebugBreak")              \
   V(KEYED_CALL_DEBUG_PREPARE_STEP_IN_TAG,                               \
     "KeyedCallDebugPrepareStepIn")                                      \
-  V(KEYED_CALL_IC_TAG,              "KeyedCallIC")                      \
   V(KEYED_CALL_INITIALIZE_TAG,      "KeyedCallInitialize")              \
   V(KEYED_CALL_MEGAMORPHIC_TAG,     "KeyedCallMegamorphic")             \
   V(KEYED_CALL_MISS_TAG,            "KeyedCallMiss")                    \
@@ -139,6 +121,7 @@ struct TickSample;
   V(KEYED_STORE_POLYMORPHIC_IC_TAG, "KeyedStorePolymorphicIC")          \
   V(KEYED_EXTERNAL_ARRAY_STORE_IC_TAG, "KeyedExternalArrayStoreIC")     \
   V(LAZY_COMPILE_TAG,               "LazyCompile")                      \
+  V(CALL_IC_TAG,                    "CallIC")                           \
   V(LOAD_IC_TAG,                    "LoadIC")                           \
   V(LOAD_POLYMORPHIC_IC_TAG,        "LoadPolymorphicIC")                \
   V(REG_EXP_TAG,                    "RegExp")                           \
@@ -154,7 +137,9 @@ struct TickSample;
 
 
 class JitLogger;
+class PerfBasicLogger;
 class LowLevelLogger;
+class PerfJitLogger;
 class Sampler;
 
 class Logger {
@@ -309,15 +294,18 @@ class Logger {
   static void EnterExternal(Isolate* isolate);
   static void LeaveExternal(Isolate* isolate);
 
+  static void EmptyLogInternalEvents(const char* name, int se) { }
+  static void LogInternalEvents(const char* name, int se);
+
   class TimerEventScope {
    public:
     TimerEventScope(Isolate* isolate, const char* name)
         : isolate_(isolate), name_(name) {
-      if (FLAG_log_internal_timer_events) LogTimerEvent(START);
+      LogTimerEvent(START);
     }
 
     ~TimerEventScope() {
-      if (FLAG_log_internal_timer_events) LogTimerEvent(END);
+      LogTimerEvent(END);
     }
 
     void LogTimerEvent(StartEnd se);
@@ -337,9 +325,6 @@ class Logger {
   // Regexp compilation and execution events.
 
   void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
-
-  // Log an event reported from generated code
-  void LogRuntime(Vector<const char> format, JSArray* args);
 
   bool is_logging() {
     return is_logging_;
@@ -437,6 +422,8 @@ class Logger {
 
   bool is_logging_;
   Log* log_;
+  PerfBasicLogger* perf_basic_logger_;
+  PerfJitLogger* perf_jit_logger_;
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
   List<CodeEventListener*> listeners_;

@@ -1,74 +1,87 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2014 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_TYPES_H_
 #define V8_TYPES_H_
 
-#include "v8.h"
-
-#include "objects.h"
+#include "handles.h"
 
 namespace v8 {
 namespace internal {
 
-
+// SUMMARY
+//
 // A simple type system for compiler-internal use. It is based entirely on
 // union types, and all subtyping hence amounts to set inclusion. Besides the
 // obvious primitive types and some predefined unions, the type language also
 // can express class types (a.k.a. specific maps) and singleton types (i.e.,
 // concrete constants).
 //
-// The following equations and inequations hold:
+// Types consist of two dimensions: semantic (value range) and representation.
+// Both are related through subtyping.
+//
+// SEMANTIC DIMENSION
+//
+// The following equations and inequations hold for the semantic axis:
 //
 //   None <= T
 //   T <= Any
 //
-//   Oddball = Boolean \/ Null \/ Undefined
 //   Number = Signed32 \/ Unsigned32 \/ Double
 //   Smi <= Signed32
 //   Name = String \/ Symbol
 //   UniqueName = InternalizedString \/ Symbol
 //   InternalizedString < String
 //
-//   Allocated = Receiver \/ Number \/ Name
-//   Detectable = Allocated - Undetectable
-//   Undetectable < Object
 //   Receiver = Object \/ Proxy
 //   Array < Object
 //   Function < Object
 //   RegExp < Object
+//   Undetectable < Object
+//   Detectable = Receiver \/ Number \/ Name - Undetectable
 //
 //   Class(map) < T   iff instance_type(map) < T
 //   Constant(x) < T  iff instance_type(map(x)) < T
+//   Array(T) < Array
+//   Function(R, S, T0, T1, ...) < Function
 //
+// Both structural Array and Function types are invariant in all parameters.
+// Relaxing this would make Union and Intersect operations more involved.
 // Note that Constant(x) < Class(map(x)) does _not_ hold, since x's map can
 // change! (Its instance type cannot, however.)
 // TODO(rossberg): the latter is not currently true for proxies, because of fix,
 // but will hold once we implement direct proxies.
+// However, we also define a 'temporal' variant of the subtyping relation that
+// considers the _current_ state only, i.e., Constant(x) <_now Class(map(x)).
+//
+// REPRESENTATIONAL DIMENSION
+//
+// For the representation axis, the following holds:
+//
+//   None <= R
+//   R <= Any
+//
+//   UntaggedInt <= UntaggedInt8 \/ UntaggedInt16 \/ UntaggedInt32)
+//   UntaggedFloat <= UntaggedFloat32 \/ UntaggedFloat64
+//   UntaggedNumber <= UntaggedInt \/ UntaggedFloat
+//   Untagged <= UntaggedNumber \/ UntaggedPtr
+//   Tagged <= TaggedInt \/ TaggedPtr
+//
+// Subtyping relates the two dimensions, for example:
+//
+//   Number <= Tagged \/ UntaggedNumber
+//   Object <= TaggedPtr \/ UntaggedPtr
+//
+// That holds because the semantic type constructors defined by the API create
+// types that allow for all possible representations, and dually, the ones for
+// representation types initially include all semantic ranges. Representations
+// can then e.g. be narrowed for a given semantic type using intersection:
+//
+//   SignedSmall /\ TaggedInt       (a 'smi')
+//   Number /\ TaggedPtr            (a heap number)
+//
+// PREDICATES
 //
 // There are two main functions for testing types:
 //
@@ -76,275 +89,643 @@ namespace internal {
 //   T1->Maybe(T2)  -- tests whether T1 and T2 overlap (i.e., T1 /\ T2 =/= 0)
 //
 // Typically, the former is to be used to select representations (e.g., via
-// T->Is(Integer31())), and the to check whether a specific case needs handling
-// (e.g., via T->Maybe(Number())).
+// T->Is(SignedSmall())), and the latter to check whether a specific case needs
+// handling (e.g., via T->Maybe(Number())).
 //
 // There is no functionality to discover whether a type is a leaf in the
 // lattice. That is intentional. It should always be possible to refine the
 // lattice (e.g., splitting up number types further) without invalidating any
 // existing assumptions or tests.
+// Consequently, do not normally use Equals for type tests, always use Is!
 //
-// Consequently, do not use pointer equality for type tests, always use Is!
+// The NowIs operator implements state-sensitive subtying, as described above.
+// Any compilation decision based on such temporary properties requires runtime
+// guarding!
+//
+// PROPERTIES
+//
+// Various formal properties hold for constructors, operators, and predicates
+// over types. For example, constructors are injective, subtyping is a complete
+// partial order, union and intersection satisfy the usual algebraic properties.
+//
+// See test/cctest/test-types.cc for a comprehensive executable specification,
+// especially with respect to the properties of the more exotic 'temporal'
+// constructors and predicates (those prefixed 'Now').
+//
+// IMPLEMENTATION
 //
 // Internally, all 'primitive' types, and their unions, are represented as
-// bitsets via smis. Class is a heap pointer to the respective map. Only
-// Constant's, or unions containing Class'es or Constant's, require allocation.
+// bitsets. Class is a heap pointer to the respective map. Only Constant's, or
+// unions containing Class'es or Constant's, currently require allocation.
 // Note that the bitset representation is closed under both Union and Intersect.
 //
-// The type representation is heap-allocated, so cannot (currently) be used in
-// a concurrent compilation context.
+// There are two type representations, using different allocation:
+//
+// - class Type (zone-allocated, for compiler and concurrent compilation)
+// - class HeapType (heap-allocated, for persistent types)
+//
+// Both provide the same API, and the Convert method can be used to interconvert
+// them. For zone types, no query method touches the heap, only constructors do.
 
 
-#define PRIMITIVE_TYPE_LIST(V)           \
-  V(None,                0)              \
-  V(Null,                1 << 0)         \
-  V(Undefined,           1 << 1)         \
-  V(Boolean,             1 << 2)         \
-  V(Smi,                 1 << 3)         \
-  V(OtherSigned32,       1 << 4)         \
-  V(Unsigned32,          1 << 5)         \
-  V(Double,              1 << 6)         \
-  V(Symbol,              1 << 7)         \
-  V(InternalizedString,  1 << 8)         \
-  V(OtherString,         1 << 9)         \
-  V(Undetectable,        1 << 10)        \
-  V(Array,               1 << 11)        \
-  V(Function,            1 << 12)        \
-  V(RegExp,              1 << 13)        \
-  V(OtherObject,         1 << 14)        \
-  V(Proxy,               1 << 15)        \
-  V(Internal,            1 << 16)
+#define MASK_BITSET_TYPE_LIST(V) \
+  V(Representation, static_cast<int>(0xff800000)) \
+  V(Semantic,       static_cast<int>(0x007fffff))
 
-#define COMPOSED_TYPE_LIST(V)                                       \
-  V(Oddball,         kBoolean | kNull | kUndefined)                 \
-  V(Signed32,        kSmi | kOtherSigned32)                         \
-  V(Number,          kSigned32 | kUnsigned32 | kDouble)             \
-  V(String,          kInternalizedString | kOtherString)            \
-  V(UniqueName,      kSymbol | kInternalizedString)                 \
-  V(Name,            kSymbol | kString)                             \
-  V(NumberOrString,  kNumber | kString)                             \
-  V(Object,          kUndetectable | kArray | kFunction |           \
-                     kRegExp | kOtherObject)                        \
-  V(Receiver,        kObject | kProxy)                              \
-  V(Allocated,       kDouble | kName | kReceiver)                   \
-  V(Any,             kOddball | kNumber | kAllocated | kInternal)   \
-  V(NonNumber,       kAny - kNumber)                                \
-  V(Detectable,      kAllocated - kUndetectable)
+#define REPRESENTATION(k) ((k) & kRepresentation)
+#define SEMANTIC(k)       ((k) & kSemantic)
 
-#define TYPE_LIST(V)     \
-  PRIMITIVE_TYPE_LIST(V) \
-  COMPOSED_TYPE_LIST(V)
+#define REPRESENTATION_BITSET_TYPE_LIST(V) \
+  V(None,             0)                   \
+  V(UntaggedInt8,     1 << 23 | kSemantic) \
+  V(UntaggedInt16,    1 << 24 | kSemantic) \
+  V(UntaggedInt32,    1 << 25 | kSemantic) \
+  V(UntaggedFloat32,  1 << 26 | kSemantic) \
+  V(UntaggedFloat64,  1 << 27 | kSemantic) \
+  V(UntaggedPtr,      1 << 28 | kSemantic) \
+  V(TaggedInt,        1 << 29 | kSemantic) \
+  V(TaggedPtr,        -1 << 30 | kSemantic)  /* MSB has to be sign-extended */ \
+  \
+  V(UntaggedInt,      kUntaggedInt8 | kUntaggedInt16 | kUntaggedInt32) \
+  V(UntaggedFloat,    kUntaggedFloat32 | kUntaggedFloat64)             \
+  V(UntaggedNumber,   kUntaggedInt | kUntaggedFloat)                   \
+  V(Untagged,         kUntaggedNumber | kUntaggedPtr)                  \
+  V(Tagged,           kTaggedInt | kTaggedPtr)
+
+#define SEMANTIC_BITSET_TYPE_LIST(V) \
+  V(Null,                1 << 0  | REPRESENTATION(kTaggedPtr)) \
+  V(Undefined,           1 << 1  | REPRESENTATION(kTaggedPtr)) \
+  V(Boolean,             1 << 2  | REPRESENTATION(kTaggedPtr)) \
+  V(SignedSmall,         1 << 3  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSigned32,       1 << 4  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Unsigned32,          1 << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Float,               1 << 6  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Symbol,              1 << 7  | REPRESENTATION(kTaggedPtr)) \
+  V(InternalizedString,  1 << 8  | REPRESENTATION(kTaggedPtr)) \
+  V(OtherString,         1 << 9  | REPRESENTATION(kTaggedPtr)) \
+  V(Undetectable,        1 << 10 | REPRESENTATION(kTaggedPtr)) \
+  V(Array,               1 << 11 | REPRESENTATION(kTaggedPtr)) \
+  V(Function,            1 << 12 | REPRESENTATION(kTaggedPtr)) \
+  V(RegExp,              1 << 13 | REPRESENTATION(kTaggedPtr)) \
+  V(OtherObject,         1 << 14 | REPRESENTATION(kTaggedPtr)) \
+  V(Proxy,               1 << 15 | REPRESENTATION(kTaggedPtr)) \
+  V(Internal,            1 << 16 | REPRESENTATION(kTagged | kUntagged)) \
+  \
+  V(Signed32,            kSignedSmall | kOtherSigned32)                 \
+  V(Number,              kSigned32 | kUnsigned32 | kFloat)              \
+  V(String,              kInternalizedString | kOtherString)            \
+  V(UniqueName,          kSymbol | kInternalizedString)                 \
+  V(Name,                kSymbol | kString)                             \
+  V(NumberOrString,      kNumber | kString)                             \
+  V(DetectableObject,    kArray | kFunction | kRegExp | kOtherObject)   \
+  V(DetectableReceiver,  kDetectableObject | kProxy)                    \
+  V(Detectable,          kDetectableReceiver | kNumber | kName)         \
+  V(Object,              kDetectableObject | kUndetectable)             \
+  V(Receiver,            kObject | kProxy)                              \
+  V(NonNumber,           kBoolean | kName | kNull | kReceiver |         \
+                         kUndefined | kInternal)                        \
+  V(Any,                 -1)
+
+#define BITSET_TYPE_LIST(V) \
+  MASK_BITSET_TYPE_LIST(V) \
+  REPRESENTATION_BITSET_TYPE_LIST(V) \
+  SEMANTIC_BITSET_TYPE_LIST(V)
 
 
-
-class Type : public Object {
+// struct Config {
+//   typedef TypeImpl<Config> Type;
+//   typedef Base;
+//   typedef Struct;
+//   typedef Region;
+//   template<class> struct Handle { typedef type; }  // No template typedefs...
+//   template<class T> static Handle<T>::type handle(T* t);  // !is_bitset(t)
+//   template<class T> static Handle<T>::type cast(Handle<Type>::type);
+//   static bool is_bitset(Type*);
+//   static bool is_class(Type*);
+//   static bool is_constant(Type*);
+//   static bool is_struct(Type*, int tag);
+//   static int as_bitset(Type*);
+//   static i::Handle<i::Map> as_class(Type*);
+//   static i::Handle<i::Object> as_constant(Type*);
+//   static Handle<Struct>::type as_struct(Type*);
+//   static Type* from_bitset(int bitset);
+//   static Handle<Type>::type from_bitset(int bitset, Region*);
+//   static Handle<Type>::type from_class(i::Handle<Map>, int lub, Region*);
+//   static Handle<Type>::type from_constant(i::Handle<Object>, int, Region*);
+//   static Handle<Type>::type from_struct(Handle<Struct>::type, int tag);
+//   static Handle<Struct>::type struct_create(int tag, int length, Region*);
+//   static void struct_shrink(Handle<Struct>::type, int length);
+//   static int struct_tag(Handle<Struct>::type);
+//   static int struct_length(Handle<Struct>::type);
+//   static Handle<Type>::type struct_get(Handle<Struct>::type, int);
+//   static void struct_set(Handle<Struct>::type, int, Handle<Type>::type);
+//   static int lub_bitset(Type*);
+// }
+template<class Config>
+class TypeImpl : public Config::Base {
  public:
-  #define DEFINE_TYPE_CONSTRUCTOR(type, value)           \
-    static Type* type() { return from_bitset(k##type); }
-  TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
+  class BitsetType;      // Internal
+  class StructuralType;  // Internal
+  class UnionType;       // Internal
+
+  class ClassType;
+  class ConstantType;
+  class ArrayType;
+  class FunctionType;
+
+  typedef typename Config::template Handle<TypeImpl>::type TypeHandle;
+  typedef typename Config::template Handle<ClassType>::type ClassHandle;
+  typedef typename Config::template Handle<ConstantType>::type ConstantHandle;
+  typedef typename Config::template Handle<ArrayType>::type ArrayHandle;
+  typedef typename Config::template Handle<FunctionType>::type FunctionHandle;
+  typedef typename Config::template Handle<UnionType>::type UnionHandle;
+  typedef typename Config::Region Region;
+
+  #define DEFINE_TYPE_CONSTRUCTOR(type, value)                                \
+    static TypeImpl* type() { return BitsetType::New(BitsetType::k##type); }  \
+    static TypeHandle type(Region* region) {                                  \
+      return BitsetType::New(BitsetType::k##type, region);                    \
+    }
+  BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
   #undef DEFINE_TYPE_CONSTRUCTOR
 
-  static Type* Class(Handle<Map> map) { return from_handle(map); }
-  static Type* Constant(Handle<HeapObject> value) {
-    return Constant(value, value->GetIsolate());
+  static TypeHandle Class(i::Handle<i::Map> map, Region* region) {
+    return ClassType::New(map, region);
   }
-  static Type* Constant(Handle<v8::internal::Object> value, Isolate* isolate) {
-    return from_handle(isolate->factory()->NewBox(value));
+  static TypeHandle Constant(i::Handle<i::Object> value, Region* region) {
+    return ConstantType::New(value, region);
+  }
+  static TypeHandle Array(TypeHandle element, Region* region) {
+    return ArrayType::New(element, region);
+  }
+  static FunctionHandle Function(
+      TypeHandle result, TypeHandle receiver, int arity, Region* region) {
+    return FunctionType::New(result, receiver, arity, region);
+  }
+  static TypeHandle Function(TypeHandle result, Region* region) {
+    return Function(result, Any(region), 0, region);
+  }
+  static TypeHandle Function(
+      TypeHandle result, TypeHandle param0, Region* region) {
+    FunctionHandle function = Function(result, Any(region), 1, region);
+    function->InitParameter(0, param0);
+    return function;
+  }
+  static TypeHandle Function(
+      TypeHandle result, TypeHandle param0, TypeHandle param1, Region* region) {
+    FunctionHandle function = Function(result, Any(region), 2, region);
+    function->InitParameter(0, param0);
+    function->InitParameter(1, param1);
+    return function;
   }
 
-  static Type* Union(Handle<Type> type1, Handle<Type> type2);
-  static Type* Intersect(Handle<Type> type1, Handle<Type> type2);
-  static Type* Optional(Handle<Type> type);  // type \/ Undefined
+  static TypeHandle Union(TypeHandle type1, TypeHandle type2, Region* reg);
+  static TypeHandle Intersect(TypeHandle type1, TypeHandle type2, Region* reg);
 
-  bool Is(Type* that) { return (this == that) ? true : SlowIs(that); }
-  bool Is(Handle<Type> that) { return this->Is(*that); }
-  bool Maybe(Type* that);
-  bool Maybe(Handle<Type> that) { return this->Maybe(*that); }
+  static TypeHandle Of(i::Object* value, Region* region) {
+    return Config::from_bitset(BitsetType::Lub(value), region);
+  }
+  static TypeHandle Of(i::Handle<i::Object> value, Region* region) {
+    return Of(*value, region);
+  }
 
-  bool IsClass() { return is_class(); }
-  bool IsConstant() { return is_constant(); }
-  Handle<Map> AsClass() { return as_class(); }
-  Handle<v8::internal::Object> AsConstant() { return as_constant(); }
+  bool IsInhabited() {
+    return !this->IsBitset() || BitsetType::IsInhabited(this->AsBitset());
+  }
+
+  bool Is(TypeImpl* that) { return this == that || this->SlowIs(that); }
+  template<class TypeHandle>
+  bool Is(TypeHandle that) { return this->Is(*that); }
+
+  bool Maybe(TypeImpl* that);
+  template<class TypeHandle>
+  bool Maybe(TypeHandle that) { return this->Maybe(*that); }
+
+  bool Equals(TypeImpl* that) { return this->Is(that) && that->Is(this); }
+  template<class TypeHandle>
+  bool Equals(TypeHandle that) { return this->Equals(*that); }
+
+  // Equivalent to Constant(value)->Is(this), but avoiding allocation.
+  bool Contains(i::Object* val);
+  bool Contains(i::Handle<i::Object> val) { return this->Contains(*val); }
+
+  // State-dependent versions of Of and Is that consider subtyping between
+  // a constant and its map class.
+  static TypeHandle NowOf(i::Object* value, Region* region);
+  static TypeHandle NowOf(i::Handle<i::Object> value, Region* region) {
+    return NowOf(*value, region);
+  }
+  bool NowIs(TypeImpl* that);
+  template<class TypeHandle>
+  bool NowIs(TypeHandle that)  { return this->NowIs(*that); }
+  inline bool NowContains(i::Object* val);
+  bool NowContains(i::Handle<i::Object> val) { return this->NowContains(*val); }
+
+  bool NowStable();
+
+  bool IsClass() { return Config::is_class(this); }
+  bool IsConstant() { return Config::is_constant(this); }
+  bool IsArray() { return Config::is_struct(this, StructuralType::kArrayTag); }
+  bool IsFunction() {
+    return Config::is_struct(this, StructuralType::kFunctionTag);
+  }
+
+  ClassType* AsClass() { return ClassType::cast(this); }
+  ConstantType* AsConstant() { return ConstantType::cast(this); }
+  ArrayType* AsArray() { return ArrayType::cast(this); }
+  FunctionType* AsFunction() { return FunctionType::cast(this); }
 
   int NumClasses();
   int NumConstants();
 
+  template<class T> class Iterator;
+  Iterator<i::Map> Classes() {
+    if (this->IsBitset()) return Iterator<i::Map>();
+    return Iterator<i::Map>(Config::handle(this));
+  }
+  Iterator<i::Object> Constants() {
+    if (this->IsBitset()) return Iterator<i::Object>();
+    return Iterator<i::Object>(Config::handle(this));
+  }
+
+  static inline TypeImpl* cast(typename Config::Base* object);
+
+  template<class OtherTypeImpl>
+  static TypeHandle Convert(
+      typename OtherTypeImpl::TypeHandle type, Region* region);
+
+  enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
+  void TypePrint(PrintDimension = BOTH_DIMS);
+  void TypePrint(FILE* out, PrintDimension = BOTH_DIMS);
+
+ protected:
+  template<class> friend class Iterator;
+  template<class> friend class TypeImpl;
+
   template<class T>
-  class Iterator {
-   public:
-    bool Done() const { return index_ < 0; }
-    Handle<T> Current();
-    void Advance();
-
-   private:
-    friend class Type;
-
-    Iterator() : index_(-1) {}
-    explicit Iterator(Handle<Type> type) : type_(type), index_(-1) {
-      Advance();
-    }
-
-    inline bool matches(Handle<Type> type);
-    inline Handle<Type> get_type();
-
-    Handle<Type> type_;
-    int index_;
-  };
-
-  Iterator<Map> Classes() {
-    if (this->is_bitset()) return Iterator<Map>();
-    return Iterator<Map>(this->handle());
-  }
-  Iterator<v8::internal::Object> Constants() {
-    if (this->is_bitset()) return Iterator<v8::internal::Object>();
-    return Iterator<v8::internal::Object>(this->handle());
+  static typename Config::template Handle<T>::type handle(T* type) {
+    return Config::handle(type);
   }
 
-  static Type* cast(v8::internal::Object* object) {
-    Type* t = static_cast<Type*>(object);
-    ASSERT(t->is_bitset() || t->is_class() ||
-           t->is_constant() || t->is_union());
-    return t;
+  bool IsNone() { return this == None(); }
+  bool IsAny() { return this == Any(); }
+  bool IsBitset() { return Config::is_bitset(this); }
+  bool IsUnion() { return Config::is_struct(this, StructuralType::kUnionTag); }
+
+  int AsBitset() {
+    ASSERT(this->IsBitset());
+    return static_cast<BitsetType*>(this)->Bitset();
   }
+  UnionType* AsUnion() { return UnionType::cast(this); }
 
-#ifdef OBJECT_PRINT
-  void TypePrint();
-  void TypePrint(FILE* out);
-#endif
+  bool SlowIs(TypeImpl* that);
 
+  bool InUnion(UnionHandle unioned, int current_size);
+  static int ExtendUnion(
+      UnionHandle unioned, TypeHandle t, int current_size);
+  static int ExtendIntersection(
+      UnionHandle unioned, TypeHandle t, TypeHandle other, int current_size);
+
+  int BitsetGlb() { return BitsetType::Glb(this); }
+  int BitsetLub() { return BitsetType::Lub(this); }
+};
+
+
+template<class Config>
+class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
  private:
-  // A union is a fixed array containing types. Invariants:
-  // - its length is at least 2
-  // - at most one field is a bitset, and it must go into index 0
-  // - no field is a union
-  typedef FixedArray Unioned;
+  friend class TypeImpl<Config>;
 
   enum {
     #define DECLARE_TYPE(type, value) k##type = (value),
-    TYPE_LIST(DECLARE_TYPE)
+    BITSET_TYPE_LIST(DECLARE_TYPE)
     #undef DECLARE_TYPE
     kUnusedEOL = 0
   };
 
-  bool is_none() { return this == None(); }
-  bool is_bitset() { return this->IsSmi(); }
-  bool is_class() { return this->IsMap(); }
-  bool is_constant() { return this->IsBox(); }
-  bool is_union() { return this->IsFixedArray(); }
+  int Bitset() { return Config::as_bitset(this); }
 
-  bool SlowIs(Type* that);
-
-  int as_bitset() { return Smi::cast(this)->value(); }
-  Handle<Map> as_class() { return Handle<Map>::cast(handle()); }
-  Handle<v8::internal::Object> as_constant() {
-    Handle<Box> box = Handle<Box>::cast(handle());
-    return v8::internal::handle(box->value(), box->GetIsolate());
+  static BitsetType* New(int bitset) {
+    return static_cast<BitsetType*>(Config::from_bitset(bitset));
   }
-  Handle<Unioned> as_union() { return Handle<Unioned>::cast(handle()); }
-
-  Handle<Type> handle() { return handle_via_isolate_of(this); }
-  Handle<Type> handle_via_isolate_of(Type* type) {
-    ASSERT(type->IsHeapObject());
-    return v8::internal::handle(this, HeapObject::cast(type)->GetIsolate());
+  static TypeHandle New(int bitset, Region* region) {
+    return Config::from_bitset(bitset, region);
   }
 
-  static Type* from_bitset(int bitset) {
-    return static_cast<Type*>(Object::cast(Smi::FromInt(bitset)));
-  }
-  static Type* from_handle(Handle<HeapObject> handle) {
-    return static_cast<Type*>(Object::cast(*handle));
+  static bool IsInhabited(int bitset) {
+    return (bitset & kRepresentation) && (bitset & kSemantic);
   }
 
-  static Handle<Type> union_get(Handle<Unioned> unioned, int i) {
-    Type* type = static_cast<Type*>(unioned->get(i));
-    ASSERT(!type->is_union());
-    return type->handle_via_isolate_of(from_handle(unioned));
+  static int Glb(TypeImpl* type);  // greatest lower bound that's a bitset
+  static int Lub(TypeImpl* type);  // least upper bound that's a bitset
+  static int Lub(i::Object* value);
+  static int Lub(i::Map* map);
+
+  static const char* Name(int bitset);
+  static void BitsetTypePrint(FILE* out, int bitset);
+};
+
+
+// Internal
+// A structured type contains a tag and a variable number of type fields.
+template<class Config>
+class TypeImpl<Config>::StructuralType : public TypeImpl<Config> {
+ protected:
+  template<class> friend class TypeImpl;
+  friend struct ZoneTypeConfig;  // For tags.
+  friend struct HeapTypeConfig;
+
+  enum Tag {
+    kClassTag,
+    kConstantTag,
+    kArrayTag,
+    kFunctionTag,
+    kUnionTag
+  };
+
+  int Length() {
+    return Config::struct_length(Config::as_struct(this));
+  }
+  TypeHandle Get(int i) {
+    return Config::struct_get(Config::as_struct(this), i);
+  }
+  void Set(int i, TypeHandle type) {
+    Config::struct_set(Config::as_struct(this), i, type);
+  }
+  void Shrink(int length) {
+    Config::struct_shrink(Config::as_struct(this), length);
   }
 
-  int LubBitset();  // least upper bound that's a bitset
-  int GlbBitset();  // greatest lower bound that's a bitset
-  bool InUnion(Handle<Unioned> unioned, int current_size);
-  int ExtendUnion(Handle<Unioned> unioned, int current_size);
-  int ExtendIntersection(
-      Handle<Unioned> unioned, Handle<Type> type, int current_size);
-
-  static const char* GetComposedName(int type) {
-    switch (type) {
-      #define PRINT_COMPOSED_TYPE(type, value)  \
-      case k##type:                             \
-        return # type;
-      COMPOSED_TYPE_LIST(PRINT_COMPOSED_TYPE)
-      #undef PRINT_COMPOSED_TYPE
-    }
-    return NULL;
-  }
-
-  static const char* GetPrimitiveName(int type) {
-    switch (type) {
-      #define PRINT_PRIMITIVE_TYPE(type, value)  \
-      case k##type:                              \
-        return # type;
-      PRIMITIVE_TYPE_LIST(PRINT_PRIMITIVE_TYPE)
-      #undef PRINT_PRIMITIVE_TYPE
-      default:
-        UNREACHABLE();
-        return "InvalidType";
-    }
+  static TypeHandle New(Tag tag, int length, Region* region) {
+    return Config::from_struct(Config::struct_create(tag, length, region));
   }
 };
 
 
-// A simple struct to represent a pair of lower/upper type bounds.
-struct Bounds {
-  Handle<Type> lower;
-  Handle<Type> upper;
+template<class Config>
+class TypeImpl<Config>::ClassType : public TypeImpl<Config> {
+ public:
+  i::Handle<i::Map> Map() { return Config::as_class(this); }
 
-  Bounds() {}
-  Bounds(Handle<Type> l, Handle<Type> u) : lower(l), upper(u) {
-    ASSERT(lower->Is(upper));
+  static ClassHandle New(i::Handle<i::Map> map, Region* region) {
+    return Config::template cast<ClassType>(
+        Config::from_class(map, BitsetType::Lub(*map), region));
   }
-  Bounds(Type* l, Type* u, Isolate* isl) : lower(l, isl), upper(u, isl) {
-    ASSERT(lower->Is(upper));
+
+  static ClassType* cast(TypeImpl* type) {
+    ASSERT(type->IsClass());
+    return static_cast<ClassType*>(type);
   }
-  explicit Bounds(Handle<Type> t) : lower(t), upper(t) {
-    ASSERT(lower->Is(upper));
+};
+
+
+template<class Config>
+class TypeImpl<Config>::ConstantType : public TypeImpl<Config> {
+ public:
+  i::Handle<i::Object> Value() { return Config::as_constant(this); }
+
+  static ConstantHandle New(i::Handle<i::Object> value, Region* region) {
+    return Config::template cast<ConstantType>(
+        Config::from_constant(value, BitsetType::Lub(*value), region));
   }
-  Bounds(Type* t, Isolate* isl) : lower(t, isl), upper(t, isl) {
+
+  static ConstantType* cast(TypeImpl* type) {
+    ASSERT(type->IsConstant());
+    return static_cast<ConstantType*>(type);
+  }
+};
+
+
+// Internal
+// A union is a structured type with the following invariants:
+// - its length is at least 2
+// - at most one field is a bitset, and it must go into index 0
+// - no field is a union
+template<class Config>
+class TypeImpl<Config>::UnionType : public StructuralType {
+ public:
+  static UnionHandle New(int length, Region* region) {
+    return Config::template cast<UnionType>(
+        StructuralType::New(StructuralType::kUnionTag, length, region));
+  }
+
+  static UnionType* cast(TypeImpl* type) {
+    ASSERT(type->IsUnion());
+    return static_cast<UnionType*>(type);
+  }
+};
+
+
+template<class Config>
+class TypeImpl<Config>::ArrayType : public StructuralType {
+ public:
+  TypeHandle Element() { return this->Get(0); }
+
+  static ArrayHandle New(TypeHandle element, Region* region) {
+    ArrayHandle type = Config::template cast<ArrayType>(
+        StructuralType::New(StructuralType::kArrayTag, 1, region));
+    type->Set(0, element);
+    return type;
+  }
+
+  static ArrayType* cast(TypeImpl* type) {
+    ASSERT(type->IsArray());
+    return static_cast<ArrayType*>(type);
+  }
+};
+
+
+template<class Config>
+class TypeImpl<Config>::FunctionType : public StructuralType {
+ public:
+  int Arity() { return this->Length() - 2; }
+  TypeHandle Result() { return this->Get(0); }
+  TypeHandle Receiver() { return this->Get(1); }
+  TypeHandle Parameter(int i) { return this->Get(2 + i); }
+
+  void InitParameter(int i, TypeHandle type) { this->Set(2 + i, type); }
+
+  static FunctionHandle New(
+      TypeHandle result, TypeHandle receiver, int arity, Region* region) {
+    FunctionHandle type = Config::template cast<FunctionType>(
+        StructuralType::New(StructuralType::kFunctionTag, 2 + arity, region));
+    type->Set(0, result);
+    type->Set(1, receiver);
+    return type;
+  }
+
+  static FunctionType* cast(TypeImpl* type) {
+    ASSERT(type->IsFunction());
+    return static_cast<FunctionType*>(type);
+  }
+};
+
+
+template<class Config> template<class T>
+class TypeImpl<Config>::Iterator {
+ public:
+  bool Done() const { return index_ < 0; }
+  i::Handle<T> Current();
+  void Advance();
+
+ private:
+  template<class> friend class TypeImpl;
+
+  Iterator() : index_(-1) {}
+  explicit Iterator(TypeHandle type) : type_(type), index_(-1) {
+    Advance();
+  }
+
+  inline bool matches(TypeHandle type);
+  inline TypeHandle get_type();
+
+  TypeHandle type_;
+  int index_;
+};
+
+
+// Zone-allocated types are either (odd) integers to represent bitsets, or
+// (even) pointers to structures for everything else.
+struct ZoneTypeConfig {
+  typedef TypeImpl<ZoneTypeConfig> Type;
+  class Base {};
+  typedef void* Struct;
+  typedef i::Zone Region;
+  template<class T> struct Handle { typedef T* type; };
+
+  template<class T> static inline T* handle(T* type);
+  template<class T> static inline T* cast(Type* type);
+
+  static inline bool is_bitset(Type* type);
+  static inline bool is_class(Type* type);
+  static inline bool is_constant(Type* type);
+  static inline bool is_struct(Type* type, int tag);
+
+  static inline int as_bitset(Type* type);
+  static inline Struct* as_struct(Type* type);
+  static inline i::Handle<i::Map> as_class(Type* type);
+  static inline i::Handle<i::Object> as_constant(Type* type);
+
+  static inline Type* from_bitset(int bitset);
+  static inline Type* from_bitset(int bitset, Zone* zone);
+  static inline Type* from_struct(Struct* structured);
+  static inline Type* from_class(i::Handle<i::Map> map, int lub, Zone* zone);
+  static inline Type* from_constant(
+      i::Handle<i::Object> value, int lub, Zone* zone);
+
+  static inline Struct* struct_create(int tag, int length, Zone* zone);
+  static inline void struct_shrink(Struct* structured, int length);
+  static inline int struct_tag(Struct* structured);
+  static inline int struct_length(Struct* structured);
+  static inline Type* struct_get(Struct* structured, int i);
+  static inline void struct_set(Struct* structured, int i, Type* type);
+
+  static inline int lub_bitset(Type* type);
+};
+
+typedef TypeImpl<ZoneTypeConfig> Type;
+
+
+// Heap-allocated types are either smis for bitsets, maps for classes, boxes for
+// constants, or fixed arrays for unions.
+struct HeapTypeConfig {
+  typedef TypeImpl<HeapTypeConfig> Type;
+  typedef i::Object Base;
+  typedef i::FixedArray Struct;
+  typedef i::Isolate Region;
+  template<class T> struct Handle { typedef i::Handle<T> type; };
+
+  template<class T> static inline i::Handle<T> handle(T* type);
+  template<class T> static inline i::Handle<T> cast(i::Handle<Type> type);
+
+  static inline bool is_bitset(Type* type);
+  static inline bool is_class(Type* type);
+  static inline bool is_constant(Type* type);
+  static inline bool is_struct(Type* type, int tag);
+
+  static inline int as_bitset(Type* type);
+  static inline i::Handle<i::Map> as_class(Type* type);
+  static inline i::Handle<i::Object> as_constant(Type* type);
+  static inline i::Handle<Struct> as_struct(Type* type);
+
+  static inline Type* from_bitset(int bitset);
+  static inline i::Handle<Type> from_bitset(int bitset, Isolate* isolate);
+  static inline i::Handle<Type> from_class(
+      i::Handle<i::Map> map, int lub, Isolate* isolate);
+  static inline i::Handle<Type> from_constant(
+      i::Handle<i::Object> value, int lub, Isolate* isolate);
+  static inline i::Handle<Type> from_struct(i::Handle<Struct> structured);
+
+  static inline i::Handle<Struct> struct_create(
+      int tag, int length, Isolate* isolate);
+  static inline void struct_shrink(i::Handle<Struct> structured, int length);
+  static inline int struct_tag(i::Handle<Struct> structured);
+  static inline int struct_length(i::Handle<Struct> structured);
+  static inline i::Handle<Type> struct_get(i::Handle<Struct> structured, int i);
+  static inline void struct_set(
+      i::Handle<Struct> structured, int i, i::Handle<Type> type);
+
+  static inline int lub_bitset(Type* type);
+};
+
+typedef TypeImpl<HeapTypeConfig> HeapType;
+
+
+// A simple struct to represent a pair of lower/upper type bounds.
+template<class Config>
+struct BoundsImpl {
+  typedef TypeImpl<Config> Type;
+  typedef typename Type::TypeHandle TypeHandle;
+  typedef typename Type::Region Region;
+
+  TypeHandle lower;
+  TypeHandle upper;
+
+  BoundsImpl() {}
+  explicit BoundsImpl(TypeHandle t) : lower(t), upper(t) {}
+  BoundsImpl(TypeHandle l, TypeHandle u) : lower(l), upper(u) {
     ASSERT(lower->Is(upper));
   }
 
   // Unrestricted bounds.
-  static Bounds Unbounded(Isolate* isl) {
-    return Bounds(Type::None(), Type::Any(), isl);
+  static BoundsImpl Unbounded(Region* region) {
+    return BoundsImpl(Type::None(region), Type::Any(region));
   }
 
   // Meet: both b1 and b2 are known to hold.
-  static Bounds Both(Bounds b1, Bounds b2, Isolate* isl) {
-    Handle<Type> lower(Type::Union(b1.lower, b2.lower), isl);
-    Handle<Type> upper(Type::Intersect(b1.upper, b2.upper), isl);
+  static BoundsImpl Both(BoundsImpl b1, BoundsImpl b2, Region* region) {
+    TypeHandle lower = Type::Union(b1.lower, b2.lower, region);
+    TypeHandle upper = Type::Intersect(b1.upper, b2.upper, region);
     // Lower bounds are considered approximate, correct as necessary.
-    lower = handle(Type::Intersect(lower, upper), isl);
-    return Bounds(lower, upper);
+    lower = Type::Intersect(lower, upper, region);
+    return BoundsImpl(lower, upper);
   }
 
   // Join: either b1 or b2 is known to hold.
-  static Bounds Either(Bounds b1, Bounds b2, Isolate* isl) {
-    return Bounds(
-        handle(Type::Intersect(b1.lower, b2.lower), isl),
-        handle(Type::Union(b1.upper, b2.upper), isl));
+  static BoundsImpl Either(BoundsImpl b1, BoundsImpl b2, Region* region) {
+    TypeHandle lower = Type::Intersect(b1.lower, b2.lower, region);
+    TypeHandle upper = Type::Union(b1.upper, b2.upper, region);
+    return BoundsImpl(lower, upper);
   }
 
-  static Bounds NarrowLower(Bounds b, Handle<Type> t, Isolate* isl) {
+  static BoundsImpl NarrowLower(BoundsImpl b, TypeHandle t, Region* region) {
     // Lower bounds are considered approximate, correct as necessary.
-    t = handle(Type::Intersect(t, b.upper), isl);
-    return Bounds(handle(Type::Union(b.lower, t), isl), b.upper);
+    t = Type::Intersect(t, b.upper, region);
+    TypeHandle lower = Type::Union(b.lower, t, region);
+    return BoundsImpl(lower, b.upper);
   }
-  static Bounds NarrowUpper(Bounds b, Handle<Type> t, Isolate* isl) {
-    return Bounds(
-        handle(Type::Intersect(b.lower, t), isl),
-        handle(Type::Intersect(b.upper, t), isl));
+  static BoundsImpl NarrowUpper(BoundsImpl b, TypeHandle t, Region* region) {
+    TypeHandle lower = Type::Intersect(b.lower, t, region);
+    TypeHandle upper = Type::Intersect(b.upper, t, region);
+    return BoundsImpl(lower, upper);
+  }
+
+  bool Narrows(BoundsImpl that) {
+    return that.lower->Is(this->lower) && this->upper->Is(that.upper);
   }
 };
+
+typedef BoundsImpl<ZoneTypeConfig> Bounds;
 
 } }  // namespace v8::internal
 

@@ -1,30 +1,7 @@
 
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -49,13 +26,36 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
+  if (FLAG_zap_code_space) {
+    // Fail hard and early if we enter this code object again.
+    byte* pointer = code->FindCodeAgeSequence();
+    if (pointer != NULL) {
+      pointer += kNoCodeAgeSequenceLength;
+    } else {
+      pointer = code->instruction_start();
+    }
+    CodePatcher patcher(pointer, 1);
+    patcher.masm()->break_(0xCC);
+
+    DeoptimizationInputData* data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    int osr_offset = data->OsrPcOffset()->value();
+    if (osr_offset > 0) {
+      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      osr_patcher.masm()->break_(0xCC);
+    }
+  }
+
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
+  SharedFunctionInfo* shared =
+      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
+  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
 #ifdef DEBUG
   Address prev_call_address = NULL;
 #endif
+  // For each LLazyBailout instruction insert a call to the corresponding
+  // deoptimization entry.
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
@@ -104,7 +104,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
   ApiFunction function(descriptor->deoptimization_handler_);
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
   intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->environment_length();
+  int params = descriptor->GetHandlerParameterCount();
   output_frame->SetRegister(s0.code(), params);
   output_frame->SetRegister(s1.code(), (params - 1) * kPointerSize);
   output_frame->SetRegister(s2.code(), handler);
@@ -122,6 +122,11 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
   // There is no dynamic alignment padding on MIPS in the input frame.
   return false;
+}
+
+
+Code* Deoptimizer::NotifyStubFailureBuiltin() {
+  return isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
 }
 
 
@@ -234,13 +239,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ Addu(a3, a1, Operand(FrameDescription::frame_content_offset()));
   Label pop_loop;
   Label pop_loop_header;
-  __ Branch(&pop_loop_header);
+  __ BranchShort(&pop_loop_header);
   __ bind(&pop_loop);
   __ pop(t0);
   __ sw(t0, MemOperand(a3, 0));
   __ addiu(a3, a3, sizeof(uint32_t));
   __ bind(&pop_loop_header);
-  __ Branch(&pop_loop, ne, a2, Operand(sp));
+  __ BranchShort(&pop_loop, ne, a2, Operand(sp));
 
   // Compute the output frame in the deoptimizer.
   __ push(a0);  // Preserve deoptimizer object across call.
@@ -275,11 +280,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ lw(t3, MemOperand(t2, FrameDescription::frame_content_offset()));
   __ push(t3);
   __ bind(&inner_loop_header);
-  __ Branch(&inner_push_loop, ne, a3, Operand(zero_reg));
+  __ BranchShort(&inner_push_loop, ne, a3, Operand(zero_reg));
 
   __ Addu(t0, t0, Operand(kPointerSize));
   __ bind(&outer_loop_header);
-  __ Branch(&outer_push_loop, lt, t0, Operand(a1));
+  __ BranchShort(&outer_push_loop, lt, t0, Operand(a1));
 
   __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
   for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
@@ -363,6 +368,12 @@ void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
+}
+
+
+void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
+  // No out-of-line constant pool support.
+  UNREACHABLE();
 }
 
 

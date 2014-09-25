@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_SPACES_INL_H_
 #define V8_SPACES_INL_H_
@@ -165,7 +142,7 @@ Page* Page::Initialize(Heap* heap,
                        Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  ASSERT(page->area_size() <= kNonCodeObjectAreaSize);
+  ASSERT(page->area_size() <= kMaxRegularHeapObjectSize);
   ASSERT(chunk->owner() == owner);
   owner->IncreaseCapacity(page->area_size());
   owner->Free(page->area_start(), page->area_size());
@@ -274,17 +251,11 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
 
 
 // Raw allocation.
-MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
-                                     AllocationType event) {
-  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
-
+AllocationResult PagedSpace::AllocateRaw(int size_in_bytes) {
   HeapObject* object = AllocateLinearly(size_in_bytes);
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
-    }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
     }
     return object;
   }
@@ -298,9 +269,6 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
     }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
-    }
     return object;
   }
 
@@ -309,13 +277,10 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
     if (identity() == CODE_SPACE) {
       SkipList::Update(object->address(), size_in_bytes);
     }
-    if (event == NEW_OBJECT && profiler->is_tracking_allocations()) {
-      profiler->NewObjectEvent(object->address(), size_in_bytes);
-    }
     return object;
   }
 
-  return Failure::RetryAfterGC(identity());
+  return AllocationResult::Retry(identity());
 }
 
 
@@ -323,7 +288,7 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes,
 // NewSpace
 
 
-MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
+AllocationResult NewSpace::AllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top();
 #ifdef DEBUG
   // If we are stressing compaction we waste some memory in new space
@@ -348,11 +313,6 @@ MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
   HeapObject* obj = HeapObject::FromAddress(old_top);
   allocation_info_.set_top(allocation_info_.top() + size_in_bytes);
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-
-  HeapProfiler* profiler = heap()->isolate()->heap_profiler();
-  if (profiler != NULL && profiler->is_tracking_allocations()) {
-    profiler->NewObjectEvent(obj->address(), size_in_bytes);
-  }
 
   return obj;
 }

@@ -1,29 +1,6 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_ALLOCATION_SITE_SCOPES_H_
 #define V8_ALLOCATION_SITE_SCOPES_H_
@@ -41,31 +18,22 @@ namespace internal {
 // boilerplate with AllocationSite and AllocationMemento support.
 class AllocationSiteContext {
  public:
-  AllocationSiteContext(Isolate* isolate, bool activated) {
+  explicit AllocationSiteContext(Isolate* isolate) {
     isolate_ = isolate;
-    activated_ = activated;
   };
-  virtual ~AllocationSiteContext() {}
 
   Handle<AllocationSite> top() { return top_; }
   Handle<AllocationSite> current() { return current_; }
 
-  // If activated, then recursively create mementos
-  bool activated() const { return activated_; }
+  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
 
-  // Returns the AllocationSite that matches this scope.
-  virtual Handle<AllocationSite> EnterNewScope() = 0;
-
-  // scope_site should be the handle returned by the matching EnterNewScope()
-  virtual void ExitScope(Handle<AllocationSite> scope_site,
-                         Handle<JSObject> object) = 0;
+  Isolate* isolate() { return isolate_; }
 
  protected:
   void update_current_site(AllocationSite* site) {
     *(current_.location()) = site;
   }
 
-  Isolate* isolate() { return isolate_; }
   void InitializeTraversal(Handle<AllocationSite> site) {
     top_ = site;
     current_ = Handle<AllocationSite>(*top_, isolate());
@@ -75,7 +43,6 @@ class AllocationSiteContext {
   Isolate* isolate_;
   Handle<AllocationSite> top_;
   Handle<AllocationSite> current_;
-  bool activated_;
 };
 
 
@@ -84,11 +51,10 @@ class AllocationSiteContext {
 class AllocationSiteCreationContext : public AllocationSiteContext {
  public:
   explicit AllocationSiteCreationContext(Isolate* isolate)
-      : AllocationSiteContext(isolate, true) { }
+      : AllocationSiteContext(isolate) { }
 
-  virtual Handle<AllocationSite> EnterNewScope() V8_OVERRIDE;
-  virtual void ExitScope(Handle<AllocationSite> site,
-                         Handle<JSObject> object) V8_OVERRIDE;
+  Handle<AllocationSite> EnterNewScope();
+  void ExitScope(Handle<AllocationSite> site, Handle<JSObject> object);
 };
 
 
@@ -98,15 +64,35 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
  public:
   AllocationSiteUsageContext(Isolate* isolate, Handle<AllocationSite> site,
                              bool activated)
-      : AllocationSiteContext(isolate, activated),
-        top_site_(site) { }
+      : AllocationSiteContext(isolate),
+        top_site_(site),
+        activated_(activated) { }
 
-  virtual Handle<AllocationSite> EnterNewScope() V8_OVERRIDE;
-  virtual void ExitScope(Handle<AllocationSite> site,
-                         Handle<JSObject> object) V8_OVERRIDE;
+  inline Handle<AllocationSite> EnterNewScope() {
+    if (top().is_null()) {
+      InitializeTraversal(top_site_);
+    } else {
+      // Advance current site
+      Object* nested_site = current()->nested_site();
+      // Something is wrong if we advance to the end of the list here.
+      ASSERT(nested_site->IsAllocationSite());
+      update_current_site(AllocationSite::cast(nested_site));
+    }
+    return Handle<AllocationSite>(*current(), isolate());
+  }
+
+  inline void ExitScope(Handle<AllocationSite> scope_site,
+                        Handle<JSObject> object) {
+    // This assert ensures that we are pointing at the right sub-object in a
+    // recursive walk of a nested literal.
+    ASSERT(object.is_null() || *object == scope_site->transition_info());
+  }
+
+  bool ShouldCreateMemento(Handle<JSObject> object);
 
  private:
   Handle<AllocationSite> top_site_;
+  bool activated_;
 };
 
 

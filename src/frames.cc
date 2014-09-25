@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -37,8 +14,6 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "vm-state-inl.h"
-
-#include "allocation-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -533,6 +508,10 @@ void ExitFrame::ComputeCallerState(State* state) const {
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
+  if (FLAG_enable_ool_constant_pool) {
+    state->constant_pool_address = reinterpret_cast<Address*>(
+        fp() + ExitFrameConstants::kConstantPoolOffset);
+  }
 }
 
 
@@ -546,6 +525,9 @@ void ExitFrame::Iterate(ObjectVisitor* v) const {
   // the calling frame.
   IteratePc(v, pc_address(), LookupCode());
   v->VisitPointer(&code_slot());
+  if (FLAG_enable_ool_constant_pool) {
+    v->VisitPointer(&constant_pool_slot());
+  }
 }
 
 
@@ -573,6 +555,8 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->fp = fp;
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(sp - 1 * kPCOnStackSize));
+  state->constant_pool_address =
+      reinterpret_cast<Address*>(fp + ExitFrameConstants::kConstantPoolOffset);
 }
 
 
@@ -609,6 +593,8 @@ void StandardFrame::ComputeCallerState(State* state) const {
   state->fp = caller_fp();
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(ComputePCAddress(fp())));
+  state->constant_pool_address =
+      reinterpret_cast<Address*>(ComputeConstantPoolAddress(fp()));
 }
 
 
@@ -654,7 +640,7 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   // Skip saved double registers.
   if (safepoint_entry.has_doubles()) {
     // Number of doubles not known at snapshot time.
-    ASSERT(!Serializer::enabled());
+    ASSERT(!Serializer::enabled(isolate()));
     parameters_base += DoubleRegister::NumAllocatableRegisters() *
         kDoubleSize / kPointerSize;
   }
@@ -797,7 +783,6 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
                                bool print_args,
                                bool print_line_number) {
   // constructor calls
-  HandleScope scope(isolate);
   DisallowHeapAllocation no_allocation;
   JavaScriptFrameIterator it(isolate);
   while (!it.done()) {
@@ -818,15 +803,15 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
         int source_pos = code->SourcePosition(pc);
         Object* maybe_script = shared->script();
         if (maybe_script->IsScript()) {
-          Handle<Script> script(Script::cast(maybe_script));
-          int line = GetScriptLineNumberSafe(script, source_pos) + 1;
+          Script* script = Script::cast(maybe_script);
+          int line = script->GetLineNumber(source_pos) + 1;
           Object* script_name_raw = script->name();
           if (script_name_raw->IsString()) {
             String* script_name = String::cast(script->name());
             SmartArrayPointer<char> c_script_name =
                 script_name->ToCString(DISALLOW_NULLS,
                                        ROBUST_STRING_TRAVERSAL);
-            PrintF(file, " at %s:%d", *c_script_name, line);
+            PrintF(file, " at %s:%d", c_script_name.get(), line);
           } else {
             PrintF(file, " at <unknown>:%d", line);
           }
@@ -982,18 +967,17 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
       it.Next();  // Skip height.
 
       // The translation commands are ordered and the receiver is always
-      // at the first position. Since we are always at a call when we need
-      // to construct a stack trace, the receiver is always in a stack slot.
+      // at the first position.
+      // If we are at a call, the receiver is always in a stack slot.
+      // Otherwise we are not guaranteed to get the receiver value.
       opcode = static_cast<Translation::Opcode>(it.Next());
-      ASSERT(opcode == Translation::STACK_SLOT ||
-             opcode == Translation::LITERAL);
       int index = it.Next();
 
       // Get the correct receiver in the optimized frame.
       Object* receiver = NULL;
       if (opcode == Translation::LITERAL) {
         receiver = data->LiteralArray()->get(index);
-      } else {
+      } else if (opcode == Translation::STACK_SLOT) {
         // Positive index means the value is spilled to the locals
         // area. Negative means it is stored in the incoming parameter
         // area.
@@ -1009,6 +993,13 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
               ? this->receiver()
               : this->GetParameter(parameter_index);
         }
+      } else {
+        // The receiver is not in a stack slot nor in a literal.  We give up.
+        // TODO(3029): Materializing a captured object (or duplicated
+        // object) is hard, we return undefined for now. This breaks the
+        // produced stack trace, as constructor frames aren't marked as
+        // such anymore.
+        receiver = isolate()->heap()->undefined_value();
       }
 
       Code* code = function->shared()->code();
@@ -1154,7 +1145,7 @@ void StackFrame::PrintIndex(StringStream* accumulator,
 void JavaScriptFrame::Print(StringStream* accumulator,
                             PrintMode mode,
                             int index) const {
-  HandleScope scope(isolate());
+  DisallowHeapAllocation no_gc;
   Object* receiver = this->receiver();
   JSFunction* function = this->function();
 
@@ -1168,13 +1159,11 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   // doesn't contain scope info, scope_info will return 0 for the number of
   // parameters, stack local variables, context local variables, stack slots,
   // or context slots.
-  Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
-
-  Handle<SharedFunctionInfo> shared(function->shared());
-  scope_info = Handle<ScopeInfo>(shared->scope_info());
+  SharedFunctionInfo* shared = function->shared();
+  ScopeInfo* scope_info = shared->scope_info();
   Object* script_obj = shared->script();
   if (script_obj->IsScript()) {
-    Handle<Script> script(Script::cast(script_obj));
+    Script* script = Script::cast(script_obj);
     accumulator->Add(" [");
     accumulator->PrintName(script->name());
 
@@ -1182,11 +1171,11 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     if (code != NULL && code->kind() == Code::FUNCTION &&
         pc >= code->instruction_start() && pc < code->instruction_end()) {
       int source_pos = code->SourcePosition(pc);
-      int line = GetScriptLineNumberSafe(script, source_pos) + 1;
+      int line = script->GetLineNumber(source_pos) + 1;
       accumulator->Add(":%d", line);
     } else {
       int function_start_pos = shared->start_position();
-      int line = GetScriptLineNumberSafe(script, function_start_pos) + 1;
+      int line = script->GetLineNumber(function_start_pos) + 1;
       accumulator->Add(":~%d", line);
     }
 
@@ -1337,7 +1326,7 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
 
 
 void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
-  const int offset = StandardFrameConstants::kContextOffset;
+  const int offset = StandardFrameConstants::kLastObjectOffset;
   Object** base = &Memory::Object_at(sp());
   Object** limit = &Memory::Object_at(fp() + offset) + 1;
   for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
@@ -1375,7 +1364,7 @@ void StubFailureTrampolineFrame::Iterate(ObjectVisitor* v) const {
                                       kFirstRegisterParameterFrameOffset);
   v->VisitPointers(base, limit);
   base = &Memory::Object_at(fp() + StandardFrameConstants::kMarkerOffset);
-  const int offset = StandardFrameConstants::kContextOffset;
+  const int offset = StandardFrameConstants::kLastObjectOffset;
   limit = &Memory::Object_at(fp() + offset) + 1;
   v->VisitPointers(base, limit);
   IteratePc(v, pc_address(), LookupCode());
@@ -1389,14 +1378,14 @@ Address StubFailureTrampolineFrame::GetCallerStackPointer() const {
 
 Code* StubFailureTrampolineFrame::unchecked_code() const {
   Code* trampoline;
-  StubFailureTrampolineStub(NOT_JS_FUNCTION_STUB_MODE).
-      FindCodeInCache(&trampoline, isolate());
+  StubFailureTrampolineStub(isolate(), NOT_JS_FUNCTION_STUB_MODE).
+      FindCodeInCache(&trampoline);
   if (trampoline->contains(pc())) {
     return trampoline;
   }
 
-  StubFailureTrampolineStub(JS_FUNCTION_STUB_MODE).
-      FindCodeInCache(&trampoline, isolate());
+  StubFailureTrampolineStub(isolate(), JS_FUNCTION_STUB_MODE).
+      FindCodeInCache(&trampoline);
   if (trampoline->contains(pc())) {
     return trampoline;
   }

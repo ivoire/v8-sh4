@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_X64_LITHIUM_CODEGEN_X64_H_
 #define V8_X64_LITHIUM_CODEGEN_X64_H_
@@ -35,7 +12,7 @@
 #include "lithium-codegen.h"
 #include "safepoint-table.h"
 #include "scopes.h"
-#include "v8utils.h"
+#include "utils.h"
 #include "x64/lithium-gap-resolver-x64.h"
 
 namespace v8 {
@@ -86,12 +63,12 @@ class LCodeGen: public LCodeGenBase {
   Register ToRegister(LOperand* op) const;
   XMMRegister ToDoubleRegister(LOperand* op) const;
   bool IsInteger32Constant(LConstantOperand* op) const;
+  bool IsDehoistedKeyConstant(LConstantOperand* op) const;
   bool IsSmiConstant(LConstantOperand* op) const;
   int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   ExternalReference ToExternalReference(LConstantOperand* op) const;
-  bool IsTaggedConstant(LConstantOperand* op) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op) const;
 
@@ -116,6 +93,9 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
+  void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
+                                   Register object,
+                                   Register index);
 
 // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -130,9 +110,7 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  StrictModeFlag strict_mode_flag() const {
-    return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
-  }
+  StrictMode strict_mode() const { return info()->strict_mode(); }
 
   LPlatformChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
@@ -149,12 +127,16 @@ class LCodeGen: public LCodeGenBase {
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
-  void Abort(BailoutReason reason);
-
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
+
+
+  void SaveCallerDoubles();
+  void RestoreCallerDoubles();
 
   // Code generation passes.  Returns true if code generation should
   // continue.
+  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
+  void GenerateBodyInstructionPost(LInstruction* instr) V8_OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
   bool GenerateJumpTable();
@@ -193,7 +175,10 @@ class LCodeGen: public LCodeGenBase {
 
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
-                               LInstruction* instr);
+                               LInstruction* instr,
+                               LOperand* context);
+
+  void LoadContextFromDeferred(LOperand* context);
 
   enum RDIState {
     RDI_UNINITIALIZED,
@@ -206,7 +191,6 @@ class LCodeGen: public LCodeGenBase {
                          int formal_parameter_count,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind,
                          RDIState rdi_state);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
@@ -218,7 +202,10 @@ class LCodeGen: public LCodeGenBase {
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
-  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
+
+  bool DeoptEveryNTimes() {
+    return FLAG_deopt_every_n_times != 0 && !info()->IsStub();
+  }
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
@@ -227,7 +214,6 @@ class LCodeGen: public LCodeGenBase {
                         bool is_uint32,
                         int* object_index_pointer,
                         int* dematerialized_index_pointer);
-  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 
@@ -241,6 +227,10 @@ class LCodeGen: public LCodeGenBase {
       ElementsKind elements_kind,
       uint32_t offset,
       uint32_t additional_index = 0);
+
+  Operand BuildSeqStringOperand(Register string,
+                                LOperand* index,
+                                String::Encoding encoding);
 
   void EmitIntegerMathAbs(LMathAbs* instr);
   void EmitSmiMathAbs(LMathAbs* instr);
@@ -259,6 +249,8 @@ class LCodeGen: public LCodeGenBase {
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
+
+  // EmitBranch expects to be the last instruction of a block.
   template<class InstrType>
   void EmitBranch(InstrType instr, Condition cc);
   template<class InstrType>
@@ -274,10 +266,7 @@ class LCodeGen: public LCodeGenBase {
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
-  Condition EmitTypeofIs(Label* true_label,
-                         Label* false_label,
-                         Register input,
-                         Handle<String> type_name);
+  Condition EmitTypeofIs(LTypeofIsAndBranch* instr, Register input);
 
   // Emits optimized code for %_IsObject(x).  Preserves input register.
   // Returns the condition on which a final split to

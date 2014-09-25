@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_V8GLOBALS_H_
 #define V8_V8GLOBALS_H_
@@ -59,6 +36,7 @@ const intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 const intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
 // Tag information for Failure.
+// TODO(yangguo): remove this from space owner calculation.
 const int kFailureTag = 3;
 const int kFailureTagSize = 2;
 const intptr_t kFailureTagMask = (1 << kFailureTagSize) - 1;
@@ -128,11 +106,13 @@ class MemoryChunk;
 class SeededNumberDictionary;
 class UnseededNumberDictionary;
 class NameDictionary;
+template <typename T> class MaybeHandle;
 template <typename T> class Handle;
 class Heap;
 class HeapObject;
 class IC;
 class InterceptorInfo;
+class Isolate;
 class JSReceiver;
 class JSArray;
 class JSFunction;
@@ -145,7 +125,6 @@ class MapSpace;
 class MarkCompactCollector;
 class NewSpace;
 class Object;
-class MaybeObject;
 class OldSpace;
 class Foreign;
 class Scope;
@@ -183,6 +162,7 @@ enum AllocationSpace {
   CELL_SPACE,           // Only and all cell objects.
   PROPERTY_CELL_SPACE,  // Only and all global property cell objects.
   LO_SPACE,             // Promoted large objects.
+  INVALID_SPACE,        // Only used in AllocationResult to signal success.
 
   FIRST_SPACE = NEW_SPACE,
   LAST_SPACE = LO_SPACE,
@@ -198,6 +178,11 @@ const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 // (allocated in the young generation if the object size and type
 // allows).
 enum PretenureFlag { NOT_TENURED, TENURED };
+
+enum MinimumCapacity {
+  USE_DEFAULT_MINIMUM_CAPACITY,
+  USE_CUSTOM_MINIMUM_CAPACITY
+};
 
 enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
@@ -274,22 +259,19 @@ enum InlineCacheState {
 };
 
 
-enum CheckType {
-  RECEIVER_MAP_CHECK,
-  STRING_CHECK,
-  SYMBOL_CHECK,
-  NUMBER_CHECK,
-  BOOLEAN_CHECK
+enum CallFunctionFlags {
+  NO_CALL_FUNCTION_FLAGS,
+  CALL_AS_METHOD,
+  // Always wrap the receiver and call to the JSFunction. Only use this flag
+  // both the receiver type and the target method are statically known.
+  WRAP_AND_CALL
 };
 
 
-enum CallFunctionFlags {
-  NO_CALL_FUNCTION_FLAGS = 0,
-  // Receiver might implicitly be the global objects. If it is, the
-  // hole is passed to the call function stub.
-  RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0,
+enum CallConstructorFlags {
+  NO_CALL_CONSTRUCTOR_FLAGS,
   // The call target is cached in the instruction stream.
-  RECORD_CALL_TARGET = 1 << 1
+  RECORD_CONSTRUCTOR_TARGET
 };
 
 
@@ -317,6 +299,9 @@ union DoubleRepresentation {
   double  value;
   int64_t bits;
   DoubleRepresentation(double x) { value = x; }
+  bool operator==(const DoubleRepresentation& other) const {
+    return bits == other.bits;
+  }
 };
 
 
@@ -347,8 +332,8 @@ union IeeeDoubleBigEndianArchType {
 
 // AccessorCallback
 struct AccessorDescriptor {
-  MaybeObject* (*getter)(Isolate* isolate, Object* object, void* data);
-  MaybeObject* (*setter)(
+  Object* (*getter)(Isolate* isolate, Object* object, void* data);
+  Object* (*setter)(
       Isolate* isolate, JSObject* object, Object* value, void* data);
   void* data;
 };
@@ -439,14 +424,6 @@ enum SmiCheckType {
 };
 
 
-// Used to specify whether a receiver is implicitly or explicitly
-// provided to a call.
-enum CallKind {
-  CALL_AS_METHOD,
-  CALL_AS_FUNCTION
-};
-
-
 enum ScopeType {
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
@@ -473,11 +450,11 @@ enum VariableMode {
   // User declared variables:
   VAR,             // declared via 'var', and 'function' declarations
 
-  CONST,           // declared via 'const' declarations
+  CONST_LEGACY,    // declared via legacy 'const' declarations
 
   LET,             // declared via 'let' declarations (first lexical)
 
-  CONST_HARMONY,   // declared via 'const' declarations in harmony mode
+  CONST,           // declared via 'const' declarations
 
   MODULE,          // declared via 'module' declaration (last lexical)
 
@@ -518,7 +495,7 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || (mode >= CONST_HARMONY && mode <= MODULE);
+  return (mode >= CONST && mode <= MODULE) || mode == CONST_LEGACY;
 }
 
 
@@ -571,5 +548,7 @@ enum MinusZeroMode {
 };
 
 } }  // namespace v8::internal
+
+namespace i = v8::internal;
 
 #endif  // V8_V8GLOBALS_H_

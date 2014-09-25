@@ -1,32 +1,9 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-// Platform specific code for Linux goes here. For the POSIX comaptible parts
-// the implementation is in platform-posix.cc.
+// Platform-specific code for Linux goes here. For the POSIX-compatible
+// parts, the implementation is in platform-posix.cc.
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -53,8 +30,13 @@
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+    (defined(__arm__) || defined(__aarch64__)) && \
+    !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>
+#endif
+
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
 #endif
 
 #undef MAP_TYPE
@@ -63,7 +45,6 @@
 
 #include "platform.h"
 #include "v8threads.h"
-#include "vm-state-inl.h"
 
 
 namespace v8 {
@@ -113,16 +94,16 @@ bool OS::ArmUsingHardFloat() {
 #endif  // def __arm__
 
 
-const char* OS::LocalTimezone(double time) {
+const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
+  time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";
   return t->tm_zone;
 }
 
 
-double OS::LocalTimeOffset() {
+double OS::LocalTimeOffset(TimezoneCache* cache) {
   time_t tv = time(NULL);
   struct tm* t = localtime(&tv);
   // tm_gmtoff includes any daylight savings offset, so subtract it.
@@ -348,6 +329,9 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
 
   address_ = static_cast<void*>(aligned_base);
   size_ = aligned_size;
+#if defined(LEAK_SANITIZER)
+  __lsan_register_root_region(address_, size_);
+#endif
 }
 
 
@@ -397,6 +381,9 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 
   if (result == MAP_FAILED) return NULL;
 
+#if defined(LEAK_SANITIZER)
+  __lsan_register_root_region(result, size);
+#endif
   return result;
 }
 
@@ -433,6 +420,9 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
 
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
+#if defined(LEAK_SANITIZER)
+  __lsan_unregister_root_region(base, size);
+#endif
   return munmap(base, size) == 0;
 }
 

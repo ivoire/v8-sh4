@@ -1,34 +1,13 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
 #include "../include/v8stdint.h"
+
+#include "base/macros.h"
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:
@@ -38,7 +17,7 @@
 #if V8_CC_GNU && V8_GNUC_PREREQ(2, 96, 0) && !V8_GNUC_PREREQ(4, 1, 0)
 # include <limits>  // NOLINT
 # define V8_INFINITY std::numeric_limits<double>::infinity()
-#elif V8_CC_MSVC
+#elif V8_LIBC_MSVCRT
 # define V8_INFINITY HUGE_VAL
 #else
 # define V8_INFINITY INFINITY
@@ -71,17 +50,21 @@ namespace internal {
 #define V8_HOST_ARCH_IA32 1
 #define V8_HOST_ARCH_32_BIT 1
 #define V8_HOST_CAN_READ_UNALIGNED 1
+#elif defined(__AARCH64EL__)
+#define V8_HOST_ARCH_ARM64 1
+#define V8_HOST_ARCH_64_BIT 1
+#define V8_HOST_CAN_READ_UNALIGNED 1
 #elif defined(__ARMEL__)
 #define V8_HOST_ARCH_ARM 1
 #define V8_HOST_ARCH_32_BIT 1
-#elif defined(__MIPSEL__)
+#elif defined(__MIPSEB__) || defined(__MIPSEL__)
 #define V8_HOST_ARCH_MIPS 1
 #define V8_HOST_ARCH_32_BIT 1
 #elif defined(__SH4__)
 #define V8_HOST_ARCH_SH4 1
 #define V8_HOST_ARCH_32_BIT 1
 #else
-#error Host architecture was not detected as supported by v8
+#error "Host architecture was not detected as supported by v8"
 #endif
 
 #if defined(__ARM_ARCH_7A__) || \
@@ -98,14 +81,16 @@ namespace internal {
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && \
-    !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_SH4
+    !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_SH4
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
 #elif defined(_M_IX86) || defined(__i386__)
 #define V8_TARGET_ARCH_IA32 1
+#elif defined(__AARCH64EL__)
+#define V8_TARGET_ARCH_ARM64 1
 #elif defined(__ARMEL__)
 #define V8_TARGET_ARCH_ARM 1
-#elif defined(__MIPSEL__)
+#elif defined(__MIPSEB__) || defined(__MIPSEL__)
 #define V8_TARGET_ARCH_MIPS 1
 #elif defined(__SH4__)
 #define V8_TARGET_ARCH_SH4 1
@@ -124,6 +109,9 @@ namespace internal {
 #if (V8_TARGET_ARCH_ARM && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_ARM))
 #error Target architecture arm is only supported on arm and ia32 host
 #endif
+#if (V8_TARGET_ARCH_ARM64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64))
+#error Target architecture arm64 is only supported on arm64 and x64 host
+#endif
 #if (V8_TARGET_ARCH_MIPS && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_MIPS))
 #error Target architecture mips is only supported on mips and ia32 host
 #endif
@@ -135,6 +123,9 @@ namespace internal {
 // Setting USE_SIMULATOR explicitly from the build script will force
 // the use of a simulated environment.
 #if !defined(USE_SIMULATOR)
+#if (V8_TARGET_ARCH_ARM64 && !V8_HOST_ARCH_ARM64)
+#define USE_SIMULATOR 1
+#endif
 #if (V8_TARGET_ARCH_ARM && !V8_HOST_ARCH_ARM)
 #define USE_SIMULATOR 1
 #endif
@@ -146,20 +137,29 @@ namespace internal {
 #endif
 #endif
 
-// Determine architecture endiannes (we only support little-endian).
+// Determine architecture endianness.
 #if V8_TARGET_ARCH_IA32
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_X64
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_ARM
 #define V8_TARGET_LITTLE_ENDIAN 1
-#elif V8_TARGET_ARCH_MIPS
+#elif V8_TARGET_ARCH_ARM64
 #define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_MIPS
+#if defined(__MIPSEB__)
+#define V8_TARGET_BIG_ENDIAN 1
+#else
+#define V8_TARGET_LITTLE_ENDIAN 1
+#endif
 #elif V8_TARGET_ARCH_SH4
 #define V8_TARGET_LITTLE_ENDIAN 1
 #else
-#error Unknown target architecture endiannes
+#error Unknown target architecture endianness
 #endif
+
+// Determine whether the architecture uses an out-of-line constant pool.
+#define V8_OOL_CONSTANT_POOL 0
 
 // SH4: Force interpreted regexps as they are not implemented anyway
 #if V8_TARGET_ARCH_SH4
@@ -205,8 +205,13 @@ typedef byte* Address;
 # define V8_INTPTR_C(x)   (x ## LL)
 # define V8_PTR_PREFIX    "I64"
 #elif V8_HOST_ARCH_64_BIT
-# define V8_UINT64_C(x)   (x ## UL)
-# define V8_INT64_C(x)    (x ## L)
+# if V8_OS_MACOSX
+#  define V8_UINT64_C(x)   (x ## ULL)
+#  define V8_INT64_C(x)    (x ## LL)
+# else
+#  define V8_UINT64_C(x)   (x ## UL)
+#  define V8_INT64_C(x)    (x ## L)
+# endif
 # define V8_INTPTR_C(x)   (x ## L)
 # define V8_PTR_PREFIX    "l"
 #else
@@ -226,13 +231,12 @@ typedef byte* Address;
 #define V8PRIuPTR V8_PTR_PREFIX "u"
 
 // Fix for Mac OS X defining uintptr_t as "unsigned long":
-#if defined(__APPLE__) && defined(__MACH__)
+#if V8_OS_MACOSX
 #undef V8PRIxPTR
 #define V8PRIxPTR "lx"
 #endif
 
-#if (defined(__APPLE__) && defined(__MACH__)) || \
-    defined(__FreeBSD__) || defined(__OpenBSD__)
+#if V8_OS_MACOSX || defined(__FreeBSD__) || defined(__OpenBSD__)
 #define USING_BSD_ABI
 #endif
 
@@ -244,6 +248,14 @@ const int MB = KB * KB;
 const int GB = KB * KB * KB;
 const int kMaxInt = 0x7FFFFFFF;
 const int kMinInt = -kMaxInt - 1;
+const int kMaxInt8 = (1 << 7) - 1;
+const int kMinInt8 = -(1 << 7);
+const int kMaxUInt8 = (1 << 8) - 1;
+const int kMinUInt8 = 0;
+const int kMaxInt16 = (1 << 15) - 1;
+const int kMinInt16 = -(1 << 15);
+const int kMaxUInt16 = (1 << 16) - 1;
+const int kMinUInt16 = 0;
 
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 
@@ -260,9 +272,6 @@ const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
 
 const int kDoubleSizeLog2 = 3;
-
-// Size of the state of a the random number generator.
-const int kRandomStateSize = 2 * kIntSize;
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;
@@ -308,25 +317,6 @@ const int kUC16Size     = sizeof(uc16);      // NOLINT
 #define ROUND_UP(n, sz) (((n) + ((sz) - 1)) & ~((sz) - 1))
 
 
-// The expression OFFSET_OF(type, field) computes the byte-offset
-// of the specified field relative to the containing type. This
-// corresponds to 'offsetof' (in stddef.h), except that it doesn't
-// use 0 or NULL, which causes a problem with the compiler warnings
-// we have enabled (which is also why 'offsetof' doesn't seem to work).
-// Here we simply use the non-zero value 4, which seems to work.
-#define OFFSET_OF(type, field)                                          \
-  (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(4)->field)) - 4)
-
-
-// The expression ARRAY_SIZE(a) is a compile-time constant of type
-// size_t which represents the number of elements of the given
-// array. You should only use ARRAY_SIZE on statically allocated
-// arrays.
-#define ARRAY_SIZE(a)                                   \
-  ((sizeof(a) / sizeof(*(a))) /                         \
-  static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
-
-
 // The USE(x) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
 template <typename T>
@@ -346,46 +336,6 @@ F FUNCTION_CAST(Address addr) {
 }
 
 
-// A macro to disallow the evil copy constructor and operator= functions
-// This should be used in the private: declarations for a class
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)  \
-  TypeName(const TypeName&) V8_DELETE;      \
-  void operator=(const TypeName&) V8_DELETE
-
-
-// A macro to disallow all the implicit constructors, namely the
-// default constructor, copy constructor and operator= functions.
-//
-// This should be used in the private: declarations for a class
-// that wants to prevent anyone from instantiating it. This is
-// especially useful for classes containing only static methods.
-#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName)  \
-  TypeName() V8_DELETE;                           \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
-
-
-// Newly written code should use V8_INLINE and V8_NOINLINE directly.
-#define INLINE(declarator)    V8_INLINE declarator
-#define NO_INLINE(declarator) V8_NOINLINE declarator
-
-
-// Newly written code should use V8_WARN_UNUSED_RESULT.
-#define MUST_USE_RESULT V8_WARN_UNUSED_RESULT
-
-
-// Define DISABLE_ASAN macros.
-#if defined(__has_feature)
-#if __has_feature(address_sanitizer)
-#define DISABLE_ASAN __attribute__((no_sanitize_address))
-#endif
-#endif
-
-
-#ifndef DISABLE_ASAN
-#define DISABLE_ASAN
-#endif
-
-
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
 // (sorted alphabetically)
@@ -396,34 +346,9 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
 
-// The different language modes that V8 implements. ES5 defines two language
-// modes: an unrestricted mode respectively a strict mode which are indicated by
-// CLASSIC_MODE respectively STRICT_MODE in the enum. The harmony spec drafts
-// for the next ES standard specify a new third mode which is called 'extended
-// mode'. The extended mode is only available if the harmony flag is set. It is
-// based on the 'strict mode' and adds new functionality to it. This means that
-// most of the semantics of these two modes coincide.
-//
-// In the current draft the term 'base code' is used to refer to code that is
-// neither in strict nor extended mode. However, the more distinguishing term
-// 'classic mode' is used in V8 instead to avoid mix-ups.
-
-enum LanguageMode {
-  CLASSIC_MODE,
-  STRICT_MODE,
-  EXTENDED_MODE
-};
-
-
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
-//
-// This flag is used in the backend to represent the language mode. So far
-// there is no semantic difference between the strict and the extended mode in
-// the backend, so both modes are represented by the kStrictMode value.
-enum StrictModeFlag {
-  kNonStrictMode,
-  kStrictMode
-};
+
+enum StrictMode { SLOPPY, STRICT };
 
 
 } }  // namespace v8::internal

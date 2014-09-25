@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
-// Flags: --track-allocation-sites --noalways-opt
+// Flags: --noalways-opt
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
@@ -34,11 +34,6 @@
 // by default, only a no-snapshot build actually has smi-only arrays enabled
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
-
-// Reset the GC stress mode to be off. Needed because AllocationMementos only
-// live for one gc, so a gc that happens in certain fragile areas of the test
-// can break assumptions.
-%SetFlags("--gc-interval=-1")
 
 // support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 support_smi_only_arrays = true;
@@ -148,8 +143,12 @@ if (support_smi_only_arrays) {
     assertKind(elements_kind.fast_double, obj);
     obj = fastliteralcase([3, 6, 2], 1.5);
     assertKind(elements_kind.fast_double, obj);
+
+    // Note: thanks to pessimistic transition store stubs, we'll attempt
+    // to transition to the most general elements kind seen at a particular
+    // store site. So, the elements kind will be double.
     obj = fastliteralcase([2, 6, 3], 2);
-    assertKind(elements_kind.fast_smi_only, obj);
+    assertKind(elements_kind.fast_double, obj);
   }
 
   // Verify that we will not pretransition the double->fast path.
@@ -233,14 +232,13 @@ if (support_smi_only_arrays) {
   obj = newarraycase_length_smidouble(2);
   assertKind(elements_kind.fast_double, obj);
 
-  // Try to continue the transition to fast object. This won't work for
-  // constructed arrays because constructor dispatch is done on the
-  // elements kind, and a DOUBLE array constructor won't create an allocation
-  // memento.
+  // Try to continue the transition to fast object.
+  // TODO(mvstanton): re-enable commented out code when
+  // FLAG_pretenuring_call_new is turned on in the build.
   obj = newarraycase_length_smidouble("coates");
   assertKind(elements_kind.fast, obj);
   obj = newarraycase_length_smidouble(2);
-  assertKind(elements_kind.fast_double, obj);
+  // assertKind(elements_kind.fast, obj);
 
   function newarraycase_length_smiobj(value) {
     var a = new Array(3);

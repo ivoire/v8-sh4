@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -46,12 +23,13 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
       deoptimization_handler_(NULL),
+      handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
       has_miss_handler_(false) { }
 
 
-bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
-  UnseededNumberDictionary* stubs = isolate->heap()->code_stubs();
+bool CodeStub::FindCodeInCache(Code** code_out) {
+  UnseededNumberDictionary* stubs = isolate()->heap()->code_stubs();
   int index = stubs->FindEntry(GetKey());
   if (index != UnseededNumberDictionary::kNotFound) {
     *code_out = Code::cast(stubs->ValueAt(index));
@@ -71,11 +49,12 @@ SmartArrayPointer<const char> CodeStub::GetName() {
 }
 
 
-void CodeStub::RecordCodeGeneration(Code* code, Isolate* isolate) {
+void CodeStub::RecordCodeGeneration(Handle<Code> code) {
+  IC::RegisterWeakMapDependency(code);
   SmartArrayPointer<const char> name = GetName();
-  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
-  GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
-  Counters* counters = isolate->counters();
+  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, name.get()));
+  GDBJIT(AddCode(GDBJITInterface::STUB, name.get(), *code));
+  Counters* counters = isolate()->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 }
 
@@ -85,26 +64,24 @@ Code::Kind CodeStub::GetCodeKind() const {
 }
 
 
-Handle<Code> CodeStub::GetCodeCopyFromTemplate(Isolate* isolate) {
-  Handle<Code> ic = GetCode(isolate);
-  ic = isolate->factory()->CopyCode(ic);
-  RecordCodeGeneration(*ic, isolate);
+Handle<Code> CodeStub::GetCodeCopy(const Code::FindAndReplacePattern& pattern) {
+  Handle<Code> ic = GetCode();
+  ic = isolate()->factory()->CopyCode(ic);
+  ic->FindAndReplace(pattern);
+  RecordCodeGeneration(ic);
   return ic;
 }
 
 
-Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
-  Factory* factory = isolate->factory();
+Handle<Code> PlatformCodeStub::GenerateCode() {
+  Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate, NULL, 256);
+  MacroAssembler masm(isolate(), NULL, 256);
 
   {
     // Update the static counter each time a new code stub is generated.
-    isolate->counters()->code_stubs()->Increment();
-
-    // Nested stubs are not allowed for leaves.
-    AllowStubCallsScope allow_scope(&masm, false);
+    isolate()->counters()->code_stubs()->Increment();
 
     // Generate the code for the stub.
     masm.set_generating_stub(true);
@@ -121,47 +98,45 @@ Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
       GetCodeKind(),
       GetICState(),
       GetExtraICState(),
-      GetStubType(),
-      GetStubFlags());
+      GetStubType());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
 }
 
 
-void CodeStub::VerifyPlatformFeatures(Isolate* isolate) {
+void CodeStub::VerifyPlatformFeatures() {
   ASSERT(CpuFeatures::VerifyCrossCompiling());
 }
 
 
-Handle<Code> CodeStub::GetCode(Isolate* isolate) {
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
+Handle<Code> CodeStub::GetCode() {
+  Heap* heap = isolate()->heap();
   Code* code;
   if (UseSpecialCache()
-      ? FindCodeInSpecialCache(&code, isolate)
-      : FindCodeInCache(&code, isolate)) {
-    ASSERT(IsPregenerated(isolate) == code->is_pregenerated());
+      ? FindCodeInSpecialCache(&code)
+      : FindCodeInCache(&code)) {
     ASSERT(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
 
 #ifdef DEBUG
-  VerifyPlatformFeatures(isolate);
+  VerifyPlatformFeatures();
 #endif
 
   {
-    HandleScope scope(isolate);
+    HandleScope scope(isolate());
 
-    Handle<Code> new_object = GenerateCode(isolate);
+    Handle<Code> new_object = GenerateCode();
     new_object->set_major_key(MajorKey());
     FinishCode(new_object);
-    RecordCodeGeneration(*new_object, isolate);
+    RecordCodeGeneration(new_object);
 
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {
-      new_object->Disassemble(*GetName());
-      PrintF("\n");
+      CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
+      new_object->Disassemble(GetName().get(), trace_scope.file());
+      PrintF(trace_scope.file(), "\n");
     }
 #endif
 
@@ -170,7 +145,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
     } else {
       // Update the dictionary and the root in Heap.
       Handle<UnseededNumberDictionary> dict =
-          factory->DictionaryAtNumberPut(
+          UnseededNumberDictionary::AtNumberPut(
               Handle<UnseededNumberDictionary>(heap->code_stubs()),
               GetKey(),
               new_object);
@@ -183,7 +158,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   ASSERT(!NeedsImmovableCode() ||
          heap->lo_space()->Contains(code) ||
          heap->code_space()->FirstPage()->Contains(code->address()));
-  return Handle<Code>(code, isolate);
+  return Handle<Code>(code, isolate());
 }
 
 
@@ -193,6 +168,7 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 #define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
+    case UninitializedMajorKey: return "<UninitializedMajorKey>Stub";
     default:
       if (!allow_unknown_keys) {
         UNREACHABLE();
@@ -213,471 +189,70 @@ void CodeStub::PrintName(StringStream* stream) {
 }
 
 
-void BinaryOpStub::PrintBaseName(StringStream* stream) {
-  const char* op_name = Token::Name(op_);
-  const char* ovr = "";
-  if (mode_ == OVERWRITE_LEFT) ovr = "_ReuseLeft";
-  if (mode_ == OVERWRITE_RIGHT) ovr = "_ReuseRight";
-  stream->Add("BinaryOpStub_%s%s", op_name, ovr);
-}
-
-
-void BinaryOpStub::PrintState(StringStream* stream) {
-  stream->Add("(");
-  stream->Add(StateToName(left_state_));
-  stream->Add("*");
-  if (fixed_right_arg_.has_value) {
-    stream->Add("%d", fixed_right_arg_.value);
-  } else {
-    stream->Add(StateToName(right_state_));
-  }
-  stream->Add("->");
-  stream->Add(StateToName(result_state_));
-  stream->Add(")");
-}
-
-
-Maybe<Handle<Object> > BinaryOpStub::Result(Handle<Object> left,
-                                            Handle<Object> right,
-                                            Isolate* isolate) {
-  Handle<JSBuiltinsObject> builtins(isolate->js_builtins_object());
-  Builtins::JavaScript func = BinaryOpIC::TokenToJSBuiltin(op_);
-  Object* builtin = builtins->javascript_builtin(func);
-  Handle<JSFunction> builtin_function =
-      Handle<JSFunction>(JSFunction::cast(builtin), isolate);
-  bool caught_exception;
-  Handle<Object> result = Execution::Call(isolate, builtin_function, left,
-      1, &right, &caught_exception);
-  return Maybe<Handle<Object> >(!caught_exception, result);
-}
-
-
-void BinaryOpStub::Initialize() {
-  fixed_right_arg_.has_value = false;
-  left_state_ = right_state_ = result_state_ = NONE;
-}
-
-
-void BinaryOpStub::Generate(Token::Value op,
-                            State left,
-                            State right,
-                            State result,
-                            OverwriteMode mode,
-                            Isolate* isolate) {
-  BinaryOpStub stub(INITIALIZED);
-  stub.op_ = op;
-  stub.left_state_ = left;
-  stub.right_state_ = right;
-  stub.result_state_ = result;
-  stub.mode_ = mode;
-  stub.GetCode(isolate);
-}
-
-
-void BinaryOpStub::Generate(Token::Value op,
-                            State left,
-                            int right,
-                            State result,
-                            OverwriteMode mode,
-                            Isolate* isolate) {
-  BinaryOpStub stub(INITIALIZED);
-  stub.op_ = op;
-  stub.left_state_ = left;
-  stub.fixed_right_arg_.has_value = true;
-  stub.fixed_right_arg_.value = right;
-  stub.right_state_ = SMI;
-  stub.result_state_ = result;
-  stub.mode_ = mode;
-  stub.GetCode(isolate);
-}
-
-
-void BinaryOpStub::GenerateAheadOfTime(Isolate* isolate) {
-  Token::Value binop[] = {Token::SUB, Token::MOD, Token::DIV, Token::MUL,
-                          Token::ADD, Token::SAR, Token::BIT_OR, Token::BIT_AND,
-                          Token::BIT_XOR, Token::SHL, Token::SHR};
-  for (unsigned i = 0; i < ARRAY_SIZE(binop); i++) {
-    BinaryOpStub stub(UNINITIALIZED);
-    stub.op_ = binop[i];
-    stub.GetCode(isolate);
-  }
-
-  // TODO(olivf) We should investigate why adding stubs to the snapshot is so
-  // expensive at runtime. When solved we should be able to add most binops to
-  // the snapshot instead of hand-picking them.
-  // Generated list of commonly used stubs
-  Generate(Token::ADD, INT32, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, INT32, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, INT32, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, INT32, INT32, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, INT32, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, INT32, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, INT32, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::ADD, INT32, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, INT32, SMI, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, INT32, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::ADD, NUMBER, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, NUMBER, INT32, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, NUMBER, INT32, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::ADD, NUMBER, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, NUMBER, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, NUMBER, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::ADD, NUMBER, SMI, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, NUMBER, SMI, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, NUMBER, SMI, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::ADD, SMI, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, SMI, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, SMI, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, SMI, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::ADD, SMI, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::ADD, SMI, SMI, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::ADD, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, INT32, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_AND, INT32, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_AND, INT32, INT32, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, INT32, INT32, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_AND, INT32, INT32, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, INT32, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_AND, INT32, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, INT32, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_AND, INT32, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_AND, INT32, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, NUMBER, INT32, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, NUMBER, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_AND, NUMBER, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, SMI, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_AND, SMI, INT32, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, SMI, NUMBER, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_AND, SMI, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_AND, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_AND, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_OR, INT32, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_OR, INT32, INT32, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_OR, INT32, INT32, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_OR, INT32, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_OR, INT32, SMI, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_OR, INT32, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_OR, INT32, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_OR, INT32, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_OR, NUMBER, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_OR, NUMBER, SMI, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_OR, NUMBER, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_OR, NUMBER, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_OR, NUMBER, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_OR, SMI, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_OR, SMI, INT32, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_OR, SMI, INT32, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_OR, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_OR, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_XOR, INT32, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, INT32, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_XOR, INT32, INT32, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_XOR, INT32, INT32, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, INT32, INT32, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_XOR, INT32, NUMBER, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, INT32, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, INT32, SMI, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_XOR, INT32, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::BIT_XOR, NUMBER, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, NUMBER, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, NUMBER, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, SMI, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, SMI, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_XOR, SMI, INT32, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_XOR, SMI, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::BIT_XOR, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::BIT_XOR, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::DIV, INT32, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, INT32, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, INT32, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, INT32, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::DIV, INT32, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, INT32, SMI, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, NUMBER, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, NUMBER, INT32, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::DIV, NUMBER, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, NUMBER, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::DIV, NUMBER, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::DIV, NUMBER, SMI, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, NUMBER, SMI, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::DIV, SMI, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, SMI, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, SMI, INT32, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::DIV, SMI, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, SMI, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::DIV, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::DIV, SMI, SMI, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, SMI, SMI, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::DIV, SMI, SMI, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::DIV, SMI, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::DIV, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::DIV, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::MOD, NUMBER, SMI, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::MOD, SMI, 16, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::MOD, SMI, 2, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::MOD, SMI, 2048, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::MOD, SMI, 32, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::MOD, SMI, 4, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::MOD, SMI, 4, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::MOD, SMI, 8, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::MOD, SMI, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::MOD, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, INT32, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, INT32, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, INT32, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, INT32, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, INT32, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, INT32, SMI, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, INT32, SMI, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, NUMBER, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, NUMBER, INT32, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, NUMBER, INT32, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::MUL, NUMBER, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, NUMBER, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, NUMBER, SMI, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, NUMBER, SMI, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, NUMBER, SMI, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::MUL, SMI, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, SMI, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, SMI, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, SMI, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, SMI, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::MUL, SMI, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, SMI, SMI, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, SMI, SMI, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, SMI, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::MUL, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::MUL, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SAR, INT32, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SAR, INT32, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::SAR, INT32, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SAR, NUMBER, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::SAR, NUMBER, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SAR, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::SAR, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SHL, INT32, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::SHL, INT32, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SHL, INT32, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::SHL, INT32, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SHL, NUMBER, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SHL, SMI, SMI, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::SHL, SMI, SMI, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::SHL, SMI, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SHL, SMI, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::SHL, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::SHL, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SHR, INT32, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::SHR, INT32, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::SHR, INT32, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SHR, NUMBER, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::SHR, NUMBER, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::SHR, NUMBER, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SHR, SMI, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::SHR, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::SHR, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SUB, INT32, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::SUB, INT32, INT32, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::SUB, INT32, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::SUB, INT32, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SUB, INT32, SMI, INT32, OVERWRITE_LEFT, isolate);
-  Generate(Token::SUB, INT32, SMI, INT32, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SUB, NUMBER, INT32, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::SUB, NUMBER, INT32, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::SUB, NUMBER, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::SUB, NUMBER, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::SUB, NUMBER, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SUB, NUMBER, SMI, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::SUB, NUMBER, SMI, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::SUB, NUMBER, SMI, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SUB, SMI, INT32, INT32, NO_OVERWRITE, isolate);
-  Generate(Token::SUB, SMI, NUMBER, NUMBER, NO_OVERWRITE, isolate);
-  Generate(Token::SUB, SMI, NUMBER, NUMBER, OVERWRITE_LEFT, isolate);
-  Generate(Token::SUB, SMI, NUMBER, NUMBER, OVERWRITE_RIGHT, isolate);
-  Generate(Token::SUB, SMI, SMI, SMI, NO_OVERWRITE, isolate);
-  Generate(Token::SUB, SMI, SMI, SMI, OVERWRITE_LEFT, isolate);
-  Generate(Token::SUB, SMI, SMI, SMI, OVERWRITE_RIGHT, isolate);
-}
-
-
-bool BinaryOpStub::can_encode_arg_value(int32_t value) const {
-  return op_ == Token::MOD && value > 0 && IsPowerOf2(value) &&
-         FixedRightArgValueBits::is_valid(WhichPowerOf2(value));
-}
-
-
-int BinaryOpStub::encode_arg_value(int32_t value) const {
-  ASSERT(can_encode_arg_value(value));
-  return WhichPowerOf2(value);
-}
-
-
-int32_t BinaryOpStub::decode_arg_value(int value)  const {
-  return 1 << value;
-}
-
-
-int BinaryOpStub::encode_token(Token::Value op) const {
-  ASSERT(op >= FIRST_TOKEN && op <= LAST_TOKEN);
-  return op - FIRST_TOKEN;
-}
-
-
-Token::Value BinaryOpStub::decode_token(int op) const {
-  int res = op + FIRST_TOKEN;
-  ASSERT(res >= FIRST_TOKEN && res <= LAST_TOKEN);
-  return static_cast<Token::Value>(res);
-}
-
-
-const char* BinaryOpStub::StateToName(State state) {
-  switch (state) {
-    case NONE:
-      return "None";
-    case SMI:
-      return "Smi";
-    case INT32:
-      return "Int32";
-    case NUMBER:
-      return "Number";
-    case STRING:
-      return "String";
-    case GENERIC:
-      return "Generic";
-  }
-  return "";
-}
-
-
-void BinaryOpStub::UpdateStatus(Handle<Object> left,
-                                Handle<Object> right,
-                                Maybe<Handle<Object> > result) {
-  int old_state = GetExtraICState();
-
-  UpdateStatus(left, &left_state_);
-  UpdateStatus(right, &right_state_);
-
-  int32_t value;
-  bool new_has_fixed_right_arg =
-      right->ToInt32(&value) && can_encode_arg_value(value) &&
-      (left_state_ == SMI || left_state_ == INT32) &&
-      (result_state_ == NONE || !fixed_right_arg_.has_value);
-
-  fixed_right_arg_ = Maybe<int32_t>(new_has_fixed_right_arg, value);
-
-  if (result.has_value) UpdateStatus(result.value, &result_state_);
-
-  State max_input = Max(left_state_, right_state_);
-
-  if (!has_int_result() && op_ != Token::SHR &&
-      max_input <= NUMBER && max_input > result_state_) {
-    result_state_ = max_input;
-  }
-
-  ASSERT(result_state_ <= (has_int_result() ? INT32 : NUMBER) ||
-         op_ == Token::ADD);
-
-  if (old_state == GetExtraICState()) {
-    // Tagged operations can lead to non-truncating HChanges
-    if (left->IsUndefined() || left->IsBoolean()) {
-      left_state_ = GENERIC;
-    } else if (right->IsUndefined() || right->IsBoolean()) {
-      right_state_ = GENERIC;
-    } else {
-      // Since the fpu is to precise, we might bail out on numbers which
-      // actually would truncate with 64 bit precision.
-      ASSERT(!CpuFeatures::IsSupported(SSE2) &&
-             result_state_ <= INT32);
-      result_state_ = NUMBER;
+// static
+void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
+  // Generate the uninitialized versions of the stub.
+  for (int op = Token::BIT_OR; op <= Token::MOD; ++op) {
+    for (int mode = NO_OVERWRITE; mode <= OVERWRITE_RIGHT; ++mode) {
+      BinaryOpICStub stub(isolate,
+                          static_cast<Token::Value>(op),
+                          static_cast<OverwriteMode>(mode));
+      stub.GetCode();
     }
   }
+
+  // Generate special versions of the stub.
+  BinaryOpIC::State::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
 }
 
 
-void BinaryOpStub::UpdateStatus(Handle<Object> object,
-                                State* state) {
-  bool is_truncating = (op_ == Token::BIT_AND || op_ == Token::BIT_OR ||
-                        op_ == Token::BIT_XOR || op_ == Token::SAR ||
-                        op_ == Token::SHL || op_ == Token::SHR);
-  v8::internal::TypeInfo type = v8::internal::TypeInfo::FromValue(object);
-  if (object->IsBoolean() && is_truncating) {
-    // Booleans are converted by truncating by HChange.
-    type = TypeInfo::Integer32();
-  }
-  if (object->IsUndefined()) {
-    // Undefined will be automatically truncated for us by HChange.
-    type = is_truncating ? TypeInfo::Integer32() : TypeInfo::Double();
-  }
-  State int_state = SmiValuesAre32Bits() ? NUMBER : INT32;
-  State new_state = NONE;
-  if (type.IsSmi()) {
-    new_state = SMI;
-  } else if (type.IsInteger32()) {
-    new_state = int_state;
-  } else if (type.IsNumber()) {
-    new_state = NUMBER;
-  } else if (object->IsString() && operation() == Token::ADD) {
-    new_state = STRING;
-  } else {
-    new_state = GENERIC;
-  }
-  if ((new_state <= NUMBER && *state >  NUMBER) ||
-      (new_state >  NUMBER && *state <= NUMBER && *state != NONE)) {
-    new_state = GENERIC;
-  }
-  *state = Max(*state, new_state);
+void BinaryOpICStub::PrintState(StringStream* stream) {
+  state_.Print(stream);
 }
 
 
-Handle<Type> BinaryOpStub::StateToType(State state,
-                                       Isolate* isolate) {
-  Handle<Type> t = handle(Type::None(), isolate);
-  switch (state) {
-    case NUMBER:
-      t = handle(Type::Union(t, handle(Type::Double(), isolate)), isolate);
-      // Fall through.
-    case INT32:
-      t = handle(Type::Union(t, handle(Type::Signed32(), isolate)), isolate);
-      // Fall through.
-    case SMI:
-      t = handle(Type::Union(t, handle(Type::Smi(), isolate)), isolate);
-      break;
-
-    case STRING:
-      t = handle(Type::Union(t, handle(Type::String(), isolate)), isolate);
-      break;
-    case GENERIC:
-      return handle(Type::Any(), isolate);
-      break;
-    case NONE:
-      break;
-  }
-  return t;
+// static
+void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
+                                         const BinaryOpIC::State& state) {
+  BinaryOpICStub stub(isolate, state);
+  stub.GetCode();
 }
 
 
-Handle<Type> BinaryOpStub::GetLeftType(Isolate* isolate) const {
-  return StateToType(left_state_, isolate);
+// static
+void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
+  // Generate special versions of the stub.
+  BinaryOpIC::State::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
 }
 
 
-Handle<Type> BinaryOpStub::GetRightType(Isolate* isolate) const {
-  return StateToType(right_state_, isolate);
+void BinaryOpICWithAllocationSiteStub::PrintState(StringStream* stream) {
+  state_.Print(stream);
 }
 
 
-Handle<Type> BinaryOpStub::GetResultType(Isolate* isolate) const {
-  if (HasSideEffects(isolate)) return StateToType(NONE, isolate);
-  if (result_state_ == GENERIC && op_ == Token::ADD) {
-    return handle(Type::Union(handle(Type::Number(), isolate),
-                              handle(Type::String(), isolate)), isolate);
+// static
+void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
+    Isolate* isolate, const BinaryOpIC::State& state) {
+  if (state.CouldCreateAllocationMementos()) {
+    BinaryOpICWithAllocationSiteStub stub(isolate, state);
+    stub.GetCode();
   }
-  ASSERT(result_state_ != GENERIC);
-  if (result_state_ == NUMBER && op_ == Token::SHR) {
-    return handle(Type::Unsigned32(), isolate);
+}
+
+
+void StringAddStub::PrintBaseName(StringStream* stream) {
+  stream->Add("StringAddStub");
+  if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
+    stream->Add("_CheckBoth");
+  } else if ((flags() & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
+    stream->Add("_CheckLeft");
+  } else if ((flags() & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
+    stream->Add("_CheckRight");
   }
-  return StateToType(result_state_, isolate);
+  if (pretenure_flag() == TENURED) {
+    stream->Add("_Tenured");
+  }
 }
 
 
@@ -714,8 +289,8 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
 }
 
 
-bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
-  Factory* factory = isolate->factory();
+bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
+  Factory* factory = isolate()->factory();
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
@@ -726,7 +301,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
             *factory->strict_compare_ic_string() :
             *factory->compare_ic_string(),
         flags),
-      isolate);
+      isolate());
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
@@ -833,7 +408,6 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   // Note: Although a no-op transition is semantically OK, it is hinting at a
   // bug somewhere in our state transition machinery.
   ASSERT(from != to);
-  #ifdef DEBUG
   if (!FLAG_trace_ic) return;
   char buffer[100];
   NoAllocationStringAllocator allocator(buffer,
@@ -847,7 +421,6 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   to.Print(&stream);
   stream.Add("]\n");
   stream.OutputToStdOut();
-  #endif
 }
 
 
@@ -875,38 +448,38 @@ void CompareNilICStub::State::Print(StringStream* stream) const {
 }
 
 
-Handle<Type> CompareNilICStub::GetType(
-    Isolate* isolate,
-    Handle<Map> map) {
+Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
   if (state_.Contains(CompareNilICStub::GENERIC)) {
-    return handle(Type::Any(), isolate);
+    return Type::Any(zone);
   }
 
-  Handle<Type> result(Type::None(), isolate);
+  Type* result = Type::None(zone);
   if (state_.Contains(CompareNilICStub::UNDEFINED)) {
-    result = handle(Type::Union(result, handle(Type::Undefined(), isolate)),
-                    isolate);
+    result = Type::Union(result, Type::Undefined(zone), zone);
   }
   if (state_.Contains(CompareNilICStub::NULL_TYPE)) {
-    result = handle(Type::Union(result, handle(Type::Null(), isolate)),
-                    isolate);
+    result = Type::Union(result, Type::Null(zone), zone);
   }
   if (state_.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
-    Type* type = map.is_null() ? Type::Detectable() : Type::Class(map);
-    result = handle(Type::Union(result, handle(type, isolate)), isolate);
+    Type* type =
+        map.is_null() ? Type::Detectable(zone) : Type::Class(map, zone);
+    result = Type::Union(result, type, zone);
   }
 
   return result;
 }
 
 
-Handle<Type> CompareNilICStub::GetInputType(
-    Isolate* isolate,
-    Handle<Map> map) {
-  Handle<Type> output_type = GetType(isolate, map);
-  Handle<Type> nil_type = handle(nil_value_ == kNullValue
-      ? Type::Null() : Type::Undefined(), isolate);
-  return handle(Type::Union(output_type, nil_type), isolate);
+Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
+  Type* output_type = GetType(zone, map);
+  Type* nil_type =
+      nil_value_ == kNullValue ? Type::Null(zone) : Type::Undefined(zone);
+  return Type::Union(output_type, nil_type, zone);
+}
+
+
+void CallICStub::PrintState(StringStream* stream) {
+  state_.Print(stream);
 }
 
 
@@ -941,14 +514,15 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void KeyedLoadDictionaryElementStub::Generate(MacroAssembler* masm) {
+void KeyedLoadDictionaryElementPlatformStub::Generate(
+    MacroAssembler* masm) {
   KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);
 }
 
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
-  CreateAllocationSiteStub stub;
-  stub.GetCode(isolate)->set_is_pregenerated(true);
+  CreateAllocationSiteStub stub(isolate);
+  stub.GetCode();
 }
 
 
@@ -960,21 +534,18 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS:
-    case EXTERNAL_PIXEL_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+    case EXTERNAL_##TYPE##_ELEMENTS:                    \
+    case TYPE##_ELEMENTS:
+
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
       UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreDictionaryElement(masm);
       break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
+    case SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -985,8 +556,8 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
   stream->Add("ArgumentsAccessStub_");
   switch (type_) {
     case READ_ELEMENT: stream->Add("ReadElement"); break;
-    case NEW_NON_STRICT_FAST: stream->Add("NewNonStrictFast"); break;
-    case NEW_NON_STRICT_SLOW: stream->Add("NewNonStrictSlow"); break;
+    case NEW_SLOPPY_FAST: stream->Add("NewSloppyFast"); break;
+    case NEW_SLOPPY_SLOW: stream->Add("NewSloppySlow"); break;
     case NEW_STRICT: stream->Add("NewStrict"); break;
   }
 }
@@ -994,14 +565,34 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
 
 void CallFunctionStub::PrintName(StringStream* stream) {
   stream->Add("CallFunctionStub_Args%d", argc_);
-  if (ReceiverMightBeImplicit()) stream->Add("_Implicit");
-  if (RecordCallTarget()) stream->Add("_Recording");
 }
 
 
 void CallConstructStub::PrintName(StringStream* stream) {
   stream->Add("CallConstructStub");
   if (RecordCallTarget()) stream->Add("_Recording");
+}
+
+
+void ArrayConstructorStub::PrintName(StringStream* stream) {
+  stream->Add("ArrayConstructorStub");
+  switch (argument_count_) {
+    case ANY: stream->Add("_Any"); break;
+    case NONE: stream->Add("_None"); break;
+    case ONE: stream->Add("_One"); break;
+    case MORE_THAN_ONE: stream->Add("_More_Than_One"); break;
+  }
+}
+
+
+void ArrayConstructorStubBase::BasePrintName(const char* name,
+                                             StringStream* stream) {
+  stream->Add(name);
+  stream->Add("_");
+  stream->Add(ElementsKindToString(elements_kind()));
+  if (override_mode() == DISABLE_ALLOCATION_SITES) {
+    stream->Add("_DISABLE_ALLOCATION_SITES");
+  }
 }
 
 
@@ -1085,10 +676,10 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 
 
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  StubFailureTrampolineStub stub1(NOT_JS_FUNCTION_STUB_MODE);
-  StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
-  stub2.GetCode(isolate)->set_is_pregenerated(true);
+  StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);
+  StubFailureTrampolineStub stub2(isolate, JS_FUNCTION_STUB_MODE);
+  stub1.GetCode();
+  stub2.GetCode();
 }
 
 
@@ -1106,41 +697,86 @@ static void InstallDescriptor(Isolate* isolate, HydrogenCodeStub* stub) {
   CodeStubInterfaceDescriptor* descriptor =
       isolate->code_stub_interface_descriptor(major_key);
   if (!descriptor->initialized()) {
-    stub->InitializeInterfaceDescriptor(isolate, descriptor);
+    stub->InitializeInterfaceDescriptor(descriptor);
   }
 }
 
 
 void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  ArrayNoArgumentConstructorStub stub1(GetInitialFastElementsKind());
+  ArrayNoArgumentConstructorStub stub1(isolate, GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub1);
-  ArraySingleArgumentConstructorStub stub2(GetInitialFastElementsKind());
+  ArraySingleArgumentConstructorStub stub2(isolate,
+                                           GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub2);
-  ArrayNArgumentsConstructorStub stub3(GetInitialFastElementsKind());
+  ArrayNArgumentsConstructorStub stub3(isolate, GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub3);
 }
 
 
 void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
-  NumberToStringStub stub;
+  NumberToStringStub stub(isolate);
   InstallDescriptor(isolate, &stub);
 }
 
 
 void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
-  FastNewClosureStub stub(STRICT_MODE, false);
+  FastNewClosureStub stub(isolate, STRICT, false);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
+  FastNewContextStub stub(isolate, FastNewContextStub::kMaximumSlots);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
+void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
+  FastCloneShallowArrayStub stub(isolate,
+                                 FastCloneShallowArrayStub::CLONE_ELEMENTS,
+                                 DONT_TRACK_ALLOCATION_SITE, 0);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
+void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
+  BinaryOpICStub stub(isolate, Token::ADD, NO_OVERWRITE);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
+void BinaryOpWithAllocationSiteStub::InstallDescriptors(Isolate* isolate) {
+  BinaryOpWithAllocationSiteStub stub(isolate, Token::ADD, NO_OVERWRITE);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
+void StringAddStub::InstallDescriptors(Isolate* isolate) {
+  StringAddStub stub(isolate, STRING_ADD_CHECK_NONE, NOT_TENURED);
+  InstallDescriptor(isolate, &stub);
+}
+
+
+// static
+void RegExpConstructResultStub::InstallDescriptors(Isolate* isolate) {
+  RegExpConstructResultStub stub(isolate);
   InstallDescriptor(isolate, &stub);
 }
 
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : argument_count_(ANY) {
+    : PlatformCodeStub(isolate), argument_count_(ANY) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
-                                           int argument_count) {
+                                           int argument_count)
+    : PlatformCodeStub(isolate) {
   if (argument_count == 0) {
     argument_count_ = NONE;
   } else if (argument_count == 1) {
@@ -1155,16 +791,16 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
 
 
 void InternalArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  InternalArrayNoArgumentConstructorStub stub1(FAST_ELEMENTS);
+  InternalArrayNoArgumentConstructorStub stub1(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub1);
-  InternalArraySingleArgumentConstructorStub stub2(FAST_ELEMENTS);
+  InternalArraySingleArgumentConstructorStub stub2(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub2);
-  InternalArrayNArgumentsConstructorStub stub3(FAST_ELEMENTS);
+  InternalArrayNArgumentsConstructorStub stub3(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub3);
 }
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(
-    Isolate* isolate) {
+    Isolate* isolate) : PlatformCodeStub(isolate) {
   InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 

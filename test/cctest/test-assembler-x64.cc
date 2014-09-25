@@ -99,15 +99,15 @@ TEST(AssemblerX64StackOperations) {
   // Assemble a simple function that copies argument 2 and returns it.
   // We compile without stack frame pointers, so the gdb debugger shows
   // incorrect stack frames when debugging this function (which has them).
-  __ push(rbp);
+  __ pushq(rbp);
   __ movq(rbp, rsp);
-  __ push(arg2);  // Value at (rbp - 8)
-  __ push(arg2);  // Value at (rbp - 16)
-  __ push(arg1);  // Value at (rbp - 24)
-  __ pop(rax);
-  __ pop(rax);
-  __ pop(rax);
-  __ pop(rbp);
+  __ pushq(arg2);  // Value at (rbp - 8)
+  __ pushq(arg2);  // Value at (rbp - 16)
+  __ pushq(arg1);  // Value at (rbp - 24)
+  __ popq(rax);
+  __ popq(rax);
+  __ popq(rax);
+  __ popq(rbp);
   __ nop();
   __ ret(0);
 
@@ -141,6 +141,37 @@ TEST(AssemblerX64ArithmeticOperations) {
 }
 
 
+TEST(AssemblerX64CmpbOperation) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  // Assemble a function that compare argument byte returing 1 if equal else 0.
+  // On Windows, it compares rcx with rdx which does not require REX prefix;
+  // on Linux, it compares rdi with rsi which requires REX prefix.
+
+  Label done;
+  __ movq(rax, Immediate(1));
+  __ cmpb(arg1, arg2);
+  __ j(equal, &done);
+  __ movq(rax, Immediate(0));
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result =  FUNCTION_CAST<F2>(buffer)(0x1002, 0x2002);
+  CHECK_EQ(1, result);
+  result =  FUNCTION_CAST<F2>(buffer)(0x1002, 0x2003);
+  CHECK_EQ(0, result);
+}
+
+
 TEST(AssemblerX64ImulOperation) {
   // Allocate an executable page of memory.
   size_t actual_size;
@@ -153,7 +184,7 @@ TEST(AssemblerX64ImulOperation) {
   // Assemble a simple function that multiplies arguments returning the high
   // word.
   __ movq(rax, arg2);
-  __ imul(arg1);
+  __ imulq(arg1);
   __ movq(rax, rdx);
   __ ret(0);
 
@@ -179,10 +210,10 @@ TEST(AssemblerX64XchglOperations) {
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   __ movq(rax, Operand(arg1, 0));
-  __ movq(rbx, Operand(arg2, 0));
-  __ xchgl(rax, rbx);
+  __ movq(r11, Operand(arg2, 0));
+  __ xchgl(rax, r11);
   __ movq(Operand(arg1, 0), rax);
-  __ movq(Operand(arg2, 0), rbx);
+  __ movq(Operand(arg2, 0), r11);
   __ ret(0);
 
   CodeDesc desc;
@@ -279,8 +310,8 @@ TEST(AssemblerX64TestlOperations) {
   // Set rax with the ZF flag of the testl instruction.
   Label done;
   __ movq(rax, Immediate(1));
-  __ movq(rbx, Operand(arg2, 0));
-  __ testl(Operand(arg1, 0), rbx);
+  __ movq(r11, Operand(arg2, 0));
+  __ testl(Operand(arg1, 0), r11);
   __ j(zero, &done, Label::kNear);
   __ movq(rax, Immediate(0));
   __ bind(&done);
@@ -330,19 +361,19 @@ TEST(AssemblerX64MemoryOperands) {
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 2 and returns it.
-  __ push(rbp);
+  __ pushq(rbp);
   __ movq(rbp, rsp);
 
-  __ push(arg2);  // Value at (rbp - 8)
-  __ push(arg2);  // Value at (rbp - 16)
-  __ push(arg1);  // Value at (rbp - 24)
+  __ pushq(arg2);  // Value at (rbp - 8)
+  __ pushq(arg2);  // Value at (rbp - 16)
+  __ pushq(arg1);  // Value at (rbp - 24)
 
   const int kStackElementSize = 8;
   __ movq(rax, Operand(rbp, -3 * kStackElementSize));
-  __ pop(arg2);
-  __ pop(arg2);
-  __ pop(arg2);
-  __ pop(rbp);
+  __ popq(arg2);
+  __ popq(arg2);
+  __ popq(arg2);
+  __ popq(rbp);
   __ nop();
   __ ret(0);
 
@@ -364,7 +395,7 @@ TEST(AssemblerX64ControlFlow) {
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
   // Assemble a simple function that copies argument 1 and returns it.
-  __ push(rbp);
+  __ pushq(rbp);
 
   __ movq(rbp, rsp);
   __ movq(rax, arg1);
@@ -372,7 +403,7 @@ TEST(AssemblerX64ControlFlow) {
   __ jmp(&target);
   __ movq(rax, arg2);
   __ bind(&target);
-  __ pop(rbp);
+  __ popq(rbp);
   __ ret(0);
 
   CodeDesc desc;
@@ -496,11 +527,11 @@ TEST(AssemblerMultiByteNop) {
   byte buffer[1024];
   Isolate* isolate = CcTest::i_isolate();
   Assembler assm(isolate, buffer, sizeof(buffer));
-  __ push(rbx);
-  __ push(rcx);
-  __ push(rdx);
-  __ push(rdi);
-  __ push(rsi);
+  __ pushq(rbx);
+  __ pushq(rcx);
+  __ pushq(rdx);
+  __ pushq(rdi);
+  __ pushq(rsi);
   __ movq(rax, Immediate(1));
   __ movq(rbx, Immediate(2));
   __ movq(rcx, Immediate(3));
@@ -527,28 +558,25 @@ TEST(AssemblerMultiByteNop) {
   __ cmpq(rsi, Immediate(6));
   __ j(not_equal, &fail);
   __ movq(rax, Immediate(42));
-  __ pop(rsi);
-  __ pop(rdi);
-  __ pop(rdx);
-  __ pop(rcx);
-  __ pop(rbx);
+  __ popq(rsi);
+  __ popq(rdi);
+  __ popq(rdx);
+  __ popq(rcx);
+  __ popq(rbx);
   __ ret(0);
   __ bind(&fail);
   __ movq(rax, Immediate(13));
-  __ pop(rsi);
-  __ pop(rdi);
-  __ pop(rdx);
-  __ pop(rcx);
-  __ pop(rbx);
+  __ popq(rsi);
+  __ popq(rdi);
+  __ popq(rdx);
+  __ popq(rcx);
+  __ popq(rbx);
   __ ret(0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
@@ -571,14 +599,14 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Assembler assm(isolate, buffer, sizeof(buffer));
 
   // Remove return address from the stack for fix stack frame alignment.
-  __ pop(rcx);
+  __ popq(rcx);
 
   // Store input vector on the stack.
   for (int i = 0; i < ELEMENT_COUNT; i++) {
     __ movl(rax, Immediate(vec->Get(i)->Int32Value()));
-    __ shl(rax, Immediate(0x20));
-    __ or_(rax, Immediate(vec->Get(++i)->Int32Value()));
-    __ push(rax);
+    __ shlq(rax, Immediate(0x20));
+    __ orq(rax, Immediate(vec->Get(++i)->Int32Value()));
+    __ pushq(rax);
   }
 
   // Read vector into a xmm register.
@@ -590,21 +618,18 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Remove unused data from the stack.
   __ addq(rsp, Immediate(ELEMENT_COUNT * sizeof(int32_t)));
   // Restore return address.
-  __ push(rcx);
+  __ pushq(rcx);
 
   __ ret(0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
-  args.GetReturnValue().Set(v8::Integer::New(res));
+  args.GetReturnValue().Set(v8::Integer::New(CcTest::isolate(), res));
 }
 
 
@@ -614,8 +639,10 @@ TEST(StackAlignmentForSSE2) {
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
-  global_template->Set(v8_str("do_sse2"), v8::FunctionTemplate::New(DoSSE2));
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(isolate);
+  global_template->Set(v8_str("do_sse2"),
+                       v8::FunctionTemplate::New(isolate, DoSSE2));
 
   LocalContext env(NULL, global_template);
   CompileRun(
@@ -628,7 +655,7 @@ TEST(StackAlignmentForSSE2) {
       v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
 
   int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
-  v8::Local<v8::Array> v8_vec = v8::Array::New(ELEMENT_COUNT);
+  v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
   for (int i = 0; i < ELEMENT_COUNT; i++) {
     v8_vec->Set(i, v8_num(vec[i]));
   }
@@ -659,16 +686,13 @@ TEST(AssemblerX64Extractps) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Code* code = Code::cast(isolate->heap()->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked());
-  CHECK(code->IsCode());
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   uint64_t value1 = V8_2PART_UINT64_C(0x12345678, 87654321);
   CHECK_EQ(0x12345678, f(uint64_to_double(value1)));
   uint64_t value2 = V8_2PART_UINT64_C(0x87654321, 12345678);
@@ -676,4 +700,37 @@ TEST(AssemblerX64Extractps) {
 }
 
 
+typedef int (*F6)(float x, float y);
+TEST(AssemblerX64SSE) {
+  CcTest::InitializeVM();
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  {
+    __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
+    __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
+    __ movaps(xmm2, xmm1);
+    __ addps(xmm2, xmm0);
+    __ mulps(xmm2, xmm1);
+    __ subps(xmm2, xmm0);
+    __ divps(xmm2, xmm1);
+    __ cvttss2si(rax, xmm2);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print();
+#endif
+
+  F6 f = FUNCTION_CAST<F6>(code->entry());
+  CHECK_EQ(2, f(1.0, 2.0));
+}
 #undef __

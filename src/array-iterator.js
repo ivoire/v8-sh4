@@ -31,14 +31,9 @@
 // in runtime.js:
 // var $Array = global.Array;
 
-var ARRAY_ITERATOR_KIND_KEYS = 1;
-var ARRAY_ITERATOR_KIND_VALUES = 2;
-var ARRAY_ITERATOR_KIND_ENTRIES = 3;
-// The spec draft also has "sparse" but it is never used.
-
-var iteratorObjectSymbol = %CreateSymbol(UNDEFINED);
-var arrayIteratorNextIndexSymbol = %CreateSymbol(UNDEFINED);
-var arrayIterationKindSymbol = %CreateSymbol(UNDEFINED);
+var arrayIteratorObjectSymbol = GLOBAL_PRIVATE("ArrayIterator#object");
+var arrayIteratorNextIndexSymbol = GLOBAL_PRIVATE("ArrayIterator#next");
+var arrayIterationKindSymbol = GLOBAL_PRIVATE("ArrayIterator#kind");
 
 function ArrayIterator() {}
 
@@ -46,9 +41,9 @@ function ArrayIterator() {}
 function CreateArrayIterator(array, kind) {
   var object = ToObject(array);
   var iterator = new ArrayIterator;
-  iterator[iteratorObjectSymbol] = object;
-  iterator[arrayIteratorNextIndexSymbol] = 0;
-  iterator[arrayIterationKindSymbol] = kind;
+  SET_PRIVATE(iterator, arrayIteratorObjectSymbol, object);
+  SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, 0);
+  SET_PRIVATE(iterator, arrayIterationKindSymbol, kind);
   return iterator;
 }
 
@@ -60,44 +55,44 @@ function CreateIteratorResultObject(value, done) {
 // 15.4.5.2.2 ArrayIterator.prototype.next( )
 function ArrayIteratorNext() {
   var iterator = ToObject(this);
-  var array = iterator[iteratorObjectSymbol];
+  var array = GET_PRIVATE(iterator, arrayIteratorObjectSymbol);
   if (!array) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Array Iterator.prototype.next']);
   }
 
-  var index = iterator[arrayIteratorNextIndexSymbol];
-  var itemKind = iterator[arrayIterationKindSymbol];
+  var index = GET_PRIVATE(iterator, arrayIteratorNextIndexSymbol);
+  var itemKind = GET_PRIVATE(iterator, arrayIterationKindSymbol);
   var length = TO_UINT32(array.length);
 
   // "sparse" is never used.
 
   if (index >= length) {
-    iterator[arrayIteratorNextIndexSymbol] = 1 / 0; // Infinity
+    SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, INFINITY);
     return CreateIteratorResultObject(UNDEFINED, true);
   }
 
-  iterator[arrayIteratorNextIndexSymbol] = index + 1;
+  SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, index + 1);
 
-  if (itemKind == ARRAY_ITERATOR_KIND_VALUES)
+  if (itemKind == ITERATOR_KIND_VALUES)
     return CreateIteratorResultObject(array[index], false);
 
-  if (itemKind == ARRAY_ITERATOR_KIND_ENTRIES)
+  if (itemKind == ITERATOR_KIND_ENTRIES)
     return CreateIteratorResultObject([index, array[index]], false);
 
   return CreateIteratorResultObject(index, false);
 }
 
 function ArrayEntries() {
-  return CreateArrayIterator(this, ARRAY_ITERATOR_KIND_ENTRIES);
+  return CreateArrayIterator(this, ITERATOR_KIND_ENTRIES);
 }
 
 function ArrayValues() {
-  return CreateArrayIterator(this, ARRAY_ITERATOR_KIND_VALUES);
+  return CreateArrayIterator(this, ITERATOR_KIND_VALUES);
 }
 
 function ArrayKeys() {
-  return CreateArrayIterator(this, ARRAY_ITERATOR_KIND_KEYS);
+  return CreateArrayIterator(this, ITERATOR_KIND_KEYS);
 }
 
 function SetUpArrayIterator() {

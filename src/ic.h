@@ -1,38 +1,17 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_IC_H_
 #define V8_IC_H_
 
 #include "macro-assembler.h"
-#include "type-info.h"
 
 namespace v8 {
 namespace internal {
+
+
+const int kMaxKeyedPolymorphism = 4;
 
 
 // IC_UTIL_LIST defines all utility functions called from generated
@@ -40,15 +19,12 @@ namespace internal {
 #define IC_UTIL_LIST(ICU)                             \
   ICU(LoadIC_Miss)                                    \
   ICU(KeyedLoadIC_Miss)                               \
-  ICU(KeyedLoadIC_MissForceGeneric)                   \
   ICU(CallIC_Miss)                                    \
-  ICU(KeyedCallIC_Miss)                               \
   ICU(StoreIC_Miss)                                   \
   ICU(StoreIC_ArrayLength)                            \
   ICU(StoreIC_Slow)                                   \
   ICU(SharedStoreIC_ExtendStorage)                    \
   ICU(KeyedStoreIC_Miss)                              \
-  ICU(KeyedStoreIC_MissForceGeneric)                  \
   ICU(KeyedStoreIC_Slow)                              \
   /* Utilities for IC stubs. */                       \
   ICU(StoreCallbackProperty)                          \
@@ -63,8 +39,7 @@ namespace internal {
   ICU(Unreachable)                                    \
   ICU(ToBooleanIC_Miss)
 //
-// IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
-// and KeyedStoreIC.
+// IC is the base class for LoadIC, StoreIC, KeyedLoadIC, and KeyedStoreIC.
 //
 class IC {
  public:
@@ -94,69 +69,102 @@ class IC {
   IC(FrameDepth depth, Isolate* isolate);
   virtual ~IC() {}
 
-  // Get the call-site target; used for determining the state.
-  Handle<Code> target() const { return target_; }
-  Code* raw_target() const { return GetTargetAtAddress(address()); }
-
   State state() const { return state_; }
   inline Address address() const;
 
   // Compute the current IC state based on the target stub, receiver and name.
   void UpdateState(Handle<Object> receiver, Handle<Object> name);
-  void MarkMonomorphicPrototypeFailure() {
-    state_ = MONOMORPHIC_PROTOTYPE_FAILURE;
+
+  bool IsNameCompatibleWithMonomorphicPrototypeFailure(Handle<Object> name);
+  bool TryMarkMonomorphicPrototypeFailure(Handle<Object> name) {
+    if (IsNameCompatibleWithMonomorphicPrototypeFailure(name)) {
+      state_ = MONOMORPHIC_PROTOTYPE_FAILURE;
+      return true;
+    }
+    return false;
   }
+
+  // If the stub contains weak maps then this function adds the stub to
+  // the dependent code array of each weak map.
+  static void RegisterWeakMapDependency(Handle<Code> stub);
+
+  // This function is called when a weak map in the stub is dying,
+  // invalidates the stub by setting maps in it to undefined.
+  static void InvalidateMaps(Code* stub);
 
   // Clear the inline cache to initial state.
-  static void Clear(Isolate* isolate, Address address);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    ConstantPoolArray* constant_pool);
 
-  // Computes the reloc info for this IC. This is a fairly expensive
-  // operation as it has to search through the heap to find the code
-  // object that contains this IC site.
-  RelocInfo::Mode ComputeMode();
-
-  // Returns if this IC is for contextual (no explicit receiver)
-  // access to properties.
-  bool IsUndeclaredGlobal(Handle<Object> receiver) {
-    if (receiver->IsGlobalObject()) {
-      return SlowIsUndeclaredGlobal();
-    } else {
-      ASSERT(!SlowIsUndeclaredGlobal());
-      return false;
-    }
+#ifdef DEBUG
+  bool IsLoadStub() const {
+    return target()->is_load_stub() || target()->is_keyed_load_stub();
   }
 
-  bool SlowIsUndeclaredGlobal() {
-    return ComputeMode() == RelocInfo::CODE_TARGET_CONTEXT;
+  bool IsStoreStub() const {
+    return target()->is_store_stub() || target()->is_keyed_store_stub();
   }
+
+  bool IsCallStub() const {
+    return target()->is_call_stub();
+  }
+#endif
 
   // Determines which map must be used for keeping the code stub.
   // These methods should not be called with undefined or null.
-  static inline InlineCacheHolderFlag GetCodeCacheForObject(Object* object,
-                                                            JSObject* holder);
-  static inline JSObject* GetCodeCacheHolder(Isolate* isolate,
-                                             Object* object,
-                                             InlineCacheHolderFlag holder);
+  static inline InlineCacheHolderFlag GetCodeCacheForObject(Object* object);
+  // TODO(verwaest): This currently returns a HeapObject rather than JSObject*
+  // since loading the IC for loading the length from strings are stored on
+  // the string map directly, rather than on the JSObject-typed prototype.
+  static inline HeapObject* GetCodeCacheHolder(Isolate* isolate,
+                                               Object* object,
+                                               InlineCacheHolderFlag holder);
+
+  static inline InlineCacheHolderFlag GetCodeCacheFlag(HeapType* type);
+  static inline Handle<Map> GetCodeCacheHolder(InlineCacheHolderFlag flag,
+                                               HeapType* type,
+                                               Isolate* isolate);
 
   static bool IsCleared(Code* code) {
     InlineCacheState state = code->ic_state();
     return state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 
+  // Utility functions to convert maps to types and back. There are two special
+  // cases:
+  // - The heap_number_map is used as a marker which includes heap numbers as
+  //   well as smis.
+  // - The oddball map is only used for booleans.
+  static Handle<Map> TypeToMap(HeapType* type, Isolate* isolate);
+  template <class T>
+  static typename T::TypeHandle MapToType(Handle<Map> map,
+                                          typename T::Region* region);
+
+  static Handle<HeapType> CurrentTypeOf(Handle<Object> object,
+                                        Isolate* isolate);
+
  protected:
+  // Get the call-site target; used for determining the state.
+  Handle<Code> target() const { return target_; }
+
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
   Isolate* isolate() const { return isolate_; }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Computes the address in the original code when the code running is
-  // containing break points (calls to DebugBreakXXX builtins).
-  Address OriginalCodeAddress() const;
-#endif
+  // Get the shared function info of the caller.
+  SharedFunctionInfo* GetSharedFunctionInfo() const;
+  // Get the code object of the caller.
+  Code* GetCode() const;
+  // Get the original (non-breakpointed) code object of the caller.
+  Code* GetOriginalCode() const;
 
   // Set the call-site target.
   void set_target(Code* code) {
-    SetTargetAtAddress(address(), code);
+#ifdef VERIFY_HEAP
+    code->VerifyEmbeddedObjectsDependency();
+#endif
+    SetTargetAtAddress(address(), code, constant_pool());
     target_set_ = true;
   }
 
@@ -168,42 +176,48 @@ class IC {
   void TraceIC(const char* type, Handle<Object> name);
 #endif
 
-  Failure* TypeError(const char* type,
-                     Handle<Object> object,
-                     Handle<Object> key);
-  Failure* ReferenceError(const char* type, Handle<String> name);
+  MaybeHandle<Object> TypeError(const char* type,
+                                Handle<Object> object,
+                                Handle<Object> key);
+  MaybeHandle<Object> ReferenceError(const char* type, Handle<String> name);
 
   // Access the target code for the given IC address.
-  static inline Code* GetTargetAtAddress(Address address);
-  static inline void SetTargetAtAddress(Address address, Code* target);
+  static inline Code* GetTargetAtAddress(Address address,
+                                         ConstantPoolArray* constant_pool);
+  static inline void SetTargetAtAddress(Address address,
+                                        Code* target,
+                                        ConstantPoolArray* constant_pool);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
   Handle<Code> ComputeHandler(LookupResult* lookup,
-                              Handle<JSObject> receiver,
+                              Handle<Object> object,
                               Handle<String> name,
                               Handle<Object> value = Handle<Code>::null());
   virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<JSObject> receiver,
+                                      Handle<Object> object,
                                       Handle<String> name,
-                                      Handle<Object> value) {
+                                      Handle<Object> value,
+                                      InlineCacheHolderFlag cache_holder) {
     UNREACHABLE();
     return Handle<Code>::null();
   }
-  void UpdateMonomorphicIC(Handle<HeapObject> receiver,
+
+  void UpdateMonomorphicIC(Handle<HeapType> type,
                            Handle<Code> handler,
                            Handle<String> name);
 
-  bool UpdatePolymorphicIC(Handle<HeapObject> receiver,
+  bool UpdatePolymorphicIC(Handle<HeapType> type,
                            Handle<String> name,
                            Handle<Code> code);
 
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
+
   void CopyICToMegamorphicCache(Handle<String> name);
-  bool IsTransitionedMapOfMonomorphicTarget(Map* receiver_map);
-  void PatchCache(Handle<HeapObject> receiver,
+  bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
+  void PatchCache(Handle<HeapType> type,
                   Handle<String> name,
                   Handle<Code> code);
-  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code);
   virtual Code::Kind kind() const {
     UNREACHABLE();
     return Code::STUB;
@@ -220,12 +234,58 @@ class IC {
     UNREACHABLE();
     return Handle<Code>::null();
   }
-  virtual StrictModeFlag strict_mode() const { return kNonStrictMode; }
+
   bool TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                               Handle<String> name);
   void TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name);
 
+  ExtraICState extra_ic_state() const { return extra_ic_state_; }
+  void set_extra_ic_state(ExtraICState state) {
+    extra_ic_state_ = state;
+  }
+
+  void TargetMaps(MapHandleList* list) {
+    FindTargetMaps();
+    for (int i = 0; i < target_maps_.length(); i++) {
+      list->Add(target_maps_.at(i));
+    }
+  }
+
+  void TargetTypes(TypeHandleList* list) {
+    FindTargetMaps();
+    for (int i = 0; i < target_maps_.length(); i++) {
+      list->Add(IC::MapToType<HeapType>(target_maps_.at(i), isolate_));
+    }
+  }
+
+  Map* FirstTargetMap() {
+    FindTargetMaps();
+    return target_maps_.length() > 0 ? *target_maps_.at(0) : NULL;
+  }
+
+ protected:
+  void UpdateTarget() {
+    target_ = handle(raw_target(), isolate_);
+  }
+
  private:
+  Code* raw_target() const {
+    return GetTargetAtAddress(address(), constant_pool());
+  }
+  inline ConstantPoolArray* constant_pool() const;
+  inline ConstantPoolArray* raw_constant_pool() const;
+
+  void FindTargetMaps() {
+    if (target_maps_set_) return;
+    target_maps_set_ = true;
+    if (state_ == MONOMORPHIC) {
+      Map* map = target_->FindFirstMap();
+      if (map != NULL) target_maps_.Add(handle(map));
+    } else if (state_ != UNINITIALIZED && state_ != PREMONOMORPHIC) {
+      target_->FindAllMaps(&target_maps_);
+    }
+  }
+
   // Frame pointer for the frame that uses (calls) the IC.
   Address fp_;
 
@@ -237,10 +297,18 @@ class IC {
 
   Isolate* isolate_;
 
+  // The constant pool of the code which originally called the IC (which might
+  // be for the breakpointed copy of the original code).
+  Handle<ConstantPoolArray> raw_constant_pool_;
+
   // The original code target that missed.
   Handle<Code> target_;
   State state_;
   bool target_set_;
+
+  ExtraICState extra_ic_state_;
+  MapHandleList target_maps_;
+  bool target_maps_set_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
@@ -262,133 +330,110 @@ class IC_Utility {
 };
 
 
-class CallICBase: public IC {
+class CallIC: public IC {
  public:
-  class Contextual: public BitField<bool, 0, 1> {};
-  class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
+  enum CallType { METHOD, FUNCTION };
 
-  // Returns a JSFunction or a Failure.
-  MUST_USE_RESULT MaybeObject* LoadFunction(Handle<Object> object,
-                                            Handle<String> name);
+  class State V8_FINAL BASE_EMBEDDED {
+   public:
+    explicit State(ExtraICState extra_ic_state);
 
- protected:
-  CallICBase(Code::Kind kind, Isolate* isolate)
-      : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
+    static State DefaultCallState(int argc, CallType call_type) {
+      return State(argc, call_type);
+    }
 
-  virtual Code::ExtraICState extra_ic_state() { return Code::kNoExtraICState; }
+    static State MegamorphicCallState(int argc, CallType call_type) {
+      return State(argc, call_type);
+    }
 
-  // Compute a monomorphic stub if possible, otherwise return a null handle.
-  Handle<Code> ComputeMonomorphicStub(LookupResult* lookup,
-                                      Handle<Object> object,
-                                      Handle<String> name);
+    InlineCacheState GetICState() const { return ::v8::internal::GENERIC; }
 
-  // Update the inline cache and the global stub cache based on the lookup
-  // result.
-  void UpdateCaches(LookupResult* lookup,
-                    Handle<Object> object,
-                    Handle<String> name);
+    ExtraICState GetExtraICState() const;
 
-  // Returns a JSFunction if the object can be called as a function, and
-  // patches the stack to be ready for the call.  Otherwise, it returns the
-  // undefined value.
-  Handle<Object> TryCallAsFunction(Handle<Object> object);
+    static void GenerateAheadOfTime(
+        Isolate*, void (*Generate)(Isolate*, const State&));
 
-  void ReceiverToObjectIfRequired(Handle<Object> callee, Handle<Object> object);
+    int arg_count() const { return argc_; }
+    CallType call_type() const { return call_type_; }
 
-  static void Clear(Address address, Code* target);
+    bool CallAsMethod() const { return call_type_ == METHOD; }
 
-  // Platform-specific code generation functions used by both call and
-  // keyed call.
-  static void GenerateMiss(MacroAssembler* masm,
-                           int argc,
-                           IC::UtilityId id,
-                           Code::ExtraICState extra_state);
+    void Print(StringStream* stream) const;
 
-  static void GenerateNormal(MacroAssembler* masm, int argc);
+    bool operator==(const State& other_state) const {
+      return (argc_ == other_state.argc_ &&
+              call_type_ == other_state.call_type_);
+    }
 
-  static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
-                                            int argc,
-                                            Code::Kind kind,
-                                            Code::ExtraICState extra_state);
+    bool operator!=(const State& other_state) const {
+      return !(*this == other_state);
+    }
 
-  virtual Handle<Code> megamorphic_stub();
-  virtual Handle<Code> pre_monomorphic_stub();
+   private:
+    State(int argc,
+          CallType call_type)
+        : argc_(argc),
+        call_type_(call_type) {
+    }
 
-  Code::Kind kind_;
+    class ArgcBits: public BitField<int, 0, Code::kArgumentsBits> {};
+    class CallTypeBits: public BitField<CallType, Code::kArgumentsBits, 1> {};
 
-  friend class IC;
-};
+    const int argc_;
+    const CallType call_type_;
+  };
 
-
-class CallIC: public CallICBase {
- public:
   explicit CallIC(Isolate* isolate)
-      : CallICBase(Code::CALL_IC, isolate),
-        extra_ic_state_(target()->extra_ic_state()) {
-    ASSERT(target()->is_call_stub());
+      : IC(EXTRA_CALL_FRAME, isolate) {
   }
+
+  void HandleMiss(Handle<Object> receiver,
+                  Handle<Object> function,
+                  Handle<FixedArray> vector,
+                  Handle<Smi> slot);
 
   // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm,
-                                 int argc,
-                                 Code::ExtraICState extra_state) {
-    GenerateMiss(masm, argc, extra_state);
-  }
+  static Handle<Code> initialize_stub(Isolate* isolate,
+                                      int argc,
+                                      CallType call_type);
 
-  static void GenerateMiss(MacroAssembler* masm,
-                           int argc,
-                           Code::ExtraICState extra_state) {
-    CallICBase::GenerateMiss(masm, argc, IC::kCallIC_Miss, extra_state);
-  }
-
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  int argc,
-                                  Code::ExtraICState extra_ic_state);
-
-  static void GenerateNormal(MacroAssembler* masm, int argc) {
-    CallICBase::GenerateNormal(masm, argc);
-    GenerateMiss(masm, argc, Code::kNoExtraICState);
-  }
-  bool TryUpdateExtraICState(LookupResult* lookup, Handle<Object> object);
-
- protected:
-  virtual Code::ExtraICState extra_ic_state() { return extra_ic_state_; }
-
- private:
-  Code::ExtraICState extra_ic_state_;
-};
-
-
-class KeyedCallIC: public CallICBase {
- public:
-  explicit KeyedCallIC(Isolate* isolate)
-      : CallICBase(Code::KEYED_CALL_IC, isolate) {
-    ASSERT(target()->is_keyed_call_stub());
-  }
-
-  MUST_USE_RESULT MaybeObject* LoadFunction(Handle<Object> object,
-                                            Handle<Object> key);
-
-  // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm, int argc) {
-    GenerateMiss(masm, argc);
-  }
-
-  static void GenerateMiss(MacroAssembler* masm, int argc) {
-    CallICBase::GenerateMiss(masm, argc, IC::kKeyedCallIC_Miss,
-                             Code::kNoExtraICState);
-  }
-
-  static void GenerateMegamorphic(MacroAssembler* masm, int argc);
-  static void GenerateNormal(MacroAssembler* masm, int argc);
-  static void GenerateNonStrictArguments(MacroAssembler* masm, int argc);
+  static void Clear(Isolate* isolate, Address address, Code* target,
+                    ConstantPoolArray* constant_pool);
 };
 
 
 class LoadIC: public IC {
  public:
-  explicit LoadIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
-    ASSERT(target()->is_load_stub() || target()->is_keyed_load_stub());
+  // ExtraICState bits
+  class ContextualModeBits: public BitField<ContextualMode, 0, 1> {};
+  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
+
+  static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
+    return ContextualModeBits::encode(contextual_mode);
+  }
+
+  static ContextualMode GetContextualMode(ExtraICState state) {
+    return ContextualModeBits::decode(state);
+  }
+
+  ContextualMode contextual_mode() const {
+    return ContextualModeBits::decode(extra_ic_state());
+  }
+
+  explicit LoadIC(FrameDepth depth, Isolate* isolate)
+      : IC(depth, isolate) {
+    ASSERT(IsLoadStub());
+  }
+
+  // Returns if this IC is for contextual (no explicit receiver)
+  // access to properties.
+  bool IsUndeclaredGlobal(Handle<Object> receiver) {
+    if (receiver->IsGlobalObject()) {
+      return contextual_mode() == CONTEXTUAL;
+    } else {
+      ASSERT(contextual_mode() != CONTEXTUAL);
+      return false;
+    }
   }
 
   // Code generator routines.
@@ -401,19 +446,28 @@ class LoadIC: public IC {
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
 
-  MUST_USE_RESULT MaybeObject* Load(Handle<Object> object,
-                                    Handle<String> name);
+  static Handle<Code> initialize_stub(Isolate* isolate,
+                                      ExtraICState extra_state);
+
+  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
+                                           Handle<String> name);
 
  protected:
   virtual Code::Kind kind() const { return Code::LOAD_IC; }
+
+  void set_target(Code* code) {
+    // The contextual mode must be preserved across IC patching.
+    ASSERT(GetContextualMode(code->extra_ic_state()) ==
+           GetContextualMode(target()->extra_ic_state()));
+
+    IC::set_target(code);
+  }
 
   virtual Handle<Code> slow_stub() const {
     return isolate()->builtins()->LoadIC_Slow();
   }
 
-  virtual Handle<Code> megamorphic_stub() {
-    return isolate()->builtins()->LoadIC_Megamorphic();
-  }
+  virtual Handle<Code> megamorphic_stub();
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -422,22 +476,18 @@ class LoadIC: public IC {
                     Handle<String> name);
 
   virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<JSObject> receiver,
+                                      Handle<Object> object,
                                       Handle<String> name,
-                                      Handle<Object> unused);
+                                      Handle<Object> unused,
+                                      InlineCacheHolderFlag cache_holder);
 
  private:
   // Stub accessors.
-  static Handle<Code> initialize_stub(Isolate* isolate) {
-    return isolate->builtins()->LoadIC_Initialize();
-  }
-
-  static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
-    return isolate->builtins()->LoadIC_PreMonomorphic();
-  }
+  static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
+                                           ExtraICState exstra_state);
 
   virtual Handle<Code> pre_monomorphic_stub() {
-    return pre_monomorphic_stub(isolate());
+    return pre_monomorphic_stub(isolate(), extra_ic_state());
   }
 
   Handle<Code> SimpleFieldLoad(int offset,
@@ -445,15 +495,12 @@ class LoadIC: public IC {
                                Representation representation =
                                     Representation::Tagged());
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   friend class IC;
-};
-
-
-enum ICMissMode {
-  MISS_FORCE_GENERIC,
-  MISS
 };
 
 
@@ -464,23 +511,20 @@ class KeyedLoadIC: public LoadIC {
     ASSERT(target()->is_keyed_load_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* Load(Handle<Object> object,
-                                    Handle<Object> key,
-                                    ICMissMode force_generic);
+  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
+                                           Handle<Object> key);
 
   // Code generator routines.
-  static void GenerateMiss(MacroAssembler* masm, ICMissMode force_generic);
+  static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-  static void GenerateInitialize(MacroAssembler* masm) {
-    GenerateMiss(masm, MISS);
-  }
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GeneratePreMonomorphic(MacroAssembler* masm) {
-    GenerateMiss(masm, MISS);
+    GenerateMiss(masm);
   }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
   static void GenerateIndexedInterceptor(MacroAssembler* masm);
-  static void GenerateNonStrictArguments(MacroAssembler* masm);
+  static void GenerateSloppyArguments(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -504,13 +548,10 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }
 
-  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {}
 
  private:
   // Stub accessors.
-  static Handle<Code> initialize_stub(Isolate* isolate) {
-    return isolate->builtins()->KeyedLoadIC_Initialize();
-  }
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
     return isolate->builtins()->KeyedLoadIC_PreMonomorphic();
   }
@@ -520,14 +561,17 @@ class KeyedLoadIC: public LoadIC {
   Handle<Code> indexed_interceptor_stub() {
     return isolate()->builtins()->KeyedLoadIC_IndexedInterceptor();
   }
-  Handle<Code> non_strict_arguments_stub() {
-    return isolate()->builtins()->KeyedLoadIC_NonStrictArguments();
+  Handle<Code> sloppy_arguments_stub() {
+    return isolate()->builtins()->KeyedLoadIC_SloppyArguments();
   }
   Handle<Code> string_stub() {
     return isolate()->builtins()->KeyedLoadIC_String();
   }
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   friend class IC;
 };
@@ -535,13 +579,27 @@ class KeyedLoadIC: public LoadIC {
 
 class StoreIC: public IC {
  public:
-  StoreIC(FrameDepth depth, Isolate* isolate)
-      : IC(depth, isolate),
-        strict_mode_(Code::GetStrictMode(target()->extra_ic_state())) {
-    ASSERT(target()->is_store_stub() || target()->is_keyed_store_stub());
+  class StrictModeState: public BitField<StrictMode, 1, 1> {};
+  static ExtraICState ComputeExtraICState(StrictMode flag) {
+    return StrictModeState::encode(flag);
+  }
+  static StrictMode GetStrictMode(ExtraICState state) {
+    return StrictModeState::decode(state);
   }
 
-  virtual StrictModeFlag strict_mode() const { return strict_mode_; }
+  // For convenience, a statically declared encoding of strict mode extra
+  // IC state.
+  static const ExtraICState kStrictModeState =
+      1 << StrictModeState::kShift;
+
+  StoreIC(FrameDepth depth, Isolate* isolate)
+      : IC(depth, isolate) {
+    ASSERT(IsStoreStub());
+  }
+
+  StrictMode strict_mode() const {
+    return StrictModeState::decode(extra_ic_state());
+  }
 
   // Code generators for stub routines. Only called once at startup.
   static void GenerateSlow(MacroAssembler* masm);
@@ -550,13 +608,15 @@ class StoreIC: public IC {
     GenerateMiss(masm);
   }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  StrictModeFlag strict_mode);
+  static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictModeFlag strict_mode);
+                                         StrictMode strict_mode);
 
-  MUST_USE_RESULT MaybeObject* Store(
+  static Handle<Code> initialize_stub(Isolate* isolate,
+                                      StrictMode strict_mode);
+
+  MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object,
       Handle<String> name,
       Handle<Object> value,
@@ -565,28 +625,13 @@ class StoreIC: public IC {
 
  protected:
   virtual Code::Kind kind() const { return Code::STORE_IC; }
-  virtual Handle<Code> megamorphic_stub() {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->StoreIC_Megamorphic_Strict();
-    } else {
-      return isolate()->builtins()->StoreIC_Megamorphic();
-    }
-  }
+  virtual Handle<Code> megamorphic_stub();
+
   // Stub accessors.
-  virtual Handle<Code> generic_stub() const {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->StoreIC_Generic_Strict();
-    } else {
-      return isolate()->builtins()->StoreIC_Generic();
-    }
-  }
+  virtual Handle<Code> generic_stub() const;
 
   virtual Handle<Code> slow_stub() const {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->StoreIC_Slow_Strict();
-    } else {
-      return isolate()->builtins()->StoreIC_Slow();
-    }
+    return isolate()->builtins()->StoreIC_Slow();
   }
 
   virtual Handle<Code> pre_monomorphic_stub() {
@@ -594,21 +639,7 @@ class StoreIC: public IC {
   }
 
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode) {
-    if (strict_mode == kStrictMode) {
-      return isolate->builtins()->StoreIC_PreMonomorphic_Strict();
-    } else {
-      return isolate->builtins()->StoreIC_PreMonomorphic();
-    }
-  }
-
-  virtual Handle<Code> global_proxy_stub() {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->StoreIC_GlobalProxy_Strict();
-    } else {
-      return isolate()->builtins()->StoreIC_GlobalProxy();
-    }
-  }
+                                           StrictMode strict_mode);
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -617,30 +648,23 @@ class StoreIC: public IC {
                     Handle<String> name,
                     Handle<Object> value);
   virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<JSObject> receiver,
+                                      Handle<Object> object,
                                       Handle<String> name,
-                                      Handle<Object> value);
+                                      Handle<Object> value,
+                                      InlineCacheHolderFlag cache_holder);
 
  private:
   void set_target(Code* code) {
     // Strict mode must be preserved across IC patching.
-    ASSERT(Code::GetStrictMode(code->extra_ic_state()) ==
-           Code::GetStrictMode(target()->extra_ic_state()));
+    ASSERT(GetStrictMode(code->extra_ic_state()) ==
+           GetStrictMode(target()->extra_ic_state()));
     IC::set_target(code);
   }
 
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode) {
-    if (strict_mode == kStrictMode) {
-      return isolate->builtins()->StoreIC_Initialize_Strict();
-    } else {
-      return isolate->builtins()->StoreIC_Initialize();
-    }
-  }
-
-  static void Clear(Isolate* isolate, Address address, Code* target);
-
-  StrictModeFlag strict_mode_;
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   friend class IC;
 };
@@ -660,55 +684,64 @@ enum KeyedStoreIncrementLength {
 
 class KeyedStoreIC: public StoreIC {
  public:
+  // ExtraICState bits (building on IC)
+  // ExtraICState bits
+  class ExtraICStateKeyedAccessStoreMode:
+      public BitField<KeyedAccessStoreMode, 2, 4> {};  // NOLINT
+
+  static ExtraICState ComputeExtraICState(StrictMode flag,
+                                          KeyedAccessStoreMode mode) {
+    return StrictModeState::encode(flag) |
+        ExtraICStateKeyedAccessStoreMode::encode(mode);
+  }
+
+  static KeyedAccessStoreMode GetKeyedAccessStoreMode(
+      ExtraICState extra_state) {
+    return ExtraICStateKeyedAccessStoreMode::decode(extra_state);
+  }
+
   KeyedStoreIC(FrameDepth depth, Isolate* isolate)
       : StoreIC(depth, isolate) {
     ASSERT(target()->is_keyed_store_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* Store(Handle<Object> object,
-                                     Handle<Object> name,
-                                     Handle<Object> value,
-                                     ICMissMode force_generic);
+  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
+                                            Handle<Object> name,
+                                            Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
-  static void GenerateInitialize(MacroAssembler* masm) {
-    GenerateMiss(masm, MISS);
-  }
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GeneratePreMonomorphic(MacroAssembler* masm) {
-    GenerateMiss(masm, MISS);
+    GenerateMiss(masm);
   }
-  static void GenerateMiss(MacroAssembler* masm, ICMissMode force_generic);
+  static void GenerateMiss(MacroAssembler* masm);
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictModeFlag strict_mode);
-  static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
-  static void GenerateNonStrictArguments(MacroAssembler* masm);
+                                         StrictMode strict_mode);
+  static void GenerateGeneric(MacroAssembler* masm, StrictMode strict_mode);
+  static void GenerateSloppyArguments(MacroAssembler* masm);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual void UpdateMegamorphicCache(Map* map, Name* name, Code* code) { }
+  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {}
 
   virtual Handle<Code> pre_monomorphic_stub() {
     return pre_monomorphic_stub(isolate(), strict_mode());
   }
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           StrictModeFlag strict_mode) {
-    if (strict_mode == kStrictMode) {
+                                           StrictMode strict_mode) {
+    if (strict_mode == STRICT) {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic_Strict();
     } else {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic();
     }
   }
   virtual Handle<Code> slow_stub() const {
-    if (strict_mode() == kStrictMode) {
-      return isolate()->builtins()->KeyedStoreIC_Slow_Strict();
-    } else {
-      return isolate()->builtins()->KeyedStoreIC_Slow();
-    }
+    return isolate()->builtins()->KeyedStoreIC_Slow();
   }
   virtual Handle<Code> megamorphic_stub() {
-    if (strict_mode() == kStrictMode) {
+    if (strict_mode() == STRICT) {
       return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
     } else {
       return isolate()->builtins()->KeyedStoreIC_Generic();
@@ -721,66 +754,170 @@ class KeyedStoreIC: public StoreIC {
  private:
   void set_target(Code* code) {
     // Strict mode must be preserved across IC patching.
-    ASSERT(Code::GetStrictMode(code->extra_ic_state()) == strict_mode());
+    ASSERT(GetStrictMode(code->extra_ic_state()) == strict_mode());
     IC::set_target(code);
   }
 
   // Stub accessors.
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      StrictModeFlag strict_mode) {
-    if (strict_mode == kStrictMode) {
-      return isolate->builtins()->KeyedStoreIC_Initialize_Strict();
-    } else {
-      return isolate->builtins()->KeyedStoreIC_Initialize();
-    }
-  }
-
   virtual Handle<Code> generic_stub() const {
-    if (strict_mode() == kStrictMode) {
+    if (strict_mode() == STRICT) {
       return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
     } else {
       return isolate()->builtins()->KeyedStoreIC_Generic();
     }
   }
 
-  Handle<Code> non_strict_arguments_stub() {
-    return isolate()->builtins()->KeyedStoreIC_NonStrictArguments();
+  Handle<Code> sloppy_arguments_stub() {
+    return isolate()->builtins()->KeyedStoreIC_SloppyArguments();
   }
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
                                     Handle<Object> key,
                                     Handle<Object> value);
 
-  Handle<Map> ComputeTransitionedMap(Handle<JSObject> receiver,
+  Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
 
   friend class IC;
 };
 
 
+// Mode to overwrite BinaryExpression values.
+enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
+
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
 class BinaryOpIC: public IC {
  public:
-  enum TypeInfo {
-    UNINITIALIZED,
-    SMI,
-    INT32,
-    NUMBER,
-    ODDBALL,
-    STRING,  // Only used for addition operation.
-    GENERIC
+  class State V8_FINAL BASE_EMBEDDED {
+   public:
+    State(Isolate* isolate, ExtraICState extra_ic_state);
+
+    State(Isolate* isolate, Token::Value op, OverwriteMode mode)
+        : op_(op), mode_(mode), left_kind_(NONE), right_kind_(NONE),
+          result_kind_(NONE), isolate_(isolate) {
+      ASSERT_LE(FIRST_TOKEN, op);
+      ASSERT_LE(op, LAST_TOKEN);
+    }
+
+    InlineCacheState GetICState() const {
+      if (Max(left_kind_, right_kind_) == NONE) {
+        return ::v8::internal::UNINITIALIZED;
+      }
+      if (Max(left_kind_, right_kind_) == GENERIC) {
+        return ::v8::internal::MEGAMORPHIC;
+      }
+      if (Min(left_kind_, right_kind_) == GENERIC) {
+        return ::v8::internal::GENERIC;
+      }
+      return ::v8::internal::MONOMORPHIC;
+    }
+
+    ExtraICState GetExtraICState() const;
+
+    static void GenerateAheadOfTime(
+        Isolate*, void (*Generate)(Isolate*, const State&));
+
+    bool CanReuseDoubleBox() const {
+      return (result_kind_ > SMI && result_kind_ <= NUMBER) &&
+          ((mode_ == OVERWRITE_LEFT &&
+            left_kind_ > SMI && left_kind_ <= NUMBER) ||
+           (mode_ == OVERWRITE_RIGHT &&
+            right_kind_ > SMI && right_kind_ <= NUMBER));
+    }
+
+    // Returns true if the IC _could_ create allocation mementos.
+    bool CouldCreateAllocationMementos() const {
+      if (left_kind_ == STRING || right_kind_ == STRING) {
+        ASSERT_EQ(Token::ADD, op_);
+        return true;
+      }
+      return false;
+    }
+
+    // Returns true if the IC _should_ create allocation mementos.
+    bool ShouldCreateAllocationMementos() const {
+      return FLAG_allocation_site_pretenuring &&
+          CouldCreateAllocationMementos();
+    }
+
+    bool HasSideEffects() const {
+      return Max(left_kind_, right_kind_) == GENERIC;
+    }
+
+    // Returns true if the IC should enable the inline smi code (i.e. if either
+    // parameter may be a smi).
+    bool UseInlinedSmiCode() const {
+      return KindMaybeSmi(left_kind_) || KindMaybeSmi(right_kind_);
+    }
+
+    static const int FIRST_TOKEN = Token::BIT_OR;
+    static const int LAST_TOKEN = Token::MOD;
+
+    Token::Value op() const { return op_; }
+    OverwriteMode mode() const { return mode_; }
+    Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
+
+    Type* GetLeftType(Zone* zone) const {
+      return KindToType(left_kind_, zone);
+    }
+    Type* GetRightType(Zone* zone) const {
+      return KindToType(right_kind_, zone);
+    }
+    Type* GetResultType(Zone* zone) const;
+
+    void Print(StringStream* stream) const;
+
+    void Update(Handle<Object> left,
+                Handle<Object> right,
+                Handle<Object> result);
+
+    Isolate* isolate() const { return isolate_; }
+
+   private:
+    enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
+
+    Kind UpdateKind(Handle<Object> object, Kind kind) const;
+
+    static const char* KindToString(Kind kind);
+    static Type* KindToType(Kind kind, Zone* zone);
+    static bool KindMaybeSmi(Kind kind) {
+      return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
+    }
+
+    // We truncate the last bit of the token.
+    STATIC_ASSERT(LAST_TOKEN - FIRST_TOKEN < (1 << 4));
+    class OpField:                 public BitField<int, 0, 4> {};
+    class OverwriteModeField:      public BitField<OverwriteMode, 4, 2> {};
+    class SSE2Field:               public BitField<bool, 6, 1> {};
+    class ResultKindField:         public BitField<Kind, 7, 3> {};
+    class LeftKindField:           public BitField<Kind, 10,  3> {};
+    // When fixed right arg is set, we don't need to store the right kind.
+    // Thus the two fields can overlap.
+    class HasFixedRightArgField:   public BitField<bool, 13, 1> {};
+    class FixedRightArgValueField: public BitField<int,  14, 4> {};
+    class RightKindField:          public BitField<Kind, 14, 3> {};
+
+    Token::Value op_;
+    OverwriteMode mode_;
+    Kind left_kind_;
+    Kind right_kind_;
+    Kind result_kind_;
+    Maybe<int> fixed_right_arg_;
+    Isolate* isolate_;
   };
 
   explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
 
   static Builtins::JavaScript TokenToJSBuiltin(Token::Value op);
 
-  static const char* GetName(TypeInfo type_info);
-
-  MUST_USE_RESULT MaybeObject* Transition(Handle<Object> left,
-                                          Handle<Object> right);
+  MaybeHandle<Object> Transition(Handle<AllocationSite> allocation_site,
+                                 Handle<Object> left,
+                                 Handle<Object> right) V8_WARN_UNUSED_RESULT;
 };
 
 
@@ -806,22 +943,22 @@ class CompareIC: public IC {
 
   static State NewInputState(State old_state, Handle<Object> value);
 
-  static Handle<Type> StateToType(Isolate* isolate,
-                                  State state,
-                                  Handle<Map> map = Handle<Map>());
+  static Type* StateToType(Zone* zone,
+                           State state,
+                           Handle<Map> map = Handle<Map>());
 
   static void StubInfoToType(int stub_minor_key,
-                             Handle<Type>* left_type,
-                             Handle<Type>* right_type,
-                             Handle<Type>* overall_type,
+                             Type** left_type,
+                             Type** right_type,
+                             Type** overall_type,
                              Handle<Map> map,
-                             Isolate* isolate);
+                             Zone* zone);
 
   CompareIC(Isolate* isolate, Token::Value op)
       : IC(EXTRA_CALL_FRAME, isolate), op_(op) { }
 
   // Update the inline cache for the given operands.
-  void UpdateCaches(Handle<Object> x, Handle<Object> y);
+  Code* UpdateCaches(Handle<Object> x, Handle<Object> y);
 
 
   // Factory method for getting an uninitialized compare stub.
@@ -847,7 +984,10 @@ class CompareIC: public IC {
 
   static Code* GetRawUninitialized(Isolate* isolate, Token::Value op);
 
-  static void Clear(Isolate* isolate, Address address, Code* target);
+  static void Clear(Isolate* isolate,
+                    Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
   Token::Value op_;
 
@@ -859,14 +999,16 @@ class CompareNilIC: public IC {
  public:
   explicit CompareNilIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
-  MUST_USE_RESULT MaybeObject* CompareNil(Handle<Object> object);
+  Handle<Object> CompareNil(Handle<Object> object);
 
   static Handle<Code> GetUninitialized();
 
-  static void Clear(Address address, Code* target);
+  static void Clear(Address address,
+                    Code* target,
+                    ConstantPoolArray* constant_pool);
 
-  static MUST_USE_RESULT MaybeObject* DoCompareNilSlow(NilValue nil,
-                                                       Handle<Object> object);
+  static Handle<Object> DoCompareNilSlow(Isolate* isolate, NilValue nil,
+                                         Handle<Object> object);
 };
 
 
@@ -874,7 +1016,7 @@ class ToBooleanIC: public IC {
  public:
   explicit ToBooleanIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
 
-  MaybeObject* ToBoolean(Handle<Object> object, Code::ExtraICState state);
+  Handle<Object> ToBoolean(Handle<Object> object);
 };
 
 
@@ -882,14 +1024,15 @@ class ToBooleanIC: public IC {
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss);
+DECLARE_RUNTIME_FUNCTION(KeyedLoadIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(KeyedStoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(UnaryOpIC_Miss);
+DECLARE_RUNTIME_FUNCTION(StoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss);
+DECLARE_RUNTIME_FUNCTION(BinaryOpIC_Miss);
+DECLARE_RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite);
+DECLARE_RUNTIME_FUNCTION(CompareNilIC_Miss);
+DECLARE_RUNTIME_FUNCTION(ToBooleanIC_Miss);
 
 
 } }  // namespace v8::internal

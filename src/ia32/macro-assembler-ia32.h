@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_IA32_MACRO_ASSEMBLER_IA32_H_
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
@@ -60,6 +37,9 @@ class MacroAssembler: public Assembler {
   // responsibility of the caller to never invoke such function on the
   // macro assembler.
   MacroAssembler(Isolate* isolate, void* buffer, int size);
+
+  void Load(Register dst, const Operand& src, Representation r);
+  void Store(Register src, const Operand& dst, Representation r);
 
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, Heap::RootListIndex index);
@@ -218,12 +198,10 @@ class MacroAssembler: public Assembler {
       Register scratch2,
       SaveFPRegsMode save_fp);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
   void DebugBreak();
-#endif
 
   // Generates function and stub prologue code.
   void Prologue(PrologueFrameMode frame_mode);
@@ -259,14 +237,6 @@ class MacroAssembler: public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  // Load the initial map for new Arrays from a JSFunction.
-  void LoadInitialArrayMap(Register function_in,
-                           Register scratch,
-                           Register map_out,
-                           bool can_have_holes);
-
-  void LoadGlobalContext(Register global_context);
-
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
 
@@ -292,7 +262,7 @@ class MacroAssembler: public Assembler {
     if (object->IsHeapObject()) {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
-      Set(result, Immediate(object));
+      Move(result, Immediate(object));
     }
   }
 
@@ -308,50 +278,39 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
-  // Set up call kind marking in ecx. The method takes ecx as an
-  // explicit first parameter to make the code more readable at the
-  // call sites.
-  void SetCallKind(Register dst, CallKind kind);
-
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind) {
-    InvokeCode(Operand(code), expected, actual, flag, call_wrapper, call_kind);
+                  const CallWrapper& call_wrapper) {
+    InvokeCode(Operand(code), expected, actual, flag, call_wrapper);
   }
 
   void InvokeCode(const Operand& code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind);
-
-  void InvokeCode(Handle<Code> code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  RelocInfo::Mode rmode,
-                  InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind);
+                  const CallWrapper& call_wrapper);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
+
+  void InvokeFunction(Register function,
+                      const ParameterCount& expected,
+                      const ParameterCount& actual,
+                      InvokeFlag flag,
+                      const CallWrapper& call_wrapper);
 
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
@@ -366,9 +325,6 @@ class MacroAssembler: public Assembler {
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
   // Expression support
-  void Set(Register dst, const Immediate& x);
-  void Set(const Operand& dst, const Immediate& x);
-
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
   // xorps to clear the dst register before cvtsi2sd to solve this issue.
@@ -377,7 +333,7 @@ class MacroAssembler: public Assembler {
 
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);
-  void SafeSet(Register dst, const Immediate& x);
+  void SafeMove(Register dst, const Immediate& x);
   void SafePush(const Immediate& x);
 
   // Compare object type for heap object.
@@ -417,13 +373,8 @@ class MacroAssembler: public Assembler {
                                    bool specialize_for_processor,
                                    int offset = 0);
 
-  // Compare an object's map with the specified map and its transitioned
-  // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. FLAGS are set with
-  // result of map compare. If multiple map compares are required, the compare
-  // sequences branches to early_success.
-  void CompareMap(Register obj,
-                  Handle<Map> map,
-                  Label* early_success);
+  // Compare an object's map with the specified map.
+  void CompareMap(Register obj, Handle<Map> map);
 
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
@@ -570,6 +521,10 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
+  // Abort execution if argument is not undefined or an AllocationSite, enabled
+  // via --debug-code.
+  void AssertUndefinedOrAllocationSite(Register object);
+
   // ---------------------------------------------------------------------------
   // Exception handling
 
@@ -584,6 +539,12 @@ class MacroAssembler: public Assembler {
 
   // Throw past all JS frames to the top JS entry frame.
   void ThrowUncatchable(Register value);
+
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -741,10 +702,6 @@ class MacroAssembler: public Assembler {
                                Label* miss,
                                bool miss_on_bound_function = false);
 
-  // Generates code for reporting that an illegal operation has
-  // occurred.
-  void IllegalOperation(int num_arguments);
-
   // Picks out an array index from the hash field.
   // Register use:
   //   hash - holds the index's hash. Clobbered.
@@ -773,8 +730,10 @@ class MacroAssembler: public Assembler {
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  void CallRuntime(Runtime::FunctionId id,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
   }
 
   // Convenience function: call an external reference.
@@ -820,8 +779,8 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions.  Clobbers ebx, edi and
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
-  void CallApiFunctionAndReturn(Address function_address,
-                                Address thunk_address,
+  void CallApiFunctionAndReturn(Register function_address,
+                                ExternalReference thunk_ref,
                                 Operand thunk_last_arg,
                                 int stack_space,
                                 Operand return_value_operand,
@@ -856,6 +815,13 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
+  // Move a constant into a destination using the most efficient encoding.
+  void Move(Register dst, const Immediate& x);
+  void Move(const Operand& dst, const Immediate& x);
+
+  // Move an immediate into an XMM register.
+  void Move(XMMRegister dst, double val);
+
   // Push a handle value.
   void Push(Handle<Object> handle) { push(Immediate(handle)); }
   void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
@@ -867,6 +833,10 @@ class MacroAssembler: public Assembler {
 
   // Insert code to verify that the x87 stack has the specified depth (0-7)
   void VerifyX87StackDepth(uint32_t depth);
+
+  // Emit code for a truncating division by a constant. The dividend register is
+  // unchanged, the result is in edx, and eax gets clobbered.
+  void TruncatingDiv(Register dividend, int32_t divisor);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support
@@ -899,8 +869,6 @@ class MacroAssembler: public Assembler {
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
-  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
-  bool allow_stub_calls() { return allow_stub_calls_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
@@ -943,6 +911,11 @@ class MacroAssembler: public Assembler {
   void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
                            Label::Distance distance = Label::kFar);
 
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 uint32_t encoding_mask);
+
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
   }
@@ -975,9 +948,12 @@ class MacroAssembler: public Assembler {
     bind(&no_memento_found);
   }
 
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
+
  private:
   bool generating_stub_;
-  bool allow_stub_calls_;
   bool has_frame_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
@@ -991,8 +967,7 @@ class MacroAssembler: public Assembler {
                       bool* definitely_mismatches,
                       InvokeFlag flag,
                       Label::Distance done_distance,
-                      const CallWrapper& call_wrapper = NullCallWrapper(),
-                      CallKind call_kind = CALL_AS_METHOD);
+                      const CallWrapper& call_wrapper = NullCallWrapper());
 
   void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
@@ -1007,13 +982,6 @@ class MacroAssembler: public Assembler {
   void UpdateAllocationTopHelper(Register result_end,
                                  Register scratch,
                                  AllocationFlags flags);
-
-  // Helper for PopHandleScope.  Allowed to perform a GC and returns
-  // NULL if gc_allowed.  Does not perform a GC if !gc_allowed, and
-  // possibly returns a failure object indicating an allocation failure.
-  MUST_USE_RESULT MaybeObject* PopHandleScopeHelper(Register saved,
-                                                    Register scratch,
-                                                    bool gc_allowed);
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object,
@@ -1079,6 +1047,14 @@ inline Operand FieldOperand(Register object,
                             ScaleFactor scale,
                             int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
+}
+
+
+inline Operand FixedArrayElementOperand(Register array,
+                                        Register index_as_smi,
+                                        int additional_offset = 0) {
+  int offset = FixedArray::kHeaderSize + additional_offset * kPointerSize;
+  return FieldOperand(array, index_as_smi, times_half_pointer_size, offset);
 }
 
 

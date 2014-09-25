@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_X64_ASSEMBLER_X64_INL_H_
 #define V8_X64_ASSEMBLER_X64_INL_H_
@@ -43,7 +20,8 @@ namespace internal {
 
 
 static const byte kCallOpcode = 0xE8;
-static const int kNoCodeAgeSequenceLength = 6;
+// The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
+static const int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
 
 void Assembler::emitl(uint32_t x) {
@@ -205,12 +183,15 @@ void Assembler::emit_optional_rex_32(const Operand& op) {
 }
 
 
-Address Assembler::target_address_at(Address pc) {
+Address Assembler::target_address_at(Address pc,
+                                     ConstantPoolArray* constant_pool) {
   return Memory::int32_at(pc) + pc + 4;
 }
 
 
-void Assembler::set_target_address_at(Address pc, Address target) {
+void Assembler::set_target_address_at(Address pc,
+                                      ConstantPoolArray* constant_pool,
+                                      Address target) {
   Memory::int32_at(pc) = static_cast<int32_t>(target - pc - 4);
   CPU::FlushICache(pc, sizeof(int32_t));
 }
@@ -255,7 +236,7 @@ void RelocInfo::apply(intptr_t delta) {
 
 Address RelocInfo::target_address() {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  return Assembler::target_address_at(pc_);
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
@@ -264,6 +245,12 @@ Address RelocInfo::target_address_address() {
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
   return reinterpret_cast<Address>(pc_);
+}
+
+
+Address RelocInfo::constant_pool_entry_address() {
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -278,7 +265,7 @@ int RelocInfo::target_address_size() {
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, target);
+  Assembler::set_target_address_at(pc_, host_, target);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -303,15 +290,9 @@ Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
 }
 
 
-Object** RelocInfo::target_object_address() {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object**>(pc_);
-}
-
-
-Address* RelocInfo::target_reference_address() {
+Address RelocInfo::target_reference() {
   ASSERT(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address*>(pc_);
+  return Memory::Address_at(pc_);
 }
 
 
@@ -370,6 +351,18 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
+void RelocInfo::WipeOut() {
+  if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_)) {
+    Memory::Address_at(pc_) = NULL;
+  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
+    // Effectively write zero into the relocation.
+    Assembler::set_target_address_at(pc_, host_, pc_ + sizeof(int32_t));
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
 bool RelocInfo::IsPatchedReturnSequence() {
   // The recognized call sequence is:
   //  movq(kScratchRegister, address); call(kScratchRegister);
@@ -377,12 +370,8 @@ bool RelocInfo::IsPatchedReturnSequence() {
   //  movq(rsp, rbp); pop(rbp); ret(n); int3 *6
   // The 11th byte is int3 (0xCC) in the return sequence and
   // REX.WB (0x48+register bit) for the call sequence.
-#ifdef ENABLE_DEBUGGER_SUPPORT
   return pc_[Assembler::kMoveAddressIntoScratchRegisterInstructionLength] !=
          0xCC;
-#else
-  return false;
-#endif
 }
 
 
@@ -402,14 +391,14 @@ Code* RelocInfo::code_age_stub() {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   ASSERT(*pc_ == kCallOpcode);
   return Code::GetCodeFromTargetAddress(
-      Assembler::target_address_at(pc_ + 1));
+      Assembler::target_address_at(pc_ + 1, host_));
 }
 
 
 void RelocInfo::set_code_age_stub(Code* stub) {
   ASSERT(*pc_ == kCallOpcode);
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Assembler::set_target_address_at(pc_ + 1, stub->instruction_start());
+  Assembler::set_target_address_at(pc_ + 1, host_, stub->instruction_start());
 }
 
 
@@ -468,14 +457,12 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence())) &&
              isolate->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
   }
@@ -497,14 +484,12 @@ void RelocInfo::Visit(Heap* heap) {
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }

@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // A Disassembler object is used to disassemble a block of code instruction by
 // instruction. The default implementation of the NameConverter object can be
@@ -1061,7 +1038,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 if (instr->Bits(19, 16) == 0xF) {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtb16'cond 'rd, 'rm, ror #0");
+                      Format(instr, "uxtb16'cond 'rd, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtb16'cond 'rd, 'rm, ror #8");
@@ -1085,7 +1062,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 if (instr->Bits(19, 16) == 0xF) {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtb'cond 'rd, 'rm, ror #0");
+                      Format(instr, "uxtb'cond 'rd, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtb'cond 'rd, 'rm, ror #8");
@@ -1100,7 +1077,7 @@ void Decoder::DecodeType3(Instruction* instr) {
                 } else {
                   switch (instr->Bits(11, 10)) {
                     case 0:
-                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #0");
+                      Format(instr, "uxtab'cond 'rd, 'rn, 'rm");
                       break;
                     case 1:
                       Format(instr, "uxtab'cond 'rd, 'rn, 'rm, ror #8");
@@ -1272,7 +1249,7 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
       } else if ((instr->Opc2Value() == 0xA) && (instr->Opc3Value() == 0x3) &&
                  (instr->Bit(8) == 1)) {
         // vcvt.f64.s32 Dd, Dd, #<fbits>
-        int fraction_bits = 32 - ((instr->Bit(5) << 4) | instr->Bits(3, 0));
+        int fraction_bits = 32 - ((instr->Bits(3, 0) << 1) | instr->Bit(5));
         Format(instr, "vcvt'cond.f64.s32 'Dd, 'Dd");
         out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                         ", #%d", fraction_bits);
@@ -1566,7 +1543,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
         // vmovl signed
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        if ((instr->VdValue() & 1) != 0) Unknown(instr);
+        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -1579,7 +1557,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
         // vmovl unsigned
-        int Vd = (instr->Bit(22) << 4) | instr->VdValue();
+        if ((instr->VdValue() & 1) != 0) Unknown(instr);
+        int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -1679,6 +1658,14 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
                                     "constant pool begin (length %d)",
                                     DecodeConstantPoolLength(instruction_bits));
     return Instruction::kInstrSize;
+  } else if (instruction_bits == kCodeAgeJumpInstruction) {
+    // The code age prologue has a constant immediatly following the jump
+    // instruction.
+    Instruction* target = Instruction::At(instr_ptr + Instruction::kInstrSize);
+    DecodeType2(instr);
+    OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                 " (0x%08x)", target->InstructionBits());
+    return 2 * Instruction::kInstrSize;
   }
   switch (instr->TypeValue()) {
     case 0:

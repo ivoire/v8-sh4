@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // This module contains the platform-specific code. This make the rest of the
 // code less dependent on operating system, compilers and runtime libraries.
@@ -44,11 +21,11 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
-#include <cstdarg>
+#include <stdarg.h>
 
 #include "platform/mutex.h"
 #include "platform/semaphore.h"
-#include "utils.h"
+#include "vector.h"
 #include "v8globals.h"
 
 #ifdef __sun
@@ -59,8 +36,12 @@ int signbit(double x);
 # endif
 #endif
 
+#if V8_OS_QNX
+#include "qnx-math.h"
+#endif
+
 // Microsoft Visual C++ specific stuff.
-#if V8_CC_MSVC
+#if V8_LIBC_MSVCRT
 
 #include "win32-headers.h"
 #include "win32-math.h"
@@ -85,27 +66,12 @@ inline int lrint(double flt) {
 #endif
   return intgr;
 }
-
 #endif  // _MSC_VER < 1800
 
-#endif  // V8_CC_MSVC
+#endif  // V8_LIBC_MSVCRT
 
 namespace v8 {
 namespace internal {
-
-double ceiling(double x);
-double modulo(double x, double y);
-
-// Custom implementation of math functions.
-double fast_sin(double input);
-double fast_cos(double input);
-double fast_tan(double input);
-double fast_log(double input);
-double fast_exp(double input);
-double fast_sqrt(double input);
-// The custom exp implementation needs 16KB of lookup data; initialize it
-// on demand.
-void lazily_initialize_fast_exp();
 
 // ----------------------------------------------------------------------------
 // Fast TLS support
@@ -161,6 +127,9 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 #endif  // V8_NO_FAST_TLS
 
 
+class TimezoneCache;
+
+
 // ----------------------------------------------------------------------------
 // OS
 //
@@ -184,16 +153,20 @@ class OS {
   // 00:00:00 UTC, January 1, 1970.
   static double TimeCurrentMillis();
 
+  static TimezoneCache* CreateTimezoneCache();
+  static void DisposeTimezoneCache(TimezoneCache* cache);
+  static void ClearTimezoneCache(TimezoneCache* cache);
+
   // Returns a string identifying the current time zone. The
   // timestamp is used for determining if DST is in effect.
-  static const char* LocalTimezone(double time);
+  static const char* LocalTimezone(double time, TimezoneCache* cache);
 
   // Returns the local time offset in milliseconds east of UTC without
   // taking daylight savings time into account.
-  static double LocalTimeOffset();
+  static double LocalTimeOffset(TimezoneCache* cache);
 
   // Returns the daylight savings offset for the given time.
-  static double DaylightSavingsOffset(double time);
+  static double DaylightSavingsOffset(double time, TimezoneCache* cache);
 
   // Returns last OS error.
   static int GetLastError();
@@ -368,6 +341,26 @@ class OS {
                                  const uint8_t* src,
                                  size_t size) {
     (*memcopy_uint16_uint8_function)(dest, src, size);
+  }
+#elif defined(V8_HOST_ARCH_MIPS)
+  typedef void (*MemCopyUint8Function)(uint8_t* dest,
+                                       const uint8_t* src,
+                                       size_t size);
+  static MemCopyUint8Function memcopy_uint8_function;
+  static void MemCopyUint8Wrapper(uint8_t* dest,
+                                  const uint8_t* src,
+                                  size_t chars) {
+    memcpy(dest, src, chars);
+  }
+  // For values < 16, the assembler function is slower than the inlined C code.
+  static const int kMinComplexMemCopy = 16;
+  static void MemCopy(void* dest, const void* src, size_t size) {
+    (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
+                              reinterpret_cast<const uint8_t*>(src),
+                              size);
+  }
+  static void MemMove(void* dest, const void* src, size_t size) {
+    memmove(dest, src, size);
   }
 #else
   // Copy memory area to disjoint memory area.

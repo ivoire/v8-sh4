@@ -530,7 +530,7 @@ class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe();
+  static void Probe(bool serializer_enabled);
 
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
@@ -543,15 +543,11 @@ class CpuFeatures : public AllStatic {
     return Check(f, supported_);
   }
 
-  static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
-    ASSERT(initialized_);
-    return Check(f, found_by_runtime_probing_only_);
-  }
-
-  static bool IsSafeForSnapshot(CpuFeature f) {
+  static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
     return Check(f, cross_compile_) ||
            (IsSupported(f) &&
-            (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
+            !(Serializer::enabled(isolate) &&
+              Check(f, found_by_runtime_probing_only_)));
   }
 
   static bool VerifyCrossCompiling() {
@@ -563,6 +559,8 @@ class CpuFeatures : public AllStatic {
     return cross_compile_ == 0 ||
            (cross_compile_ & mask) == mask;
   }
+
+  static bool SupportsCrankshaft() { return IsSupported(SSE2); }
 
  private:
   static bool Check(CpuFeature f, uint64_t set) {
@@ -624,8 +622,21 @@ class Assembler : public AssemblerBase {
   void GetCode(CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc);
-  inline static void set_target_address_at(Address pc, Address target);
+  inline static Address target_address_at(Address pc,
+                                          ConstantPoolArray* constant_pool);
+  inline static void set_target_address_at(Address pc,
+                                           ConstantPoolArray* constant_pool,
+                                           Address target);
+  static inline Address target_address_at(Address pc, Code* code) {
+    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    return target_address_at(pc, constant_pool);
+  }
+  static inline void set_target_address_at(Address pc,
+                                           Code* code,
+                                           Address target) {
+    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    set_target_address_at(pc, constant_pool, target);
+  }
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
@@ -634,15 +645,8 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Address target) {
-    set_target_address_at(instruction_payload, target);
-  }
-
-  // This sets the branch destination (which is in the instruction on x86).
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address instruction_payload,
-                                            Address target) {
-    set_target_address_at(instruction_payload, target);
+      Address instruction_payload, Code* code, Address target) {
+    set_target_address_at(instruction_payload, code, target);
   }
 
   static const int kSpecialTargetSize = kPointerSize;
@@ -735,6 +739,7 @@ class Assembler : public AssemblerBase {
 
   void mov_w(Register dst, const Operand& src);
   void mov_w(const Operand& dst, Register src);
+  void mov_w(const Operand& dst, int16_t imm16);
 
   void mov(Register dst, int32_t imm32);
   void mov(Register dst, const Immediate& x);
@@ -888,6 +893,8 @@ class Assembler : public AssemblerBase {
   void bt(const Operand& dst, Register src);
   void bts(Register dst, Register src) { bts(Operand(dst), src); }
   void bts(const Operand& dst, Register src);
+  void bsr(Register dst, Register src) { bsr(dst, Operand(src)); }
+  void bsr(Register dst, const Operand& src);
 
   // Miscellaneous
   void hlt();
@@ -1018,11 +1025,30 @@ class Assembler : public AssemblerBase {
   void cpuid();
 
   // SSE instructions
-  void andps(XMMRegister dst, XMMRegister src);
-  void xorps(XMMRegister dst, XMMRegister src);
+  void movaps(XMMRegister dst, XMMRegister src);
+  void shufps(XMMRegister dst, XMMRegister src, byte imm8);
+
+  void andps(XMMRegister dst, const Operand& src);
+  void andps(XMMRegister dst, XMMRegister src) { andps(dst, Operand(src)); }
+  void xorps(XMMRegister dst, const Operand& src);
+  void xorps(XMMRegister dst, XMMRegister src) { xorps(dst, Operand(src)); }
+  void orps(XMMRegister dst, const Operand& src);
+  void orps(XMMRegister dst, XMMRegister src) { orps(dst, Operand(src)); }
+
+  void addps(XMMRegister dst, const Operand& src);
+  void addps(XMMRegister dst, XMMRegister src) { addps(dst, Operand(src)); }
+  void subps(XMMRegister dst, const Operand& src);
+  void subps(XMMRegister dst, XMMRegister src) { subps(dst, Operand(src)); }
+  void mulps(XMMRegister dst, const Operand& src);
+  void mulps(XMMRegister dst, XMMRegister src) { mulps(dst, Operand(src)); }
+  void divps(XMMRegister dst, const Operand& src);
+  void divps(XMMRegister dst, XMMRegister src) { divps(dst, Operand(src)); }
 
   // SSE2 instructions
   void cvttss2si(Register dst, const Operand& src);
+  void cvttss2si(Register dst, XMMRegister src) {
+    cvttss2si(dst, Operand(src));
+  }
   void cvttsd2si(Register dst, const Operand& src);
   void cvtsd2si(Register dst, XMMRegister src);
 
@@ -1043,7 +1069,7 @@ class Assembler : public AssemblerBase {
   void andpd(XMMRegister dst, XMMRegister src);
   void orpd(XMMRegister dst, XMMRegister src);
 
-  void ucomisd(XMMRegister dst, XMMRegister src);
+  void ucomisd(XMMRegister dst, XMMRegister src) { ucomisd(dst, Operand(src)); }
   void ucomisd(XMMRegister dst, const Operand& src);
 
   enum RoundingMode {
@@ -1061,8 +1087,6 @@ class Assembler : public AssemblerBase {
   void cmpltsd(XMMRegister dst, XMMRegister src);
   void pcmpeqd(XMMRegister dst, XMMRegister src);
 
-  void movaps(XMMRegister dst, XMMRegister src);
-
   void movdqa(XMMRegister dst, const Operand& src);
   void movdqa(const Operand& dst, XMMRegister src);
   void movdqu(XMMRegister dst, const Operand& src);
@@ -1079,14 +1103,14 @@ class Assembler : public AssemblerBase {
   void movd(XMMRegister dst, const Operand& src);
   void movd(Register dst, XMMRegister src) { movd(Operand(dst), src); }
   void movd(const Operand& dst, XMMRegister src);
-  void movsd(XMMRegister dst, XMMRegister src);
+  void movsd(XMMRegister dst, XMMRegister src) { movsd(dst, Operand(src)); }
   void movsd(XMMRegister dst, const Operand& src);
   void movsd(const Operand& dst, XMMRegister src);
 
 
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
-  void movss(XMMRegister dst, XMMRegister src);
+  void movss(XMMRegister dst, XMMRegister src) { movss(dst, Operand(src)); }
   void extractps(Register dst, XMMRegister src, byte imm8);
 
   void pand(XMMRegister dst, XMMRegister src);
@@ -1144,7 +1168,9 @@ class Assembler : public AssemblerBase {
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
-  inline bool overflow() const { return pc_ >= reloc_info_writer.pos() - kGap; }
+  inline bool buffer_overflow() const {
+    return pc_ >= reloc_info_writer.pos() - kGap;
+  }
 
   // Get the number of bytes available in the buffer.
   inline int available_space() const { return reloc_info_writer.pos() - pc_; }
@@ -1162,6 +1188,12 @@ class Assembler : public AssemblerBase {
 
   byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
+
+  // Allocate a constant pool of the correct size for the generated code.
+  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
+
+  // Generate the constant pool for the generated code.
+  void PopulateConstantPool(ConstantPoolArray* constant_pool);
 
  protected:
   void emit_sse_operand(XMMRegister reg, const Operand& adr);
@@ -1240,7 +1272,7 @@ class Assembler : public AssemblerBase {
 class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) : assembler_(assembler) {
-    if (assembler_->overflow()) assembler_->GrowBuffer();
+    if (assembler_->buffer_overflow()) assembler_->GrowBuffer();
 #ifdef DEBUG
     space_before_ = assembler_->available_space();
 #endif
