@@ -68,10 +68,11 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 
-void CpuFeatures::Probe() {
+void CpuFeatures::Probe(bool serializer_enabled) {
   uint64_t standard_features = static_cast<unsigned>(
       OS::CpuFeaturesImpliedByPlatform()) | CpuFeaturesImpliedByCompiler();
-  ASSERT(supported_ == 0 || supported_ == standard_features);
+  ASSERT(supported_ == 0 ||
+         (supported_ & standard_features) == standard_features);
 #ifdef DEBUG
   initialized_ = true;
 #endif
@@ -81,10 +82,8 @@ void CpuFeatures::Probe() {
   // snapshot.
   supported_ |= standard_features;
 
-  if (Serializer::enabled()) {
+  if (serializer_enabled) {
     // No probing for features if we might serialize (generate snapshot).
-    printf("   ");
-    PrintFeatures();
     return;
   }
 }
@@ -136,6 +135,11 @@ bool RelocInfo::IsCodedSpecially() {
   // specially coded on ARM means that it is a movw/movt instruction.  We don't
   // generate those yet.
   // SH4: always use load constant, thus false.
+  return false;
+}
+
+
+bool RelocInfo::IsInConstantPool() {
   return false;
 }
 
@@ -263,6 +267,7 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->origin = this;
 }
 
 
@@ -2080,12 +2085,7 @@ void Assembler::dd(uint32_t data) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
-#endif
-    if (!Serializer::enabled() && !emit_debug_code()) {
+    if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
       return;
     }
   }
@@ -2137,20 +2137,15 @@ void Assembler::RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data) {
   // Constant pool handling complete
   if (!RelocInfo::IsNone(rinfo.rmode())) {
     // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-      if (!Serializer::enabled()) {
-        Serializer::TooLateToEnableNow();
-      }
-#endif
-      if (!Serializer::enabled() && !emit_debug_code()) {
+    if (rinfo.rmode() == RelocInfo::EXTERNAL_REFERENCE) {
+      if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
         return;
       }
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
-    if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(pc_,
-                                       rmode,
+    if (rinfo.rmode() == RelocInfo::CODE_TARGET_WITH_ID) {
+      RelocInfo reloc_info_with_ast_id(rinfo.pc(),
+                                       rinfo.rmode(),
                                        RecordedAstId().ToInt(),
                                        NULL);
       ClearRecordedAstId();
@@ -2732,6 +2727,21 @@ void Assembler::emit(Instr x) {
   pc_ += kInstrSize;
 }
 #endif
+
+
+Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
+  // No out-of-line constant pool support.
+  ASSERT(!FLAG_enable_ool_constant_pool);
+  return isolate->factory()->empty_constant_pool_array();
+}
+
+
+void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
+  // No out-of-line constant pool support.
+  ASSERT(!FLAG_enable_ool_constant_pool);
+  return;
+}
+
 
 } }  // namespace v8::internal
 

@@ -289,7 +289,8 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
     V8_TARGET_ARCH_ARM64 && !defined(__aarch64__) || \
-    V8_TARGET_ARCH_MIPS && !defined(__mips__)
+    V8_TARGET_ARCH_MIPS && !defined(__mips__) || \
+    V8_TARGET_ARCH_SH4 && !defined(__sh__)
 
 #define ISOLATE_INIT_SIMULATOR_LIST(V)                                         \
   V(bool, simulator_initialized, false)                                        \

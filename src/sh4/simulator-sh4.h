@@ -172,6 +172,10 @@ enum Register {
   void set_pc(int32_t value);
   int32_t get_pc() const;
 
+  Address get_sp() {
+    return reinterpret_cast<Address>(static_cast<intptr_t>(get_register(sp)));
+  }
+
   // Get/set the status registers
   void set_sregister(int num, int32_t value);
   int32_t get_sregister(int num);
@@ -223,7 +227,7 @@ enum Register {
   void set_last_debugger_input(char* input);
   char* last_debugger_input() { return last_debugger_input_; }
 
- // ICache checking.
+  // ICache checking.
   static void FlushICache(v8::internal::HashMap* i_cache, void* start,
                           size_t size);
 

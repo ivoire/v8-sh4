@@ -43,7 +43,7 @@ class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe();
+  static void Probe(bool serializer_enabled);
 
   // Display target use when compiling.
   static void PrintTarget();
@@ -57,15 +57,11 @@ class CpuFeatures : public AllStatic {
     return Check(f, supported_);
   }
 
-  static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
-    ASSERT(initialized_);
-    return Check(f, found_by_runtime_probing_only_);
-  }
-
-  static bool IsSafeForSnapshot(CpuFeature f) {
+  static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
     return Check(f, cross_compile_) ||
            (IsSupported(f) &&
-            (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
+            !(Serializer::enabled(isolate) &&
+              Check(f, found_by_runtime_probing_only_)));
   }
 
   static unsigned cache_line_size() { return cache_line_size_; }
@@ -79,6 +75,8 @@ class CpuFeatures : public AllStatic {
     return cross_compile_ == 0 ||
            (cross_compile_ & mask) == mask;
   }
+
+  static bool SupportsCrankshaft() { return false; }
 
  private:
   static bool Check(CpuFeature f, unsigned set) {
@@ -124,7 +122,6 @@ class CpuFeatures : public AllStatic {
 // such that we use an enum in optimized mode, and the struct in debug
 // mode. This way we get the compile-time error checking in debug mode
 // and best performance in optimized code.
-//
 
 // These constants are used in several locations, including static initializers
 const int kRegister_no_reg_Code = -1;
@@ -199,7 +196,6 @@ struct Register {
 
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(Register reg) const { return code_ == reg.code_; }
-
   int code() const {
     ASSERT(is_valid());
     return code_;
@@ -299,6 +295,7 @@ struct DwVfpRegister {
   // SH4: not applicable to SH4. Though SH4 as only 8 double registers
   // available (we use only the FPU bank 0).
   inline static int NumRegisters();
+  inline static int NumReservedRegisters();
   inline static int NumAllocatableRegisters();
 
   inline static int ToAllocationIndex(DwVfpRegister reg);
@@ -339,8 +336,9 @@ struct DwVfpRegister {
   }
   void split_code(int* vm, int* m) const {
     ASSERT(is_valid());
-    *m = (code_ & 0x10) >> 4;
-    *vm = code_ & 0x0F;
+    int encoded_code = code_ << 1;
+    *m = (encoded_code & 0x10) >> 4;
+    *vm = encoded_code & 0x0F;
   }
 
   int code_;
@@ -644,8 +642,7 @@ class Assembler : public AssemblerBase {
   // Note: The same Label can be used for forward and backward branches
   // but it may be bound only once.
 
-  // binds an unbound label L to the current code position
-  void bind(Label* L);
+  void bind(Label* L);  // binds an unbound label L to the current code position
 
   // Puts a labels target address at the given position.
   // This function is only used with not-bound labels
@@ -655,13 +652,27 @@ class Assembler : public AssemblerBase {
   // the branch/call instruction at pc, or the object in a mov.
   INLINE(static Address target_pointer_address_at(Address pc));
 
-  // Read/Modify the pointer in the branch/call/move instruction at pc.
-  INLINE(static Address target_pointer_at(Address pc));
-  INLINE(static void set_target_pointer_at(Address pc, Address target));
+  // Return the address in the constant pool of the code target address used by
+  // the branch/call instruction at pc, or the object in a mov.
+  INLINE(static Address target_constant_pool_address_at(
+    Address pc, ConstantPoolArray* constant_pool));
 
   // Read/Modify the code target address in the branch/call instruction at pc.
-  INLINE(static Address target_address_at(Address pc));
-  INLINE(static void set_target_address_at(Address pc, Address target));
+  INLINE(static Address target_address_at(Address pc,
+                                          ConstantPoolArray* constant_pool));
+  INLINE(static void set_target_address_at(Address pc,
+                                           ConstantPoolArray* constant_pool,
+                                           Address target));
+  INLINE(static Address target_address_at(Address pc, Code* code)) {
+    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    return target_address_at(pc, constant_pool);
+  }
+  INLINE(static void set_target_address_at(Address pc,
+                                           Code* code,
+                                           Address target)) {
+    ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
+    set_target_address_at(pc, constant_pool, target);
+  }
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
@@ -674,16 +685,11 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on SH4).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Address target);
+      Address constant_pool_entry, Code* code, Address target);
 
-  // This sets the branch destination (which is in the constant pool on SH4).
-  // This is for calls and branches to runtime code.
-  inline static void set_external_target_at(Address constant_pool_entry,
-                                            Address target) {
-    // same as above, this function is currently not used anywhere.
-    UNREACHABLE();
-  }
-
+  // Here we are patching the address in the constant pool, not the actual call
+  // instruction.  The address in the constant pool is the same size as a
+  // pointer.
   static const int kSpecialTargetSize = kPointerSize;
 
   // Size of an instruction.
@@ -1375,6 +1381,12 @@ class Assembler : public AssemblerBase {
   int GetFirstConstPoolUse() const { return first_const_pool_use_; }
   void AssertDataEmit(const char *str);
   void SwitchConstantPoolMode(bool enabled) { constant_pool_pool_ = enabled; }
+
+  // Allocate a constant pool of the correct size for the generated code.
+  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
+
+  // Generate the constant pool for the generated code.
+  void PopulateConstantPool(ConstantPoolArray* constant_pool);
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This

@@ -38,18 +38,6 @@ namespace v8 {
 namespace internal {
 
 
-UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
-  switch (type) {
-    case TranscendentalCache::SIN: return &sin;
-    case TranscendentalCache::COS: return &cos;
-    case TranscendentalCache::TAN: return &tan;
-    case TranscendentalCache::LOG: return &log;
-    default: UNIMPLEMENTED();
-  }
-  return NULL;
-}
-
-
 #define __ masm.
 
 
@@ -58,12 +46,13 @@ UnaryMathFunction CreateExpFunction() {
   return &exp;
 }
 
-#undef __
 
 
 UnaryMathFunction CreateSqrtFunction() {
   return &sqrt;
 }
+
+#undef __
 
 
 // -------------------------------------------------------------------------
@@ -465,54 +454,58 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
 #undef __
 
+#ifdef DEBUG
 // The code age marker is a nop at the start of sequence (ref to PatchPlatformCodeAge())
 static const uint16_t kCodeAgePatchFirstInstruction = 0x0009;
+#endif
 
-static byte* GetNoCodeAgeSequence(uint32_t* length) {
-  // The sequence of instructions that is patched out for aging code is the
-  // following boilerplate stack-building prologue that is found in FUNCTIONS
-  static bool initialized = false;
-  static uint16_t sequence[kNoCodeAgeSequenceLength];
-  byte* byte_sequence = reinterpret_cast<byte*>(sequence);
-  *length = kNoCodeAgeSequenceLength * Assembler::kInstrSize;
-  if (!initialized) {
-    CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
-    PredictableCodeSizeScope scope(patcher.masm(), *length);
-    // This code must be the same as in MacroAssembler::Prologue
-    // Otherwise the ASSERT(result) in ::IsYoungSequence() will fail
-    // for young code.
-    // We add nops at the end of the sequence to match kNoCodeAgeSequenceLength.
-    // kNoCodeAgeSequenceLength == (4 + 1 + 2) instrs (Push, nop, add) + 2 (2 padding nops)
-    int start_offset = patcher.masm()->pc_offset();
-    patcher.masm()->Push(pr, fp, cp, r1); // 4 instrs
-    patcher.masm()->nop(); // 1 instr
-    patcher.masm()->add(fp, sp, Operand(2 * kPointerSize)); // 2 instr
-    patcher.masm()->nop(); // padding
-    patcher.masm()->nop(); // padding
-    USE(start_offset);
-    ASSERT(patcher.masm()->pc_offset() - start_offset ==
-           (4 + 1 + 2 + 1 + 1) * Assembler::kInstrSize);
-    ASSERT(patcher.masm()->pc_offset() - start_offset ==
-           kNoCodeAgeSequenceLength * Assembler::kInstrSize);
-    initialized = true;
-  }
-  return byte_sequence;
+CodeAgingHelper::CodeAgingHelper() {
+  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  // Since patcher is a large object, allocate it dynamically when needed,
+  // to avoid overloading the stack in stress conditions.
+  // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
+  // the process, before ARM simulator ICache is setup.
+  SmartPointer<CodePatcher> patcher(
+      new CodePatcher(young_sequence_.start(),
+                      young_sequence_.length() / Assembler::kInstrSize,
+                      CodePatcher::DONT_FLUSH));
+  PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
+  // This code must be the same as in MacroAssembler::Prologue
+  // Otherwise the ASSERT(result) in ::IsYoungSequence() will fail
+  // for young code.
+  // We add nops at the end of the sequence to match kNoCodeAgeSequenceLength.
+  // kNoCodeAgeSequenceLength == (4 + 1 + 2) instrs (Push, nop, add) + 2 (2 padding nops)
+  int start_offset = patcher->masm()->pc_offset();
+  patcher->masm()->Push(pr, fp, cp, r1); // 4 instrs
+  patcher->masm()->nop(); // 1 instr
+  patcher->masm()->add(fp, sp, Operand(2 * kPointerSize)); // 2 instr
+  patcher->masm()->nop(); // padding
+  patcher->masm()->nop(); // padding
+  USE(start_offset);
+  ASSERT(patcher->masm()->pc_offset() - start_offset ==
+	 (4 + 1 + 2 + 1 + 1) * Assembler::kInstrSize);
+  ASSERT(patcher->masm()->pc_offset() - start_offset ==
+	 kNoCodeAgeSequenceLength * Assembler::kInstrSize);
 }
 
 
-bool Code::IsYoungSequence(byte* sequence) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  bool result = !memcmp(sequence, young_sequence, young_length);
-  ASSERT(result ||
-         Memory::uint16_at(sequence) == kCodeAgePatchFirstInstruction);
+#ifdef DEBUG
+bool CodeAgingHelper::IsOld(byte* candidate) const {
+  return Memory::uint32_at(candidate) == kCodeAgePatchFirstInstruction;
+}
+#endif
+
+
+bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
+  bool result = isolate->code_aging_helper()->IsYoung(sequence);
+  ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 
 
-void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
                                MarkingParity* parity) {
-  if (IsYoungSequence(sequence)) {
+  if (IsYoungSequence(isolate, sequence)) {
     *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
@@ -536,10 +529,9 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
-    CopyBytes(sequence, young_sequence, young_length);
+    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
     CPU::FlushICache(sequence, young_length);
   } else {
     // This code must be the same as in MacroAssembler::Prologue().

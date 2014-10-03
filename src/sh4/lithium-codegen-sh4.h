@@ -34,7 +34,7 @@
 #include "lithium-codegen.h"
 #include "safepoint-table.h"
 #include "scopes.h"
-#include "v8utils.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
@@ -125,9 +125,11 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredNumberTagD(LNumberTagD* instr);
 
   enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
-  void DoDeferredNumberTagI(LInstruction* instr,
-                            LOperand* value,
-                            IntegerSignedness signedness);
+  void DoDeferredNumberTagIU(LInstruction* instr,
+                             LOperand* value,
+                             LOperand* temp1,
+                             LOperand* temp2,
+                             IntegerSignedness signedness);
 
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
@@ -138,6 +140,10 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
+  void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
+                                   Register result,
+                                   Register object,
+                                   Register index);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -161,9 +167,7 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  StrictModeFlag strict_mode_flag() const {
-    return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
-  }
+  StrictMode strict_mode() const { return info()->strict_mode(); }
 
   Scope* scope() const { return scope_; }
 
@@ -181,12 +185,14 @@ class LCodeGen: public LCodeGenBase {
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
-  void Abort(BailoutReason reason);
-
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
+
+  void SaveCallerDoubles();
+  void RestoreCallerDoubles();
 
   // Code generation passes.  Returns true if code generation should
   // continue.
+  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
   bool GenerateDeoptJumpTable();
@@ -199,6 +205,8 @@ class LCodeGen: public LCodeGenBase {
     RECORD_SIMPLE_SAFEPOINT,
     RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
   };
+
+  int CallCodeSize(Handle<Code> code, RelocInfo::Mode mode);
 
   void CallCode(
       Handle<Code> code,
@@ -242,7 +250,6 @@ class LCodeGen: public LCodeGenBase {
                          int formal_parameter_count,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind,
                          R1State r1_state);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
@@ -254,7 +261,6 @@ class LCodeGen: public LCodeGenBase {
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition condition, LEnvironment* environment);
-  void ApplyCheckIf(Condition condition, LBoundsCheck* check);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
@@ -263,7 +269,6 @@ class LCodeGen: public LCodeGenBase {
                         bool is_uint32,
                         int* object_index_pointer,
                         int* dematerialized_index_pointer);
-  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 
@@ -271,6 +276,10 @@ class LCodeGen: public LCodeGenBase {
 
   Register ToRegister(int index) const;
   DwVfpRegister ToDoubleRegister(int index) const;
+
+  MemOperand BuildSeqStringOperand(Register string,
+                                   LOperand* index,
+                                   String::Encoding encoding);
 
   void EmitIntegerMathAbs(LMathAbs* instr);
 
@@ -292,6 +301,8 @@ class LCodeGen: public LCodeGenBase {
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
+
+  // EmitBranch expects to be the last instruction of a block.
   template<class InstrType>
   void EmitBranch(InstrType instr, Condition condition);
   template<class InstrType>
@@ -338,17 +349,6 @@ class LCodeGen: public LCodeGenBase {
                     Register source,
                     int* offset,
                     AllocationSiteMode mode);
-
-  // Emit optimized code for integer division.
-  // Inputs are signed.
-  // All registers are clobbered.
-  // If 'remainder' is no_reg, it is not computed.
-  void EmitSignedIntegerDivisionByConstant(Register result,
-                                           Register dividend,
-                                           int32_t divisor,
-                                           Register remainder,
-                                           Register scratch,
-                                           LEnvironment* environment);
 
   void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
   void DoLoadKeyedExternalArray(LLoadKeyed* instr);

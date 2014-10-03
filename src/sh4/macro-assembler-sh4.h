@@ -98,9 +98,9 @@ class MacroAssembler: public Assembler {
   static int CallSize(Register target, int call_offset, Condition cond = al);
   void Call(Register target, Condition cond = al);
   int CallSize(Address target, int call_offset, RelocInfo::Mode rmode);
-  static int CallSizeNotPredictableCodeSize(Address target,
+  static int CallSizeNotPredictableCodeSize(Isolate* isolate,
+                                            Address target,
                                             RelocInfo::Mode rmode,
-                                            Address call_address,
                                             Condition cond = al);
   void Call(Address target, RelocInfo::Mode rmode,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
@@ -150,6 +150,9 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, Handle<Object> value);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DwVfpRegister dst, DwVfpRegister src);
+
+  void Load(Register dst, const MemOperand& src, Representation r);
+  void Store(Register src, const MemOperand& dst, Representation r);
 
   // Load an object from the root table.
   void LoadRoot(Register destination,
@@ -493,14 +496,7 @@ class MacroAssembler: public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  // Load the initial map for new Arrays from a JSFunction.
-  void LoadInitialArrayMap(Register function_in,
-                           Register scratch,
-                           Register map_out,
-                           bool can_have_holes);
-
   void LoadGlobalFunction(int index, Register function);
-  void LoadArrayFunction(Register function);
 
   // Load the initial map from the global function. The registers
   // function and map can be the same, function is then overwritten.
@@ -517,40 +513,31 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
-  // Set up call kind marking in ecx. The method takes ecx as an
-  // explicit first parameter to make the code more readable at the
-  // call sites.
-  void SetCallKind(Register dst, CallKind kind);
-
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
-                  const CallWrapper& call_wrapper,
-                  CallKind call_kind);
-
-  void InvokeCode(Handle<Code> code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  RelocInfo::Mode rmode,
-                  InvokeFlag flag,
-                  CallKind call_kind);
+                  const CallWrapper& call_wrapper);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
+
+  void InvokeFunction(Register function,
+                      const ParameterCount& expected,
+                      const ParameterCount& actual,
+                      InvokeFlag flag,
+                      const CallWrapper& call_wrapper);
 
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
                       const ParameterCount& actual,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   // Expression support
   void Set(Register dst, const Operand& x);
@@ -584,12 +571,10 @@ class MacroAssembler: public Assembler {
                         Register scratch,
                         Label* fail);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
   void DebugBreak();
-#endif
 
 
   // FCmp is similar to integer cmp, but requires unsigned
@@ -626,6 +611,12 @@ class MacroAssembler: public Assembler {
   // Propagates an uncatchable exception to the top of the current JS stack's
   // handler chain.
   void ThrowUncatchable(Register value);
+
+  // Throw a message string as an exception.
+  void Throw(BailoutReason reason);
+
+  // Throw a message string as an exception if a condition is not true.
+  void ThrowIf(Condition cc, BailoutReason reason);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -886,10 +877,6 @@ class MacroAssembler: public Assembler {
   }
 
 
-  // Generates code for reporting that an illegal operation has
-  // occurred.
-  void IllegalOperation(int num_arguments);
-
   // Picks out an array index from the hash field.
   // Register use:
   //   hash - holds the index's hash. Clobbered.
@@ -995,8 +982,10 @@ class MacroAssembler: public Assembler {
   }
 
   // Convenience function: Same as above, but takes the fid instead.
-  void CallRuntime(Runtime::FunctionId id, int num_arguments) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments);
+  void CallRuntime(Runtime::FunctionId id,
+                   int num_arguments,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
   }
 
   // Convenience function: call an external reference.
@@ -1062,10 +1051,8 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions.  Restores context.  stack_space
   // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
-  void CallApiFunctionAndReturn(ExternalReference function,
-                                Address function_address,
+  void CallApiFunctionAndReturn(Register function_address,
                                 ExternalReference thunk_ref,
-                                Register thunk_last_arg,
                                 int stack_space,
                                 MemOperand return_value_operand,
                                 MemOperand* context_restore_operand);
@@ -1090,6 +1077,11 @@ class MacroAssembler: public Assembler {
     ASSERT(!code_object_.is_null());
     return code_object_;
   }
+
+
+  // Emit code for a truncating division by a constant. The dividend register is
+  // unchanged and ip gets clobbered. Dividend and result must be different.
+  void TruncatingDiv(Register result, Register dividend, int32_t divisor);
 
   // Record code generator line mapping through comments.
   // Use -code_comments to enable.
@@ -1126,8 +1118,6 @@ class MacroAssembler: public Assembler {
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
-  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
-  bool allow_stub_calls() { return allow_stub_calls_; }
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() { return has_frame_; }
   inline bool AllowThisStubCall(CodeStub* stub);
@@ -1247,6 +1237,10 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a name, enabled via --debug-code.
   void AssertName(Register object);
 
+  // Abort execution if argument is not undefined or an AllocationSite, enabled
+  // via --debug-code.
+  void AssertUndefinedOrAllocationSite(Register object, Register scratch);
+
   // Abort execution if reg is not the root value with the given index,
   // enabled via --debug-code.
   void AssertIsRoot(Register reg, Heap::RootListIndex index);
@@ -1307,6 +1301,10 @@ class MacroAssembler: public Assembler {
 
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
 
+  void EmitSeqStringSetCharCheck(Register string,
+                                 Register index,
+                                 Register value,
+                                 uint32_t encoding_mask);
 
   void EnumLength(Register dst, Register map);
   void NumberOfOwnDescriptors(Register dst, Register map);
@@ -1348,6 +1346,10 @@ class MacroAssembler: public Assembler {
     bind(&no_memento_found);
   }
 
+  // Jumps to found label if a prototype map has dictionary elements.
+  void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
+                                        Register scratch1, Label* found);
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,
@@ -1363,8 +1365,7 @@ class MacroAssembler: public Assembler {
                       Label* done,
                       bool* definitely_mismatches,
                       InvokeFlag flag,
-                      const CallWrapper& call_wrapper,
-                      CallKind call_kind);
+                      const CallWrapper& call_wrapper);
 
   void InitializeNewString(Register string,
                            Register length,

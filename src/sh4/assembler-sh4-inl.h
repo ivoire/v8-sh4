@@ -49,6 +49,11 @@ int DwVfpRegister::NumRegisters() {
 }
 
 
+int DwVfpRegister::NumReservedRegisters() {
+  return kNumReservedRegisters;
+}
+
+
 int DwVfpRegister::NumAllocatableRegisters() {
   return NumRegisters() - kNumReservedRegisters;
 }
@@ -81,15 +86,21 @@ void RelocInfo::apply(intptr_t delta) {
 
 Address RelocInfo::target_address() { // SAMEAS: arm
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  return Assembler::target_address_at(pc_);
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
-Address RelocInfo::target_address_address() { // SAMEAS: arm
+Address RelocInfo::target_address_address() {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address>(Assembler::target_pointer_address_at(pc_));
+  return reinterpret_cast<Address>(pc_);
+}
+
+
+Address RelocInfo::constant_pool_entry_address() {
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -100,7 +111,7 @@ int RelocInfo::target_address_size() {
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, target);
+  Assembler::set_target_address_at(pc_, host_, target);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -111,31 +122,22 @@ void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
 
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object*>(Assembler::target_pointer_at(pc_));
+  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Handle<Object>(reinterpret_cast<Object**>(
-      Assembler::target_pointer_at(pc_)));
-}
-
-
-Object** RelocInfo::target_object_address() {
-  // Provide a "natural pointer" to the embedded object,
-  // which can be de-referenced during heap iteration.
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  reconstructed_obj_ptr_ =
-      reinterpret_cast<Object*>(Assembler::target_pointer_at(pc_));
-  return &reconstructed_obj_ptr_;
+      Assembler::target_address_at(pc_, host_)));
 }
 
 
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
-  Assembler::set_target_pointer_at(pc_, reinterpret_cast<Address>(target));
+  Assembler::set_target_address_at(pc_, host_,
+                                   reinterpret_cast<Address>(target));
   if (mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
@@ -145,10 +147,9 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 }
 
 
-Address* RelocInfo::target_reference_address() {
+Address RelocInfo::target_reference() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  reconstructed_adr_ptr_ = Assembler::target_address_at(pc_);
-  return &reconstructed_adr_ptr_;
+  return Assembler::target_address_at(pc_, host_);
 }
 
 
@@ -288,6 +289,15 @@ Object** RelocInfo::call_object_address() {
 }
 
 
+void RelocInfo::WipeOut() {
+  ASSERT(IsEmbeddedObject(rmode_) ||
+         IsCodeTarget(rmode_) ||
+         IsRuntimeEntry(rmode_) ||
+         IsExternalReference(rmode_));
+  Assembler::set_target_address_at(pc_, host_, NULL);
+}
+
+
 bool RelocInfo::IsPatchedReturnSequence() {
   Instr current_instr = Assembler::instr_at(pc_);
   Instr next_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize);
@@ -323,14 +333,12 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitExternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence())) &&
              isolate->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
   }
@@ -350,28 +358,26 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitExternalReference(this);
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
-#endif
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }
 }
 
 
-Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) {
+Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
   rm_ = no_reg;
   imm32_ = immediate;
   rmode_ = rmode;
 }
 
 
-Operand::Operand(const ExternalReference& f) {
+Operand::Operand(const ExternalReference& f)  {
   rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
@@ -380,9 +386,10 @@ Operand::Operand(const ExternalReference& f) {
 
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
-  imm32_ = reinterpret_cast<intptr_t>(value);
+  imm32_ =  reinterpret_cast<intptr_t>(value);
   rmode_ = RelocInfo::NONE32;
 }
+
 
 Operand::Operand(Register rm) {
   rm_ = rm;
@@ -463,7 +470,8 @@ Address Assembler::target_pointer_address_at(Address pc) {
 }
 
 
-Address Assembler::target_pointer_at(Address pc) {
+Address Assembler::target_address_at(Address pc,
+                                     ConstantPoolArray* constant_pool) {
   ASSERT(IsMovlPcRelative(instr_at(pc)));
 
   return Memory::Address_at(target_pointer_address_at(pc));
@@ -522,12 +530,14 @@ Address Assembler::return_address_from_call_start(Address pc) {
 
 
 void Assembler::deserialization_set_special_target_at(
-    Address constant_pool_entry, Address target) {
+    Address constant_pool_entry, Code* code, Address target) {
   Memory::Address_at(constant_pool_entry) = target;
 }
 
 
-void Assembler::set_target_pointer_at(Address pc, Address target) {
+void Assembler::set_target_address_at(Address pc,
+                                      ConstantPoolArray* constant_pool,
+                                      Address target) {
   ASSERT(IsMovlPcRelative(Assembler::instr_at(pc)));
   Memory::Address_at(target_pointer_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to flush the instruction cache
@@ -538,16 +548,6 @@ void Assembler::set_target_pointer_at(Address pc, Address target) {
   // the constant pool and is read via a data access; the instruction accessing
   // this address in the constant pool remains unchanged.
 
-}
-
-
-Address Assembler::target_address_at(Address pc) {
-  return target_pointer_at(pc);
-}
-
-
-void Assembler::set_target_address_at(Address pc, Address target) {
-  set_target_pointer_at(pc, target);
 }
 
 
