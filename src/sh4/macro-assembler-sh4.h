@@ -1319,7 +1319,7 @@ class MacroAssembler: public Assembler {
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
-  void LeaveFrame(StackFrame::Type type);
+  int LeaveFrame(StackFrame::Type type);
 
   // Expects object in r0 and returns map with validated enum cache
   // in r0.  Assumes that any other register can be used as a scratch.

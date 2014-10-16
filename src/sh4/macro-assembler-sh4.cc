@@ -784,7 +784,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::LeaveFrame(StackFrame::Type type) {
+int MacroAssembler::LeaveFrame(StackFrame::Type type) {
   // r0: preserved
   // r1: preserved
   // r2: preserved
@@ -793,7 +793,10 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   // the caller frame pointer and return address.
   RECORD_LINE();
   mov(sp, fp);
+  frame_ends = pc_offset();
   Pop(pr, fp);
+  return frame_ends;
+}
 }
 
 
