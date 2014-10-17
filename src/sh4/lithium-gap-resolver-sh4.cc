@@ -33,6 +33,8 @@
 namespace v8 {
 namespace internal {
 
+#include "map-sh4.h"  // Define register map
+
 // CB:sh4:TOCHECK
 // We use the root register to spill a value while breaking a cycle in parallel
 // moves. We don't need access to roots while resolving the move list and using
@@ -306,10 +308,12 @@ void LGapResolver::EmitMove(int index) { // SAMEAS: arm
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       if (in_cycle_) {
         // kScratchDoubleReg was used to break the cycle.
-        __ vstm(db_w, sp, kScratchDoubleReg, kScratchDoubleReg);
+        // CB:sh4:TODO
+        // __ vstm(db_w, sp, kScratchDoubleReg, kScratchDoubleReg);
         __ vldr(kScratchDoubleReg, source_operand);
         __ vstr(kScratchDoubleReg, destination_operand);
-        __ vldm(ia_w, sp, kScratchDoubleReg, kScratchDoubleReg);
+        // CB:sh4:TODO
+        // __ vldm(ia_w, sp, kScratchDoubleReg, kScratchDoubleReg);
       } else {
         __ vldr(kScratchDoubleReg, source_operand);
         __ vstr(kScratchDoubleReg, destination_operand);
