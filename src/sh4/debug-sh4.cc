@@ -36,13 +36,12 @@ namespace v8 {
 namespace internal {
 
 // TODO(stm): remove SH4 check in cctest/test-debug.cc when debug support is implemented there
-#ifdef ENABLE_DEBUGGER_SUPPORT
 bool BreakLocationIterator::IsDebugBreakAtReturn() { // SAMEAS: arm
   return Debug::IsDebugBreakAtReturn(rinfo());
 }
 
-
 void BreakLocationIterator::SetDebugBreakAtReturn() { // SAMEAS: arm
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Patch the code changing the return from JS function sequence from
   // Ref to FullCodeGenerator::EmitReturnSequence():
   //   mov fp, sp
@@ -70,8 +69,8 @@ void BreakLocationIterator::SetDebugBreakAtReturn() { // SAMEAS: arm
          patcher.masm()->pc_offset());
   ASSERT(Assembler::target_address_at(reinterpret_cast<byte*>(rinfo()->pc() + Assembler::kPatchReturnSequenceAddressOffset)) == debug_info_->GetIsolate()->debug()->debug_break_return()->entry());
   ASSERT(patcher.masm()->CallSize(debug_info_->GetIsolate()->debug()->debug_break_return()->entry(), 0, RelocInfo::NONE32) == patcher.masm()->pc_offset());
+#endif  // ENABLE_DEBUGGER_SUPPORT
 }
-
 
 // Restore the JS frame exit code.
 void BreakLocationIterator::ClearDebugBreakAtReturn() { // SAMEAS: arm
@@ -97,6 +96,7 @@ bool BreakLocationIterator::IsDebugBreakAtSlot() { // SAMEAS: arm
 
 void BreakLocationIterator::SetDebugBreakAtSlot() { // SAMEAS: arm
   ASSERT(IsDebugBreakSlot());
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Patch the code changing the debug break slot code from
   //   mov r2, r2
   //   .... Assembler::kDebugBreakSlotInstructions times
@@ -117,7 +117,9 @@ void BreakLocationIterator::SetDebugBreakAtSlot() { // SAMEAS: arm
          patcher.masm()->pc_offset());
   ASSERT(Assembler::target_address_at(reinterpret_cast<byte*>(rinfo()->pc() + Assembler::kPatchDebugBreakSlotAddressOffset)) == debug_info_->GetIsolate()->debug()->debug_break_slot()->entry());
   ASSERT(patcher.masm()->CallSize(debug_info_->GetIsolate()->debug()->debug_break_slot()->entry(), 0, RelocInfo::NONE32) == patcher.masm()->pc_offset());
+#endif
 }
+
 
 
 void BreakLocationIterator::ClearDebugBreakAtSlot() { // SAMEAS: arm
@@ -165,7 +167,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm, // SAMEAS: arm
     __ mov(r0, Operand::Zero());  // no arguments
     __ mov(r1, Operand(ExternalReference::debug_break(masm->isolate())));
 
-    CEntryStub ceb(1);
+    CEntryStub ceb(masm->isolate(),1);
     __ CallStub(&ceb);
 
     // Restore the register values from the expression stack.
@@ -197,6 +199,14 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm, // SAMEAS: arm
   __ Jump(sh4_ip);
 }
 
+void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallICStub
+  // ----------- S t a t e -------------
+  //  -- r1 : function
+  //  -- r3 : slot in feedback array (smi)
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, r1.bit() | r3.bit(), 0);
+}
 
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
   // Calling convention for IC load (from ic-arm.cc).
@@ -253,16 +263,6 @@ void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) { // SAMEAS: ar
   Generate_DebugBreakCallHelper(masm, r0.bit(), 0);
 }
 
-
-void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
-  // Calling convention for IC call (from ic-arm.cc)
-  // ----------- S t a t e -------------
-  //  -- r2     : name
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r2.bit(), 0);
-}
-
-
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
   // In places other than IC call sites it is expected that r0 is TOS which
   // is an object - this is not generally the case so this should be used with
@@ -278,17 +278,6 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, r1.bit(), 0);
 }
-
-
-void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
-  // Register state for CallFunctionStub (from code-stubs-arm.cc).
-  // ----------- S t a t e -------------
-  //  -- r1 : function
-  //  -- r2 : cache cell for call target
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r1.bit() | r2.bit(), 0);
-}
-
 
 void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
   // Calling convention for CallConstructStub (from code-stubs-arm.cc)
@@ -333,23 +322,19 @@ void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
   Generate_DebugBreakCallHelper(masm, 0, 0);
 }
 
-
 void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) { // SAMEAS: arm
   masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnSh4);
 }
-
 
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) { // SAMEAS: arm
   masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnSh4);
 }
 
-const bool Debug::kFrameDropperSupported = false;
-
 #undef __
 
 
 
-#endif  // ENABLE_DEBUGGER_SUPPORT
+const bool Debug::kFrameDropperSupported = false;
 
 } }  // namespace v8::internal
 

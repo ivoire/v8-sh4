@@ -1411,6 +1411,13 @@ void LCodeGen::DoMultiplySubD(LMultiplySubD* instr) {
   __ UNIMPLEMENTED_BREAK();
 }
 
+void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
+  __ UNIMPLEMENTED_BREAK();
+}
+
+void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
+  __ UNIMPLEMENTED_BREAK();
+}
 
 // TODO(svenpanne) Refactor this to avoid code duplication with DoDivI.
 void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
@@ -1823,13 +1830,13 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     case Token::MOD: {
       // DFE: SH4: TO CHECK
       __ PrepareCallCFunction(0, 2, scratch0());
-      __ SetCallCDoubleArguments(left, right);
+      __ MovToFloatParameters(left, right);
       __ CallCFunction(
           ExternalReference::mod_two_doubles_operation(isolate()),
           0, 2);
       // Move the result in the double result register.
       // DFE: SH4: TO CHECK
-      __ GetCFunctionDoubleResult(result);
+      __ MovFromFloatResult(result);
       break;
     }
     default:

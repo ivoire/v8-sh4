@@ -1393,13 +1393,13 @@ void MathPowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
     {
       AllowExternalCallThatCantCauseGC scope(masm);
       __ PrepareCallCFunction(0, 2, scratch);
-      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ MovToFloatParameters(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(isolate()),
           0, 2);
     }
     __ pop(lr);
-    __ GetCFunctionDoubleResult(double_result);
+    __ MovFromFloatResult(double_result);
     __ jmp(&done);
 
     __ bind(&int_exponent_convert);
@@ -1472,13 +1472,13 @@ void MathPowStub::Generate(MacroAssembler* masm) { // SAMEAS: arm
     {
       AllowExternalCallThatCantCauseGC scope(masm);
       __ PrepareCallCFunction(0, 2, scratch);
-      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ MovToFloatParameters(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(isolate()),
           0, 2);
     }
     __ pop(lr);
-    __ GetCFunctionDoubleResult(double_result);
+    __ MovFromFloatResult(double_result);
 
     __ bind(&done);
     __ IncrementCounter(counters->math_pow(), 1, scratch, scratch2);
@@ -5158,7 +5158,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) { // SAMEAS:
     int expected_size =
       3 * Assembler::kInstrSize /* Pushes */ +
       masm->CallSize((unsigned char *)NULL,
-                     pc_offset + 3 * Assembler::kInstrSize/* Pushes */,
+		     pc_offset + 3 * Assembler::kInstrSize,
                      RelocInfo::CODE_TARGET) +
       3 * Assembler::kInstrSize /* Pops */;
     PredictableCodeSizeScope predictable(masm, expected_size);
@@ -5184,7 +5184,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   const int32_t kReturnAddressDistanceFromFunctionStart =
     3 * Assembler::kInstrSize /* Pushes */ +
     masm->CallSize((unsigned char *)NULL,
-                   0 + 3 * Assembler::kInstrSize/* Pushes */,
+		   0 + 3 * Assembler::kInstrSize,
                    RelocInfo::CODE_TARGET);
 
   // This should contain all kCallerSaved registers.
