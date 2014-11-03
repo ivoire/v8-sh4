@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -39,7 +16,6 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 #include "map-sh4.h"    // Define register map
-
 
 static void ProbeTable(Isolate* isolate,
                        MacroAssembler* masm,
@@ -68,7 +44,7 @@ static void ProbeTable(Isolate* isolate,
   ASSERT((map_off_addr - key_off_addr) % 4 == 0);
   ASSERT((map_off_addr - key_off_addr) < (256 * 4));
 
- // Check that ip is not used
+  // Check that ip is not used
   ASSERT(!name.is(ip) && !offset.is(ip) && !scratch.is(ip) && !scratch2.is(ip));
 
   Label miss;
@@ -86,13 +62,13 @@ static void ProbeTable(Isolate* isolate,
   // Check that the key in the entry matches the name.
   __ ldr(ip, MemOperand(base_addr, 0));
   __ cmpeq(name, ip);
-  __ bf(&miss);
+  __ b(ne, &miss);
 
   // Check the map matches.
   __ ldr(ip, MemOperand(base_addr, map_off_addr - key_off_addr));
   __ ldr(scratch2, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ cmpeq(ip, scratch2);
-  __ bf(&miss);
+  __ b(ne, &miss);
 
   // Get the code entry from the cache.
   Register code = scratch2;
@@ -106,10 +82,9 @@ static void ProbeTable(Isolate* isolate,
   // It's a nice optimization if this constant is encodable in the bic insn.
 
   uint32_t mask = Code::kFlagsNotUsedInLookup;
-
   __ bic(flags_reg, flags_reg, Operand(mask));
   __ cmpeq(flags_reg, Operand(flags));
-  __ bf(&miss);
+  __ b(ne, &miss);
 
 #ifdef DEBUG
     if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
@@ -120,7 +95,8 @@ static void ProbeTable(Isolate* isolate,
 #endif
 
   // Jump to the first instruction in the code stub.
-  __ add(code, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ add(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ jmp(code);
 
   // Miss: fall through.
   __ bind(&miss);
@@ -149,7 +125,7 @@ void StubCompiler::GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   __ ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ ldrb(scratch0, FieldMemOperand(map, Map::kBitFieldOffset));
   __ tst(scratch0, Operand(kInterceptorOrAccessCheckNeededMask));
-  __ bf(miss_label);
+  __ b(ne, miss_label);
 
   // Check that receiver is a JSObject.
   __ ldrb(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
@@ -164,7 +140,7 @@ void StubCompiler::GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   Register tmp = properties;
   __ LoadRoot(tmp, Heap::kHashTableMapRootIndex);
   __ cmp(map, tmp);
-  __ bf(miss_label);
+  __ b(ne, miss_label);
 
   // Restore the temporarily used register.
   __ ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
@@ -235,7 +211,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   uint32_t mask = kPrimaryTableSize - 1;
   // We shift out the last two bits because they are not part of the hash and
   // they are always 01 for maps.
- __ lsr(scratch, scratch, Operand(kHeapObjectTagSize));
+  __ lsr(scratch, scratch, Operand(kHeapObjectTagSize));
   // Mask down the eor argument to the minimum to keep the immediate
   // ARM-encodable.
   __ eor(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask));
@@ -318,7 +294,7 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
   __ ldr(scratch, MemOperand(scratch, Context::SlotOffset(index)));
   __ Move(ip, function);
   __ cmp(ip, scratch);
-  __ bf(miss);
+  __ b(ne, miss);
 
   // Load its initial map. The global functions all have initial maps.
   __ Move(prototype, Handle<Map>(function->initial_map()));
@@ -345,7 +321,7 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
 }
 
 
-void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
+void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm, // SAMEAS: arm
                                            Register receiver,
                                            Register scratch,
                                            Label* miss_label) {
@@ -353,8 +329,8 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
   __ JumpIfSmi(receiver, miss_label);
 
   // Check that the object is a JS array.
-  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE, eq);
- __ b(ne, miss_label);
+  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE, eq); // DIFF: codegen
+  __ b(ne, miss_label);
 
   // Load length directly from the JS array.
   __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -387,7 +363,7 @@ void StubCompiler::GenerateCheckPropertyCell(MacroAssembler* masm,
   __ ldr(scratch, FieldMemOperand(scratch, Cell::kValueOffset));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
   __ cmpeq(scratch, ip);
-  __ bf(miss);
+  __ b(ne, miss);
 }
 
 
@@ -437,11 +413,12 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     Handle<Object> constant(descriptors->GetValue(descriptor), masm->isolate());
     __ Move(scratch1, constant);
     __ cmpeq(value_reg, scratch1);
-    __ bf(miss_label);
+    __ b(ne, miss_label);
   } else if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
   } else if (representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_label);
+    // DFE: SH4: TO CHECK
     HeapType* field_type = descriptors->GetFieldType(descriptor);
     HeapType::Iterator<Map> it = field_type->Classes();
     if (!it.Done()) {
@@ -451,7 +428,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
         __ CompareMap(scratch1, it.Current(), &do_store);
         it.Advance();
         if (it.Done()) {
-          __ bf(miss_label);
+          __ b(ne, miss_label);
           break;
         }
         __ b(eq, &do_store);
@@ -466,16 +443,15 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiUntag(scratch1, value_reg);
     UNIMPLEMENTED();
-
     __ jmp(&do_store);
 
     __ bind(&heap_number);
     __ CheckMap(value_reg, scratch1, Heap::kHeapNumberMapRootIndex,
                 miss_label, DONT_DO_SMI_CHECK);
-    __ SmiUntag(scratch1, value_reg);
+    UNIMPLEMENTED();
 
     __ bind(&do_store);
-    __ SmiUntag(scratch1, value_reg);
+    UNIMPLEMENTED();
   }
 
   // Stub never generated for non-global objects that require access
@@ -620,6 +596,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ JumpIfNotSmi(value_reg, miss_label);
   } else if (representation.IsHeapObject()) {
     __ JumpIfSmi(value_reg, miss_label);
+    // DFE: SH4: TO CHECK
     HeapType* field_type = lookup->GetFieldType();
     HeapType::Iterator<Map> it = field_type->Classes();
     if (!it.Done()) {
@@ -629,7 +606,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
         __ CompareMap(scratch1, it.Current(), &do_store);
         it.Advance();
         if (it.Done()) {
-          __ bf(miss_label);
+          __ b(ne, miss_label);
           break;
         }
         __ b(eq, &do_store);
@@ -653,7 +630,6 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiUntag(scratch2, value_reg);
     UNIMPLEMENTED();
-
     __ jmp(&do_store);
 
     __ bind(&heap_number);
@@ -726,7 +702,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
 }
 
 
-void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
+void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm, // SAMEAS: arm
                                             Label* label,
                                             Handle<Name> name) {
   if (!label->is_unused()) {
@@ -736,7 +712,7 @@ void StoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
 }
 
 
-static void PushInterceptorArguments(MacroAssembler* masm,
+static void PushInterceptorArguments(MacroAssembler* masm, // SAMEAS: arm
                                      Register receiver,
                                      Register holder,
                                      Register name,
@@ -1030,7 +1006,7 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
     const int kValueOffset = kElementsStartOffset + kPointerSize;
     __ ldr(scratch2(), FieldMemOperand(pointer, kValueOffset));
     __ cmp(scratch2(), Operand(callback));
-    __ bf(&miss);
+    __ b(ne, &miss);
   }
 
   HandlerFrontendFooter(name, &miss);
@@ -1200,7 +1176,7 @@ void LoadStubCompiler::GenerateLoadInterceptor(
   }
 }
 
-
+// DFE: SH4: TO CHECK -- Start
 Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<JSObject> object,
     Handle<JSObject> holder,
@@ -1383,7 +1359,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
   }
   __ Ret();
 }
-
+// DFE: SH4: TO CHECK - End
 
 #undef __
 #define __ ACCESS_MASM(masm())
@@ -1406,7 +1382,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   if (!is_dont_delete) {
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
     __ cmpeq(r4, ip);
-    __ b(&miss);
+    __ bt(&miss);
   }
 
   Counters* counters = isolate()->counters();
@@ -1432,7 +1408,7 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   if (check == PROPERTY &&
       (kind() == Code::KEYED_LOAD_IC || kind() == Code::KEYED_STORE_IC)) {
     __ cmp(this->name(), Operand(name));
-    __ bf(&miss);
+    __ b(ne, &miss);
   }
 
   Label number_case;
@@ -1455,7 +1431,7 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
         ASSERT(!number_case.is_unused());
         __ bind(&number_case);
       }
-    Label skip;
+     Label skip;
       __ bf_near(&skip);
       __ Jump(handlers->at(current), RelocInfo::CODE_TARGET);
       __ bind(&skip);
@@ -1472,7 +1448,7 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   return GetICCode(kind(), type, name, state);
 }
 
-
+// DFE: SH4: TO CHECK
 void StoreStubCompiler::GenerateStoreArrayLength() {
   // Prepare tail call to StoreIC_ArrayLength.
   __ Push(receiver(), value());
@@ -1497,7 +1473,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
     __ mov(ip, Operand(receiver_maps->at(i)));
     __ cmpeq(scratch1(), ip);
     if (transitioned_maps->at(i).is_null()) {
-     Label skip;
+      Label skip;
       __ bf_near(&skip);
       __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET);
       __ bind(&skip);
