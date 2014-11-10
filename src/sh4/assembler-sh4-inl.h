@@ -192,8 +192,8 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
-// Ref to Code::PatchPlatformCodeAge(): 8 instructions + 1 padding nop for alignment
-static const int kNoCodeAgeSequenceLength = 8 + 1;
+// Ref to Code::PatchPlatformCodeAge(): 8 instructions + 1 padding nop for alignment * kInstrSize
+ static const int kNoCodeAgeSequenceLength = (8 + 1) * Assembler::kInstrSize;
 
 
 Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {

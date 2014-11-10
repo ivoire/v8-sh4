@@ -485,7 +485,7 @@ CodeAgingHelper::CodeAgingHelper() {
   ASSERT(patcher->masm()->pc_offset() - start_offset ==
 	 (4 + 1 + 2 + 1 + 1) * Assembler::kInstrSize);
   ASSERT(patcher->masm()->pc_offset() - start_offset ==
-	 kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+	 kNoCodeAgeSequenceLength);
 }
 
 
