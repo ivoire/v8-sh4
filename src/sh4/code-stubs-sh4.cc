@@ -1802,7 +1802,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&throw_normal_exception);
   __ Throw(r0);
 }
-#else // DFE: RAW ARM CODE
+#else // DFE: TO CHECK: Merge of Generate() and GenerateCore()
 void CEntryStub::Generate(MacroAssembler* masm) {
   // Called from JavaScript; parameters are on stack as if calling JS function.
   // r0: number of arguments including receiver
@@ -1810,27 +1810,39 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // fp: frame pointer  (restored after C call)
   // sp: stack pointer  (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
+    // SH4: clobbers r3
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   __ mov(r5, Operand(r1));
 
   // Compute the argv pointer in a callee-saved register.
-  __ lsl(ip, r0, Operand(kPointerSizeLog2)); // SH4: diff codegen
-  __ add(r1, sp, r0);
-  __ sub(r1, r1, Operand(kPointerSize));
+  // SH4: will be saved on stack
+  // __ lsl(sh4_r10, r0, Operand(kPointerSizeLog2));
+  // __ add(sh4_r10, sp, sh4_r10);
+  // __ sub(sh4_r10, sh4_r10, Operand(kPointerSize));
+  __ lsl(r3, r0, Operand(kPointerSizeLog2));
+  __ add(r3, sp, r3);
+  __ sub(r3, r3, Operand(kPointerSize));
 
   // Enter the exit frame that transitions from JavaScript to C++.
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(save_doubles_);
+  __ EnterExitFrame(save_doubles_, 3); // SH4: Reserve space for 3 stack locations
 
-  // Store a copy of argc in callee-saved registers for later.
-  __ mov(r4, Operand(r0));
+  // SH4: save on stack instead of keep in callee-saved
+  // SH4: sp contains: sp[0] == lr; sp[1] == argc; sp[2] == builtin; sp[3] = argv
+  // __ mov(sh4_r8, r0);
+  // __ mov(sh4_r9, r1);
+  __ str(r0, MemOperand(sp, (1+0)*kPointerSize)); // skip lr location at sp[1]
+  __ str(r1, MemOperand(sp, (1+1)*kPointerSize));
+  __ str(r3, MemOperand(sp, (1+2)*kPointerSize));
 
-  // r0, r4: number of arguments including receiver  (C callee-saved)
-  // r1: pointer to the first argument (C callee-saved)
-  // r5: pointer to builtin function  (C callee-saved)
-
+  // sh4_r8: number of arguments (C callee-saved)
+  // sh4_r9: pointer to builtin function (C callee-saved)
+  // sh4_r10: pointer to first argument (C callee-saved)
+  //ASSERT(!sh4_r8.is(sh4_rtmp) && !sh4_r9.is(sh4_rtmp) && !sh4_r10.is(sh4_rtmp));
+  ASSERT(!r0.is(sh4_rtmp));
+  ASSERT(!r0.is(sh4_ip));
   // Result returned in r0 or r0+r1 by default.
 
 #if V8_HOST_ARCH_SH4
@@ -1850,8 +1862,16 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 #endif
 
   // Call C built-in.
-  // r0 = argc, r1 = argv
-  __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
+  // r4 = argc, r5 = argv, r6 = isolate
+  //__ mov(r4, sh4_r8); // SH4: obsolete: on stack
+  __ ldr(r4, MemOperand(sp, (1+0)*kPointerSize)); // DIFF: codegen: SH4 C-ABI arg 1
+  //__ mov(r5, sh4_r10); // SH4: obsolete: on stack
+  __ ldr(r5, MemOperand(sp, (1+2)*kPointerSize)); // DIFF: codegen: SH4 C-ABI arg 2
+
+  __ mov(r6, Operand(ExternalReference::isolate_address(isolate()))); // DIFF: codegen: SH4 C-ABI arg 3
+
+  //__ mov(r2, sh4_r9); // SH4: obsolete: on stack 
+  __ ldr(r2, MemOperand(sp, (1+1)*kPointerSize));
 
   // To let the GC traverse the return address of the exit frames, we need to
   // know where the return address is. The CEntryStub is unmovable, so
@@ -1916,9 +1936,10 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  // Callee-saved register r4 still holds argc.
-  __ LeaveExitFrame(save_doubles_, r4, true);
-  __ jmp(lr); // DIFF: codegen
+  //__ mov(r2, sh4_r8); // SH4: obsolete: on stack
+  __ ldr(r2, MemOperand(sp, (1+0)*kPointerSize));
+  __ LeaveExitFrame(save_doubles_, r2, true);
+  __ rts();
 
   // Handling of exception.
   __ bind(&exception_returned);
