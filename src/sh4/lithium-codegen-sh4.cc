@@ -1394,8 +1394,8 @@ void LCodeGen::DoDivI(LDivI* instr) {
   if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     // Compute remainder and deopt if it's not zero.
     Register remainder = scratch0();
-    // DFE: SH4: TO DO
-    //    __ mls(remainder, result, divisor, dividend);
+    __ mul(remainder, result, divisor);
+    __ sub(remainder, remainder, dividend);
     __ cmp(remainder, Operand::Zero());
     DeoptimizeIf(ne, instr->environment());
   }
