@@ -194,7 +194,7 @@ TEST(IssueEvalStackTrace) {
   v8::TryCatch try_catch;
   const char *source_exception = "try { eval(\"FAIL\") } catch(e) { e.stack }";
   v8::Handle<v8::Script> script =
-    v8::Script::Compile(v8::String::New(source_exception));
+    v8::Script::Compile(v8::String::NewFromUtf8(CcTest::isolate(), source_exception));
   v8::Handle<v8::String> result = v8::Handle<v8::String>::Cast(script->Run());
   v8::String::Utf8Value message_str(result);
   CHECK(strstr(*message_str, "FAIL is not defined")); // Check error

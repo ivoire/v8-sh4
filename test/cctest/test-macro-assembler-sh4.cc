@@ -97,10 +97,8 @@ static void set_natives(bool natives) {
 #define JIT()                                                           \
   CodeDesc desc;                                                        \
   assm.GetCode(&desc);                                                  \
-  Object* code = isolate->heap()->CreateCode(                           \
-      desc,                                                             \
-      Code::ComputeFlags(Code::STUB),                                   \
-      Handle<Code>())->ToObjectChecked();                               \
+  Handle<Code> code = isolate->factory()->NewCode(			\
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());		\
   CHECK(code->IsCode());
 
 #define CMT(msg) do { Comment cmnt(&assm, msg); } while (0)
@@ -165,10 +163,10 @@ TEST(sh4_ma_0) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -306,10 +304,10 @@ TEST(sh4_ma_1) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -336,10 +334,10 @@ TEST(sh4_ma_2) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -414,10 +412,10 @@ TEST(sh4_ma_3) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -492,10 +490,10 @@ TEST(sh4_ma_4) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -632,10 +630,10 @@ TEST(sh4_ma_5) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -872,10 +870,10 @@ TEST(sh4_ma_6) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -949,10 +947,10 @@ TEST(sh4_ma_7) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -1082,10 +1080,10 @@ TEST(sh4_ma_8) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);
@@ -1190,10 +1188,10 @@ TEST(sh4_ma_9) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0, res);

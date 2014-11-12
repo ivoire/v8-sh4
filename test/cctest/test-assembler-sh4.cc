@@ -70,10 +70,8 @@ static void set_natives(bool natives) {
 #define JIT()                                                           \
   CodeDesc desc;                                                        \
   assm.GetCode(&desc);                                                  \
-  Object* code = isolate->heap()->CreateCode(                           \
-      desc,                                                             \
-      Code::ComputeFlags(Code::STUB),                                   \
-      Handle<Code>())->ToObjectChecked();                               \
+  Handle<Code> code = isolate->factory()->NewCode(			\
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());		\
   CHECK(code->IsCode());
 
 #define __ assm.
@@ -88,10 +86,10 @@ TEST(0) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 3, 4, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(3+4, res);
@@ -108,10 +106,10 @@ TEST(1) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 1, -10, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(1-10+123456789, res);
@@ -128,10 +126,10 @@ TEST(2) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 1, -10, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(1-10-987654, res);
@@ -148,10 +146,10 @@ TEST(3) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 5, 123, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(5678-(123-5), res);
@@ -168,10 +166,10 @@ TEST(4) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 42, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(42<<(17+1), res);
@@ -191,10 +189,10 @@ TEST(5) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fecba98, 4,
                                                       0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -211,10 +209,10 @@ TEST(5b) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 2,
                                                       0, 0, 0));
   CHECK_EQ(0, res);
@@ -245,10 +243,10 @@ TEST(5c) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 2,
                                                       0, 0, 0));
   CHECK_EQ(0, res);
@@ -281,10 +279,10 @@ TEST(6) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 42, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(42<<(14+1+2+1+1), res);
@@ -301,10 +299,10 @@ TEST(6b) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 2,
                                                       0, 0, 0));
   CHECK_EQ(0, res);
@@ -336,10 +334,10 @@ TEST(6c) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 2,
                                                       0, 0, 0));
   CHECK_EQ(0, res);
@@ -377,10 +375,10 @@ TEST(7) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0x7fecba98, 4,
                                                       0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -397,10 +395,10 @@ TEST(7b) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 2,
                                                       0, 0, 0));
   CHECK_EQ(0, res);
@@ -431,10 +429,10 @@ TEST(7c) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 2,
                                                       0, 0, 0));
   CHECK_EQ(0, res);
@@ -461,10 +459,10 @@ TEST(8) {
 
   JIT();
 #ifdef DEBUG
-//  Code::cast(code)->Print();
+//  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 12, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(10000+12, res);
@@ -498,10 +496,10 @@ TEST(9) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 42, 12, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(42+3+1, res);
@@ -539,10 +537,10 @@ TEST(10) {
 
   JIT();
 #ifdef DEBUG
-//  Code::cast(code)->Print();
+//  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 12, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(3*2000+12, res);
@@ -595,10 +593,10 @@ TEST(11) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, -27, 546, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(1, res);
@@ -644,10 +642,10 @@ TEST(12) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 12, 816, 53, 6543, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(12+816+53+6543, res);
@@ -703,10 +701,10 @@ TEST(13) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(1, res);
@@ -751,10 +749,10 @@ TEST(14) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(10000, res);
@@ -809,10 +807,10 @@ TEST(15) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -944,10 +942,10 @@ TEST(16) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1030,10 +1028,10 @@ TEST(17) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1132,10 +1130,10 @@ TEST(18) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1233,10 +1231,10 @@ TEST(19) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1277,10 +1275,10 @@ TEST(20) {
   JIT();
 
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 456, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1303,7 +1301,7 @@ TEST(21) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
   CHECK_EQ(true, __ IsCmpRegister((reinterpret_cast<Instr*>(desc.buffer)[0])));
@@ -1359,10 +1357,10 @@ TEST(22) {
   JIT();
 
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 53, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1393,10 +1391,10 @@ TEST(22_bis) {
   JIT();
 
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1449,10 +1447,10 @@ TEST(23) {
   JIT();
 
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1482,10 +1480,10 @@ TEST(24) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 2, 0, 0, 0, 0)));
   CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 3, 4, 0, 12, 0)));
   CHECK_EQ(0, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 45, 0, 10*45,
@@ -1529,10 +1527,10 @@ TEST(25) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   CHECK_EQ(4, reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0)));
 }
 
@@ -1759,10 +1757,10 @@ TEST(27) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1816,10 +1814,10 @@ TEST(28) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
 
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 1, 0, 0, 0));
   ::printf("f() = %d\n", res);
@@ -1848,10 +1846,10 @@ TEST(29) {
 
   JIT();
 #ifdef DEBUG
-//  Code::cast(code)->Print();
+//  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 12, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(2, res);
@@ -1881,10 +1879,10 @@ TEST(30) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, &t, 123156, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(123156, res);
@@ -1921,10 +1919,10 @@ TEST(31) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+  F5 f = FUNCTION_CAST<F5>(code->entry());
 #if defined(USE_SIMULATOR)
   int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 123.0, (double)(int)0x80000000));
 #else
@@ -1966,10 +1964,10 @@ TEST(31b) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+  F5 f = FUNCTION_CAST<F5>(code->entry());
 #if defined(USE_SIMULATOR)
   int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 123.0, (double)0x80000000U));
 #else
@@ -2021,10 +2019,10 @@ TEST(32) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+  F5 f = FUNCTION_CAST<F5>(code->entry());
 #if defined(USE_SIMULATOR)
   int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 456, 0));
 #else
@@ -2088,10 +2086,10 @@ TEST(33) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F5 f = FUNCTION_CAST<F5>(Code::cast(code)->entry());
+  F5 f = FUNCTION_CAST<F5>(code->entry());
 #if defined(USE_SIMULATOR)
   int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 4212.0, (double)0x80000000U));
 #else
@@ -2132,9 +2130,9 @@ TEST(from_arm_2) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
+  F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(3628800, res);
@@ -2179,9 +2177,9 @@ TEST(from_arm_3) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.i = 100000;
   t.c = 10;
   t.s = 1000;
@@ -2264,9 +2262,9 @@ TEST(from_arm_4) {
 
     JIT();
 #ifdef DEBUG
-    Code::cast(code)->Print();
+    code->Print();
 #endif
-    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
     t.a = 1.5;
     t.b = 2.75;
     t.c = 17.17;
@@ -2313,13 +2311,13 @@ TEST(memcpy) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
   const char *psz_buffer = "this string will be copied to the second buffer";
   char psz_dest[47 + 1] = { 0 };
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, (int)psz_dest,
                                     (int)psz_buffer, 47 + 1, 0, 0));
   ::printf("f() = %d\n", res);
@@ -2341,10 +2339,10 @@ TEST(cp_0) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 1, -10, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(123456789 + 512, res);
@@ -2367,10 +2365,10 @@ TEST(cp_1) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 1, -10, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(0x0d06f00d, res);
@@ -2406,10 +2404,10 @@ TEST(cp_2) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(10000, res);
@@ -2433,10 +2431,10 @@ TEST(cp_3) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(loops - 1, res);
@@ -2471,10 +2469,10 @@ TEST(cp_4) {
  JIT();
 
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(1024 + loops - 1, res);
@@ -2500,10 +2498,10 @@ TEST(cp_5) {
 
   JIT();
 #ifdef DEBUG
-  Code::cast(code)->Print();
+  code->Print();
 #endif
 
-  F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
+  F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
 }

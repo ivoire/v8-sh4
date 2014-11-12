@@ -51,14 +51,14 @@ static void set_natives(bool natives) {
 #define BEGIN_WITH_NATIVE(natives)                      \
   set_natives(natives);                                 \
   CcTest::InitializeVM();                               \
-  Isolate* isolate = CcTest::i_isolate();               \
-  HandleScope scope(isolate);
+  v8::Isolate* isolate = CcTest::isolate();		\
+  v8::HandleScope scope(isolate);
 
 TEST(sh4) {
   BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "0x1234;";
-  v8::Handle<v8::String> source = v8::String::New(c_source);
+  v8::Handle<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
   v8::Handle<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(0x1234,  script->Run()->Int32Value());
 }
@@ -67,7 +67,7 @@ TEST(sh4_1) {
   BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "0x1234 + 0x10;";
-  v8::Handle<v8::String> source = v8::String::New(c_source);
+  v8::Handle<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
   v8::Handle<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(0x1244,  script->Run()->Int32Value());
 }
@@ -76,7 +76,7 @@ TEST(sh4_2) {
   BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "function foo() { return 0x1234; }; foo();";
-  v8::Handle<v8::String> source = v8::String::New(c_source);
+  v8::Handle<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
   v8::Handle<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(0x1234,  script->Run()->Int32Value());
 }
@@ -85,7 +85,7 @@ TEST(sh4_3) {
   BEGIN_WITH_NATIVE(true)
 
   const char* c_source = "\"foo\" + \"bar\" != \"foobar\";";
-  v8::Handle<v8::String> source = v8::String::New(c_source);
+  v8::Handle<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
   v8::Handle<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(0,  script->Run()->Int32Value());
 }
@@ -94,7 +94,7 @@ TEST(sh4_4) {
   BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "0x1235 - 1;";
-  v8::Handle<v8::String> source = v8::String::New(c_source);
+  v8::Handle<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
   v8::Handle<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(0X1234,  script->Run()->Int32Value());
 }
@@ -103,7 +103,7 @@ TEST(sh4_5) {
   BEGIN_WITH_NATIVE(false)
 
   const char* c_source = "0x123 * 16;";
-  v8::Handle<v8::String> source = v8::String::New(c_source);
+  v8::Handle<v8::String> source = v8::String::NewFromUtf8(isolate, c_source);
   v8::Handle<v8::Script> script = v8::Script::Compile(source);
   CHECK_EQ(0X1230,  script->Run()->Int32Value());
 }
