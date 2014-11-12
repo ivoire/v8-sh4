@@ -855,8 +855,10 @@ void LCodeGen::DeoptimizeIf(Condition condition, // SAMEAS: arm
     __ ldr(r1, MemOperand(scratch));
     // DFE: SH4: TO CHECK
     __ cmpge(r1, Operand(1)); // DIFF: codegen
-    // DFE: SH4: TO DO!!!
-    //    __ movw(r1, FLAG_deopt_every_n_times, eq);
+    __ UNIMPLEMENTED_BREAK();
+    // DFE: CBR: TO OPTIMIZE!!!
+    __ mov(scratch, Operand (FLAG_deopt_every_n_times));
+    __ mov(r1, scratch, eq);
     __ str(r1, MemOperand(scratch));
     __ pop(r1);
 
@@ -865,6 +867,7 @@ void LCodeGen::DeoptimizeIf(Condition condition, // SAMEAS: arm
       __ pop(scratch);
     }
 
+  __ UNIMPLEMENTED_BREAK();
     // DFE: SH4: TO DO!!!
     //     __ Call(entry, RelocInfo::RUNTIME_ENTRY, eq);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
