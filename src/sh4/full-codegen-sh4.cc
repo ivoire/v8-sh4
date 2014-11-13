@@ -485,9 +485,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ align(); // ALignment required on SH4 before each RecordJSReturn()
       __ RecordJSReturn();
       int start = masm_->pc_offset();
-      masm_->mov(sp, fp);
-      int no_frame_start = masm_->pc_offset();
-      masm_->Pop(pr, fp);
+      int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT);
       masm_->add(sp, sp, Operand(sp_delta));
       masm_->Ret();
       // SH4: pad return sequence with nops
@@ -677,7 +675,6 @@ void FullCodeGenerator::StackValueContext::Plug(
   Label done;
   __ bind(materialize_true);
   __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  __ push(ip);
   __ jmp_near(&done);
   __ bind(materialize_false);
   __ LoadRoot(ip, Heap::kFalseValueRootIndex);
