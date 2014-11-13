@@ -2218,7 +2218,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
   __ cmpeq(r3, Operand(Smi::FromInt(0)));
   __ bt(&closed_state);
-  __ cmpgt(r3, Operand(Smi::FromInt(0)));
+  __ cmpge(r3, Operand(Smi::FromInt(0)));
   __ bf(&wrong_state);
 
   // Load suspended function and context.
