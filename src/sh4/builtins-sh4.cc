@@ -1424,8 +1424,8 @@ static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
   __ sub(r5, sp, r5);
   // Check if the arguments will overflow the stack.   // DFE: SH4: TO CHECK
   __ lsl(r0, r2, Operand(kPointerSizeLog2)); // DIFF: codegen
-  __ cmp(r5, r0);
-  __ b(le, stack_overflow);  // Signed comparison.
+  __ cmpgt(r5, r0); // DIFF: codegen
+  __ bf(stack_overflow);  // Signed comparison. // DIFF: codegen
 }
 
 
