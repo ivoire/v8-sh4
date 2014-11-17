@@ -962,9 +962,9 @@
       {
         int32_t old_pc = get_pc();
         RAISE_EXCEPTION_IF_IN_DELAY_SLOT ();
-        set_sregister(pr, get_pc() + 4);
+        set_sregister(pr, old_pc + 4);
         set_pc(get_register(n));
-        Delay_Slot (old_pc + 2);
+        Delay_Slot(old_pc + 2);
       }
       break;
     }
@@ -1400,7 +1400,7 @@
       {
         int32_t old_pc = get_pc();
         RAISE_EXCEPTION_IF_IN_DELAY_SLOT ();
-        set_pc(get_pc() + 4 + (SEXT12 (i) * 2));
+        set_pc(old_pc + 4 + (SEXT12 (i) * 2));
         Delay_Slot (old_pc + 2);
       }
       break;
@@ -1413,9 +1413,9 @@
       {
         int32_t old_pc = get_pc();
         RAISE_EXCEPTION_IF_IN_DELAY_SLOT ();
-        set_sregister(pr ,get_pc() + 4);
-        set_pc(get_pc() + 4 + (SEXT12 (i) * 2));
-        Delay_Slot (old_pc + 2);
+        set_sregister(pr, old_pc + 4);
+        set_pc(old_pc + 4 + (SEXT12 (i) * 2));
+        Delay_Slot(old_pc + 2);
       }
       break;
     }
