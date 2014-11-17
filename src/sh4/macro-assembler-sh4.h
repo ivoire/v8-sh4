@@ -105,7 +105,6 @@ class MacroAssembler: public Assembler {
   void Call(Address target, RelocInfo::Mode rmode,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
   int CallSize(Handle<Code> code,
-               int call_offset,
                RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
                TypeFeedbackId ast_id = TypeFeedbackId::None());
   void Call(Handle<Code> code,

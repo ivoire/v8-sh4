@@ -82,7 +82,7 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
 }
 
 
-  int MacroAssembler::CallSize(Register target, int call_offset, Condition cond) {
+int MacroAssembler::CallSize(Register target, int call_offset, Condition cond) {
   // Register based call: jsr @target; nop;
   return 2 * kInstrSize;
 }
@@ -158,11 +158,10 @@ void MacroAssembler::Call(Address target,
 
 
 int MacroAssembler::CallSize(Handle<Code> code,
-			     int call_offset,
                              RelocInfo::Mode rmode,
                              TypeFeedbackId ast_id) {
   AllowDeferredHandleDereference using_raw_address;
-  return CallSize(reinterpret_cast<Address>(code.location()), call_offset, rmode);
+  return CallSize(reinterpret_cast<Address>(code.location()), pc_offset(), rmode);
 }
 
 void MacroAssembler::Call(Handle<Code> code,

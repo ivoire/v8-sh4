@@ -149,10 +149,9 @@ static void EmitStackCheck(MacroAssembler* masm_,
   __ LoadRoot(stack_limit_scratch, index);
   __ cmphs(scratch, stack_limit_scratch);
   __ bt_near(&ok);
-  // SH4: for SH4 we must pass a PC offset to GetCallTarget.
   Handle<Code> stack_check = isolate->builtins()->StackCheck();
   PredictableCodeSizeScope predictable(masm_,
-      masm_->GetCallTargetAddressOffset(masm_->pc_offset()));
+      masm_->CallSize(stack_check, RelocInfo::CODE_TARGET));
   __ Call(stack_check, RelocInfo::CODE_TARGET);
   __ bind(&ok);
 }
@@ -2241,6 +2240,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // Enter a new JavaScript frame, and initialize its slots as they were when
   // the generator was suspended.
+  //TODO: use PushFixedFrame !!
   Label resume_frame;
   __ bind(&push_frame);
   __ jsr(&resume_frame);
