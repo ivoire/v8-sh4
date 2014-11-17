@@ -2016,13 +2016,16 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) { // SAM
   // r3: argc
   // r4: argv
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  __ mov(sh4_r8, Operand(Smi::FromInt(marker))); // DIFF: codegen
+  if (FLAG_enable_ool_constant_pool) {
+    UNIMPLEMENTED();
+  }
+  __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));
   __ mov(r5,
          Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   __ ldr(r5, MemOperand(r5));
   __ mov(ip, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  __ Push(ip, sh4_r8, r6, r5); // DFE: SH4: TO CHECK
+  __ Push(ip, r7, r6, r5); // DFE: SH4: TO CHECK
 
   // Set up frame pointer for the frame to be pushed.
   __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
@@ -2103,15 +2106,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) { // SAM
   //DFE:SH4: TO CHECK
   __ add(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
 
-  // Branch and link to JSEntryTrampoline.  We don't use the double underscore
-  // macro for the add instruction because we don't want the coverage tool
-  // inserting instructions here after we read the pc. We block literal pool
-  // emission for the same reason.
-  {
-    Assembler::BlockConstPoolScope block_const_pool(masm);
-    masm->add(ip, Operand(Code::kHeaderSize - kHeapObjectTag)); // DIFF: codegen
-    masm->jsr(ip); // DIFF: codegen
-  }
+  // Branch and link to JSEntryTrampoline.
+  __ Call(ip);
 
   // Unlink this frame from the handler chain.
   __ PopTryHandler();
