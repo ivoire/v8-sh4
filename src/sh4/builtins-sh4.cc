@@ -961,11 +961,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) { // SAMEAS
 
   // Perform prologue operations usually performed by the young code stub.
   __ Push(pr, fp, cp, r1); // DIFF: codegen
-  __ add(fp, sp, Operand(2 * kPointerSize));
-  /* DFE: SH4: TO CHECK: New code from ARM:
-  __ PushFixedFrame(r1);
   __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-  */
 
   // Jump to point after the code-age stub.
   __ add(r0, r0, Operand(kNoCodeAgeSequenceLength));
@@ -1434,7 +1430,8 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ mov(r4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ push(pr);
   __ Push(fp, r4, r1, r0);
-  __ add(fp, sp, Operand(3 * kPointerSize));
+  __ add(fp, sp,
+         Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
 }
 
 
@@ -1444,7 +1441,9 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // -----------------------------------
   // Get the number of arguments passed (as a smi), tear down the frame and
   // then tear down the parameters.
-  __ ldr(r1, MemOperand(fp, -3 * kPointerSize));
+  __ ldr(r1, MemOperand(fp, -(StandardFrameConstants::kFixedFrameSizeFromFp +
+                              kPointerSize)));
+
   __ mov(sp, fp);
   __ Pop(pr, fp);
   __ GetPointerOffsetFromSmiKey(ip, r1);
