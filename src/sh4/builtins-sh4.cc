@@ -292,8 +292,8 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
-static void CallRuntimePassFunction(MacroAssembler* masm,
-                                    Runtime::FunctionId function_id) {
+static void CallRuntimePassFunction(
+    MacroAssembler* masm, Runtime::FunctionId function_id) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
   __ push(r1);

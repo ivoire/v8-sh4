@@ -2267,12 +2267,19 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     __ cmpeq(r3, Operand(0));
     __ bf(&slow_resume);
     __ ldr(r3, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
-    __ ldr(r2, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
-    __ SmiUntag(r2);
-    __ add(r3, r3, r2);
-    __ mov(r2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
-    __ str(r2, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
-    __ Jump(r3);
+
+    { //TODO: look at ConstantPoolUnavailableScope
+      if (FLAG_enable_ool_constant_pool) {
+        UNIMPLEMENTED();
+      }
+
+      __ ldr(r2, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
+      __ SmiUntag(r2);
+      __ add(r3, r3, r2);
+      __ mov(r2, Operand(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting)));
+      __ str(r2, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
+      __ Jump(r3);
+    }
     __ bind(&slow_resume);
   }
 
@@ -3208,7 +3215,10 @@ void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
   __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
   __ ldr(r1, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
   __ cmp(r2, Operand(0x80000000));
-  __ cmp(r1, Operand(0x00000000)); // DFE: SH4: TO CHECK
+  Label skip;
+  __ bf_near(&skip);
+  __ cmp(r1, Operand(0x00000000));
+  __ bind(&skip);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(eq, if_true, if_false, fall_through);
@@ -3239,7 +3249,7 @@ void FullCodeGenerator::EmitIsArray(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-  void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) { // SAMEAS: arm
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3276,14 +3286,14 @@ void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) { // SAMEAS: arm
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 
   // Skip the arguments adaptor frame if it exists.
-  Label check_frame_marker;
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &check_frame_marker, Label::kNear);
+  Label skip;
+  __ bf_near(&skip);
   __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+  __ bind(&skip);
 
   // Check the marker in the calling frame.
-  __ bind(&check_frame_marker);
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
   __ cmp(r1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
@@ -3369,7 +3379,7 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) { // SAMEAS: arm
   // either end of the type range for JS object types. Saves extra comparisons.
   STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
   __ CompareObjectType(r0, r0, r1, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
-  // Map is now in r0 and type is in r1.
+  // Map is now in r0.
   __ bf_near(&null); // DIFF: codegen
   STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
                 FIRST_SPEC_OBJECT_TYPE + 1);
