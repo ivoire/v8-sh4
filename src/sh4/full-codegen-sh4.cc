@@ -238,8 +238,9 @@ void FullCodeGenerator::Generate() {
           __ push(r9);
         }
         // Continue loop if not done.
-        __ sub(r2, r2, Operand(1)); // SetCC is not necessary // DIFF: codegen
-        __ b(ne, &loop_header); // DFE: SH4: TO CHECK
+        __ sub(r2, r2, Operand(1));
+        __ tst(r2, r2);
+        __ b(ne, &loop_header);
       }
       int remaining = locals_count % kMaxPushes;
       // Emit the remaining pushes.
@@ -1162,8 +1163,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) { // SAMEAS: a
   PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
 
   // Convert the object to a JS object.
-  Label convert;
-  Label done_convert;
+  Label convert, done_convert;
   __ JumpIfSmi(r0, &convert, Label::kNear);
   __ CompareObjectType(r0, r1, r1, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
   __ bt_near(&done_convert); // DIFF: codegen
