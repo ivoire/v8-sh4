@@ -786,10 +786,11 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     add(fp, sp, Operand(2 * kPointerSize));
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(
-        this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+        this, kNoCodeAgeSequenceLength);
     // The following instructions must remain together and unmodified
     // for code aging to work properly.
     if (isolate()->IsCodePreAgingActive()) {
+      UNIMPLEMENTED();
       // Pre-age the code.
       // This code must be the same as in Code::PatchPlatformCodeAge().
       // Ref to codegen-sh4.cc.
