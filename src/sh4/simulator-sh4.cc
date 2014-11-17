@@ -1524,8 +1524,14 @@ void Simulator::InstructionDecodeDelaySlot(Instruction* instr) {
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
                            reinterpret_cast<byte*>(instr));
-    PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
-    fflush(stdout);
+    if (::v8::internal::FLAG_trace_sim_regs) {
+      PrintF("\n  0x%08x  %s \t\t", reinterpret_cast<intptr_t>(instr), buffer.start());
+      fflush(stdout);
+      dump_get_register = true;
+      dump_set_register = true;
+    } else {
+      PrintF("  0x%08x  %s\n", reinterpret_cast<intptr_t>(instr), buffer.start());
+    }
   }
 
   uint32_t iword = instr->InstructionBits();
