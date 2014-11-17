@@ -3549,7 +3549,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ add(r4, r2, r4);
     __ LoadRoot(ip, Heap::kMegamorphicSymbolRootIndex);
     __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
-    __ jmp(&slow_start);
+    __ jmp_near(&slow_start);
   }
 
   // We are here because tracing is on or we are going monomorphic.
