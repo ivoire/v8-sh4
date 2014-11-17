@@ -4205,7 +4205,11 @@ void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) { // SAMEAS: arm
 
 
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
-  __ UNIMPLEMENTED_BREAK();
+  last_lazy_deopt_pc_ = masm()->pc_offset();
+  ASSERT(instr->HasEnvironment());
+  LEnvironment* env = instr->environment();
+  RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
+  safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
 }
 
 
@@ -4240,12 +4244,12 @@ void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
 
 
 void LCodeGen::DoStackCheck(LStackCheck* instr) {
-  __ UNIMPLEMENTED_BREAK();
+  UNIMPLEMENTED();
 }
 
 
 void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
-  __ UNIMPLEMENTED_BREAK();
+  UNIMPLEMENTED();
 }
 
 
