@@ -2246,11 +2246,14 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ jsr(&resume_frame);
   __ jmp(&done);
   __ bind(&resume_frame);
-  __ push(pr);  // Return address.
-  __ push(fp);  // Caller's frame pointer.
-  __ mov(fp, sp);
-  __ push(cp);  // Callee's context.
-  __ push(r4);  // Callee's JS Function.
+  // DFE: SH4: TO CHECK
+  // pr = return address.
+  // fp = caller's frame pointer.
+  // cp = callee's context,
+  // r4 = callee's JS function.
+  __ Push(r4, cp, pr, fp); // DIFF/ codegen
+  // Adjust FP to point to saved FP.
+  __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
   // Load the operand stack size.
   __ ldr(r3, FieldMemOperand(r1, JSGeneratorObject::kOperandStackOffset));
