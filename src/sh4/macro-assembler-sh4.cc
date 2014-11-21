@@ -2831,11 +2831,15 @@ void MacroAssembler::Abort(BailoutReason reason) {
   }
   // will not return here
   if (is_const_pool_blocked()) {
-    // TODO(ivoire): check that's still not needed
-    // ARM and MIPS pad the number of instructions in the abort block to
-    // 10 and 14 respectively. The reason for this and how it relates to the
-    // constant pool (being blocked) is not given.
-    UNIMPLEMENTED();
+    // If the calling code cares about the exact number of
+    // instructions generated, we insert padding here to keep the size
+    // of the Abort macro constant.
+    static const int kExpectedAbortInstructions = 31;
+    int abort_instructions = InstructionsGeneratedSince(&abort_start);
+    ASSERT(abort_instructions <= kExpectedAbortInstructions);
+    while (abort_instructions++ < kExpectedAbortInstructions) {
+      nop();
+    }
   }
 }
 
