@@ -61,24 +61,47 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
-void MacroAssembler::Jump(Register target) {
+void MacroAssembler::Jump(Register target, Condition cond) {
+  Label skip;
+  ASSERT(cond == eq || cond == ne || cond == al);
+  RECORD_LINE();
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   jmp(target);
+  if (cond != al)
+      bind(&skip);
 }
 
 
-void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode) {
+void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
+                          Condition cond) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
+  Label skip;
+  ASSERT(cond == eq || cond == ne || cond == al);
   RECORD_LINE();
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   mov(ip, Operand(target, rmode));
   jmp(ip);
+  if (cond != al)
+    bind(&skip);
 }
 
 
+void MacroAssembler::Jump(Address target, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(!RelocInfo::IsCodeTarget(rmode));
+  UNIMPLEMENTED(); // SH4: obsolete. Seems obsolete also on ARM
+  // Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
+}
 
-void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode) {
+
+void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
+                          Condition cond) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
+  ASSERT(cond == eq || cond == ne || cond == al);
   RECORD_LINE();
-  Jump(reinterpret_cast<intptr_t>(code.location()), rmode);
+  Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
 
 
@@ -2283,8 +2306,8 @@ void MacroAssembler::CallStub(CodeStub* stub,
 }
 
 
-void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
+void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
 }
 
 //static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {

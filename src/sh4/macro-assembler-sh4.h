@@ -92,9 +92,9 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
-  void Jump(Register target);
-  void Jump(Address target, RelocInfo::Mode rmode);
-  void Jump(Handle<Code> code, RelocInfo::Mode rmode);
+  void Jump(Register target, Condition cond = al);
+  void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   static int CallSize(Register target, int call_offset, Condition cond = al);
   void Call(Register target, Condition cond = al);
   int CallSize(Address target, int call_offset, RelocInfo::Mode rmode);
@@ -969,7 +969,7 @@ class MacroAssembler: public Assembler {
                 TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // Call a code stub.
-  void TailCallStub(CodeStub* stub);
+  void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f,
@@ -1355,7 +1355,7 @@ class MacroAssembler: public Assembler {
                            int num_reg_arguments,
                            int num_double_arguments);
 
-  void Jump(intptr_t target, RelocInfo::Mode rmode);
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
