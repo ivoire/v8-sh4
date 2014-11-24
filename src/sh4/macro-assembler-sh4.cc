@@ -782,7 +782,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     Push(pr, fp, cp);
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
-    add(fp, sp, Operand(2 * kPointerSize));
+    add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(
         this, kNoCodeAgeSequenceLength);
@@ -807,7 +807,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       Push(pr, fp, cp, r1);
       nop();
       // Adjust FP to point to saved FP.
-      add(fp, sp, Operand(2 * kPointerSize));
+      add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
       nop();
       nop();
     }
@@ -823,7 +823,9 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ip);
   mov(ip, Operand(CodeObject()));
   push(ip);
-  add(fp, sp, Operand(3 * kPointerSize));  // Adjust FP to point to saved FP.
+  // Adjust FP to point to saved FP.
+  add(fp, sp,
+      Operand(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize));
 }
 
 
@@ -841,6 +843,7 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type) {
   Pop(pr, fp);
   return frame_ends;
 }
+
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   // Set up the frame structure on the stack.
@@ -1512,8 +1515,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   sub(t1, t1, Operand(1));
 
   // Generate an unrolled loop that performs a few probes before giving up.
-  static const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
+  for (int i = 0; i < kNumberDictionaryProbes; i++) {
     // Use t2 for index calculations and keep the hash intact in t0.
     mov(t2, t0);
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -1532,7 +1534,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     add(t2, elements, ip);
     ldr(ip, FieldMemOperand(t2, SeededNumberDictionary::kElementsStartOffset));
     cmp(key, ip);
-    if (i != kProbes - 1) {
+    if (i != kNumberDictionaryProbes - 1) {
       b(eq, &done);
     } else {
       b(ne, miss);
@@ -1561,6 +1563,7 @@ void MacroAssembler::Allocate(int object_size, // SAMEAS: arm
                               Register scratch2,
                               Label* gc_required,
                               AllocationFlags flags) {
+  ASSERT(object_size <= Page::kMaxRegularHeapObjectSize);
   RECORD_LINE();
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
@@ -2002,6 +2005,11 @@ void MacroAssembler::CompareInstanceType(Register map,
                                          Register type_reg,
                                          InstanceType type,
                                          Condition cond) {
+  // Registers map and type_reg can be ip. These two lines assert
+  // that ip can be used with the two instructions (the constants
+  // will never need ip).
+  STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
+  STATIC_ASSERT(LAST_TYPE < 256);
   ASSERT(!map.is(sh4_rtmp) && !type_reg.is(sh4_rtmp));
 
   RECORD_LINE();
@@ -2279,9 +2287,9 @@ void MacroAssembler::TailCallStub(CodeStub* stub) {
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
-static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
-  return ref0.address() - ref1.address();
-}
+//static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
+//  return ref0.address() - ref1.address();
+//}
 
 // CB: SH4 TO DO
 void MacroAssembler::CallApiFunctionAndReturn(
@@ -2290,125 +2298,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
     int stack_space,
     MemOperand return_value_operand,
     MemOperand* context_restore_operand) {
-  ExternalReference next_address =
-      ExternalReference::handle_scope_next_address(isolate());
-  const int kNextOffset = 0;
-  const int kLimitOffset = AddressOffset(
-      ExternalReference::handle_scope_limit_address(isolate()),
-      next_address);
-  const int kLevelOffset = AddressOffset(
-      ExternalReference::handle_scope_level_address(isolate()),
-      next_address);
-
-  ASSERT(function_address.is(r1) || function_address.is(r2));
-
-  Label profiler_disabled;
-  Label end_profiler_check;
-  mov(r9, Operand(ExternalReference::is_profiling_address(isolate())));
-  ldrb(r9, MemOperand(r9, 0));
-  cmp(r9, Operand(0));
-  b(eq, &profiler_disabled);
-
-  // Additional parameter is the address of the actual callback.
-  mov(r3, Operand(thunk_ref));
-  jmp(&end_profiler_check);
-
-  bind(&profiler_disabled);
-  Move(r3, function_address);
-  bind(&end_profiler_check);
-
-  // Allocate HandleScope in callee-save registers.
-  mov(r9, Operand(next_address));
-  ldr(r4, MemOperand(r9, kNextOffset));
-  ldr(r5, MemOperand(r9, kLimitOffset));
-  ldr(r6, MemOperand(r9, kLevelOffset));
-  add(r6, r6, Operand(1));
-  str(r6, MemOperand(r9, kLevelOffset));
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(1, r0);
-    mov(r0, Operand(ExternalReference::isolate_address(isolate())));
-    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 1);
-    PopSafepointRegisters();
-  }
-
-  // Native call returns to the DirectCEntry stub which redirects to the
-  // return address pushed on stack (could have moved after GC).
-  // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub(isolate());
-  stub.GenerateCall(this, r3);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(1, r0);
-    mov(r0, Operand(ExternalReference::isolate_address(isolate())));
-    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 1);
-    PopSafepointRegisters();
-  }
-
-  Label promote_scheduled_exception;
-  Label exception_handled;
-  Label delete_allocated_handles;
-  Label leave_exit_frame;
-  Label return_value_loaded;
-
-  // load value from ReturnValue
-  ldr(r0, return_value_operand);
-  bind(&return_value_loaded);
-  // No more valid handles (the result handle was the last one). Restore
-  // previous handle scope.
-  str(r4, MemOperand(r9, kNextOffset));
-  if (emit_debug_code()) {
-    ldr(r1, MemOperand(r9, kLevelOffset));
-    cmp(r1, r6);
-    Check(eq, kUnexpectedLevelAfterReturnFromApiCall);
-  }
-  sub(r6, r6, Operand(1));
-  str(r6, MemOperand(r9, kLevelOffset));
-  ldr(ip, MemOperand(r9, kLimitOffset));
-  cmp(r5, ip);
-  b(ne, &delete_allocated_handles);
-
-  // Check if the function scheduled an exception.
-  bind(&leave_exit_frame);
-  LoadRoot(r4, Heap::kTheHoleValueRootIndex);
-  mov(ip, Operand(ExternalReference::scheduled_exception_address(isolate())));
-  ldr(r5, MemOperand(ip));
-  cmp(r4, r5);
-  b(ne, &promote_scheduled_exception);
-  bind(&exception_handled);
-
-  bool restore_context = context_restore_operand != NULL;
-  if (restore_context) {
-    ldr(cp, *context_restore_operand);
-  }
-  // LeaveExitFrame expects unwind space to be in a register.
-  mov(r4, Operand(stack_space));
-  LeaveExitFrame(false, r4, !restore_context);
-  rts();
-
-  bind(&promote_scheduled_exception);
-  {
-    FrameScope frame(this, StackFrame::INTERNAL);
-    CallExternalReference(
-        ExternalReference(Runtime::kHiddenPromoteScheduledException, isolate()),
-        0);
-  }
-  jmp(&exception_handled);
-
-  // HandleScope limit has changed. Delete allocated extensions.
-  bind(&delete_allocated_handles);
-  str(r5, MemOperand(r9, kLimitOffset));
-  mov(r4, r0);
-  PrepareCallCFunction(1, r5);
-  mov(r0, Operand(ExternalReference::isolate_address(isolate())));
-  CallCFunction(
-      ExternalReference::delete_handle_scope_extensions(isolate()), 1);
-  mov(r0, r4);
-  jmp(&leave_exit_frame);
+  UNIMPLEMENTED();
 }
 
 
@@ -3452,11 +3342,11 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
   bind(&index_tag_ok);
 
   ldr(ip, FieldMemOperand(string, String::kLengthOffset));
-  cmp(index, ip);
-  Check(lt, kIndexIsTooLarge);
+  cmpge(index, ip);
+  Check(ne, kIndexIsTooLarge);
 
-  cmp(index, Operand(Smi::FromInt(0)));
-  Check(ge, kIndexIsNegative);
+  cmpge(index, Operand(Smi::FromInt(0)));
+  Check(eq, kIndexIsNegative);
 
   SmiUntag(index, index);
 }
