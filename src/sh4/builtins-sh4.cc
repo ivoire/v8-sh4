@@ -897,7 +897,7 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) { // SAMEAS: 
   // Adjust r0 to point to the head of the PlatformCodeAge sequence.
   // It points 6 bytes before the end of the sequence.
   __ sub(r0, r0,
-         Operand(kNoCodeAgeSequenceLength * Assembler::kInstrSize - 6));
+         Operand(kNoCodeAgeSequenceLength - 6));
   // Restore the original return address of the function.
   __ mov(pr, r2);
 
@@ -942,7 +942,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) { // SAMEAS
   // Adjust r0 to point to the head of the PlatformCodeAge sequence.
   // It points 6 bytes before the end of the sequence.
   __ sub(r0, r0,
-         Operand(kNoCodeAgeSequenceLength * Assembler::kInstrSize - 6));
+         Operand(kNoCodeAgeSequenceLength - 6));
   // Restore the original return address of the function.
   __ mov(pr, r2);
 

@@ -476,7 +476,7 @@ CodeAgingHelper::CodeAgingHelper() { // REVIEWEDBY: CG
 
 #ifdef DEBUG
 bool CodeAgingHelper::IsOld(byte* candidate) const { // REVIEWEDBY: CG
-  return Memory::uint32_at(candidate) == kCodeAgePatchFirstInstruction;
+  return Memory::uint16_at(candidate) == kCodeAgePatchFirstInstruction;
 }
 #endif
 
@@ -499,7 +499,7 @@ void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age, // RE
     // SH4: for sh4 the address may be misaligned, in this case it is one
     // instruction before.
     byte *target_address_pointer =
-      sequence + Assembler::kInstrSize * kNoCodeAgeSequenceLength - 4;
+      sequence + kNoCodeAgeSequenceLength - 4;
     if ((uintptr_t)target_address_pointer % 4 == 2)
       target_address_pointer -= 2;
     ASSERT((uintptr_t)target_address_pointer % 4 == 0);
@@ -554,9 +554,9 @@ void Code::PatchPlatformCodeAge(Isolate* isolate, // REVIEWEDBY: CG
            (1 + 1 + 4 + 1) * Assembler::kInstrSize + 4);
     // The sequence size must be identical to the young sequence size.
     ASSERT((uint32_t)patcher.masm()->pc_offset() - start_offset == young_length);
-    // Actually is must be kNoCodeAgeSequenceLength * kInstrSize.
+    // Actually is must be kNoCodeAgeSequenceLength.
     ASSERT(patcher.masm()->pc_offset() - start_offset ==
-           kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+           kNoCodeAgeSequenceLength);
   }
 }
 
