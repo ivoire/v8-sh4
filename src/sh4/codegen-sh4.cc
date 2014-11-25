@@ -1,38 +1,15 @@
-// Copyright 2011-2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2012 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
-#if V8_TARGET_ARCH_SH4
+#if V8_TARGET_ARCH_SH4 // FILE: SAMEAS: arm, REVIEWEDBY: CG
 
 #include "codegen.h"
 #include "macro-assembler.h"
 #include "simulator-sh4.h"
-#include "map-sh4.h"
+#include "map-sh4.h" // DIFF: codegen
 
 namespace v8 {
 namespace internal {
@@ -41,14 +18,15 @@ namespace internal {
 #define __ masm.
 
 
-UnaryMathFunction CreateExpFunction() {
-  // TODO(stm): optionally implement fast version (ref to arm)
+UnaryMathFunction CreateExpFunction() { // REVIEWEDBY: CG
+  // SH4: TODO: optionally implement fast version (ref to arm)
   return &exp;
 }
 
 
 
-UnaryMathFunction CreateSqrtFunction() {
+UnaryMathFunction CreateSqrtFunction() { // REVIEWEDBY: CG
+  // SH4: TODO: optionally implement fast version (ref to arm)
   return &sqrt;
 }
 
@@ -77,7 +55,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 #define __ ACCESS_MASM(masm)
 
-void ElementsTransitionGenerator::GenerateMapChangeElementsTransition( // SAMEAS: arm
+void ElementsTransitionGenerator::GenerateMapChangeElementsTransition( // REVIEWEDBY: CG
     MacroAssembler* masm, AllocationSiteMode mode,
     Label* allocation_memento_found) {
   // ----------- S t a t e -------------
@@ -106,7 +84,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition( // SAMEAS
 }
 
 
-void ElementsTransitionGenerator::GenerateSmiToDouble( // SAMEAS: arm
+void ElementsTransitionGenerator::GenerateSmiToDouble( // REVIEWEDBY: CG
     MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -128,15 +106,15 @@ void ElementsTransitionGenerator::GenerateSmiToDouble( // SAMEAS: arm
   __ CompareRoot(r4, Heap::kEmptyFixedArrayRootIndex);
   __ b(eq, &only_change_map);
 
-  __ push(lr);
+  __ push(r7/*lr*/); // SH4: use r7 instead of lr. // DIFF: codegen
   __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
   // r5: number of elements (smi-tagged)
 
   // Allocate new FixedDoubleArray.
-  // Use lr as a temporary register. SH4: use r7 instead of lr.
+  // Use lr as a temporary register. // SH4: use r7 instead of lr
   __ lsl(r7/*lr*/, r5, Operand(2)); // DIFF: codegen
-  __ add(r7/*lr*/, r7/*lr*/, Operand(FixedDoubleArray::kHeaderSize));
-  __ Allocate(r7/*lr*/, r6, r4, r9, &gc_required, DOUBLE_ALIGNMENT);
+  __ add(r7/*lr*/, r7/*lr*/, Operand(FixedDoubleArray::kHeaderSize)); // DIFF: codegen
+  __ Allocate(r7/*lr*/, r6, r4, r9, &gc_required, DOUBLE_ALIGNMENT); // DIFF: codegen
   // r6: destination FixedDoubleArray, not tagged as heap object.
   __ ldr(r4, FieldMemOperand(r2, JSObject::kElementsOffset));
   // r4: source FixedArray.
@@ -197,17 +175,17 @@ void ElementsTransitionGenerator::GenerateSmiToDouble( // SAMEAS: arm
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ pop(lr);
+  __ pop(r7/*lr*/); // DIFF: codegen
   __ b(fail);
 
   // Convert and copy elements.
   __ bind(&loop);
-  __ ldr(r7/*lr*/, MemOperand(r3, 4, PostIndex));
+  __ ldr(r7/*lr*/, MemOperand(r3, 4, PostIndex)); // DIFF: codegen
   // r7/*lr*/: current element
-  __ UntagAndJumpIfNotSmi(r7/*lr*/, r7/*lr*/, &convert_hole);
+  __ UntagAndJumpIfNotSmi(r7/*lr*/, r7/*lr*/, &convert_hole); // DIFF: codegen
 
   // Normal smi, convert to double and store.
-  __ vcvt_f64_s32(d0, r7/*lr*/); // DIFF/ codegen
+  __ vcvt_f64_s32(d0, r7/*lr*/); // DIFF: codegen
   __ vstr(d0, r9, 0);
   __ add(r9, r9, Operand(8));
   __ b(&entry);
@@ -216,9 +194,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble( // SAMEAS: arm
   __ bind(&convert_hole);
   if (FLAG_debug_code) {
     // Restore a "smi-untagged" heap object.
-    __ SmiTag(r7/*lr*/);
-    __ orr(r7/*lr*/, r7/*lr*/, Operand(1));
-    __ CompareRoot(r7/*lr*/, Heap::kTheHoleValueRootIndex);
+    __ SmiTag(r7/*lr*/); // DIFF: codegen
+    __ orr(r7/*lr*/, r7/*lr*/, Operand(1)); // DIFF: codegen
+    __ CompareRoot(r7/*lr*/, Heap::kTheHoleValueRootIndex); // DIFF: codegen
     __ Assert(eq, kObjectFoundInSmiOnlyArray);
   }
   __ Strd(r4, r5, MemOperand(r9)); // DIFF: codegen
@@ -228,12 +206,12 @@ void ElementsTransitionGenerator::GenerateSmiToDouble( // SAMEAS: arm
   __ cmpge(r9, r6); // DIFF: codegen
   __ b(f, &loop); // DIFF: codegen
 
-  __ pop(lr);
+  __ pop(r7/*lr*/); // DIFF: codegen
   __ bind(&done);
 }
 
 
-void ElementsTransitionGenerator::GenerateDoubleToObject( // SAMEAS: arm
+void ElementsTransitionGenerator::GenerateDoubleToObject( // REVIEWEDBY: CG
     MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -255,7 +233,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // SAMEAS: arm
   __ CompareRoot(r4, Heap::kEmptyFixedArrayRootIndex);
   __ b(eq, &only_change_map);
 
-  __ push(lr);
+  __ push(r7/*lr*/); // SH4: use r7 instead of lr. // DIFF: codegen
   __ Push(r3, r2, r1, r0);
   __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
   // r4: source FixedDoubleArray
@@ -264,7 +242,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // SAMEAS: arm
   // Allocate new FixedArray.
   __ mov(r0, Operand(FixedDoubleArray::kHeaderSize));
   __ lsl(r3, r5, Operand(1)); // r3 available as scratch // DIFF: codegen
-  __ add(r0, r0, r3);
+  __ add(r0, r0, r3); // DIFF: codegen
   __ Allocate(r0, r6, r3, r9, &gc_required, NO_ALLOCATION_FLAGS);
   // r6: destination FixedArray, not tagged as heap object
   // Set destination FixedDoubleArray's length and map.
@@ -290,7 +268,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // SAMEAS: arm
   // Call into runtime if GC is required.
   __ bind(&gc_required);
   __ Pop(r3, r2, r1, r0);
-  __ pop(lr);
+  __ pop(r7/*lr*/); // DIFF: codegen
   __ b(fail);
 
   __ bind(&loop);
@@ -336,7 +314,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // SAMEAS: arm
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  __ pop(lr);
+  __ pop(r7/*lr*/); // DIFF: codegen
 
   __ bind(&only_change_map);
   // Update receiver's map.
@@ -352,7 +330,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // SAMEAS: arm
 }
 
 
-void StringCharLoadGenerator::Generate(MacroAssembler* masm, // SAMEAS: arm
+void StringCharLoadGenerator::Generate(MacroAssembler* masm, // REVIEWEDBY: CG
                                        Register string,
                                        Register index,
                                        Register result,
@@ -375,7 +353,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm, // SAMEAS: arm
   Label indirect_string_loaded;
   __ ldr(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
   __ ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
-  __ SmiUntag(result); // DIFF: codegen
+  __ SmiUntag(result); // result available as scratch here // DIFF: codegen
   __ add(index, index, result); // DIFF: codegen
   __ jmp(&indirect_string_loaded);
 
@@ -441,6 +419,12 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm, // SAMEAS: arm
 }
 
 
+// SH4: unused
+//static MemOperand ExpConstant(int index, Register base) {
+//  return MemOperand(base, index * kDoubleSize);
+//}
+
+
 void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
                                    DwVfpRegister input,
                                    DwVfpRegister result,
@@ -449,17 +433,18 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
                                    Register temp1,
                                    Register temp2,
                                    Register temp3) {
-  __ UNIMPLEMENTED_BREAK();
+  __ UNIMPLEMENTED_BREAK(); // SH4: not used (ref to CreateExpFunction())
 }
 
 #undef __
 
 #ifdef DEBUG
-// The code age marker is a nop at the start of sequence (ref to PatchPlatformCodeAge())
+// SH4: The code age marker is a nop at the start of sequence (ref to PatchPlatformCodeAge())
 static const uint16_t kCodeAgePatchFirstInstruction = 0x0009;
 #endif
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper() { // REVIEWEDBY: CG
+  // SH4: the code sequence here are SH4 specific, change with care
   ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // Since patcher is a large object, allocate it dynamically when needed,
   // to avoid overloading the stack in stress conditions.
@@ -490,20 +475,20 @@ CodeAgingHelper::CodeAgingHelper() {
 
 
 #ifdef DEBUG
-bool CodeAgingHelper::IsOld(byte* candidate) const {
+bool CodeAgingHelper::IsOld(byte* candidate) const { // REVIEWEDBY: CG
   return Memory::uint32_at(candidate) == kCodeAgePatchFirstInstruction;
 }
 #endif
 
 
-bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
+bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) { // REVIEWEDBY: CG
   bool result = isolate->code_aging_helper()->IsYoung(sequence);
   ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 
 
-void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
+void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age, // REVIEWEDBY: CG
                                MarkingParity* parity) {
   if (IsYoungSequence(isolate, sequence)) {
     *age = kNoAgeCodeAge;
@@ -511,7 +496,7 @@ void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
   } else {
     // Must be the same computation as in RelocInfo::code_age_stub()
     // and RelocInfo::set_code_age_stub().
-    // For SH4 the address may be misaligned, in this case it is one
+    // SH4: for sh4 the address may be misaligned, in this case it is one
     // instruction before.
     byte *target_address_pointer =
       sequence + Assembler::kInstrSize * kNoCodeAgeSequenceLength - 4;
@@ -525,7 +510,7 @@ void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
 }
 
 
-void Code::PatchPlatformCodeAge(Isolate* isolate,
+void Code::PatchPlatformCodeAge(Isolate* isolate, // REVIEWEDBY: CG
                                 byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
