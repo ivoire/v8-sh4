@@ -2372,8 +2372,37 @@ void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
 }
 
 
+static InstanceType TestType(HHasInstanceTypeAndBranch* instr) {
+  InstanceType from = instr->from();
+  InstanceType to = instr->to();
+  if (from == FIRST_TYPE) return to;
+  ASSERT(from == to || to == LAST_TYPE);
+  return from;
+}
+
+
+static Condition BranchCondition(HHasInstanceTypeAndBranch* instr) {
+  InstanceType from = instr->from();
+  InstanceType to = instr->to();
+  if (from == to) return eq;
+  if (to == LAST_TYPE) return hs;
+  if (from == FIRST_TYPE) return ls;
+  UNREACHABLE();
+  return eq;
+}
+
+
 void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
-  __ UNIMPLEMENTED_BREAK();
+  Register scratch = scratch0();
+  Register input = ToRegister(instr->value());
+
+  if (!instr->hydrogen()->value()->IsHeapObject()) {
+    __ JumpIfSmi(input, instr->FalseLabel(chunk_));
+  }
+
+  // SH4: BranchCondition can return unsupported comparison that will make the code assert.
+  __ CompareObjectType(input, scratch, scratch, TestType(instr->hydrogen()), BranchCondition(instr->hydrogen()));
+  EmitBranch(instr, BranchCondition(instr->hydrogen()));
 }
 
 
