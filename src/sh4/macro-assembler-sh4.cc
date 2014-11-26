@@ -3875,7 +3875,9 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   // Loop based on the map going up the prototype chain.
   bind(&loop_again);
   ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
-  ldr(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
+  // SH4: we can't generate unaligned accesses, use ldrb
+  // see code-stubs-sh4.cc InternalArrayConstructorStub::Generate
+  ldrb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
   Ubfx(scratch1, scratch1, Map::kElementsKindShift, Map::kElementsKindBitCount);
   cmp(scratch1, Operand(DICTIONARY_ELEMENTS));
   b(eq, found);
