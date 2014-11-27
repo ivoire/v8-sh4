@@ -3095,8 +3095,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG
 
     if (NeedsChecks()) {
       __ JumpIfSmi(r3, &wrap);
-      __ CompareObjectType(r3, r4, r4, FIRST_SPEC_OBJECT_TYPE, eq); // DIFF: codegen
-      __ b(lt, &wrap);
+      __ CompareObjectType(r3, r4, r4, FIRST_SPEC_OBJECT_TYPE, ge); // DIFF: codegen
+      __ b(ne, &wrap);
     } else {
       __ jmp(&wrap);
     }
