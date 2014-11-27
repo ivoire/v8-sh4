@@ -2585,7 +2585,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
       MemOperand location = VarOperand(var, r1);
       __ ldr(r2, location);
       __ CompareRoot(r2, Heap::kTheHoleValueRootIndex);
-      __ b(ne, &skip, Label::kNear);
+      __ b(ne, &skip);
       EmitStoreToStackLocalOrContextSlot(var, location);
       __ bind(&skip);
     }
