@@ -22,7 +22,6 @@ jobs=${jobs-1}
 mode=${mode:-release}
 snapshot=${snapshot:-on}		# Default: on
 regexp=${regexp:-native}		# Default: native
-debuggersupport=${debuggersupport:-on}	# Default: on
 backtrace=${backtrace:-on}		# Default: on
 library=${library:-shared}		# Default: static
 profile_gcov=${profile_gcov:-off}
@@ -40,6 +39,6 @@ if [ "$profile_gcov" = on ]; then
 fi
 
 set -x
-make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} debuggersupport=${debuggersupport} backtrace=${backtrace} library=${library} ${jobs+-j$jobs} "$@"
+make ${arch}.${mode} snapshot=${snapshot} regexp=${regexp} backtrace=${backtrace} library=${library} ${jobs+-j$jobs} "$@"
 
-#  sh4.debug snapshot=off regexp=interpreted debuggersupport=off -j4
+#  sh4.debug snapshot=off regexp=interpreted -j4
