@@ -1006,7 +1006,6 @@ class Assembler : public AssemblerBase {
   void *addr_at(int pos) { return buffer_ + pos; }
   static Condition GetCondition(Instr instr);
   static bool IsCondBranch(Instr instr);
-  static bool IsInCondBranch(Instr instr);
   static int GetBranchOffset(Instr instr);
   static bool IsBt(Instr instr);
   static bool IsBf(Instr instr);

@@ -282,40 +282,34 @@ void Assembler::Align(int m) {
 Condition Assembler::GetCondition(Instr instr) {
   ASSERT(IsCondBranch(instr));
   return (instr & 0x200) == 0x200 ?
-    ne :        // bf| bf/s
+    ne :        // bf|bf/s
     eq;         // bt|bt/s
 }
-
 
 bool Assembler::IsCondBranch(Instr instr) {
   // bt|bf|bt/s|bf/s instrs.
   return (instr & 0xF900) == 0x8900;
 }
 
-
-bool Assembler::IsInCondBranch(Instr instr) {
-  // bra instrs.
-  return (instr & 0xF000) == 0xA000;
-}
-
 int Assembler::GetBranchOffset(Instr instr) {
-  ASSERT(IsCondBranch(instr) || IsInCondBranch(instr));
+  ASSERT(IsCondBranch(instr) || IsBra(instr));
   uint8_t disp;
   if (IsCondBranch(instr))
     disp = instr & 0xFF;
-  else if (IsInCondBranch(instr))
+  else if (IsBra(instr))
     disp = instr & 0xFFF;
   else
-    disp = 0; // DEAD code
-
+    UNREACHABLE();
   return (disp * 2) + 4;
 }
 
 bool Assembler::IsBt(Instr instr) {
+  // bt instr (but not bt/s)
   return (instr & 0xFF00) == 0x8900;
 }
 
 bool Assembler::IsBf(Instr instr) {
+  // bf instr (but not bf/s)
   return (instr & 0xFF00) == 0x8B00;
 }
 
@@ -364,7 +358,7 @@ bool Assembler::IsNop(Instr instr, int type) {
 
 bool Assembler::IsBra(Instr instr) {
   // bra #offset
-  return (instr >> 12) == 0xa;
+  return (instr & 0xF000) == 0xA000;
 }
 
 
