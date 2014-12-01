@@ -580,6 +580,8 @@ DEFINE_bool(trace_sim, false, "Trace simulator execution")
 DEFINE_bool(debug_sim, false, "Enable debugging the simulator")
 DEFINE_bool(trace_sim_regs, false,
             "Trace simulator registers values with instructions")
+DEFINE_bool(trace_sim_comments, false,
+            "Output code comments along simulator traces")
 DEFINE_bool(check_icache, false,
             "Check icache flushes in ARM and MIPS simulator")
 DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")

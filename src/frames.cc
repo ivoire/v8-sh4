@@ -1456,6 +1456,14 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
   // Iterate through the page until we reach the end or find an object starting
   // after the inner pointer.
   Page* page = Page::FromAddress(inner_pointer);
+#ifdef DEBUG
+  // SH4: when in debug mode return NULL there if the page does not seem
+  // to be valid. This is used for comment traces generated in simulator.
+  // It is a non guaranteed check and the page may still be an invalid page.
+  // Though it limits the occurences of failure when searching for a Code
+  // object given an address as when traces call Isolate::FindCodeObject().
+  if (!page->Contains(inner_pointer) || page->skip_list() == NULL) return NULL;
+#endif
 
   Address addr = page->skip_list()->StartFor(inner_pointer);
 

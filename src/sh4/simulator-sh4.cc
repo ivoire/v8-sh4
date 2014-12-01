@@ -1553,6 +1553,9 @@ void Simulator::Execute() {
   if (::v8::internal::FLAG_stop_sim_at == 0) {
     // Fast version of the dispatch loop without checking whether the simulator
     // should be stopping at a particular executed instruction.
+#ifdef DEBUG
+    Code *current_code = NULL;
+#endif
     while (program_counter != end_sim_pc) {
       // sh4 processors cannot execute at unaligned address
       if (program_counter & 1) {
@@ -1563,6 +1566,36 @@ void Simulator::Execute() {
       }
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
+#ifdef DEBUG
+      if (::v8::internal::FLAG_trace_sim && ::v8::internal::FLAG_trace_sim_comments &&
+          ::v8::internal::FLAG_code_comments) {
+        byte *pc = reinterpret_cast<byte *>(instr);
+        Code *previous_code = current_code;
+        if (previous_code == NULL || !previous_code->contains(pc)) {
+          Object* found = isolate_->FindCodeObject(reinterpret_cast<Address>(pc));
+          if (found == NULL || !found->IsCode()) current_code = NULL;
+          else current_code = Code::cast(found);
+        }
+        if (current_code != previous_code) {
+          if (current_code == NULL) PrintF("// Code undefined: %p\n", pc);
+          else PrintF("// Code entry: %p\n", pc);
+          fflush(stdout);
+        }
+        if (current_code != NULL) {
+          RelocIterator reloc_it(current_code);
+          RelocIterator *it = &reloc_it;
+          while (!it->done() && it->rinfo()->pc() <= pc) {
+            if (it->rinfo()->pc() == pc && RelocInfo::IsComment(it->rinfo()->rmode())) {
+              const char * comment_string =
+                reinterpret_cast<const char*>(it->rinfo()->data());
+              PrintF("// %s\n", comment_string);
+              fflush(stdout);
+            }
+            it->next();
+          }
+        }
+      }
+#endif
       InstructionDecode(instr);
       program_counter = get_pc();
     }
