@@ -485,17 +485,28 @@ Address Assembler::target_address_from_return_address(Address pc) {
   // This is equivalent to calling ResolveCallTargetAddressOffset()
   // that returns the length of the sequence.
   Instr possible_mov;
-  possible_mov = instr_at(pc - 3 * kInstrSize);
-  if (IsMovlPcRelative(possible_mov)) {
-    // Delayed constant pool
-    return pc - kNewStyleCallTargetAddressOffset;
-  } else {
-    // As we go backward from the return address we do not need
-    // to account for the alignment at the start of a sequence.
-    // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment
-    // value.
-    return pc - kOldStyleCallTargetAddressOffsetWithoutAlignment;
-  }
+  Address candidate;
+
+  // if (constant_pool_pool_)
+  if (false)
+    {
+      candidate = pc - kNewStyleCallTargetAddressOffset;
+      possible_mov = instr_at(candidate);
+
+      if (IsMovlPcRelative(possible_mov)) {
+	// Delayed constant pool
+	return candidate;
+      }
+    }
+
+  // As we go backward from the return address we do not need
+  // to account for the alignment at the start of a sequence.
+  // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment
+  // value.
+  candidate = pc - kOldStyleCallTargetAddressOffsetWithoutAlignment;
+  possible_mov = instr_at(candidate);
+  ASSERT(IsMovlPcRelative(possible_mov));
+  return candidate;
 }
 
 
@@ -517,15 +528,17 @@ Address Assembler::return_address_from_call_start(Address pc) {
   // word in the misaligned case.
   ASSERT(IsMovlPcRelative(instr_at(pc)));
   Instr possible_jsr = instr_at(pc + kInstrSize);
-  if (IsJsr(possible_jsr)) {
-    // Delayed constant pool
-    return pc + kNewStyleCallTargetAddressOffset;
-  } else {
-    // Do not need to account for the alignment at the start of a sequence.
-    // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment
-    // value.
-    return pc + kOldStyleCallTargetAddressOffsetWithoutAlignment;
-  }
+
+  // Delayed constant pool
+  // if (constant_pool_pool_)
+  if (false)
+    if (IsJsr(possible_jsr))
+      return pc + kNewStyleCallTargetAddressOffset;
+
+  // Do not need to account for the alignment at the start of a sequence.
+  // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment
+  // value.
+  return pc + kOldStyleCallTargetAddressOffsetWithoutAlignment;
 }
 
 
