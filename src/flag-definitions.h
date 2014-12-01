@@ -229,7 +229,7 @@ DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_int(gvn_iterations, 3, "maximum number of GVN fix-point iterations")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
-DEFINE_bool(use_escape_analysis, false, "use hydrogen escape analysis")
+DEFINE_bool(use_escape_analysis, true, "use hydrogen escape analysis")
 DEFINE_bool(use_allocation_folding, true, "use allocation folding")
 DEFINE_bool(use_local_allocation_folding, false, "only fold in basic blocks")
 DEFINE_bool(use_write_barrier_elimination, true,
@@ -387,10 +387,6 @@ DEFINE_bool(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 DEFINE_bool(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS only)")
-#if defined(V8_TARGET_ARCH_SH4)
-DEFINE_bool(enable_fpu, true,
-            "enable use of FPU instructions if available (MIPS and SH4 only)")
-#endif
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
@@ -661,9 +657,6 @@ DEFINE_neg_implication(predictable, concurrent_sweeping)
 DEFINE_neg_implication(predictable, parallel_sweeping)
 
 
-// SH4
-DEFINE_bool(pool, false, "use constant pools") // SH4: TODO: disabled for now
-
 //
 // Dev shell flags
 //
@@ -900,6 +893,9 @@ DEFINE_implication(print_all_code, trace_codegen)
 // assembler-arm.h
 DEFINE_bool(enable_ool_constant_pool, V8_OOL_CONSTANT_POOL,
             "enable use of out-of-line constant pools (ARM only)")
+
+// assembler-sh4.h
+DEFINE_bool(pool, false, "use constant pools") // SH4: TODO: disabled for now
 
 // Cleanup...
 #undef FLAG_FULL

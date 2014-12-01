@@ -156,7 +156,6 @@ class LCodeGen;
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(Uint32ToDouble)                             \
-  V(Uint32ToSmi)                                \
   V(UnknownOSRValue)                            \
   V(WrapReceiver)
 

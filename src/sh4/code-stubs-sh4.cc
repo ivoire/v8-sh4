@@ -4558,8 +4558,8 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
 }
 
 
-bool CodeStub::CanUseFPRegisters() { // REVIEWEDBY: CG
-  return FLAG_enable_fpu; // SH4: may be optional // DIFF: codegen
+bool CodeStub::CanUseFPRegisters() {
+  return true;  // FPU is a base requirement for V8.
 }
 
 

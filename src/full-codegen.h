@@ -115,9 +115,17 @@ class FullCodeGenerator: public AstVisitor {
   static const int kCodeSizeMultiplier = 149;
   static const int kBootCodeSizeMultiplier = 120;
 #elif V8_TARGET_ARCH_SH4
-// TODO(all): Copied ARM value. Check this is sensible for SH4.
-  static const int kCodeSizeMultiplier = 149;
-  static const int kBootCodeSizeMultiplier = 110;
+  // SH4: TODO: optionally reduce when constant pools are on.
+  // SH4: conservatively set code expansion factor to 1.3 times
+  // the size of ARM (ref above values for ARM).
+  // This is important for kBootCodeSizeMultiplier used
+  // for the computation of the first page size.
+  // For serialization to work properly, all serialized code
+  // must fit in the first page.
+  // It is tested by cctest/test-spaces/SizeOfFirstPageIsLargeEnough
+  // which must not fail before one can activate serialization.
+  static const int kCodeSizeMultiplier = 149 * 130 / 100;
+  static const int kBootCodeSizeMultiplier = 110 * 130 / 100;
 #else
 #error Unsupported target architecture.
 #endif

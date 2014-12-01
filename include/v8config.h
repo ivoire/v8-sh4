@@ -320,13 +320,6 @@ declarator __attribute__((deprecated))
 # define V8_DEPRECATED(message, declarator) declarator
 #endif
 
-// A macro to mark variables or types as unused, avoiding compiler warnings.
-#if V8_HAS_ATTRIBUTE_UNUSED
-# define V8_UNUSED __attribute__((unused))
-#else
-# define V8_UNUSED
-#endif
-
 
 // A macro to mark variables or types as unused, avoiding compiler warnings.
 #if V8_HAS_ATTRIBUTE_UNUSED

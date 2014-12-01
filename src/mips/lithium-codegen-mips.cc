@@ -4597,19 +4597,6 @@ void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
 }
 
 
-void LCodeGen::DoUint32ToSmi(LUint32ToSmi* instr) {
-  LOperand* input = instr->value();
-  LOperand* output = instr->result();
-  if (!instr->hydrogen()->value()->HasRange() ||
-      !instr->hydrogen()->value()->range()->IsInSmiRange()) {
-    Register scratch = scratch0();
-    __ And(scratch, ToRegister(input), Operand(0xc0000000));
-    DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
-  }
-  __ SmiTag(ToRegister(output), ToRegister(input));
-}
-
-
 void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
   class DeferredNumberTagI V8_FINAL : public LDeferredCode {
    public:

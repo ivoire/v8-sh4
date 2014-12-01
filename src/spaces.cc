@@ -1057,16 +1057,9 @@ intptr_t PagedSpace::SizeOfFirstPage() {
         // upgraded to handle small pages.
         size = AreaSize();
       } else {
-#if V8_TARGET_ARCH_SH4
-        // TODO(stm): Investigate larger code stubs size on SH4.
-        size =  RoundUp(
-            540 * KB * FullCodeGenerator::kBootCodeSizeMultiplier / 100,
-            kPointerSize);
-#else
         size = RoundUp(
             480 * KB * FullCodeGenerator::kBootCodeSizeMultiplier / 100,
             kPointerSize);
-#endif
       }
       break;
     default:
