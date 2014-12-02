@@ -34,7 +34,6 @@
 #define r8 "should be cp"
 #define ip sh4_r10
 #define lr pr
-#define pc "to be checked"
 #define r10 "should be roots"
 #define r11 "Unexpected"
 #define r12 "Unexpected"
@@ -69,7 +68,6 @@
 #undef r8
 #undef ip
 #undef lr
-#undef pc
 #undef r10
 #undef r11
 #undef r12

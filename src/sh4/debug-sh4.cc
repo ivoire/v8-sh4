@@ -1,31 +1,8 @@
-// Copyright 2011-2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2012 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
+#include "v8.h"  // FILE: SAMEAS: arm, REVIEWEDBY: CG
 
 #if V8_TARGET_ARCH_SH4
 
@@ -35,12 +12,13 @@
 namespace v8 {
 namespace internal {
 
-// TODO(stm): remove SH4 check in cctest/test-debug.cc when debug support is implemented there
-bool BreakLocationIterator::IsDebugBreakAtReturn() { // SAMEAS: arm
+#include "map-sh4.h"  // SH4: define arm->sh4 register map
+
+bool BreakLocationIterator::IsDebugBreakAtReturn() {
   return Debug::IsDebugBreakAtReturn(rinfo());
 }
 
-void BreakLocationIterator::SetDebugBreakAtReturn() { // SAMEAS: arm
+void BreakLocationIterator::SetDebugBreakAtReturn() { // REVIEWEDBY: CG
   // Patch the code changing the return from JS function sequence from
   // Ref to FullCodeGenerator::EmitReturnSequence():
   //   mov fp, sp
@@ -60,9 +38,9 @@ void BreakLocationIterator::SetDebugBreakAtReturn() { // SAMEAS: arm
   // is the same for the three case.
   CodePatcher patcher(rinfo()->pc(), Assembler::kJSReturnSequenceInstructions);
   ASSERT((uintptr_t)rinfo()->pc() % 4 == 0); // Must be aligned: ref RecordJSReturn()
-  patcher.masm()->mov(sh4_ip,
+  patcher.masm()->mov(ip,
                       Operand(reinterpret_cast<int32_t>(debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry()))); // Pass as int32_t to avoid emittion of relocation
-  patcher.masm()->jsr(sh4_ip);
+  patcher.masm()->jsr(ip);
   ASSERT(patcher.masm()->pc_offset() - Assembler::kPatchDebugBreakSlotReturnOffset == 0);
   ASSERT(Assembler::kJSReturnSequenceInstructions * Assembler::kInstrSize ==
          patcher.masm()->pc_offset());
@@ -72,7 +50,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() { // SAMEAS: arm
 
 
 // Restore the JS frame exit code.
-void BreakLocationIterator::ClearDebugBreakAtReturn() { // SAMEAS: arm
+void BreakLocationIterator::ClearDebugBreakAtReturn() {
   rinfo()->PatchCode(original_rinfo()->pc(),
                      Assembler::kJSReturnSequenceInstructions);
 }
@@ -80,20 +58,20 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() { // SAMEAS: arm
 
 // A debug break in the frame exit code is identified by the JS frame exit code
 // having been patched with a call instruction.
-bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) { // SAMEAS: arm
+bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
   return rinfo->IsPatchedReturnSequence();
 }
 
 
-bool BreakLocationIterator::IsDebugBreakAtSlot() { // SAMEAS: arm
+bool BreakLocationIterator::IsDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   // Check whether the debug break slot instructions have been patched.
   return rinfo()->IsPatchedDebugBreakSlotSequence();
 }
 
 
-void BreakLocationIterator::SetDebugBreakAtSlot() { // SAMEAS: arm
+void BreakLocationIterator::SetDebugBreakAtSlot() { // REVIEWEDBY: CG
   ASSERT(IsDebugBreakSlot());
   // Patch the code changing the debug break slot code from
   //   mov r2, r2
@@ -107,9 +85,9 @@ void BreakLocationIterator::SetDebugBreakAtSlot() { // SAMEAS: arm
   // is the same for the three case.
   CodePatcher patcher(rinfo()->pc(), Assembler::kDebugBreakSlotInstructions);
   ASSERT((uintptr_t)rinfo()->pc() % 4 == 0); // Must be aligned: ref RecordJSReturn()
-  patcher.masm()->mov(sh4_ip,
+  patcher.masm()->mov(ip,
                       Operand(reinterpret_cast<int32_t>(debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry()))); // Pass as int32_t to avoid emittion of relocation
-  patcher.masm()->jsr(sh4_ip);
+  patcher.masm()->jsr(ip);
   ASSERT(patcher.masm()->pc_offset() - Assembler::kPatchDebugBreakSlotReturnOffset == 0);
   ASSERT(Assembler::kDebugBreakSlotInstructions * Assembler::kInstrSize ==
          patcher.masm()->pc_offset());
@@ -119,7 +97,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() { // SAMEAS: arm
 
 
 
-void BreakLocationIterator::ClearDebugBreakAtSlot() { // SAMEAS: arm
+void BreakLocationIterator::ClearDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   rinfo()->PatchCode(original_rinfo()->pc(),
                      Assembler::kDebugBreakSlotInstructions);
@@ -131,7 +109,7 @@ const bool Debug::FramePaddingLayout::kIsSupported = false;
 #define __ ACCESS_MASM(masm)
 
 
-static void Generate_DebugBreakCallHelper(MacroAssembler* masm, // SAMEAS: arm
+static void Generate_DebugBreakCallHelper(MacroAssembler* masm, // REVIEWEDBY: CG
                                           RegList object_regs,
                                           RegList non_object_regs) {
   {
@@ -191,9 +169,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm, // SAMEAS: arm
   // overwritten by the address of DebugBreakXXX.
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
-  __ mov(sh4_ip, Operand(after_break_target));
-  __ ldr(sh4_ip, MemOperand(sh4_ip));
-  __ Jump(sh4_ip);
+  __ mov(ip, Operand(after_break_target));
+  __ ldr(ip, MemOperand(ip));
+  __ Jump(ip);
 }
 
 void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
@@ -205,7 +183,7 @@ void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
   Generate_DebugBreakCallHelper(masm, r1.bit() | r3.bit(), 0);
 }
 
-void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC load (from ic-arm.cc).
   // ----------- S t a t e -------------
   //  -- r2    : name
@@ -219,7 +197,7 @@ void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC store (from ic-arm.cc).
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -233,7 +211,7 @@ void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
@@ -242,7 +220,7 @@ void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -252,7 +230,7 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) { // SAMEAS: ar
 }
 
 
-void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
   // Register state for CompareNil IC
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -260,7 +238,7 @@ void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) { // SAMEAS: ar
   Generate_DebugBreakCallHelper(masm, r0.bit(), 0);
 }
 
-void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // In places other than IC call sites it is expected that r0 is TOS which
   // is an object - this is not generally the case so this should be used with
   // care.
@@ -276,7 +254,7 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   Generate_DebugBreakCallHelper(masm, r1.bit(), 0);
 }
 
-void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
   // Calling convention for CallConstructStub (from code-stubs-arm.cc)
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments (not smi)
@@ -286,7 +264,7 @@ void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) { // SAMEA
 }
 
 
-void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
   // Calling convention for CallConstructStub (from code-stubs-arm.cc)
   // ----------- S t a t e -------------
   //  -- r0     : number of arguments (not smi)
@@ -298,12 +276,12 @@ void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) { //
 }
 
 
-void Debug::GenerateSlot(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateSlot(MacroAssembler* masm) { // REVIEWEDBY: CG
   // Generate enough nop's to make space for a call instruction. Avoid emitting
   // the constant pool in the debug break slot code.
   Assembler::BlockConstPoolScope block_const_pool(masm);
   Label check_codesize;
-  __ align(); // Force alignment: Required for SH4 before RecordDebugBreakSlot()
+  __ align(); // DIFF: codegen // Force alignment for SH4, required before RecordDebugBreakSlot()
   __ bind(&check_codesize);
   __ RecordDebugBreakSlot();
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
@@ -314,25 +292,23 @@ void Debug::GenerateSlot(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) { // SAMEAS: arm
+void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
   // In the places where a debug break slot is inserted no registers can contain
   // object pointers.
   Generate_DebugBreakCallHelper(masm, 0, 0);
 }
 
-void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) { // SAMEAS: arm
-  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnSh4);
+  void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) { // REVIEWEDBY: CG
+    masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnSh4); // DIFF: codegen
 }
 
-void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) { // SAMEAS: arm
-  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnSh4);
+void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) { // REVIEWEDBY: CG
+  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnSh4); // DIFF: codegen
 }
-
-#undef __
-
-
 
 const bool Debug::kFrameDropperSupported = false;
+
+#undef __
 
 } }  // namespace v8::internal
 
