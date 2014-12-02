@@ -131,7 +131,7 @@ int MacroAssembler::CallSize(Address target,
 }
 
 
-void MacroAssembler::Call(Address target,
+void MacroAssembler::Call(Address target, // REVIEWEDBY: CG
                           RelocInfo::Mode rmode,
                           TargetAddressStorageMode mode) {
   // Block constant pool for the call instruction sequence.
@@ -630,6 +630,24 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests. /
     Ret();
   }
 }
+
+void MacroAssembler::PushFixedFrame(Register marker_reg) { // REVIEWEDBY: CG
+  ASSERT(!marker_reg.is_valid() || marker_reg.code() < cp.code());
+  if (marker_reg.is_valid())
+    Push(pr, fp, cp, marker_reg);
+  else
+    Push(pr, fp, cp);
+}
+
+
+void MacroAssembler::PopFixedFrame(Register marker_reg) { // REVIEWEDBY: CG
+  ASSERT(!marker_reg.is_valid() || marker_reg.code() < cp.code());
+  if (marker_reg.is_valid())
+    Pop(pr, fp, cp, marker_reg);
+  else
+    Pop(pr, fp, cp);
+}
+
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() { // SAMEAS: arm

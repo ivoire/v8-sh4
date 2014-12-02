@@ -366,6 +366,13 @@ class MacroAssembler: public Assembler {
     pop(src1);
   }
 
+  // Push a fixed frame, consisting of push in order of
+  // pr (link reg), fp (frame pointer), cp (context)
+  // and JS function / marker id if marker_reg is a valid register.
+  // SH4: compared to arm, no constant pool register is pushed.
+  void PushFixedFrame(Register marker_reg = no_reg);
+  void PopFixedFrame(Register marker_reg = no_reg);
+
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
