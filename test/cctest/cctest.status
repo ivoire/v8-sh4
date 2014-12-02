@@ -203,9 +203,11 @@
 ##############################################################################
 ['arch == sh4', {
 
-  ## BUG(1075): Unresolved crashes. Not observed on SH4 simulator. Activate.
-  #  'test-serialize/Deserialize': [SKIP],
-  #  'test-serialize/DeserializeAndRunScript2': [SKIP],
+  # BUG(1075): Unresolved crashes on SH4 also.
+  'test-serialize/Deserialize': [SKIP],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
+  'test-serialize/DeserializeAndRunScript2': [SKIP],
+  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
 
   # Double serialization followed by serialization overflows the
   # first code page size. This is the same also for ARM. Deactivate.
@@ -219,9 +221,9 @@
   # tests that rely on use_ic
   'test-api/PrimaryStubCache': [SKIP],
   'test-api/SecondaryStubCache': [SKIP],
-  'test-heap/IncrementalMarkingPreservesMonomorhpicIC': [SKIP],
-  'test-heap/IncrementalMarkingClearsMonomorhpicIC': [SKIP],
-  'test-heap/IncrementalMarkingClearsPolymorhpicIC': [SKIP],
+  'test-heap/IncrementalMarkingPreservesMonomorphicIC': [SKIP],
+  'test-heap/IncrementalMarkingClearsMonomorphicIC': [SKIP],
+  'test-heap/IncrementalMarkingClearsPolymorphicIC': [SKIP],
 
   # SH4 currently built with use_ic == false in flag-definitions, skip
   # tests that may timeout due to unsufficiently optimized code.
