@@ -1,33 +1,10 @@
-// Copyright 2011-2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2012 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
-#if V8_TARGET_ARCH_SH4
+#if V8_TARGET_ARCH_SH4 // FILE: SAMEAS: arm, REVIEWEDBY: CG
 
 #include "code-stubs.h"
 #include "codegen.h"
@@ -47,8 +24,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
-#include "map-sh4.h"  // For ARM -> SH4 register mapping
-
+#include "map-sh4.h"  // SH4: define arm->sh4 register map
 
 // A patch site is a location in the code which it is possible to patch. This
 // class has a number of methods to emit the code which is patchable and the
@@ -102,7 +78,7 @@ class JumpPatchSite BASE_EMBEDDED {
     __ cmp(reg, reg);
     ASSERT(!target->is_bound());
     ASSERT(masm_->pc_offset() % 4 == 0);
-    __ bf(target);  // Never taken before patched.
+    __ b(ne, target);  // Never taken before patched.
   }
 
   void EmitPatchInfo() {
@@ -118,6 +94,7 @@ class JumpPatchSite BASE_EMBEDDED {
       info_emitted_ = true;
 #endif
     } else {
+      // SH4: not necessary: __ nop();  // Signals no inlined code.
     }
   }
 
@@ -132,7 +109,7 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
-static void EmitStackCheck(MacroAssembler* masm_,
+static void EmitStackCheck(MacroAssembler* masm_, // REVIEWEDBY: CG
                            Register stack_limit_scratch,
                            int pointers = 0,
                            Register scratch = sp) {
@@ -147,8 +124,8 @@ static void EmitStackCheck(MacroAssembler* masm_,
     index = Heap::kStackLimitRootIndex;
   }
   __ LoadRoot(stack_limit_scratch, index);
-  __ cmphs(scratch, stack_limit_scratch);
-  __ bt_near(&ok);
+  __ cmphs(scratch, stack_limit_scratch); // DIFF: codegen
+  __ bt_near(&ok); // DIFF: codegen
   Handle<Code> stack_check = isolate->builtins()->StackCheck();
   PredictableCodeSizeScope predictable(masm_,
       masm_->CallSize(stack_check, RelocInfo::CODE_TARGET));
@@ -156,7 +133,7 @@ static void EmitStackCheck(MacroAssembler* masm_,
   __ bind(&ok);
 }
 
-// DFE: SH4: TO CHECK
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
 // argument count matches the formal parameter count expected by the
@@ -171,7 +148,7 @@ static void EmitStackCheck(MacroAssembler* masm_,
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-sh4.h for its layout.
-void FullCodeGenerator::Generate() {
+void FullCodeGenerator::Generate() { // REVIEWEDBY: CG
   CompilationInfo* info = info_;
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
@@ -237,9 +214,9 @@ void FullCodeGenerator::Generate() {
           __ push(r9);
         }
         // Continue loop if not done.
-        __ sub(r2, r2, Operand(1));
-        __ tst(r2, r2);
-        __ b(ne, &loop_header);
+        __ sub(r2, r2, Operand(1)); // DIFF: codegen
+        __ tst(r2, r2); // DIFF: codegen
+        __ b(ne, &loop_header); // DIFF: codegen
       }
       int remaining = locals_count % kMaxPushes;
       // Emit the remaining pushes.
@@ -378,12 +355,12 @@ void FullCodeGenerator::Generate() {
 }
 
 
-void FullCodeGenerator::ClearAccumulator() {
+void FullCodeGenerator::ClearAccumulator() { // REVIEWEDBY: CG
   __ mov(r0, Operand(Smi::FromInt(0)));
 }
 
 
-void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
+void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) { // REVIEWEDBY: CG
   __ mov(r2, Operand(profiling_counter_));
   __ ldr(r3, FieldMemOperand(r2, Cell::kValueOffset));
   __ sub(r3, r3, Operand(Smi::FromInt(delta)));
@@ -392,7 +369,7 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
 }
 
 
-void FullCodeGenerator::EmitProfilingCounterReset() {
+void FullCodeGenerator::EmitProfilingCounterReset() { // REVIEWEDBY: CG
   int reset_value = FLAG_interrupt_budget;
   if (isolate()->IsDebuggerActive()) {
     // Detect debug break requests as soon as possible.
@@ -404,7 +381,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
 }
 
 
-void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
+void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt, // REVIEWEDBY: CG
                                                 Label* back_edge_target) {
   Comment cmnt(masm_, "[ Back edge bookkeeping");
   // Block literal pools whilst emitting back edge code.
@@ -416,7 +393,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   int weight = Min(kMaxBackEdgeWeight,
                    Max(1, distance / kCodeSizeMultiplier));
   EmitProfilingCounterDecrement(weight);
-  __ bt(&ok); // branch if >= 0 // DIFF: codegen
+  __ bt(&ok); // Branch if >= 0 // DIFF: codegen, ref EmitProfilingCounterDecrement()
   __ Call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
 
   // Record a mapping of this PC offset to the OSR id.  This is used to find
@@ -435,7 +412,7 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
 }
 
 
-void FullCodeGenerator::EmitReturnSequence() {
+void FullCodeGenerator::EmitReturnSequence() { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ Return sequence");
   if (return_label_.is_bound()) {
     __ b(&return_label_);
@@ -457,8 +434,8 @@ void FullCodeGenerator::EmitReturnSequence() {
                    Max(1, distance / kCodeSizeMultiplier));
     }
     EmitProfilingCounterDecrement(weight);
-    Label ok;
-    __ bt(&ok); // Branch if >= 0 // DIFF: codegen
+    Label ok; // TODO: SH4: check Emit ProfilingCounterDecrement
+    __ bt(&ok); // Branch if >= 0 // DIFF: codegen, ref EmitProfilingCounterDecrement()
     __ push(r0);
     __ Call(isolate()->builtins()->InterruptCheck(),
             RelocInfo::CODE_TARGET);
@@ -505,25 +482,25 @@ void FullCodeGenerator::EmitReturnSequence() {
 }
 
 
-void FullCodeGenerator::EffectContext::Plug(Variable* var) const {
+void FullCodeGenerator::EffectContext::Plug(Variable* var) const { // REVIEWEDBY: CG
   ASSERT(var->IsStackAllocated() || var->IsContextSlot());
 }
 
 
-void FullCodeGenerator::AccumulatorValueContext::Plug(Variable* var) const {
+void FullCodeGenerator::AccumulatorValueContext::Plug(Variable* var) const { // REVIEWEDBY: CG
   ASSERT(var->IsStackAllocated() || var->IsContextSlot());
   codegen()->GetVar(result_register(), var);
 }
 
 
-void FullCodeGenerator::StackValueContext::Plug(Variable* var) const {
+void FullCodeGenerator::StackValueContext::Plug(Variable* var) const { // REVIEWEDBY: CG
   ASSERT(var->IsStackAllocated() || var->IsContextSlot());
   codegen()->GetVar(result_register(), var);
   __ push(result_register());
 }
 
 
-void FullCodeGenerator::TestContext::Plug(Variable* var) const {
+void FullCodeGenerator::TestContext::Plug(Variable* var) const { // REVIEWEDBY: CG
   ASSERT(var->IsStackAllocated() || var->IsContextSlot());
   // For simplicity we always test the accumulator register.
   codegen()->GetVar(result_register(), var);
@@ -532,24 +509,24 @@ void FullCodeGenerator::TestContext::Plug(Variable* var) const {
 }
 
 
-void FullCodeGenerator::EffectContext::Plug(Heap::RootListIndex index) const {
+void FullCodeGenerator::EffectContext::Plug(Heap::RootListIndex index) const { // REVIEWEDBY: CG
 }
 
 
-void FullCodeGenerator::AccumulatorValueContext::Plug(
+void FullCodeGenerator::AccumulatorValueContext::Plug( // REVIEWEDBY: CG
     Heap::RootListIndex index) const {
   __ LoadRoot(result_register(), index);
 }
 
 
-void FullCodeGenerator::StackValueContext::Plug(
+void FullCodeGenerator::StackValueContext::Plug( // REVIEWEDBY: CG
     Heap::RootListIndex index) const {
   __ LoadRoot(result_register(), index);
   __ push(result_register());
 }
 
 
-void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const {
+void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const { // REVIEWEDBY: CG
   codegen()->PrepareForBailoutBeforeSplit(condition(),
                                           true,
                                           true_label_,
@@ -567,24 +544,24 @@ void FullCodeGenerator::TestContext::Plug(Heap::RootListIndex index) const {
 }
 
 
-void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
+void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const { // REVIEWEDBY: CG
 }
 
 
-void FullCodeGenerator::AccumulatorValueContext::Plug(
+void FullCodeGenerator::AccumulatorValueContext::Plug( // REVIEWEDBY: CG
     Handle<Object> lit) const {
   __ mov(result_register(), Operand(lit));
 }
 
 
-void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
+void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const { // REVIEWEDBY: CG
   // Immediates cannot be pushed directly.
   __ mov(result_register(), Operand(lit));
   __ push(result_register());
 }
 
 
-void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
+void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const { // REVIEWEDBY: CG
   codegen()->PrepareForBailoutBeforeSplit(condition(),
                                           true,
                                           true_label_,
@@ -614,14 +591,14 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
 }
 
 
-void FullCodeGenerator::EffectContext::DropAndPlug(int count,
+void FullCodeGenerator::EffectContext::DropAndPlug(int count, // REVIEWEDBY: CG
                                                    Register reg) const {
   ASSERT(count > 0);
   __ Drop(count);
 }
 
 
-void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
+void FullCodeGenerator::AccumulatorValueContext::DropAndPlug( // REVIEWEDBY: CG
     int count,
     Register reg) const {
   ASSERT(count > 0);
@@ -630,7 +607,7 @@ void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
 }
 
 
-void FullCodeGenerator::StackValueContext::DropAndPlug(int count,
+void FullCodeGenerator::StackValueContext::DropAndPlug(int count, // REVIEWEDBY: CG
                                                        Register reg) const {
   ASSERT(count > 0);
   if (count > 1) __ Drop(count - 1);
@@ -638,7 +615,7 @@ void FullCodeGenerator::StackValueContext::DropAndPlug(int count,
 }
 
 
-void FullCodeGenerator::TestContext::DropAndPlug(int count,
+void FullCodeGenerator::TestContext::DropAndPlug(int count, // REVIEWEDBY: CG
                                                  Register reg) const {
   ASSERT(count > 0);
   // For simplicity we always test the accumulator register.
@@ -649,14 +626,14 @@ void FullCodeGenerator::TestContext::DropAndPlug(int count,
 }
 
 
-void FullCodeGenerator::EffectContext::Plug(Label* materialize_true,
+void FullCodeGenerator::EffectContext::Plug(Label* materialize_true, // REVIEWEDBY: CG
                                             Label* materialize_false) const {
   ASSERT(materialize_true == materialize_false);
   __ bind(materialize_true);
 }
 
 
-void FullCodeGenerator::AccumulatorValueContext::Plug(
+void FullCodeGenerator::AccumulatorValueContext::Plug( // REVIEWEDBY: CG
     Label* materialize_true,
     Label* materialize_false) const {
   Label done;
@@ -669,7 +646,7 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(
 }
 
 
-void FullCodeGenerator::StackValueContext::Plug(
+void FullCodeGenerator::StackValueContext::Plug( // REVIEWEDBY: CG
     Label* materialize_true,
     Label* materialize_false) const {
   Label done;
@@ -683,25 +660,25 @@ void FullCodeGenerator::StackValueContext::Plug(
 }
 
 
-void FullCodeGenerator::TestContext::Plug(Label* materialize_true,
+void FullCodeGenerator::TestContext::Plug(Label* materialize_true, // REVIEWEDBY: CG
                                           Label* materialize_false) const {
   ASSERT(materialize_true == true_label_);
   ASSERT(materialize_false == false_label_);
 }
 
 
-void FullCodeGenerator::EffectContext::Plug(bool flag) const {
+void FullCodeGenerator::EffectContext::Plug(bool flag) const { // REVIEWEDBY: CG
 }
 
 
-void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const {
+void FullCodeGenerator::AccumulatorValueContext::Plug(bool flag) const { // REVIEWEDBY: CG
   Heap::RootListIndex value_root_index =
       flag ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex;
   __ LoadRoot(result_register(), value_root_index);
 }
 
 
-void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
+void FullCodeGenerator::StackValueContext::Plug(bool flag) const { // REVIEWEDBY: CG
   Heap::RootListIndex value_root_index =
       flag ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex;
   __ LoadRoot(ip, value_root_index);
@@ -709,7 +686,7 @@ void FullCodeGenerator::StackValueContext::Plug(bool flag) const {
 }
 
 
-void FullCodeGenerator::TestContext::Plug(bool flag) const {
+void FullCodeGenerator::TestContext::Plug(bool flag) const { // REVIEWEDBY: CG
   codegen()->PrepareForBailoutBeforeSplit(condition(),
                                           true,
                                           true_label_,
@@ -722,7 +699,7 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 }
 
 
-void FullCodeGenerator::DoTest(Expression* condition,
+void FullCodeGenerator::DoTest(Expression* condition, // REVIEWEDBY: CG
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
@@ -733,7 +710,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
 }
 
 
-void FullCodeGenerator::Split(Condition cond,
+void FullCodeGenerator::Split(Condition cond, // REVIEWEDBY: CG
                               Label* if_true,
                               Label* if_false,
                               Label* fall_through) {
@@ -750,7 +727,7 @@ void FullCodeGenerator::Split(Condition cond,
 }
 
 
-MemOperand FullCodeGenerator::StackOperand(Variable* var) {
+MemOperand FullCodeGenerator::StackOperand(Variable* var) { // REVIEWEDBY: CG
   ASSERT(var->IsStackAllocated());
   // Offset is negative because higher indexes are at lower addresses.
   int offset = -var->index() * kPointerSize;
@@ -764,7 +741,7 @@ MemOperand FullCodeGenerator::StackOperand(Variable* var) {
 }
 
 
-MemOperand FullCodeGenerator::VarOperand(Variable* var, Register scratch) {
+MemOperand FullCodeGenerator::VarOperand(Variable* var, Register scratch) { // REVIEWEDBY: CG
   ASSERT(var->IsContextSlot() || var->IsStackAllocated());
   if (var->IsContextSlot()) {
     int context_chain_length = scope()->ContextChainLength(var->scope());
@@ -776,14 +753,14 @@ MemOperand FullCodeGenerator::VarOperand(Variable* var, Register scratch) {
 }
 
 
-void FullCodeGenerator::GetVar(Register dest, Variable* var) {
+void FullCodeGenerator::GetVar(Register dest, Variable* var) { // REVIEWEDBY: CG
   // Use destination as scratch.
   MemOperand location = VarOperand(var, dest);
   __ ldr(dest, location);
 }
 
 
-void FullCodeGenerator::SetVar(Variable* var,
+void FullCodeGenerator::SetVar(Variable* var, // REVIEWEDBY: CG
                                Register src,
                                Register scratch0,
                                Register scratch1) {
@@ -806,7 +783,7 @@ void FullCodeGenerator::SetVar(Variable* var,
 }
 
 
-void FullCodeGenerator::PrepareForBailoutBeforeSplit(Expression* expr,
+void FullCodeGenerator::PrepareForBailoutBeforeSplit(Expression* expr, // REVIEWEDBY: CG
                                                      bool should_normalize,
                                                      Label* if_true,
                                                      Label* if_false) {
@@ -827,7 +804,7 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(Expression* expr,
 }
 
 
-void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
+void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) { // REVIEWEDBY: CG
   // The variable in the declaration always resides in the current function
   // context.
   ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
@@ -842,7 +819,7 @@ void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
 }
 
 
-void FullCodeGenerator::VisitVariableDeclaration(
+void FullCodeGenerator::VisitVariableDeclaration( // REVIEWEDBY: CG
     VariableDeclaration* declaration) {
   // If it was not possible to allocate the variable at compile time, we
   // need to "declare" it at runtime to make sure it actually exists in the
@@ -906,7 +883,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
 }
 
 
-void FullCodeGenerator::VisitFunctionDeclaration(
+void FullCodeGenerator::VisitFunctionDeclaration( // REVIEWEDBY: CG
     FunctionDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
@@ -962,7 +939,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 }
 
 
-void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
+void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) { // REVIEWEDBY: CG
   Variable* variable = declaration->proxy()->var();
   ASSERT(variable->location() == Variable::CONTEXT);
   ASSERT(variable->interface()->IsFrozen());
@@ -993,7 +970,7 @@ void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
 }
 
 
-void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
+void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) { // REVIEWEDBY: CG
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
   switch (variable->location()) {
@@ -1016,12 +993,12 @@ void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
 }
 
 
-void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* declaration) {
+void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* declaration) { // REVIEWEDBY: CG
   // TODO(rossberg)
 }
 
 
-void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) { // REVIEWEDBY: CG
   // Call the runtime to declare the globals.
   // The context is the first argument.
   __ mov(r1, Operand(pairs));
@@ -1032,7 +1009,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) {
+void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) { // REVIEWEDBY: CG
   // Call the runtime to declare the modules.
   __ Push(descriptions);
   __ CallRuntime(Runtime::kHiddenDeclareModules, 1);
@@ -1040,7 +1017,7 @@ void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) {
 }
 
 
-void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
+void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ SwitchStatement");
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
@@ -1139,7 +1116,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) { // SAMEAS: arm
+void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ ForInStatement");
   int slot = stmt->ForInFeedbackSlot();
   SetStatementPosition(stmt);
@@ -1321,7 +1298,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) { // SAMEAS: a
 }
 
 
-void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) { // SAMEAS: arm
+void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ ForOfStatement");
   SetStatementPosition(stmt);
 
@@ -1380,7 +1357,7 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) { // SAMEAS: a
 }
 
 
-void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
+void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info, // REVIEWEDBY: CG
                                        bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning. If
@@ -1409,13 +1386,13 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
 }
 
 
-void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
+void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ VariableProxy");
   EmitVariableLoad(expr);
 }
 
 
-void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
+void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var, // REVIEWEDBY: CG
                                                       TypeofState typeof_state,
                                                       Label* slow) {
   Register current = cp;
@@ -1452,7 +1429,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
     __ ldr(temp, FieldMemOperand(next, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kNativeContextMapRootIndex);
     __ cmp(temp, ip);
-    __ b(eq, &fast, Label::kNear);
+    __ b(eq, &fast, Label::kNear); // DIFF: codegen
     // Check that extension is NULL.
     __ ldr(temp, ContextOperand(next, Context::EXTENSION_INDEX));
     __ tst(temp, temp);
@@ -1472,7 +1449,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
 }
 
 
-MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
+MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var, // REVIEWEDBY: CG
                                                                 Label* slow) {
   ASSERT(var->IsContextSlot());
   Register context = cp;
@@ -1504,7 +1481,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
 }
 
 
-void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
+void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var, // REVIEWEDBY: CG
                                                   TypeofState typeof_state,
                                                   Label* slow,
                                                   Label* done) {
@@ -1523,12 +1500,9 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
         local->mode() == CONST_LEGACY) {
       __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
       if (local->mode() == CONST_LEGACY) {
-        Label skip;
-        __ bf_near(&skip);
-        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-        __ bind(&skip);
+        __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
       } else {  // LET || CONST
-        __ bf(done);
+        __ b(ne, done);
         __ mov(r0, Operand(var->name()));
         __ push(r0);
         __ CallRuntime(Runtime::kHiddenThrowReferenceError, 1);
@@ -1539,10 +1513,7 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
 }
 
 
-// clobbers: r0, r1, r3
-// live-in: fp, sp, cp
-// live-out: fp, sp, cp
-void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
+void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) { // REVIEWEDBY: CG
   // Record position before possible IC call.
   SetSourcePosition(proxy->position());
   Variable* var = proxy->var();
@@ -1609,7 +1580,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
             // Throw a reference error when using an uninitialized let/const
             // binding in harmony mode.
             Label done;
-            __ bf(&done);
+            __ b(ne, &done);
             __ mov(r0, Operand(var->name()));
             __ push(r0);
             __ CallRuntime(Runtime::kHiddenThrowReferenceError, 1);
@@ -1617,10 +1588,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
           } else {
             // Uninitalized const bindings outside of harmony mode are unholed.
             ASSERT(var->mode() == CONST_LEGACY);
-            Label skip;
-            __ bf_near(&skip);
-            __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-            __ bind(&skip);
+            __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);
           }
           context()->Plug(r0);
           break;
@@ -1647,7 +1615,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
 }
 
 
-void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) { // SAMEAS: arm
+void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ RegExpLiteral");
   Label materialized;
   // Registers will be used as follows:
@@ -1663,8 +1631,8 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) { // SAMEAS: arm
       FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
   __ ldr(r5, FieldMemOperand(r4, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmpeq(r5, ip); // DIFF: codegen
-  __ bf_near(&materialized); // DIFF: codegen
+  __ cmp(r5, ip);
+  __ b(ne, &materialized, Label::kNear); // DIFF: codegen
 
   // Create regexp literal using runtime function.
   // Result will be in r0.
@@ -1697,7 +1665,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitAccessor(Expression* expression) {
+void FullCodeGenerator::EmitAccessor(Expression* expression) { // REVIEWEDBY: CG
   if (expression == NULL) {
     __ LoadRoot(r1, Heap::kNullValueRootIndex);
     __ push(r1);
@@ -1707,7 +1675,7 @@ void FullCodeGenerator::EmitAccessor(Expression* expression) {
 }
 
 
-void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
+void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ ObjectLiteral");
 
   expr->BuildConstantProperties(isolate());
@@ -1837,7 +1805,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 }
 
 
-void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
+void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   expr->BuildConstantElements(isolate());
@@ -1940,7 +1908,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FullCodeGenerator::VisitAssignment(Assignment* expr) {
+void FullCodeGenerator::VisitAssignment(Assignment* expr) { // REVIEWEDBY: CG
   ASSERT(expr->target()->IsValidReferenceExpression());
 
   Comment cmnt(masm_, "[ Assignment");
@@ -2049,7 +2017,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 
-void FullCodeGenerator::VisitYield(Yield* expr) {
+void FullCodeGenerator::VisitYield(Yield* expr) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ Yield");
   // Evaluate yielded value first; the initial iterator definition depends on
   // this.  It stays on the stack while we update the iterator.
@@ -2079,8 +2047,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ RecordWriteField(r0, JSGeneratorObject::kContextOffset, r1, r2,
                           kLRHasBeenSaved, kDontSaveFPRegs);
       __ add(r1, fp, Operand(StandardFrameConstants::kExpressionsOffset));
-      __ cmpeq(sp, r1);
-      __ bt(&post_runtime);
+      __ cmp(sp, r1);
+      __ b(eq, &post_runtime);
       __ push(r0);  // generator object
       __ CallRuntime(Runtime::kHiddenSuspendJSGeneratorObject, 1);
       __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2116,7 +2084,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       Label l_next, l_call, l_loop;
       // Initial send value is undefined.
       __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-      __ jmp(&l_next);
+      __ b(&l_next);
 
       // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
@@ -2182,8 +2150,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       CallLoadIC(NOT_CONTEXTUAL);                        // result.done in r0
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
       CallIC(bool_ic);
-      __ cmpeq(r0, Operand(0));
-      __ bt(&l_try);
+      __ cmp(r0, Operand(0));
+      __ b(eq, &l_try);
 
       // result.value
       __ pop(r0);                                        // result
@@ -2196,7 +2164,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 }
 
 
-void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
+void FullCodeGenerator::EmitGeneratorResume(Expression *generator, // REVIEWEDBY: CG
     Expression *value,
     JSGeneratorObject::ResumeMode resume_mode) {
   // The value stays in r0, and is ultimately read by the resumed generator, as
@@ -2212,10 +2180,10 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ ldr(r3, FieldMemOperand(r1, JSGeneratorObject::kContinuationOffset));
   STATIC_ASSERT(JSGeneratorObject::kGeneratorExecuting < 0);
   STATIC_ASSERT(JSGeneratorObject::kGeneratorClosed == 0);
-  __ cmpeq(r3, Operand(Smi::FromInt(0)));
-  __ bt(&closed_state);
-  __ cmpge(r3, Operand(Smi::FromInt(0)));
-  __ bf(&wrong_state);
+  __ cmp(r3, Operand(Smi::FromInt(0)));
+  __ b(eq, &closed_state);
+  __ cmpge(r3, Operand(Smi::FromInt(0))); // DIFF: codegen, redo the comparison
+  __ bf(&wrong_state); // DIFF: codegen
 
   // Load suspended function and context.
   __ ldr(cp, FieldMemOperand(r1, JSGeneratorObject::kContextOffset));
@@ -2233,25 +2201,24 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   Label push_argument_holes, push_frame;
   __ bind(&push_argument_holes);
   __ sub(r3, r3, Operand(Smi::FromInt(1)));
-  __ cmpge(r3, Operand::Zero());
-  __ bf(&push_frame);
+  __ cmpge(r3, Operand::Zero()); // DIFF: codegen
+  __ bf(&push_frame); // DIFF: codegen
   __ push(r2);
   __ jmp(&push_argument_holes);
 
   // Enter a new JavaScript frame, and initialize its slots as they were when
   // the generator was suspended.
-  //TODO: use PushFixedFrame !!
   Label resume_frame;
   __ bind(&push_frame);
-  __ jsr(&resume_frame);
+  __ jsr(&resume_frame); // DIFF: codegen
   __ jmp(&done);
   __ bind(&resume_frame);
-  // DFE: SH4: TO CHECK
+  // Will push in order:
   // pr = return address.
   // fp = caller's frame pointer.
   // cp = callee's context,
   // r4 = callee's JS function.
-  __ Push(r4, cp, pr, fp); // DIFF/ codegen
+  __ PushFixedFrame(r4);
   // Adjust FP to point to saved FP.
   __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
@@ -2264,11 +2231,11 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // in directly.
   if (resume_mode == JSGeneratorObject::NEXT) {
     Label slow_resume;
-    __ cmpeq(r3, Operand(0));
-    __ bf(&slow_resume);
+    __ cmp(r3, Operand(0));
+    __ b(ne, &slow_resume);
     __ ldr(r3, FieldMemOperand(r4, JSFunction::kCodeEntryOffset));
 
-    { //TODO: look at ConstantPoolUnavailableScope
+    { // SH4: not used:  ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
       if (FLAG_enable_ool_constant_pool) {
         UNIMPLEMENTED();
       }
@@ -2287,8 +2254,8 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   // up the stack and the handlers.
   Label push_operand_holes, call_resume;
   __ bind(&push_operand_holes);
-  __ sub(r3, r3, Operand(1)); // DIFF/ codegen
-  __ cmpge(r3, Operand(0)); // DIFF/ codegen
+  __ sub(r3, r3, Operand(1)); // DIFF: codegen
+  __ cmpge(r3, Operand(0)); // DIFF: codegen
   __ bf(&call_resume); // DIFF: codegen
   __ push(r2);
   __ b(&push_operand_holes);
@@ -2325,7 +2292,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 }
 
 
-void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
+void FullCodeGenerator::EmitCreateIteratorResult(bool done) { // REVIEWEDBY: CG
   Label gc_required;
   Label allocated;
 
@@ -2361,7 +2328,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 }
 
 
-void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
+void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) { // REVIEWEDBY: CG
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->value()));
@@ -2370,7 +2337,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
 }
 
 
-void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
+void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) { // REVIEWEDBY: CG
   SetSourcePosition(prop->position());
   // Call keyed load IC. It has arguments key and receiver in r0 and r1.
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
@@ -2378,7 +2345,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 }
 
 
-void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
+void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr, // REVIEWEDBY: CG
                                               Token::Value op,
                                               OverwriteMode mode,
                                               Expression* left_expr,
@@ -2394,7 +2361,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   __ pop(left);
 
   // Perform combined smi check on both operands.
-  __ orr(scratch1, left, right);
+  __ orr(scratch1, left, Operand(right));
   STATIC_ASSERT(kSmiTag == 0);
 
   // JumpPatchSite must not be interrupted by constant pool
@@ -2417,58 +2384,58 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   switch (op) {
     case Token::SAR:
       __ GetLeastBitsFromSmi(scratch1, right, 5);
-      __ asr(right, left, scratch1);
+      __ asr(right, left, scratch1); // DIFF: codegen
       __ bic(right, right, Operand(kSmiTagMask));
       break;
     case Token::SHL: {
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
-      __ lsl(scratch1, scratch1, scratch2);
+      __ lsl(scratch1, scratch1, scratch2); // DIFF: codegen
       __ TrySmiTag(right, scratch1, &stub_call);
       break;
     }
     case Token::SHR: {
       __ SmiUntag(scratch1, left);
       __ GetLeastBitsFromSmi(scratch2, right, 5);
-      __ lsr(scratch1, scratch1, scratch2);
+      __ lsr(scratch1, scratch1, scratch2); // DIFF: codegen
       __ tst(scratch1, Operand(0xc0000000));
       __ b(ne, &stub_call);
       __ SmiTag(right, scratch1);
       break;
     }
     case Token::ADD:
-      __ addv(scratch1, left, right);
-      __ b(t, &stub_call);
+      __ addv(scratch1, left, right); // DIFF: codegen
+      __ b(t, &stub_call); // DIFF: codegen, branch on overflow
       __ mov(right, scratch1);
       break;
     case Token::SUB:
-      __ subv(scratch1, left, right);
-      __ b(t, &stub_call);
+      __ subv(scratch1, left, right); // DIFF: codegen
+      __ b(t, &stub_call); // DIFF: codegen, branch on overflow
       __ mov(right, scratch1);
       break;
     case Token::MUL: {
       __ SmiUntag(ip, right);
-      __ dmuls(scratch1, scratch2, left, ip);
-      __ asr(ip, scratch1, Operand(31));
-      __ cmp(ip, scratch2);
+      __ smull(scratch1, scratch2, left, ip);
+      __ asr(ip, scratch1, Operand(31)); // DIFF: codegen
+      __ cmp(ip, Operand(scratch2));
       __ b(ne, &stub_call);
-      __ cmpeq(scratch1, Operand::Zero());
-      __ mov(right, scratch1, ne);
+      __ cmp(scratch1, Operand::Zero());
+      __ mov(right, Operand(scratch1), ne); // DIFF: codegen
       __ b(ne, &done);
-      __ add(scratch2, right, left);
-      __ cmpge(scratch2, Operand(0));
-      __ mov(right, Operand(Smi::FromInt(0)), t);
+      __ add(scratch2, right, Operand(left)); // DIFF: codegen
+      __ cmpge(scratch2, Operand(0)); // DIFF: codegen
+      __ mov(right, Operand(Smi::FromInt(0)), t); // DIFF: codegen
       __ bf(&stub_call);
       break;
     }
     case Token::BIT_OR:
-      __ orr(right, left, right);
+      __ orr(right, left, Operand(right));
       break;
     case Token::BIT_AND:
-      __ land(right, left, right);
+      __ and_(right, left, Operand(right));
       break;
     case Token::BIT_XOR:
-      __ eor(right, left, right);
+      __ eor(right, left, Operand(right));
       break;
     default:
       UNREACHABLE();
@@ -2479,12 +2446,11 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 }
 
 
-void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
+void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, // REVIEWEDBY: CG
                                      Token::Value op,
                                      OverwriteMode mode) {
-  // It seems reasonable to block the constant pool here
-  Assembler::BlockConstPoolScope block_const_pool(masm_);
-
+  // SH4: It seems reasonable to block the constant pool here
+  Assembler::BlockConstPoolScope block_const_pool(masm_); // DIFF: codegen
   __ pop(r1);
   BinaryOpICStub stub(isolate(), op, mode);
   JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
@@ -2494,7 +2460,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
 }
 
 
-void FullCodeGenerator::EmitAssignment(Expression* expr) {
+void FullCodeGenerator::EmitAssignment(Expression* expr) { // REVIEWEDBY: CG
   ASSERT(expr->IsValidReferenceExpression());
 
   // Left-hand side can only be a property, a global or a (parameter or local)
@@ -2540,8 +2506,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
   context()->Plug(r0);
 }
 
-// DFE: SH4: TO CHECK
-void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
+
+void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot( // REVIEWEDBY: CG
     Variable* var, MemOperand location) {
   __ str(result_register(), location);
   if (var->IsContextSlot()) {
@@ -2553,8 +2519,8 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
   }
 }
 
-// DFE: SH4: TO CHECK
-void FullCodeGenerator::EmitCallStoreContextSlot(
+
+void FullCodeGenerator::EmitCallStoreContextSlot( // REVIEWEDBY: CG
     Handle<String> name, StrictMode strict_mode) {
   __ push(r0);  // Value.
   __ mov(r1, Operand(name));
@@ -2564,7 +2530,7 @@ void FullCodeGenerator::EmitCallStoreContextSlot(
 }
 
 
-void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
+void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) { // REVIEWEDBY: CG
   if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ mov(r2, Operand(var->name()));
@@ -2630,7 +2596,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
 }
 
 
-void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
+void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) { // REVIEWEDBY: CG
   // Assignment to a property, using a named store IC.
   Property* prop = expr->target()->AsProperty();
   ASSERT(prop != NULL);
@@ -2648,7 +2614,7 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 }
 
 
-void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
+void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) { // REVIEWEDBY: CG
   // Assignment to a property, using a keyed store IC.
 
   // Record source code position before IC call.
@@ -2665,7 +2631,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 }
 
 
-void FullCodeGenerator::VisitProperty(Property* expr) {
+void FullCodeGenerator::VisitProperty(Property* expr) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
@@ -2685,17 +2651,17 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 
 
 void FullCodeGenerator::CallIC(Handle<Code> code,
-                               TypeFeedbackId ast_id) {
+                               TypeFeedbackId ast_id) { // REVIEWEDBY: CG
   ic_total_count_++;
   // All calls must have a predictable size in full-codegen code to ensure that
   // the debugger can patch them correctly.
-  __ Call(code, RelocInfo::CODE_TARGET, ast_id,
+  __ Call(code, RelocInfo::CODE_TARGET, ast_id, // DIFF: codegen
           NEVER_INLINE_TARGET_ADDRESS);
 }
 
-// DFE: SH4: TO CHECK
+
 // Code common for calls using the IC.
-void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
+void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) { // REVIEWEDBY: CG
   Expression* callee = expr->expression();
 
   CallIC::CallType call_type = callee->IsVariableProxy()
@@ -2726,9 +2692,8 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   EmitCall(expr, call_type);
 }
 
-// DFE: SH4: TO CHECK
 // Code common for calls using the IC.
-void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
+void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr, // REVIEWEDBY: CG
                                                 Expression* key) {
   // Load the key.
   VisitForAccumulatorValue(key);
@@ -2750,7 +2715,7 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
 }
 
 
-void FullCodeGenerator::EmitCall(Call* expr, CallIC::CallType call_type) {
+void FullCodeGenerator::EmitCall(Call* expr, CallIC::CallType call_type) { // REVIEWEDBY: CG
   // Load the arguments.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2777,7 +2742,7 @@ void FullCodeGenerator::EmitCall(Call* expr, CallIC::CallType call_type) {
 }
 
 
-void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
+void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) { // REVIEWEDBY: CG
   // r4: copy of the first argument or undefined if it doesn't exist.
   if (arg_count > 0) {
     __ ldr(r4, MemOperand(sp, arg_count * kPointerSize));
@@ -2801,7 +2766,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
 }
 
 
-void FullCodeGenerator::VisitCall(Call* expr) {
+void FullCodeGenerator::VisitCall(Call* expr) { // REVIEWEDBY: CG
 #ifdef DEBUG
   // We want to verify that RecordJSReturnSite gets called on all paths
   // through this function.  Avoid early returns.
@@ -2922,7 +2887,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 }
 
 
-void FullCodeGenerator::VisitCallNew(CallNew* expr) {
+void FullCodeGenerator::VisitCallNew(CallNew* expr) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ CallNew");
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
@@ -2965,7 +2930,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -2986,7 +2951,7 @@ void FullCodeGenerator::EmitIsSmi(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3007,7 +2972,7 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsObject(CallRuntime* expr) {
+void FullCodeGenerator::EmitIsObject(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3030,17 +2995,17 @@ void FullCodeGenerator::EmitIsObject(CallRuntime* expr) {
   __ tst(r1, Operand(1 << Map::kIsUndetectable));
   __ b(ne, if_false);
   __ ldrb(r1, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmpge(r1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-  __ bf(if_false);
-  __ cmpgt(r1, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
+  __ cmpge(r1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE)); // DIFF: codegen
+  __ bf(if_false); // DIFF: codegen
+  __ cmpgt(r1, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE)); // DIFF: codegen
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(ne, if_true, if_false, fall_through);
+  Split(f, if_true, if_false, fall_through); // DIFF: codegen
 
   context()->Plug(if_true, if_false);
 }
 
 
-void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3062,7 +3027,7 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3086,7 +3051,7 @@ void FullCodeGenerator::EmitIsUndetectableObject(CallRuntime* expr) { // SAMEAS:
 }
 
 
-void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
+void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf( // REVIEWEDBY: CG
     CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
@@ -3121,8 +3086,8 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 
   // Skip loop if no descriptors are valid.
   __ NumberOfOwnDescriptors(r3, r1);
-  __ cmpeq(r3, Operand::Zero());
-  __ bt(&done);
+  __ cmp(r3, Operand::Zero());
+  __ b(eq, &done);
 
   __ LoadInstanceDescriptors(r1, r4);
   // r4: descriptor array.
@@ -3148,7 +3113,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ b(eq, if_false);
   __ add(r4, r4, Operand(DescriptorArray::kDescriptorSize * kPointerSize));
   __ bind(&entry);
-  __ cmp(r4, r2);
+  __ cmp(r4, Operand(r2));
   __ b(ne, &loop);
 
   __ bind(&done);
@@ -3176,7 +3141,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 }
 
 
-void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3197,8 +3162,8 @@ void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) { // SAMEAS: arm
   context()->Plug(if_true, if_false);
 }
 
-// DFE: SH4: TO CHECK
-void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
+
+void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3216,8 +3181,8 @@ void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
   __ ldr(r1, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
   __ cmp(r2, Operand(0x80000000));
   Label skip;
-  __ bf_near(&skip);
-  __ cmp(r1, Operand(0x00000000));
+  __ bf_near(&skip); // DIFF: codegen
+  __ cmp(r1, Operand(0x00000000)); // DIFF: codegen
   __ bind(&skip);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
@@ -3227,7 +3192,7 @@ void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsArray(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitIsArray(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3249,7 +3214,7 @@ void FullCodeGenerator::EmitIsArray(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3272,7 +3237,7 @@ void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) { // SAMEAS: arm
 
 
 
-void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) { // REVIEWEDBY: CG
   ASSERT(expr->arguments()->length() == 0);
 
   Label materialize_true, materialize_false;
@@ -3288,10 +3253,7 @@ void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) { // SAMEAS: arm
   // Skip the arguments adaptor frame if it exists.
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  Label skip;
-  __ bf_near(&skip);
-  __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
-  __ bind(&skip);
+  __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset), eq);
 
   // Check the marker in the calling frame.
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
@@ -3303,7 +3265,7 @@ void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
 
@@ -3327,7 +3289,7 @@ void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitArguments(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitArguments(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -3342,9 +3304,9 @@ void FullCodeGenerator::EmitArguments(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) { // REVIEWEDBY: CG
   ASSERT(expr->arguments()->length() == 0);
-  Label exit;
+
   // Get the number of formal parameters.
   __ mov(r0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
 
@@ -3352,18 +3314,16 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) { // SAMEAS: arm
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &exit, Label::kNear); // DIFF: codegen
 
   // Arguments adaptor case: Read the arguments length from the
   // adaptor frame.
-  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset), eq);
 
-  __ bind(&exit);
   context()->Plug(r0);
 }
 
 
-void FullCodeGenerator::EmitClassOf(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitClassOf(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   Label done, null, function, non_function_constructor;
@@ -3395,7 +3355,7 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) { // SAMEAS: arm
 
   // Check if the constructor in the map is a JS function.
   __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
-  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE, eq);
+  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE, eq); // DIFF: codegen
   __ bf_near(&non_function_constructor); // DIFF: codegen
 
   // r0 now contains the constructor function. Grab the
@@ -3425,7 +3385,7 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
+void FullCodeGenerator::EmitSubString(CallRuntime* expr) { // REVIEWEDBY: CG
   // Load the arguments on the stack and call the stub.
   SubStringStub stub(isolate());
   ZoneList<Expression*>* args = expr->arguments();
@@ -3438,7 +3398,7 @@ void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) {
+void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) { // REVIEWEDBY: CG
   // Load the arguments on the stack and call the stub.
   RegExpExecStub stub(isolate());
   ZoneList<Expression*>* args = expr->arguments();
@@ -3451,8 +3411,8 @@ void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) {
   context()->Plug(r0);
 }
 
-// DFE: SH4: TO CHECK
-void FullCodeGenerator::EmitValueOf(CallRuntime* expr) { // SAMEAS: arm
+
+void FullCodeGenerator::EmitValueOf(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));  // Load the object.
@@ -3462,15 +3422,14 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) { // SAMEAS: arm
   __ JumpIfSmi(r0, &done, Label::kNear);
   // If the object is not a value type, return the object.
   __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE, eq); // DIFF: codegen
-  __ bf_near(&done); // DIFF: codegen
-  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
+  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset), eq);
 
   __ bind(&done);
   context()->Plug(r0);
 }
 
 
-void FullCodeGenerator::EmitDateField(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitDateField(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   ASSERT_NE(NULL, args->at(1)->AsLiteral());
@@ -3498,7 +3457,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) { // SAMEAS: arm
       __ ldr(scratch1, MemOperand(scratch1));
       __ ldr(scratch0, FieldMemOperand(object, JSDate::kCacheStampOffset));
       __ cmp(scratch1, scratch0);
-      __ b(ne,&runtime);
+      __ b(ne, &runtime);
       __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset +
                                              kPointerSize * index->value()));
       __ jmp(&done);
@@ -3519,7 +3478,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) { // REVIEWEDBY: CG
 
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
@@ -3553,7 +3512,7 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) { // SAME
 }
 
 
-void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
+void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(3, args->length());
 
@@ -3588,7 +3547,7 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 
 
 
-void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
+void FullCodeGenerator::EmitMathPow(CallRuntime* expr) { // REVIEWEDBY: CG
   // Load the arguments on the stack and call the runtime function.
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
@@ -3600,7 +3559,7 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));  // Load the object.
@@ -3628,7 +3587,7 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
+void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(args->length(), 1);
   // Load the argument into r0 and call the stub.
@@ -3640,7 +3599,7 @@ void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
+void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));
@@ -3658,7 +3617,7 @@ void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
+void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));
@@ -3703,7 +3662,7 @@ void FullCodeGenerator::EmitStringCharCodeAt(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
+void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));
@@ -3750,7 +3709,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
+void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
   VisitForStackValue(args->at(0));
@@ -3763,7 +3722,7 @@ void FullCodeGenerator::EmitStringAdd(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
+void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
   VisitForStackValue(args->at(0));
@@ -3775,7 +3734,7 @@ void FullCodeGenerator::EmitStringCompare(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
+void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() >= 2);
 
@@ -3807,7 +3766,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) { // REVIEWEDBY: CG
   RegExpConstructResultStub stub(isolate());
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 3);
@@ -3821,7 +3780,7 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) { // SAMEAS
 }
 
 
-void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT_EQ(2, args->length());
   ASSERT_NE(NULL, args->at(0)->AsLiteral());
@@ -3872,7 +3831,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) { // SAMEAS: arm
 }
 
 
-void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   VisitForAccumulatorValue(args->at(0));
 
@@ -3892,7 +3851,7 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) { // SAMEAS: 
 }
 
 
-void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) { // SAMEAS: arm
+void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) { // REVIEWEDBY: CG
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));
@@ -3906,7 +3865,7 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) { // SAMEAS: 
 }
 
 
-void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
+void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) { // REVIEWEDBY: CG
   Label bailout, done, one_char_separator, long_separator, non_trivial_array,
       not_size_one_array, loop, empty_separator_loop, one_char_separator_loop,
       one_char_separator_loop_entry, long_separator_loop;
@@ -3941,7 +3900,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // If the array has length zero, return the empty string.
   __ ldr(array_length, FieldMemOperand(array, JSArray::kLengthOffset));
-  __ SmiUntag(array_length);
+  __ SmiUntag(array_length); // DIFF: codegen
   __ tst(array_length, array_length);
   __ b(ne, &non_trivial_array, Label::kNear);
   __ LoadRoot(r0, Heap::kempty_stringRootIndex);
@@ -3980,8 +3939,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
   __ JumpIfInstanceTypeIsNotSequentialAscii(scratch, scratch, &bailout);
   __ ldr(scratch, FieldMemOperand(string, SeqOneByteString::kLengthOffset));
-  __ addv(string_length, string_length, scratch); // DIFF: codegen
-  __ b(t, &bailout); // DIFF: codegen
+  __ addv(string_length, string_length, Operand(scratch)); // DIFF: codegen
+  __ b(t, &bailout); // DIFF: codegen, branch on overflow
   __ cmpge(element, elements_end); // DIFF: codegen
   __ bf(&loop); // DIFF: codegen
 
@@ -4009,7 +3968,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // string_length to get the length of the result string. array_length is not
   // smi but the other values are, so the result is a smi
   __ ldr(scratch, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
-  __ sub(string_length, string_length, scratch);
+  __ sub(string_length, string_length, Operand(scratch));
   __ smull(scratch, ip, array_length, scratch);
   // Check for smi overflow. No overflow if higher 33 bits of 64-bit result are
   // zero.
@@ -4017,8 +3976,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ b(ne, &bailout);
   __ tst(scratch, Operand(0x80000000));
   __ b(ne, &bailout);
-  __ addv(string_length, string_length, scratch); // DIFF: codegen
-  __ b(t, &bailout); // DIFF: codegen
+  __ addv(string_length, string_length, Operand(scratch)); // DIFF: codegen
+  __ b(t, &bailout); // DIFF: codegen, branch on overflow
   __ SmiUntag(string_length);
 
   // Get first element in the array to free up the elements register to be used
@@ -4092,8 +4051,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //   separator: Single separator ASCII char (in lower byte).
 
   // Copy the separator character to the result.
-  __ strb(separator, MemOperand(result_pos)); // DIFF: codegen
-  __ add(result_pos, result_pos, Operand(1)); // DIFF: codegen
+  __ strb(separator, MemOperand(result_pos, 1, PostIndex));
 
   // Copy next array element to the result.
   __ bind(&one_char_separator_loop_entry);
@@ -4145,8 +4103,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   context()->Plug(r0);
 }
 
-// DFE: SH4: TO CHECK
-void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
+
+void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) { // REVIEWEDBY: CG
   if (expr->function() != NULL &&
       expr->function()->intrinsic_type == Runtime::INLINE) {
     Comment cmnt(masm_, "[ InlineRuntimeCall");
@@ -4202,7 +4160,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
+void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) { // REVIEWEDBY: CG
   switch (expr->op()) {
     case Token::DELETE: {
       Comment cmnt(masm_, "[ UnaryOperation (DELETE)");
@@ -4312,7 +4270,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
+void FullCodeGenerator::VisitCountOperation(CountOperation* expr) { // REVIEWEDBY: CG
   ASSERT(expr->expression()->IsValidReferenceExpression());
 
   Comment cmnt(masm_, "[ CountOperation");
@@ -4396,8 +4354,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
     }
 
-    __ addv(r0, r0, Operand(Smi::FromInt(count_value)));
-    __ b(t, &done);
+    __ addv(r0, r0, Operand(Smi::FromInt(count_value))); // DIFF: codegen
+    __ b(f, &done); // DIFF: codegen, branch if no overflow
     // Call stub. Undo operation first.
     __ sub(r0, r0, Operand(Smi::FromInt(count_value)));
     __ jmp(&stub_call);
@@ -4496,7 +4454,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
+void FullCodeGenerator::VisitForTypeofValue(Expression* expr) { // REVIEWEDBY: CG
   ASSERT(!context()->IsEffect());
   ASSERT(!context()->IsTest());
   VariableProxy* proxy = expr->AsVariableProxy();
@@ -4532,7 +4490,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 }
 
 
-void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr, // SAMEAS: arm
+void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,  // REVIEWEDBY: CG
                                                  Expression* sub_expr,
                                                  Handle<String> check) {
   Label materialize_true, materialize_false;
@@ -4614,7 +4572,7 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr, // SAMEAS: ar
 }
 
 
-void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
+void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) { // REVIEWEDBY: CG
   Comment cmnt(masm_, "[ CompareOperation");
   SetSourcePosition(expr->position());
 
@@ -4665,15 +4623,15 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
       // JumpPatchSite must not be interrupted by constant pool
       {
-      Assembler::BlockConstPoolScope scope(masm_);
+        Assembler::BlockConstPoolScope scope(masm_); // DIFF: codegen
       JumpPatchSite patch_site(masm_);
       if (inline_smi_code) {
         Label slow_case;
-        __ orr(r2, r0, r1);
+        __ orr(r2, r0, Operand(r1));
         patch_site.EmitJumpIfNotSmi(r2, &slow_case);
         Condition tmp_cond = cond;
-        __ cmp(&tmp_cond, r1, r0);
-        Split(tmp_cond, if_true, if_false, NULL);
+        __ cmp(&tmp_cond, r1, r0); // DIFF: codegen
+        Split(tmp_cond, if_true, if_false, NULL); // DIFF: codegen
         __ bind(&slow_case);
       }
 
@@ -4685,8 +4643,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       }
 
       PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-      __ cmp(&cond, r0, Operand::Zero());
-      Split(cond, if_true, if_false, fall_through);
+      __ cmp(&cond, r0, Operand::Zero()); // DIFF: codegen
+      Split(cond, if_true, if_false, fall_through); // DIFF: codegen
     }
   }
 
@@ -4696,7 +4654,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
+void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr, // REVIEWEDBY: CG
                                               Expression* sub_expr,
                                               NilValue nil) {
   Label materialize_true, materialize_false;
@@ -4713,46 +4671,46 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
         Heap::kNullValueRootIndex :
         Heap::kUndefinedValueRootIndex;
     __ LoadRoot(r1, nil_value);
-    __ cmpeq(r0, r1);
+    __ cmp(r0, r1);
     Split(eq, if_true, if_false, fall_through);
   } else {
     Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(), nil);
     CallIC(ic, expr->CompareOperationFeedbackId());
-    __ cmpeq(r0, Operand(0));
+    __ cmp(r0, Operand(0));
     Split(ne, if_true, if_false, fall_through);
   }
   context()->Plug(if_true, if_false);
 }
 
 
-void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
+void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) { // REVIEWEDBY: CG
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   context()->Plug(r0);
 }
 
 
-Register FullCodeGenerator::result_register() {
+Register FullCodeGenerator::result_register() { // REVIEWEDBY: CG
   return r0;
 }
 
 
-Register FullCodeGenerator::context_register() {
+Register FullCodeGenerator::context_register() { // REVIEWEDBY: CG
   return cp;
 }
 
 
-void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
+void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) { // REVIEWEDBY: CG
   ASSERT_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);
   __ str(value, MemOperand(fp, frame_offset));
 }
 
 
-void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
+void FullCodeGenerator::LoadContextField(Register dst, int context_index) { // REVIEWEDBY: CG
   __ ldr(dst, ContextOperand(cp, context_index));
 }
 
 
-void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
+void FullCodeGenerator::PushFunctionArgumentForContextAllocation() { // REVIEWEDBY: CG
   Scope* declaration_scope = scope()->DeclarationScope();
   if (declaration_scope->is_global_scope() ||
       declaration_scope->is_module_scope()) {
@@ -4777,7 +4735,7 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 // ----------------------------------------------------------------------------
 // Non-local control flow support.
 
-void FullCodeGenerator::EnterFinallyBlock() {
+void FullCodeGenerator::EnterFinallyBlock() {  // REVIEWEDBY: CG
   ASSERT(!result_register().is(r1));
   // Store result register while executing finally block.
   __ push(result_register());
@@ -4786,7 +4744,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   __ sub(r1, r1, Operand(masm_->CodeObject()));
   __ SmiTag(r1);
 
-  // Store result register while executing finally block.
+  // Store cooked return address.
   __ push(r1);
 
   // Store pending message while executing finally block.
@@ -4812,7 +4770,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
 }
 
 
-void FullCodeGenerator::ExitFinallyBlock() {
+void FullCodeGenerator::ExitFinallyBlock() { // REVIEWEDBY: CG
   ASSERT(!result_register().is(r1));
   // Restore pending message from stack.
   __ pop(r1);
@@ -4835,14 +4793,16 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ mov(ip, Operand(pending_message_obj));
   __ str(r1, MemOperand(ip));
 
-  // Restore result register from stack.
+  // Restore cooked return address
   __ pop(r1);
 
-  // Uncook return address and return.
+  // Restore result register
   __ pop(result_register());
+
+  // Uncook return address and return.
   __ SmiUntag(r1);
-  __ add(r1, r1, Operand(masm_->CodeObject()));
-  __ jmp(r1);
+  __ add(r1, r1, Operand(masm_->CodeObject())); // DIFF: codegen, r1 is scratch here
+  __ jmp(r1); // DIFF: codegen
 }
 
 
@@ -4850,7 +4810,7 @@ void FullCodeGenerator::ExitFinallyBlock() {
 
 #define __ ACCESS_MASM(masm())
 
-FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
+FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit( // REVIEWEDBY: CG
     int* stack_depth,
     int* context_length) {
   // The macros used here must preserve the result register.
@@ -4866,7 +4826,7 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
     __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   }
   __ PopTryHandler();
-  __ jsr(finally_entry_);
+  __ jsr(finally_entry_); // DIFF: codegen
 
   *stack_depth = 0;
   *context_length = 0;

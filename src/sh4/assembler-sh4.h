@@ -1035,6 +1035,7 @@ class Assembler : public AssemblerBase {
   inline void rsb(Register Rd, Register Rs, const Operand& src,
                   Condition cond, Register rtmp = sh4_rtmp);
 
+  // addv/subv/rsbv set the T bit on overflow
   void addv(Register Rd, Register Rs, Register Rt);
   void addv(Register Rd, Register Rs, const Operand& src,
             Register rtmp = sh4_rtmp);
