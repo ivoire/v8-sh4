@@ -1447,6 +1447,11 @@ Code* InnerPointerToCodeCache::GcSafeCastToCode(HeapObject* object,
 Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
     Address inner_pointer) {
   Heap* heap = isolate_->heap();
+#ifdef DEBUG
+  // SH4: when in debug mode return NULL there if the heap does not contain
+  // the address. Ref below also.
+  if (!heap->Contains(inner_pointer)) return NULL;
+#endif
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = heap->lo_space()->FindPage(inner_pointer);
   if (large_page != NULL) {
