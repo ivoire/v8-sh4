@@ -1,31 +1,8 @@
-// Copyright 2011-2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2012 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
+#include "v8.h"  // FILE: SAMEAS: arm, REVIEWEDBY: CG, not fully implemented
 
 #include "codegen.h"
 #include "deoptimizer.h"
@@ -35,13 +12,14 @@
 namespace v8 {
 namespace internal {
 
-#include "map-sh4.h"
+#include "map-sh4.h"  // SH4: define arm->sh4 register map
 
-//  Bailout table entry size: __ mov + __ push + __ b(...,kFar)
-const int Deoptimizer::table_entry_size_ = 16; // DIFF: codegen: ref to ::GeneratePrologue
+// SH4: Bailout table entry size: __ mov + __ push + __ b(...,kFar)
+const int Deoptimizer::table_entry_size_ = 16;
 
-int Deoptimizer::patch_size() {
-  //TODO(ivoire): find the right value !
+
+int Deoptimizer::patch_size() { // SH4: TODO
+  // SH4: find the right value when implementing PatchCodeForDeoptimization()
   const int kCallInstructionSizeInWords = 3;
   return kCallInstructionSizeInWords * Assembler::kInstrSize;
 }
@@ -57,7 +35,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 }
 
 
-void Deoptimizer::SetPlatformCompiledStubRegisters( // SAMEAS: arm
+void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
   ApiFunction function(descriptor->deoptimization_handler_);
   ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
@@ -77,7 +55,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 
 
 bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  UNIMPLEMENTED();
+  UNIMPLEMENTED(); // SH4: TODO: check whether padding is needed
   return false;
 }
 
@@ -89,7 +67,7 @@ Code* Deoptimizer::NotifyStubFailureBuiltin() {
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::EntryGenerator::Generate() { // SAMEAS: arm
+void Deoptimizer::EntryGenerator::Generate() { // REVIEWEDBY: SG
   GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
@@ -282,11 +260,11 @@ void Deoptimizer::EntryGenerator::Generate() { // SAMEAS: arm
 }
 
 
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() { // SAMEAS: arm
+void Deoptimizer::TableEntryGenerator::GeneratePrologue() { // REVIEWEDBY: CG
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
   Label done;
-  int table_start = masm()->pc_offset(); // DIFF: add global table size check
+  int table_start = masm()->pc_offset(); // DIFF: codegen: add global table size check
   for (int i = 0; i < count(); i++) {
     int start = masm()->pc_offset();
     USE(start);
@@ -296,20 +274,26 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() { // SAMEAS: arm
     ASSERT(masm()->pc_offset() - start == table_entry_size_);
   }
   USE(table_start);
-  ASSERT(masm()->pc_offset() - table_start == table_entry_size_ * count());  // DIFF: add global table size check
+  ASSERT(masm()->pc_offset() - table_start == table_entry_size_ * count());  // DIFF: codegen: add global table size check
   __ bind(&done);
 }
 
 
-void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) { // SAMEAS: arm
+void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
 }
 
 
-void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) { // SAMEAS: arm
+void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
 }
 
+
+// SH4: not used
+// void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
+//   ASSERT(FLAG_enable_ool_constant_pool);
+//   SetFrameSlot(offset, value);
+// }
 
 #undef __
 
