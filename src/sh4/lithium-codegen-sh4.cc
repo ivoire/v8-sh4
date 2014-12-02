@@ -2381,28 +2381,31 @@ static InstanceType TestType(HHasInstanceTypeAndBranch* instr) {
 }
 
 
-static Condition BranchCondition(HHasInstanceTypeAndBranch* instr) {
+static Condition BranchCondition(HHasInstanceTypeAndBranch* instr, Condition &cmp_cond) { // REVIEWEDBY: CG
   InstanceType from = instr->from();
   InstanceType to = instr->to();
-  if (from == to) return eq;
-  if (to == LAST_TYPE) return hs;
-  if (from == FIRST_TYPE) return ls;
+  // SH4: must generate both compare and branch conditions
+  if (from == to) { cmp_cond = eq; return t; }
+  if (to == LAST_TYPE) { cmp_cond = hs; return t; }
+  if (from == FIRST_TYPE) { cmp_cond = hi; return f; }
   UNREACHABLE();
-  return eq;
+  return t;
 }
 
 
-void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
+void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) { // REVIEWEDBY: CG
   Register scratch = scratch0();
   Register input = ToRegister(instr->value());
+  // SH4: must generate both compare and branch conditions
+  Condition br_cond, cmp_cond;
 
   if (!instr->hydrogen()->value()->IsHeapObject()) {
     __ JumpIfSmi(input, instr->FalseLabel(chunk_));
   }
 
-  // SH4: BranchCondition can return unsupported comparison that will make the code assert.
-  __ CompareObjectType(input, scratch, scratch, TestType(instr->hydrogen()), BranchCondition(instr->hydrogen()));
-  EmitBranch(instr, BranchCondition(instr->hydrogen()));
+  br_cond = BranchCondition(instr->hydrogen(), cmp_cond);
+  __ CompareObjectType(input, scratch, scratch, TestType(instr->hydrogen()), cmp_cond);
+  EmitBranch(instr, br_cond);
 }
 
 
