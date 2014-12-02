@@ -1,31 +1,8 @@
-// Copyright 2011-2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2012 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#include "v8.h"
+#include "v8.h" // FILE: SAMEAS: arm, REVIEWEDBY: CG
 
 #include "sh4/lithium-gap-resolver-sh4.h"
 #include "sh4/lithium-codegen-sh4.h"
@@ -33,9 +10,8 @@
 namespace v8 {
 namespace internal {
 
-#include "map-sh4.h"  // Define register map
+#include "map-sh4.h"  // SH4: define arm->sh4 register map
 
-// CB:sh4:TOCHECK
 // We use the root register to spill a value while breaking a cycle in parallel
 // moves. We don't need access to roots while resolving the move list and using
 // the root register has two advantages:
@@ -91,7 +67,7 @@ void LGapResolver::Resolve(LParallelMove* parallel_move) {
 }
 
 
-void LGapResolver::BuildInitialMoveList(LParallelMove* parallel_move) { // SAMEAS: arm
+void LGapResolver::BuildInitialMoveList(LParallelMove* parallel_move) {
   // Perform a linear sweep of the moves to add them to the initial list of
   // moves to perform, ignoring any move that is redundant (the source is
   // the same as the destination, the destination is ignored and
@@ -105,7 +81,7 @@ void LGapResolver::BuildInitialMoveList(LParallelMove* parallel_move) { // SAMEA
 }
 
 
-void LGapResolver::PerformMove(int index) { // SAMEAS: arm
+void LGapResolver::PerformMove(int index) {
   // Each call to this function performs a move and deletes it from the move
   // graph.  We first recursively perform any move blocking this one.  We
   // mark a move as "pending" on entry to PerformMove in order to detect
@@ -163,7 +139,7 @@ void LGapResolver::PerformMove(int index) { // SAMEAS: arm
 }
 
 
-void LGapResolver::Verify() { // SAMEAS: arm
+void LGapResolver::Verify() {
 #ifdef ENABLE_SLOW_ASSERTS
   // No operand should be the destination for more than one move.
   for (int i = 0; i < moves_.length(); ++i) {
@@ -203,7 +179,7 @@ void LGapResolver::BreakCycle(int index) {
 }
 
 
-void LGapResolver::RestoreValue() { // SAMEAS: arm
+void LGapResolver::RestoreValue() {
   ASSERT(in_cycle_);
   ASSERT(saved_destination_ != NULL);
 
@@ -224,7 +200,7 @@ void LGapResolver::RestoreValue() { // SAMEAS: arm
 }
 
 
-void LGapResolver::EmitMove(int index) { // SAMEAS: arm
+void LGapResolver::EmitMove(int index) { // REVIEWEDBY: CG
   LOperand* source = moves_[index].source();
   LOperand* destination = moves_[index].destination();
 
@@ -246,14 +222,14 @@ void LGapResolver::EmitMove(int index) { // SAMEAS: arm
     } else {
       ASSERT(destination->IsStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
-      if (0 /* !destination_operand.OffsetIsUint12Encodable()*/) { // DIFF: codegen
+      if (0/*SH4: useless */ /*!destination_operand.OffsetIsUint12Encodable()*/) {
+        // SH4: does not have this issue. ip is not used in str()/ldr().
+        UNREACHABLE(); // DIFF: codegen
         // ip is overwritten while saving the value to the destination.
         // Therefore we can't use ip.  It is OK if the read from the source
         // destroys ip, since that happens before the value is read.
-        // SH4: does not have this issue. ip is not used in str.
-          UNREACHABLE();
-          // __ vldr(kScratchDoubleReg.low(), source_operand);
-          // __ vstr(kScratchDoubleReg.low(), destination_operand);
+        // __ vldr(kScratchDoubleReg.low(), source_operand);
+        // __ vstr(kScratchDoubleReg.low(), destination_operand);
       } else {
         __ ldr(ip, source_operand);
         __ str(ip, destination_operand);
@@ -308,12 +284,10 @@ void LGapResolver::EmitMove(int index) { // SAMEAS: arm
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       if (in_cycle_) {
         // kScratchDoubleReg was used to break the cycle.
-        // CB:sh4:TODO
-        // __ vstm(db_w, sp, kScratchDoubleReg, kScratchDoubleReg);
+        __ vpushm(kScratchDoubleReg, kScratchDoubleReg); // DIFF: codegen
         __ vldr(kScratchDoubleReg, source_operand);
         __ vstr(kScratchDoubleReg, destination_operand);
-        // CB:sh4:TODO
-        // __ vldm(ia_w, sp, kScratchDoubleReg, kScratchDoubleReg);
+        __ vpopm(kScratchDoubleReg, kScratchDoubleReg); // DIFF: codegen
       } else {
         __ vldr(kScratchDoubleReg, source_operand);
         __ vstr(kScratchDoubleReg, destination_operand);
