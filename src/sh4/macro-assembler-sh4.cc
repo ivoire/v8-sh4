@@ -1000,15 +1000,14 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 }
 
 
-void MacroAssembler::MovFromFloatResult(const DwVfpRegister dst) {
+void MacroAssembler::MovFromFloatResult(const DwVfpRegister dst) { // REVIEWEDBY: CG
   // SH4: return value is in dr0
   vmov(dst, sh4_dr0);
 }
 
-  // CB: SH4 TO DO
-// On ARM this is just a synonym to make the purpose clear.
-void MacroAssembler::MovFromFloatParameter(DwVfpRegister dst) {
-  MovFromFloatResult(dst);
+void MacroAssembler::MovFromFloatParameter(DwVfpRegister dst) { // REVIEWEDBY: CG
+  // SH4: first parameter is in dr4
+  vmov(dst, sh4_dr4);
 }
 
 
@@ -3403,22 +3402,23 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 }
 
 
-void MacroAssembler::MovToFloatParameter(DwVfpRegister src) {
-  // SH4: Pass doubles through dr4
+void MacroAssembler::MovToFloatParameter(DwVfpRegister src) { // REVIEWEDBY: CG
+  // SH4: first parameter is passed in dr4
   vmov(sh4_dr4, src);
 }
 
-void MacroAssembler::MovToFloatParameters(DwVfpRegister src1,
+void MacroAssembler::MovToFloatParameters(DwVfpRegister src1, // REVIEWEDBY: CG
                                           DwVfpRegister src2) {
-  // SH4: Pass doubles through dr4/dr6
-  if (src1.is(sh4_dr4)) {
-    ASSERT(!src1.is(sh4_dr6));
+  // SH4: first two parameters are passed in dr4, dr6
+  // Do not treat the case of a swap (dr6,dr4) -> (dr4,dr6)
+  // Then order the move such that no register is clobbered
+  ASSERT(!(src1.is(sh4_dr6) && src2.is(sh4_dr4)));
+  if (!src2.is(sh4_dr4)) {
+    vmov(sh4_dr4, src1);
+    vmov(sh4_dr6, src2);
+  } else {
     vmov(sh4_dr6, src2);
     vmov(sh4_dr4, src1);
-  } else {
-    ASSERT(!src1.is(sh4_dr4));
-    vmov(sh4_dr4, src2);
-    vmov(sh4_dr6, src1);
   }
 }
 
