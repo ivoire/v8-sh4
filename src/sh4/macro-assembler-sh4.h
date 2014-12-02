@@ -155,10 +155,12 @@ class MacroAssembler: public Assembler {
 
   // Load an object from the root table.
   void LoadRoot(Register destination,
-                Heap::RootListIndex index);
+                Heap::RootListIndex index,
+                Condition cond = al);
   // Store an object to the root table.
   void StoreRoot(Register source,
-                 Heap::RootListIndex index);
+                 Heap::RootListIndex index,
+                 Condition cond = al);
 
   // ---------------------------------------------------------------------------
   // GC Support

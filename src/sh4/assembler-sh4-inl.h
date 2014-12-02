@@ -717,8 +717,12 @@ void Assembler::rts() {
 }
 
 
-void Assembler::ldr(Register Rd, const MemOperand& src, Register rtmp) {
+void Assembler::ldr(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   switch(src.mode_) {
   case PreIndex:
     add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
@@ -732,11 +736,17 @@ void Assembler::ldr(Register Rd, const MemOperand& src, Register rtmp) {
     mov(Rd, src, rtmp);
     break;
   }
+  if (cond != al)
+    bind(&skip);
 }
 
 
-void Assembler::ldrh(Register Rd, const MemOperand& src, Register rtmp) {
+void Assembler::ldrh(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   switch(src.mode_) {
   case PreIndex:
     add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
@@ -750,10 +760,16 @@ void Assembler::ldrh(Register Rd, const MemOperand& src, Register rtmp) {
     movw(Rd, src, rtmp);
     break;
   }
+  if (cond != al)
+    bind(&skip);
 }
 
-void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
+void Assembler::ldrsh(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   switch(src.mode_) {
   case PreIndex:
     add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
@@ -767,11 +783,17 @@ void Assembler::ldrsh(Register Rd, const MemOperand& src, Register rtmp) {
     movsw(Rd, src, rtmp);
     break;
   }
+  if (cond != al)
+    bind(&skip);
 }
 
 
-void Assembler::ldrb(Register Rd, const MemOperand& src, Register rtmp) {
+void Assembler::ldrb(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   switch(src.mode_) {
   case PreIndex:
     add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
@@ -785,10 +807,16 @@ void Assembler::ldrb(Register Rd, const MemOperand& src, Register rtmp) {
     movb(Rd, src, rtmp);
     break;
   }
+  if (cond != al)
+    bind(&skip);
 }
 
-void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
+void Assembler::ldrsb(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   switch(src.mode_) {
   case PreIndex:
     add(src.rn_ , src.rn_, Operand(src.offset()), rtmp);
@@ -802,11 +830,17 @@ void Assembler::ldrsb(Register Rd, const MemOperand& src, Register rtmp) {
     movsb(Rd, src, rtmp);
     break;
   }
+  if (cond != al)
+    bind(&skip);
 }
 
 
-void Assembler::str(Register Rs, const MemOperand& dst, Register rtmp) {
+void Assembler::str(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) {
   ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   switch(dst.mode_) {
   case PreIndex:
     add(dst.rn_ , dst.rn_, Operand(dst.offset()), rtmp);
@@ -820,11 +854,17 @@ void Assembler::str(Register Rs, const MemOperand& dst, Register rtmp) {
     mov(dst, Rs, rtmp);
     break;
   }
+  if (cond != al)
+    bind(&skip);
 }
 
 
-void Assembler::strh(Register Rs, const MemOperand& dst, Register rtmp) {
+void Assembler::strh(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) {
   ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   switch(dst.mode_) {
   case PreIndex:
     add(dst.rn_ , dst.rn_, Operand(dst.offset()), rtmp);
@@ -838,11 +878,17 @@ void Assembler::strh(Register Rs, const MemOperand& dst, Register rtmp) {
     movw(dst, Rs, rtmp);
     break;
   }
+  if (cond != al)
+    bind(&skip);
 }
 
 
-void Assembler::strb(Register Rs, const MemOperand& dst, Register rtmp) {
+void Assembler::strb(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) {
   ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
+  ASSERT(cond == al || cond == ne || cond ==  eq);
+  Label skip;
+  if (cond != al)
+    b(cond == ne ? eq: ne, &skip, Label::kNear);
   switch(dst.mode_) {
   case PreIndex:
     add(dst.rn_ , dst.rn_, Operand(dst.offset()), rtmp);
@@ -856,6 +902,8 @@ void Assembler::strb(Register Rs, const MemOperand& dst, Register rtmp) {
     movb(dst, Rs, rtmp);
     break;
   }
+  if (cond != al)
+    bind(&skip);
 }
 
 

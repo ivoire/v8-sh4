@@ -2156,19 +2156,19 @@ TEST(from_arm_3) {
   __ push(fp);
   __ sub(fp, sp, Operand(4));
 
-  __ ldr(r0, MemOperand(r4, OFFSET_OF(T, i)), r5);
+  __ ldr(r0, MemOperand(r4, OFFSET_OF(T, i)), al, r5);
   __ asr(r2, r0, Operand(1), r5);
-  __ str(r2, MemOperand(r4, OFFSET_OF(T, i)), r5);
+  __ str(r2, MemOperand(r4, OFFSET_OF(T, i)), al, r5);
 
   __ ldrsb(r2, MemOperand(r4, OFFSET_OF(T, c)));
   __ add(r0, r2, r0);
   __ lsl(r2, r2, Operand(2));
-  __ strb(r2, MemOperand(r4, OFFSET_OF(T, c)), r5);
+  __ strb(r2, MemOperand(r4, OFFSET_OF(T, c)), al, r5);
 
-  __ ldrsh(r2, MemOperand(r4, OFFSET_OF(T, s)), r5);
+  __ ldrsh(r2, MemOperand(r4, OFFSET_OF(T, s)), al, r5);
   __ add(r0, r2, r0);
   __ asr(r2, r2, Operand(3));
-  __ strh(r2, MemOperand(r4, OFFSET_OF(T, s)), r5);
+  __ strh(r2, MemOperand(r4, OFFSET_OF(T, s)), al, r5);
 
   __ pop(fp);
   __ pop(pr);

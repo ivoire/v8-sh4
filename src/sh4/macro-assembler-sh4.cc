@@ -438,20 +438,23 @@ void MacroAssembler::Store(Register src,
   }
 }
 
-void MacroAssembler::LoadRoot(Register destination,
-                              Heap::RootListIndex index) {
+void MacroAssembler::LoadRoot(Register destination, // REVIEWEDBY: CG
+                              Heap::RootListIndex index,
+                              Condition cond) {
   RECORD_LINE();
-  ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2));
+  ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 
 
-void MacroAssembler::StoreRoot(Register source,
-                               Heap::RootListIndex index) {
+void MacroAssembler::StoreRoot(Register source, // REVIEWEDBY: CG
+                               Heap::RootListIndex index,
+                               Condition cond) {
   RECORD_LINE();
-  str(source, MemOperand(kRootRegister, index << kPointerSizeLog2));
+  str(source, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 
 
+// SH4: on sh4 target we emit function/line in code comments
 MacroAssembler* MacroAssembler::RecordFunctionLine(const char* function,
                                                    int line) {
   if (FLAG_code_comments) {

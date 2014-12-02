@@ -1167,17 +1167,17 @@ class Assembler : public AssemblerBase {
   void movf(SwVfpRegister Fd, Register Rs);
   void movf(Register Rd, SwVfpRegister Fs);
 
-  inline void ldr(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
-  inline void ldrb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
-  inline void ldrh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  inline void ldr(Register Rd, const MemOperand& src, Condition cond = al, Register rtmp = sh4_rtmp);
+  inline void ldrb(Register Rd, const MemOperand& src, Condition cond = al, Register rtmp = sh4_rtmp);
+  inline void ldrh(Register Rd, const MemOperand& src, Condition cond = al, Register rtmp = sh4_rtmp);
   // signed 8 bit load op.
-  inline void ldrsb(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  inline void ldrsb(Register Rd, const MemOperand& src, Condition cond = al, Register rtmp = sh4_rtmp);
   // signed 16 bit load op.
-  inline void ldrsh(Register Rd, const MemOperand& src, Register rtmp = sh4_rtmp);
+  inline void ldrsh(Register Rd, const MemOperand& src, Condition cond = al, Register rtmp = sh4_rtmp);
 
-  inline void str(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp);
-  inline void strh(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp);
-  inline void strb(Register Rs, const MemOperand& dst, Register rtmp = sh4_rtmp);
+  inline void str(Register Rs, const MemOperand& dst, Condition cond = al, Register rtmp = sh4_rtmp);
+  inline void strh(Register Rs, const MemOperand& dst, Condition cond = al, Register rtmp = sh4_rtmp);
+  inline void strb(Register Rs, const MemOperand& dst, Condition cond = al, Register rtmp = sh4_rtmp);
 
   void ldrpr(Register Rd) { lds_PR_(Rd); }
   void strpr(Register Rs) { sts_PR_(Rs); }
