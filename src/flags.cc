@@ -13,6 +13,8 @@
 
 #if V8_TARGET_ARCH_ARM
 #include "arm/assembler-arm-inl.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/assembler-sh4-inl.h"
 #endif
 
 namespace v8 {
@@ -525,11 +527,11 @@ void FlagList::ResetAllFlags() {
 
 // static
 void FlagList::PrintHelp() {
-#if V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_SH4
   CpuFeatures::PrintTarget();
   CpuFeatures::Probe(serializer_enabled_);
   CpuFeatures::PrintFeatures();
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_SH4
 
   printf("Usage:\n");
   printf("  shell [options] -e string\n");

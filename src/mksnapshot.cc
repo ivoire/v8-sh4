@@ -20,6 +20,8 @@
 
 #if V8_TARGET_ARCH_ARM
 #include "arm/assembler-arm-inl.h"
+#elif V8_TARGET_ARCH_SH4
+#include "sh4/assembler-sh4-inl.h"
 #endif
 
 using namespace v8;

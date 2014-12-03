@@ -583,7 +583,7 @@ DEFINE_bool(trace_sim_regs, false,
 DEFINE_bool(trace_sim_comments, false,
             "Output code comments along simulator traces")
 DEFINE_bool(check_icache, false,
-            "Check icache flushes in ARM and MIPS simulator")
+            "Check icache flushes in ARM, MIPS and SH4 simulator")
 DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
 #ifdef V8_TARGET_ARCH_ARM64
 DEFINE_int(sim_stack_alignment, 16,

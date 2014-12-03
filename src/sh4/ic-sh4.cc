@@ -1394,4 +1394,4 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_SH4
