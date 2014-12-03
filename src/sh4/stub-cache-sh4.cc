@@ -4,7 +4,7 @@
 
 #include "v8.h"
 
-#if V8_TARGET_ARCH_SH4
+#if V8_TARGET_ARCH_SH4 // FILE: SAMEAS: arm, REVIEWEDBY: CG: Only functions covered in no-ic
 
 #include "ic-inl.h"
 #include "codegen.h"
@@ -1209,7 +1209,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 #define __ ACCESS_MASM(masm)
 
 
-void StoreStubCompiler::GenerateStoreViaSetter(
+void StoreStubCompiler::GenerateStoreViaSetter( // REVIEWEDBY: CG
     MacroAssembler* masm,
     Handle<HeapType> type,
     Register receiver,
@@ -1317,13 +1317,13 @@ Register* KeyedStoreStubCompiler::registers() {
   static Register registers[] = { r2, r1, r3, r4, r5 };
   return registers;
 }
-
+// DFE: SH4: TO CHECK - End
 
 #undef __
 #define __ ACCESS_MASM(masm)
 
 
-void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
+void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm, // REVIEWEDBY: CG
                                              Handle<HeapType> type,
                                              Register receiver,
                                              Handle<JSFunction> getter) {
@@ -1359,7 +1359,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
   }
   __ Ret();
 }
-// DFE: SH4: TO CHECK - End
+
 
 #undef __
 #define __ ACCESS_MASM(masm())
