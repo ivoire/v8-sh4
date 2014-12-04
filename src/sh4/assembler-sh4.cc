@@ -293,7 +293,7 @@ bool Assembler::IsCondBranch(Instr instr) {
 
 int Assembler::GetBranchOffset(Instr instr) {
   ASSERT(IsCondBranch(instr) || IsBra(instr));
-  uint8_t disp;
+  uint8_t disp = 0;
   if (IsCondBranch(instr))
     disp = instr & 0xFF;
   else if (IsBra(instr))

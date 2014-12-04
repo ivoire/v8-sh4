@@ -2389,6 +2389,7 @@ static Condition BranchCondition(HHasInstanceTypeAndBranch* instr, Condition &cm
   if (to == LAST_TYPE) { cmp_cond = hs; return t; }
   if (from == FIRST_TYPE) { cmp_cond = hi; return f; }
   UNREACHABLE();
+  cmp_cond = eq;
   return t;
 }
 
