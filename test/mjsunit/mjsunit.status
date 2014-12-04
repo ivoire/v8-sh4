@@ -404,6 +404,7 @@
   'compiler/osr-nested': [SKIP],
   'compiler/osr-big': [SKIP],
   'regress/regress-2618': [SKIP],
+  'regress/regress-330046': [SKIP],
   'compiler/osr-simple': [SKIP],
   'compiler/osr-with-args': [SKIP],
   'compiler/osr-two': [SKIP],
