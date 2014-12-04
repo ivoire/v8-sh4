@@ -417,6 +417,19 @@
   'osr-elements-kind': [SKIP],
   'opt-elements-kind': [SKIP],
 
+  # Skip long running tests that time out in debug mode for SH4.
+  'array-store-and-grow': [PASS, ['mode == debug', SKIP]],
+  'debug-scopes': [PASS, ['mode == debug', SKIP]],
+  'packed-elements': [PASS, ['mode == debug', SKIP]],
+  'string-indexof-1': [PASS, ['mode == debug', SKIP]],
+  'unicodelctest-no-optimization': [PASS, ['mode == debug', SKIP]],
+  'unicodelctest': [PASS, ['mode == debug', SKIP]],
+  'whitespaces': [PASS, ['mode == debug', SKIP]],
+  'regress-2185-2': [PASS, ['mode == debug', SKIP]],
+  'regress-crbug-119926': [PASS, ['mode == debug', SKIP]],
+  'regress-crbug-319860': [PASS, ['mode == debug', SKIP]],
+  'regress-deep-proto': [PASS, ['mode == debug', SKIP]],
+
 }],  # 'arch == sh4'
 
 ##############################################################################
