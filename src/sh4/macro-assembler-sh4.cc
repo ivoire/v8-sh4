@@ -61,7 +61,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
-void MacroAssembler::Jump(Register target, Condition cond) {
+void MacroAssembler::Jump(Register target, Condition cond) { // REVIEWEDBY: RD
   Label skip;
   ASSERT(cond == eq || cond == ne || cond == al);
   RECORD_LINE();
@@ -73,8 +73,9 @@ void MacroAssembler::Jump(Register target, Condition cond) {
 }
 
 
-void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
+void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode, // REVIEWEDBY: RD
                           Condition cond) {
+
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   Label skip;
   ASSERT(cond == eq || cond == ne || cond == al);
@@ -88,16 +89,18 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 }
 
 
-void MacroAssembler::Jump(Address target, RelocInfo::Mode rmode,
+void MacroAssembler::Jump(Address target, RelocInfo::Mode rmode, // REVIEWEDBY: RD
                           Condition cond) {
+
   ASSERT(!RelocInfo::IsCodeTarget(rmode));
   UNIMPLEMENTED(); // SH4: obsolete. Seems obsolete also on ARM
   // Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
 }
 
 
-void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
+void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode, // REVIEWEDBY: RD
                           Condition cond) {
+
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   ASSERT(cond == eq || cond == ne || cond == al);
   RECORD_LINE();
@@ -105,7 +108,8 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 
-int MacroAssembler::CallSize(Register target, int call_offset, Condition cond) {
+int MacroAssembler::CallSize(Register target, int call_offset, Condition cond) { // REVIEWEDBY: RD
+  ASSERT_EQ(cond, al);
   // Register based call: jsr @target; nop;
   return 2 * kInstrSize;
 }
@@ -122,9 +126,10 @@ void MacroAssembler::Call(Register target, Condition cond) {
   ASSERT_EQ(CallSize(target, call_offset, cond), SizeOfCodeGeneratedSince(&start));
 }
 
+
 int MacroAssembler::CallSize(Address target,
                              int call_offset,
-                             RelocInfo::Mode rmode) {
+                             RelocInfo::Mode rmode) { // REVIEWEDBY: RD
   // Depends upon constant pool management:
   // same as GetCallTargetAddressOffset()
   return GetCallTargetAddressOffset(call_offset);
@@ -180,14 +185,15 @@ void MacroAssembler::Call(Address target, // REVIEWEDBY: CG
 }
 
 
-int MacroAssembler::CallSize(Handle<Code> code,
+int MacroAssembler::CallSize(Handle<Code> code, // REVIEWEDBY: RD
                              RelocInfo::Mode rmode,
                              TypeFeedbackId ast_id) {
   AllowDeferredHandleDereference using_raw_address;
   return CallSize(reinterpret_cast<Address>(code.location()), pc_offset(), rmode);
 }
 
-void MacroAssembler::Call(Handle<Code> code,
+
+void MacroAssembler::Call(Handle<Code> code, // REVIEWEDBY: RD
                           RelocInfo::Mode rmode,
                           TypeFeedbackId ast_id,
                           TargetAddressStorageMode mode) {
@@ -200,6 +206,7 @@ void MacroAssembler::Call(Handle<Code> code,
     SetRecordedAstId(ast_id);
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
+  AllowDeferredHandleDereference embedding_raw_address;
   Call(reinterpret_cast<Address>(code.location()), rmode, mode);
 }
 
@@ -820,7 +827,7 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
 }
 
 
-void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
+void MacroAssembler::Prologue(PrologueFrameMode frame_mode) { // REVIEWEDBY: RD
 
   if (frame_mode == BUILD_STUB_FRAME) {
     Push(pr, fp, cp);
@@ -858,7 +865,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
 }
 
 
-void MacroAssembler::EnterFrame(StackFrame::Type type) {
+void MacroAssembler::EnterFrame(StackFrame::Type type) { // REVIEWEDBY: RD
   // r0-r3: must be preserved
   RECORD_LINE();
   Push(pr, fp, cp);
@@ -872,7 +879,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 }
 
 
-int MacroAssembler::LeaveFrame(StackFrame::Type type) {
+int MacroAssembler::LeaveFrame(StackFrame::Type type) { // REVIEWEDBY: RD
   // r0: preserved
   // r1: preserved
   // r2: preserved
@@ -888,7 +895,7 @@ int MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
+void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) { // REVIEWEDBY: RD
   // Set up the frame structure on the stack.
   // Parameters are on stack as if calling JS function
   // ARM -> ST40 mapping: ip -> scratch (defaults sh4_ip)
@@ -904,7 +911,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   Push(pr, fp);
   mov(fp, sp);  // Set up new frame pointer.
   // Reserve room for saved entry sp and code object.
-  sub(sp, sp, Operand(2 * kPointerSize));
+  sub(sp, sp, Operand(ExitFrameConstants::kFrameSize));
   if (emit_debug_code()) {
     mov(ip, Operand::Zero());
     str(ip, MemOperand(fp, ExitFrameConstants::kSPOffset));
@@ -972,7 +979,7 @@ void MacroAssembler::InitializeNewString(Register string,
 }
 
 
-void MacroAssembler::LeaveExitFrame(bool save_doubles,
+void MacroAssembler::LeaveExitFrame(bool save_doubles, // REVIEWEDBY: RD
                                     Register argument_count,
                                     bool restore_context) {
   ASSERT(!argument_count.is(sh4_ip));
@@ -989,7 +996,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   // Optionally restore all double registers.
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
-    const int offset = 2 * kPointerSize;
+    const int offset = ExitFrameConstants::kFrameSize;
     sub(r3, fp,
         Operand(offset + DwVfpRegister::kMaxNumRegisters * kDoubleSize));
     RestoreFPRegs(r3, ip); // Note: this modifies r3, don't use fp/sp directly
@@ -3994,9 +4001,8 @@ void MacroAssembler::TruncatingDiv(Register result,
     sub(result, result, Operand(dividend));
   }
   if (ms.shift() > 0) asr(result, result, Operand(ms.shift()));
-  // CB. SH4 TODO
-  lsr (dividend, dividend, Operand(31));
-  add(result, result, Operand (dividend));
+  lsr(ip, dividend, Operand(31));
+  add(result, result, ip);
 }
 
 } }  // namespace v8::internal
