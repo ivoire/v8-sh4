@@ -398,6 +398,9 @@
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
 
+  # SH4: ic is not activated on SH4; skip tests failing with --nouse-ic
+  'allocation-site-info': [SKIP],
+
   # SH4: osr is not activated for SH4; skip related tests.
   'compiler/osr-warm': [SKIP],
   'compiler/osr-one': [SKIP],
