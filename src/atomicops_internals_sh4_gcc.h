@@ -107,6 +107,16 @@ inline Atomic32 Release_Load(volatile const Atomic32* ptr) {
   return *ptr;
 }
 
+// Byte accessors.
+
+inline void NoBarrier_Store(volatile Atomic8* ptr, Atomic8 value) {
+  *ptr = value;
+}
+
+inline Atomic8 NoBarrier_Load(volatile const Atomic8* ptr) {
+  return *ptr;
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_ATOMICOPS_INTERNALS_SH4_GCC_H_
