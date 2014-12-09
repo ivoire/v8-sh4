@@ -415,6 +415,7 @@
   'compiler/optimized-for-in': [SKIP],
   'compiler/osr-alignment': [SKIP],
   'compiler/osr-assert': [SKIP],
+  'regress-sync-optimized-lists': [SKIP]
 
   # SH4: crankshaft if not activated for SH4; skip related tests.
   'array-feedback': [SKIP],
