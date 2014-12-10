@@ -238,6 +238,16 @@
 
 }],  # 'arch == sh4'
 
+['arch == sh4 and simulator_run == False', {
+  # Skip test that uses to much RAM for the board
+  'test-strings/StringOOMNewStringFromAscii': [SKIP],
+  'test-strings/StringOOMNewStringFromUtf8': [SKIP],
+  'test-strings/StringOOMNewStringFromOneByte': [SKIP],
+
+  # On the board the allignement in 4 but with have to use 8 anyway
+  'test-platform/StackAlignment': [SKIP],
+}],  # 'arch == sh4 and simulator_run == False'
+
 ##############################################################################
 ['arch == android_arm or arch == android_ia32', {
 
