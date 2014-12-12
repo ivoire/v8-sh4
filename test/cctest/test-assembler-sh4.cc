@@ -2055,7 +2055,7 @@ TEST(33) {
   __ cmpeq(r1, Operand(0x7fffffff)); // Check is clamped to MAX_INT
   B_LINE(f, &error);
 
-  // Check int->double->int provde same result
+  // Check int->double->int provide same result
   __ dfloat(sh4_dr2, Operand(343575789));
   __ idouble(r3, sh4_dr2, r2/*FPSCR*/);
   __ tst(r2, Operand(1<<16/*CauseV bit*/)); // Check is valid
@@ -2063,15 +2063,6 @@ TEST(33) {
   __ tst(r2, Operand(1<<12/*CauseI bit*/)); // Check is exact
   B_LINE(f, &error);
   __ cmpeq(r3, Operand(343575789));
-  B_LINE(f, &error);
-
-  // Check that (int)sqrt(2) is inexact and truncates to 1
-  __ dfloat(sh4_dr2, Operand(2));
-  __ fsqrt(sh4_dr2);
-  __ idouble(r3, sh4_dr2, r2/*FPSCR*/);
-  __ tst(r2, Operand(1<<12/*CauseI bit*/)); // Check is inexact
-  B_LINE(t, &error);
-  __ cmpeq(r3, Operand(1)); // Check truncated to 1
   B_LINE(f, &error);
 
   // All ok
