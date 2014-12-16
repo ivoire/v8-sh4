@@ -39,27 +39,27 @@ namespace v8 {
 namespace internal {
 
 
-int Register::NumAllocatableRegisters() {
+int Register::NumAllocatableRegisters() { // REVIEWEDBY: CG
   return kMaxNumAllocatableRegisters;
 }
 
 
-int DwVfpRegister::NumRegisters() {
+int DwVfpRegister::NumRegisters() { // REVIEWEDBY: CG
   return kMaxNumRegisters;
 }
 
 
-int DwVfpRegister::NumReservedRegisters() {
+int DwVfpRegister::NumReservedRegisters() { // REVIEWEDBY: CG
   return kNumReservedRegisters;
 }
 
 
-int DwVfpRegister::NumAllocatableRegisters() {
+int DwVfpRegister::NumAllocatableRegisters() { // REVIEWEDBY: CG
   return NumRegisters() - kNumReservedRegisters;
 }
 
 
-int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
+int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) { // REVIEWEDBY: CG
   ASSERT(!reg.is(kDoubleRegZero));
   ASSERT(!reg.is(kScratchDoubleReg));
   ASSERT(reg.is_valid());
@@ -67,49 +67,49 @@ int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
 }
 
 
-DwVfpRegister DwVfpRegister::FromAllocationIndex(int index) {
+DwVfpRegister DwVfpRegister::FromAllocationIndex(int index) { // REVIEWEDBY: CG
   ASSERT(index >= 0 && index < NumAllocatableRegisters());
   return from_code(index * 2);
 }
 
 
-void RelocInfo::apply(intptr_t delta) {
+void RelocInfo::apply(intptr_t delta) { // REVIEWEDBY: CG
   if (RelocInfo::IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p += delta;  // relocate entry
   }
-  // We do not use pc relative addressing on ARM, so there is
+  // We do not use pc relative addressing on SH4, so there is
   // nothing else to do.
 }
 
 
-Address RelocInfo::target_address() { // SAMEAS: arm
+Address RelocInfo::target_address() { // REVIEWEDBY: CG
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   return Assembler::target_address_at(pc_, host_);
 }
 
 
-Address RelocInfo::target_address_address() {
+Address RelocInfo::target_address_address() { // REVIEWEDBY: CG
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address>(pc_);
+  return reinterpret_cast<Address>(Assembler::target_pointer_address_at(pc_));
 }
 
 
-Address RelocInfo::constant_pool_entry_address() {
+Address RelocInfo::constant_pool_entry_address() { // REVIEWEDBY: CG
   UNREACHABLE();
   return NULL;
 }
 
 
-int RelocInfo::target_address_size() {
+int RelocInfo::target_address_size() { // REVIEWEDBY: CG
   return kPointerSize;
 }
 
 
-void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
+void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) { // REVIEWEDBY: CG
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   Assembler::set_target_address_at(pc_, host_, target);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
@@ -120,20 +120,20 @@ void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
 }
 
 
-Object* RelocInfo::target_object() {
+Object* RelocInfo::target_object() { // REVIEWEDBY: CG
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
 }
 
 
-Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
+Handle<Object> RelocInfo::target_object_handle(Assembler* origin) { // REVIEWEDBY: CG
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Handle<Object>(reinterpret_cast<Object**>(
       Assembler::target_address_at(pc_, host_)));
 }
 
 
-void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
+void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) { // REVIEWEDBY: CG
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
   Assembler::set_target_address_at(pc_, host_,
@@ -147,39 +147,39 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 }
 
 
-Address RelocInfo::target_reference() {
+Address RelocInfo::target_reference() { // REVIEWEDBY: CG
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
   return Assembler::target_address_at(pc_, host_);
 }
 
 
-Address RelocInfo::target_runtime_entry(Assembler* origin) {
+Address RelocInfo::target_runtime_entry(Assembler* origin) { // REVIEWEDBY: CG
   ASSERT(IsRuntimeEntry(rmode_));
   return target_address();
 }
 
 
-void RelocInfo::set_target_runtime_entry(Address target,
+void RelocInfo::set_target_runtime_entry(Address target, // REVIEWEDBY: CG
                                          WriteBarrierMode mode) {
   ASSERT(IsRuntimeEntry(rmode_));
   if (target_address() != target) set_target_address(target, mode);
 }
 
 
-Handle<Cell> RelocInfo::target_cell_handle() {
+Handle<Cell> RelocInfo::target_cell_handle() { // REVIEWEDBY: CG
   ASSERT(rmode_ == RelocInfo::CELL);
   Address address = Memory::Address_at(pc_);
   return Handle<Cell>(reinterpret_cast<Cell**>(address));
 }
 
 
-Cell* RelocInfo::target_cell() {
+Cell* RelocInfo::target_cell() { // REVIEWEDBY: CG
   ASSERT(rmode_ == RelocInfo::CELL);
   return Cell::FromValueAddress(Memory::Address_at(pc_));
 }
 
 
-void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
+void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) { // REVIEWEDBY: CG
   ASSERT(rmode_ == RelocInfo::CELL);
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
@@ -196,8 +196,8 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 static const int kNoCodeAgeSequenceLength = (8 + 1) * Assembler::kInstrSize;
 
 
-Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
-  // SH4: assume same as Arm
+Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) { // REVIEWEDBY: CG
+  // SH4: assume same as ARM
   UNREACHABLE(); // This should never be reached on Arm.
   return Handle<Object>();
 }
@@ -229,7 +229,7 @@ void RelocInfo::set_code_age_stub(Code* stub) { // REVIEWEDBY: CG
 }
 
 
-Address RelocInfo::call_address() {
+Address RelocInfo::call_address() { // REVIEWEDBY: CG
   ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   // SH4: both sequences are identical, thus can be treated the same way
@@ -244,7 +244,7 @@ Address RelocInfo::call_address() {
 }
 
 
-void RelocInfo::set_call_address(Address target) {
+void RelocInfo::set_call_address(Address target) { // REVIEWEDBY: CG
   ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   // SH4: both sequences are identical, thus can be treated the same way
@@ -264,17 +264,17 @@ void RelocInfo::set_call_address(Address target) {
 }
 
 
-Object* RelocInfo::call_object() {
+Object* RelocInfo::call_object() { // REVIEWEDBY: CG
   return *call_object_address();
 }
 
 
-void RelocInfo::set_call_object(Object* target) {
+void RelocInfo::set_call_object(Object* target) { // REVIEWEDBY: CG
   *call_object_address() = target;
 }
 
 
-Object** RelocInfo::call_object_address() {
+Object** RelocInfo::call_object_address() { // REVIEWEDBY: CG
   ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   // SH4: both sequences are identical, thus can be treated the same way
@@ -289,7 +289,7 @@ Object** RelocInfo::call_object_address() {
 }
 
 
-void RelocInfo::WipeOut() {
+void RelocInfo::WipeOut() { // REVIEWEDBY: CG
   ASSERT(IsEmbeddedObject(rmode_) ||
          IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
@@ -298,7 +298,7 @@ void RelocInfo::WipeOut() {
 }
 
 
-bool RelocInfo::IsPatchedReturnSequence() {
+bool RelocInfo::IsPatchedReturnSequence() { // REVIEWEDBY: CG
   Instr current_instr = Assembler::instr_at(pc_);
   Instr next_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize);
   Instr jsr_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize * 4 + 4);
@@ -315,13 +315,13 @@ bool RelocInfo::IsPatchedReturnSequence() {
 }
 
 
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
+bool RelocInfo::IsPatchedDebugBreakSlotSequence() { // REVIEWEDBY: CG
   Instr current_instr = Assembler::instr_at(pc_);
   return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
 }
 
 
-void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
+void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) { // REVIEWEDBY: CG
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(this);
@@ -346,7 +346,7 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
 
 
 template<typename StaticVisitor>
-void RelocInfo::Visit(Heap* heap) {
+void RelocInfo::Visit(Heap* heap) { // REVIEWEDBY: CG
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     StaticVisitor::VisitEmbeddedPointer(heap, this);
@@ -370,40 +370,40 @@ void RelocInfo::Visit(Heap* heap) {
 }
 
 
-Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
+Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  { // REVIEWEDBY: CG
   rm_ = no_reg;
   imm32_ = immediate;
   rmode_ = rmode;
 }
 
 
-Operand::Operand(const ExternalReference& f)  {
+Operand::Operand(const ExternalReference& f)  { // REVIEWEDBY: CG
   rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 
-Operand::Operand(Smi* value) {
+Operand::Operand(Smi* value) { // REVIEWEDBY: CG
   rm_ = no_reg;
   imm32_ =  reinterpret_cast<intptr_t>(value);
   rmode_ = RelocInfo::NONE32;
 }
 
 
-Operand::Operand(Register rm) {
+Operand::Operand(Register rm) { // REVIEWEDBY: CG
   rm_ = rm;
   imm32_ = 0;
   rmode_ = RelocInfo::NONE32;
 }
 
 
-bool Operand::is_reg() const {
+bool Operand::is_reg() const { // REVIEWEDBY: CG
   return rm_.is_valid();
 }
 
 
-MemOperand::MemOperand(Register Rx, int32_t offset, AddrMode mode) {
+MemOperand::MemOperand(Register Rx, int32_t offset, AddrMode mode) { // REVIEWEDBY: CG
   rn_ = Rx;
   roffset_ = no_reg;
   offset_ = offset;
@@ -411,7 +411,7 @@ MemOperand::MemOperand(Register Rx, int32_t offset, AddrMode mode) {
 }
 
 
-MemOperand::MemOperand(Register Rd, Register offset) {
+MemOperand::MemOperand(Register Rd, Register offset) { // REVIEWEDBY: CG
   rn_ = Rd;
   roffset_ = offset;
   offset_ = 0;
@@ -419,7 +419,7 @@ MemOperand::MemOperand(Register Rd, Register offset) {
 }
 
 
-void Assembler::CheckBuffer() {
+void Assembler::CheckBuffer() { // REVIEWEDBY: CG
   if (buffer_space() <= kGap) {
     GrowBuffer();
   }
@@ -431,14 +431,14 @@ void Assembler::CheckBuffer() {
 #ifdef DEBUG
 /* Defined in assembler-sh4.cc in DEBUG MODE. */
 #else
-void Assembler::emit(Instr x) {
+void Assembler::emit(Instr x) { // REVIEWEDBY: CG
   CheckBuffer();
   *reinterpret_cast<Instr*>(pc_) = x;
   pc_ += kInstrSize;
 }
 #endif
 
-Address Assembler::target_pointer_address_at(Address pc) {
+Address Assembler::target_pointer_address_at(Address pc) { // REVIEWEDBY: CG
   // Compute the actual address in the code where the address of the
   // jump/call/mov instruction is stored given the instruction pc.
   // Ref to functions that call Assembler::RecordRelocInfo()
@@ -470,15 +470,14 @@ Address Assembler::target_pointer_address_at(Address pc) {
 }
 
 
-Address Assembler::target_address_at(Address pc,
+Address Assembler::target_address_at(Address pc, // REVIEWEDBY: CG
                                      ConstantPoolArray* constant_pool) {
   ASSERT(IsMovlPcRelative(instr_at(pc)));
-
   return Memory::Address_at(target_pointer_address_at(pc));
 }
 
 
-Address Assembler::target_address_from_return_address(Address pc) {
+Address Assembler::target_address_from_return_address(Address pc) { // REVIEWEDBY: CG
   // This is used only in the case of a call with immediate
   // target (ref ARM port).
   // No need to account for a direct register based call.
@@ -487,17 +486,15 @@ Address Assembler::target_address_from_return_address(Address pc) {
   Instr possible_mov;
   Address candidate;
 
-  // if (constant_pool_pool_)
-  if (false)
-    {
-      candidate = pc - kNewStyleCallTargetAddressOffset;
-      possible_mov = instr_at(candidate);
+  if (0 /*constant_pool_pool_*/) { // TODO: SH4: constant pools
+    candidate = pc - kNewStyleCallTargetAddressOffset;
+    possible_mov = instr_at(candidate);
 
-      if (IsMovlPcRelative(possible_mov)) {
-	// Delayed constant pool
-	return candidate;
-      }
+    if (IsMovlPcRelative(possible_mov)) {
+      // Delayed constant pool
+      return candidate;
     }
+  }
 
   // As we go backward from the return address we do not need
   // to account for the alignment at the start of a sequence.
@@ -510,7 +507,7 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 
-Address Assembler::return_address_from_call_start(Address pc) {
+Address Assembler::return_address_from_call_start(Address pc) { // REVIEWEDBY: CG
   // This is used only in the case of a call with immediate
   // target (ref ARM port).
   // No need to account for a direct register based call.
@@ -530,8 +527,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
   Instr possible_jsr = instr_at(pc + kInstrSize);
 
   // Delayed constant pool
-  // if (constant_pool_pool_)
-  if (false)
+  if (0 /*constant_pool_pool_*/) // TODO: SH4: constant pools
     if (IsJsr(possible_jsr))
       return pc + kNewStyleCallTargetAddressOffset;
 
@@ -542,13 +538,13 @@ Address Assembler::return_address_from_call_start(Address pc) {
 }
 
 
-void Assembler::deserialization_set_special_target_at(
+void Assembler::deserialization_set_special_target_at( // REVIEWEDBY: CG
     Address constant_pool_entry, Code* code, Address target) {
   Memory::Address_at(constant_pool_entry) = target;
 }
 
 
-void Assembler::set_target_address_at(Address pc,
+void Assembler::set_target_address_at(Address pc, // REVIEWEDBY: CG
                                       ConstantPoolArray* constant_pool,
                                       Address target) {
   ASSERT(IsMovlPcRelative(Assembler::instr_at(pc)));
@@ -564,7 +560,7 @@ void Assembler::set_target_address_at(Address pc,
 }
 
 
-int Assembler::align() {
+int Assembler::align() { // REVIEWEDBY: CG
   int count = 0;
   while (((uintptr_t)pc_ & 0x3) != 0) {
     nop_();
@@ -574,7 +570,7 @@ int Assembler::align() {
 }
 
 
-int Assembler::misalign() {
+int Assembler::misalign() { // REVIEWEDBY: CG
   int count = 0;
   while (((uintptr_t)pc_ & 0x3) != 2) {
     nop_();
@@ -584,7 +580,7 @@ int Assembler::misalign() {
 }
 
 
-void Assembler::cmp(Condition *cond, Register Rd, Register Rs) {
+void Assembler::cmp(Condition *cond, Register Rd, Register Rs) { // REVIEWEDBY: CG
   Condition cond_to_test = t;
   switch (*cond) {
   case ne:
@@ -619,7 +615,7 @@ void Assembler::cmp(Condition *cond, Register Rd, Register Rs) {
 }
 
 
-void Assembler::cmpeq(Register Rd, const Operand& src, Register rtmp) {
+void Assembler::cmpeq(Register Rd, const Operand& src, Register rtmp) { // REVIEWEDBY: CG
   if (src.is_reg()) {
     cmpeq(Rd, src.rm());
     return;
@@ -634,7 +630,7 @@ void Assembler::cmpeq(Register Rd, const Operand& src, Register rtmp) {
 }
 
 
-void Assembler::cmpgt(Register Rd, const Operand& src, Register rtmp) {
+void Assembler::cmpgt(Register Rd, const Operand& src, Register rtmp) { // REVIEWEDBY: CG
   if (src.is_reg()) {
     cmpgt(Rd, src.rm());
     return;
@@ -645,7 +641,7 @@ void Assembler::cmpgt(Register Rd, const Operand& src, Register rtmp) {
 }
 
 
-void Assembler::cmpge(Register Rd, const Operand& src, Register rtmp) {
+void Assembler::cmpge(Register Rd, const Operand& src, Register rtmp) { // REVIEWEDBY: CG
   if (src.is_reg()) {
     cmpge(Rd, src.rm());
     return;
@@ -656,7 +652,7 @@ void Assembler::cmpge(Register Rd, const Operand& src, Register rtmp) {
 }
 
 
-void Assembler::cmphi(Register Rd, const Operand& src, Register rtmp) {
+void Assembler::cmphi(Register Rd, const Operand& src, Register rtmp) { // REVIEWEDBY: CG
   if (src.is_reg()) {
     cmphi(Rd, src.rm());
     return;
@@ -667,7 +663,7 @@ void Assembler::cmphi(Register Rd, const Operand& src, Register rtmp) {
 }
 
 
-void Assembler::cmphs(Register Rd, const Operand& src, Register rtmp) {
+void Assembler::cmphs(Register Rd, const Operand& src, Register rtmp) { // REVIEWEDBY: CG
   if (src.is_reg()) {
     cmphs(Rd, src.rm());
     return;
@@ -678,7 +674,7 @@ void Assembler::cmphs(Register Rd, const Operand& src, Register rtmp) {
 }
 
 
-void Assembler::rsb(Register Rd, Register Rs, const Operand& src,
+void Assembler::rsb(Register Rd, Register Rs, const Operand& src, // REVIEWEDBY: CG
                     Register rtmp) {
   if (src.is_reg()) {
     rsb(Rd, Rs, src.rm());
@@ -693,12 +689,12 @@ void Assembler::rsb(Register Rd, Register Rs, const Operand& src,
   }
 }
 
-void Assembler::rsb(Register Rd, Register Rs, Register Rt) {
+void Assembler::rsb(Register Rd, Register Rs, Register Rt) { // REVIEWEDBY: CG
   sub(Rd, Rt, Rs);
 }
 
 
-void Assembler::rsb(Register Rd, Register Rs, const Operand& src,
+void Assembler::rsb(Register Rd, Register Rs, const Operand& src, // REVIEWEDBY: CG
                     Condition cond, Register rtmp) {
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
@@ -711,13 +707,13 @@ void Assembler::rsb(Register Rd, Register Rs, const Operand& src,
 }
 
 
-void Assembler::rts() {
+void Assembler::rts() { // REVIEWEDBY: CG
   rts_();
   nop_();
 }
 
 
-void Assembler::ldr(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
+void Assembler::ldr(Register Rd, const MemOperand& src, Condition cond, Register rtmp) { // REVIEWEDBY: CG
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
@@ -741,7 +737,7 @@ void Assembler::ldr(Register Rd, const MemOperand& src, Condition cond, Register
 }
 
 
-void Assembler::ldrh(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
+void Assembler::ldrh(Register Rd, const MemOperand& src, Condition cond, Register rtmp) { // REVIEWEDBY: CG
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
@@ -764,7 +760,7 @@ void Assembler::ldrh(Register Rd, const MemOperand& src, Condition cond, Registe
     bind(&skip);
 }
 
-void Assembler::ldrsh(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
+void Assembler::ldrsh(Register Rd, const MemOperand& src, Condition cond, Register rtmp) { // REVIEWEDBY: CG
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
@@ -788,7 +784,7 @@ void Assembler::ldrsh(Register Rd, const MemOperand& src, Condition cond, Regist
 }
 
 
-void Assembler::ldrb(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
+void Assembler::ldrb(Register Rd, const MemOperand& src, Condition cond, Register rtmp) { // REVIEWEDBY: CG
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
@@ -811,7 +807,7 @@ void Assembler::ldrb(Register Rd, const MemOperand& src, Condition cond, Registe
     bind(&skip);
 }
 
-void Assembler::ldrsb(Register Rd, const MemOperand& src, Condition cond, Register rtmp) {
+void Assembler::ldrsb(Register Rd, const MemOperand& src, Condition cond, Register rtmp) { // REVIEWEDBY: CG
   ASSERT(src.mode_ == Offset || src.roffset().is(no_reg));
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
@@ -835,7 +831,7 @@ void Assembler::ldrsb(Register Rd, const MemOperand& src, Condition cond, Regist
 }
 
 
-void Assembler::str(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) {
+void Assembler::str(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) { // REVIEWEDBY: CG
   ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
@@ -859,7 +855,7 @@ void Assembler::str(Register Rs, const MemOperand& dst, Condition cond, Register
 }
 
 
-void Assembler::strh(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) {
+void Assembler::strh(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) { // REVIEWEDBY: CG
   ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
@@ -883,7 +879,7 @@ void Assembler::strh(Register Rs, const MemOperand& dst, Condition cond, Registe
 }
 
 
-void Assembler::strb(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) {
+void Assembler::strb(Register Rs, const MemOperand& dst, Condition cond, Register rtmp) { // REVIEWEDBY: CG
   ASSERT(dst.mode_ == Offset || dst.roffset().is(no_reg));
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
