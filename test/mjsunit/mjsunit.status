@@ -398,6 +398,23 @@
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
 
+  # Long running tests. Same as arm64
+  'regress/regress-2185': [PASS, ['mode == debug', PASS, TIMEOUT]],
+  'regress/regress-2185-2': [PASS, TIMEOUT],
+  'whitespaces': [PASS, TIMEOUT, SLOW],
+
+  # SH4: debug not implemented for SH4, these tests require debug support
+  'debug-breakpoints': [SKIP],
+  'debug-liveedit-breakpoints': [SKIP],
+  'debug-script-breakpoints': [SKIP],
+  'debug-stepin-positions': [SKIP],
+  'harmony/debug-evaluate-blockscopes': [SKIP],
+  'harmony/generators-relocation': [SKIP],
+  'regress/regress-1586': [SKIP],
+  'regress/regress-2318': [SKIP],
+  'regress/regress-debug-code-recompilation': [SKIP],
+  'regress/regress-prepare-break-while-recompile': [SKIP],
+
   # SH4: ic is not activated on SH4; skip tests failing with --nouse-ic
   'allocation-site-info': [SKIP],
   'elements-kind': [SKIP],
@@ -421,6 +438,7 @@
   'array-feedback': [SKIP],
   'osr-elements-kind': [SKIP],
   'opt-elements-kind': [SKIP],
+  'regress/regress-2989': [SKIP],
 
   # Skip long running tests that time out in debug mode for SH4.
   'array-store-and-grow': [PASS, ['mode == debug', SKIP]],
@@ -429,11 +447,10 @@
   'string-indexof-1': [PASS, ['mode == debug', SKIP]],
   'unicodelctest-no-optimization': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
-  'whitespaces': [PASS, ['mode == debug', SKIP]],
-  'regress-2185-2': [PASS, ['mode == debug', SKIP]],
-  'regress-crbug-119926': [PASS, ['mode == debug', SKIP]],
-  'regress-crbug-319860': [PASS, ['mode == debug', SKIP]],
-  'regress-deep-proto': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-crbug-119926': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-crbug-319860': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-deep-proto': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-165637': [PASS, ['mode == debug', SKIP]],
 
 }],  # 'arch == sh4'
 
