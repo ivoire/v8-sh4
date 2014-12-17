@@ -203,11 +203,10 @@
 ##############################################################################
 ['arch == sh4', {
 
-  # BUG(1075): Unresolved crashes on SH4 also.
-  'test-serialize/Deserialize': [SKIP],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
-  'test-serialize/DeserializeAndRunScript2': [SKIP],
-  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+  # BUG(1075): Unresolved crashes on ARM.
+  # SH4: these tests are fine on SH4 when snapshot == on, do not skip them.
+  #'test-serialize/Deserialize': [SKIP],
+  #'test-serialize/DeserializeAndRunScript2': [SKIP],
 
   # Double serialization followed by serialization overflows the
   # first code page size. This is the same also for ARM. Deactivate.
