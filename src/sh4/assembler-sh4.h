@@ -787,24 +787,24 @@ class Assembler : public AssemblerBase {
 
   void bt(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(!L->is_near_linked());
-          branch(L, rtmp, branch_true); }
+          branch_local(L, rtmp, branch_true); }
   void bt_near(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(L->is_bound() || L->is_unused() || L->is_near_linked());
-          branch(L, rtmp, branch_true, Label::kNear); }
+          branch_local(L, rtmp, branch_true, Label::kNear); }
 
   void bf(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(!L->is_near_linked());
-          branch(L, rtmp, branch_false); }
+          branch_local(L, rtmp, branch_false); }
   void bf_near(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(L->is_bound() || L->is_unused() || L->is_near_linked());
-          branch(L, rtmp, branch_false, Label::kNear); }
+          branch_local(L, rtmp, branch_false, Label::kNear); }
 
   void jmp(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(!L->is_near_linked());
-          branch(L, rtmp, branch_unconditional); }
+          branch_local(L, rtmp, branch_unconditional); }
   void jmp_near(Label* L, Register rtmp = sh4_rtmp)
         { ASSERT(L->is_bound() || L->is_unused() || L->is_near_linked());
-          branch(L, rtmp, branch_unconditional, Label::kNear); }
+          branch_local(L, rtmp, branch_unconditional, Label::kNear); }
 
   void b(Label* L, Register rtmp = sh4_rtmp)
         { jmp(L, rtmp); }
@@ -816,14 +816,14 @@ class Assembler : public AssemblerBase {
     ASSERT((distance == Label::kNear && (L->is_bound() || L->is_unused() || L->is_near_linked())) ||
            (distance == Label::kFar  && (!L->is_near_linked())));
     ASSERT(cond == ne || cond == eq || cond == al);
-    branch(L, rtmp,
-           (cond == eq ? branch_true:
-            (cond == ne ? branch_false:
-             branch_unconditional)), distance);
+    branch_local(L, rtmp,
+                 (cond == eq ? branch_true:
+                  (cond == ne ? branch_false:
+                   branch_unconditional)), distance);
   }
 
   void jsr(Label* L, Register rtmp = sh4_rtmp)
-        { branch(L, rtmp, branch_subroutine); }
+        { branch_local(L, rtmp, branch_subroutine); }
 
 
   // Check the code size generated from label to here.
@@ -1435,14 +1435,11 @@ class Assembler : public AssemblerBase {
 
  private:
   // code generation wrappers
-  void branch(Label* L, Register rtmp, branch_type type, Label::Distance distance = Label::kFar);
-  void branch(int offset, Register rtmp, branch_type type, Label::Distance distance, bool patched_later);
-  void conditional_branch(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
-  void conditional_branch_pool(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
-  void jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later);
-  void jmp_pool(int offset, Register rtmp, Label::Distance distance, bool patched_later);
-  void jsr(int offset, Register rtmp, bool patched_later);
-  void jsr_pool(int offset, Register rtmp, bool patched_later);
+  void branch_local(Label* L, Register rtmp, branch_type type, Label::Distance distance = Label::kFar);
+  void branch_local(int offset, Register rtmp, branch_type type, Label::Distance distance, bool patched_later);
+  void conditional_branch_local(int offset, Register rtmp, Label::Distance distance, bool patched_later, bool type);
+  void jmp_local(int offset, Register rtmp, Label::Distance distance, bool patched_later);
+  void jsr_local(int offset, Register rtmp, bool patched_later);
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos, int is_near_linked);

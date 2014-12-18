@@ -950,8 +950,9 @@ void Assembler::load_label(Label* L) {
 }
 
 
-void Assembler::branch(Label* L, Register rtmp, branch_type type,
-                       Label::Distance distance) {
+void Assembler::branch_local(Label* L, Register rtmp, branch_type type,
+                             Label::Distance distance) {
+  // SH4: Local branch, must not repcord position
   // Block the constant pool at the first near branch
   if (distance == Label::kNear && !L->is_near_linked() && !L->is_bound()) {
     StartBlockConstPool();
@@ -962,7 +963,7 @@ void Assembler::branch(Label* L, Register rtmp, branch_type type,
     ASSERT(L->pos() != kEndOfChain);
     // Block the constant pool giving the right hint (max of every possible blocks)
     BlockConstPoolScope scope(this, 5);
-    branch(L->pos() - pc_offset(), rtmp, type, distance, false);
+    branch_local(L->pos() - pc_offset(), rtmp, type, distance, false);
   } else {
     // The only difference between Near and far label is in the
     // is_near_linked function.
@@ -975,9 +976,9 @@ void Assembler::branch(Label* L, Register rtmp, branch_type type,
 
     if (L->is_linked()) {
       ASSERT(L->pos() != kEndOfChain);
-      branch(L->pos(), rtmp, type, distance, true);
+      branch_local(L->pos(), rtmp, type, distance, true);
     } else {
-      branch(kEndOfChain, rtmp, type, distance, true);   // Patched later on
+      branch_local(kEndOfChain, rtmp, type, distance, true);   // Patched later on
     }
 
     int pos;
@@ -1067,20 +1068,21 @@ void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   nop_();
 }
 
-void Assembler::branch(int offset, Register rtmp, branch_type type,
-                       Label::Distance distance, bool patched_later) {
+void Assembler::branch_local(int offset, Register rtmp, branch_type type,
+                             Label::Distance distance, bool patched_later) {
+  // SH4: local branch, must not record position
   switch (type) {
   case branch_true:
-    conditional_branch(offset, rtmp, distance, patched_later, true);
+    conditional_branch_local(offset, rtmp, distance, patched_later, true);
     break;
   case branch_false:
-    conditional_branch(offset, rtmp, distance, patched_later, false);
+    conditional_branch_local(offset, rtmp, distance, patched_later, false);
     break;
   case branch_unconditional:
-    jmp(offset, rtmp, distance, patched_later);
+    jmp_local(offset, rtmp, distance, patched_later);
     break;
   case branch_subroutine:
-    jsr(offset, rtmp, patched_later);
+    jsr_local(offset, rtmp, patched_later);
     break;
   }
 }
@@ -1128,12 +1130,10 @@ void Assembler::patchBranchOffset(int target_pos, uint16_t *p_constant, int is_n
 }
 
 
-void Assembler::conditional_branch(int offset, Register rtmp,
-                                   Label::Distance distance, bool patched_later,
-                                   bool type) {
-  if (constant_pool_pool_)
-    return conditional_branch_pool(offset, rtmp, distance, patched_later, type);
-
+void Assembler::conditional_branch_local(int offset, Register rtmp,
+                                         Label::Distance distance, bool patched_later,
+                                         bool type) {
+  // SH4: local branch. Must not record position.
   if (patched_later) {
     if (distance == Label::kNear) {
       align();
@@ -1169,70 +1169,6 @@ void Assembler::conditional_branch(int offset, Register rtmp,
 
 }
 
-void Assembler::conditional_branch_pool(int offset, Register rtmp,
-                                   Label::Distance distance, bool patched_later,
-                                   bool type) {
-  if (patched_later) {
-    if (distance == Label::kNear) {
-      BlockConstPoolFor(2);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      align();
-      // Use the 2 least significant bits to store the type of branch
-      // We assume (and assert) that they always are null
-      ASSERT((offset % 4) == 0);
-      emitPatchableNearBranch(offset + (type ? 0x1 : 0x2));
-      ASSERT(!constant_pool_pool_ ||
-             (pc_offset() - begin.pos() == kInstrSize ||
-              pc_offset() - begin.pos() == 2 * kInstrSize));
-    } else {
-      BlockConstPoolFor(9);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      align();
-      type ? bf_(12) : bt_(12);
-      nop_();
-      movl_dispPC_(4, rtmp);
-      nop_();
-      braf_(rtmp);
-      nop_();
-      ddLegacyBranchConst(offset);
-      ASSERT(!constant_pool_pool_ ||
-             (pc_offset() - begin.pos() == 8 * kInstrSize ||
-              pc_offset() - begin.pos() == 9 * kInstrSize));
-    }
-  } else {
-    if (FITS_SH4_bt(offset - 4)) {
-      BlockConstPoolFor(2);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      type ? bt_(offset - 4) : bf_(offset - 4);
-      nop_();
-      ASSERT(!constant_pool_pool_ ||
-             pc_offset() - begin.pos() == 2 * kInstrSize);
-    } else {
-      BlockConstPoolFor(5);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      mov_pool(rtmp, Operand(offset - 4 - 4 - 2), false);
-      type ? bfs_(2) : bts_(2);
-      nop();
-      braf_(rtmp);
-      nop_();
-      ASSERT(!constant_pool_pool_ ||
-             pc_offset() - begin.pos() == 5 * kInstrSize);
-    }
-  }
-}
-
 
 void Assembler::bkpt() {
   // Use a privileged instruction.
@@ -1241,12 +1177,8 @@ void Assembler::bkpt() {
 }
 
 
-void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
-  if (constant_pool_pool_)
-    return jmp_pool(offset, rtmp, distance, patched_later);
-
-  positions_recorder()->WriteRecordedPositions();
-
+void Assembler::jmp_local(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
+  // SH4: local branch. Must not record position
   // Is it going to be pacthed later on
   if (patched_later) {
     if (distance == Label::kNear) {
@@ -1280,75 +1212,8 @@ void Assembler::jmp(int offset, Register rtmp, Label::Distance distance, bool pa
 }
 
 
-void Assembler::jmp_pool(int offset, Register rtmp, Label::Distance distance, bool patched_later) {
-  positions_recorder()->WriteRecordedPositions();
-
-  // Is it going to be pacthed later on
-  if (patched_later) {
-    if (distance == Label::kNear) {
-      // a misalign may be undone by const pool emission
-      BlockConstPoolFor(3);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      misalign();
-      nop();
-      ASSERT((offset % 4) == 0);
-      emitPatchableNearBranch(offset + 0x3);
-      ASSERT(!constant_pool_pool_ ||
-             (pc_offset() - begin.pos() == 2 * kInstrSize ||
-              pc_offset() - begin.pos() == 3 * kInstrSize));
-    } else {
-      // There is no way to know the size of the offset: take the worst case
-      BlockConstPoolFor(7);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      align();
-      movl_dispPC_(4, rtmp);
-      nop();
-      braf_(rtmp);
-      nop_();
-      ddLegacyBranchConst(offset);
-      ASSERT(!constant_pool_pool_ ||
-             (pc_offset() - begin.pos() == 6 * kInstrSize ||
-              pc_offset() - begin.pos() == 7 * kInstrSize));
-    }
-  } else {
-    // Does it fits in a bra offset
-    if (FITS_SH4_bra(offset - 4)) {
-      BlockConstPoolFor(2);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      bra_(offset - 4);
-      nop_();
-      ASSERT(!constant_pool_pool_ ||
-             pc_offset() - begin.pos() == 2 * kInstrSize);
-    } else {
-      BlockConstPoolFor(3);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      mov_pool(rtmp, Operand(offset - 4 - kInstrSize), false);
-      braf_(rtmp);
-      nop_();
-      ASSERT(!constant_pool_pool_ ||
-             pc_offset() - begin.pos() == 3 * kInstrSize);
-    }
-  }
-}
-
-void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
-  if (constant_pool_pool_)
-    return jsr_pool(offset, rtmp, patched_later);
-
-  positions_recorder()->WriteRecordedPositions();
-
+void Assembler::jsr_local(int offset, Register rtmp, bool patched_later) {
+  // SH4: local branch. Must not record position
   // Is it going to be patched later on ?
   if (patched_later) {
     // There is no way to know the size of the offset: take the worst case
@@ -1378,54 +1243,6 @@ void Assembler::jsr(int offset, Register rtmp, bool patched_later) {
   }
 }
 
-void Assembler::jsr_pool(int offset, Register rtmp, bool patched_later) {
-  positions_recorder()->WriteRecordedPositions();
-
-  // Is it going to be patched later on ?
-  if (patched_later) {
-    // There is no way to know the size of the offset: take the worst case
-    BlockConstPoolFor(9);
-#ifdef DEBUG
-    Label begin;
-    bind(&begin);
-#endif
-    align();
-    movl_dispPC_(8, rtmp);
-    nop();
-    bsrf_(rtmp);
-    nop_();
-    bra_(4);
-    nop_();
-    ddLegacyBranchConst(offset);
-    ASSERT(!constant_pool_pool_ ||
-           (pc_offset() - begin.pos() == 8 * kInstrSize ||
-            pc_offset() - begin.pos() == 9 * kInstrSize));
-  } else {
-    // Does it fits in a bsr offset
-    if (FITS_SH4_bsr(offset - 4)) {
-      BlockConstPoolFor(2);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      bsr_(offset - 4);
-      nop_();
-      ASSERT(!constant_pool_pool_ ||
-             pc_offset() - begin.pos() == 2 * kInstrSize);
-    } else {
-      BlockConstPoolFor(3);
-#ifdef DEBUG
-      Label begin;
-      bind(&begin);
-#endif
-      mov_pool(rtmp, Operand(offset - 4 - kInstrSize), false);
-      bsrf_(rtmp);
-      nop_();
-      ASSERT(!constant_pool_pool_ ||
-             pc_offset() - begin.pos() == 3 * kInstrSize);
-    }
-  }
-}
 
 void Assembler::mov(Register Rd, const Operand& src, bool force) {
   if (src.is_reg()) {
