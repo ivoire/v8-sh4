@@ -605,7 +605,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm, // REVIEWEDBY: 
     if (create_memento) {
       __ ldr(r2, MemOperand(sp, kPointerSize * 2));
       __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
-      __ cmp(r2, r5); // DFE: SH4: TO CHECK
+      __ cmp(r2, r5);
       __ b(eq, &count_incremented);
       // r2 is an AllocationSite. We are creating a memento from it, so we
       // need to increment the memento create count.
@@ -1395,7 +1395,7 @@ static void ArgumentAdaptorStackCheck(MacroAssembler* masm, // REVIEWEDBY: CG
   // Make r5 the space we have left. The stack might already be overflowed
   // here which will cause r5 to become negative.
   __ sub(r5, sp, r5);
-  // Check if the arguments will overflow the stack.   // DFE: SH4: TO CHECK
+  // Check if the arguments will overflow the stack.
   __ lsl(ip, r2, Operand(kPointerSizeLog2)); // DIFF: codegen
   __ cmpgt(r5, ip); // DIFF: codegen
   __ bf(stack_overflow);  // Signed comparison. // DIFF: codegen

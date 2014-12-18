@@ -3929,7 +3929,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) { // REVIEWEDBYG: CG
 }
 
 
-void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
+void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ----------- S t a t e -------------
   //  -- r1    : left
   //  -- r0    : right
@@ -3948,7 +3948,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
     __ push(r2);
     __ ldr(r2, FieldMemOperand(r2, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kAllocationSiteMapRootIndex);
-    __ cmp(r2, ip); //DFE: SH4: TO CHECK
+    __ cmp(r2, ip);
     __ pop(r2);
     __ Assert(eq, kExpectedAllocationSite);
   }
