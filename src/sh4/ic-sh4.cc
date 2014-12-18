@@ -1,33 +1,10 @@
-// Copyright 2011-2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2012 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
-#if V8_TARGET_ARCH_SH4
+#if V8_TARGET_ARCH_SH4 // FILE: SAMEAS: arm, REVIEWEDBY: CG
 
 #include "assembler-sh4.h"
 #include "code-stubs.h"
@@ -47,10 +24,9 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-  // ARM to SH4 mapping
-#include "map-sh4.h"
+#include "map-sh4.h"  // SH4: define arm->sh4 register map
 
-static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, // SAMEAS: arm
+static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, // REVIEWEDBY: CG
                                             Register type,
                                             Label* global_object) {
   // Register usage:
@@ -66,7 +42,7 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, // SAMEAS: arm
 
 // Generated code falls through if the receiver is a regular non-global
 // JS object with slow properties and no interceptors.
-static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm, // SAMEAS: arm
+static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm, // REVIEWEDBY: CG
                                                 Register receiver,
                                                 Register elements,
                                                 Register t0,
@@ -96,7 +72,7 @@ static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm, // SAMEAS:
   __ ldrb(t1, FieldMemOperand(t0, Map::kBitFieldOffset));
   __ tst(t1, Operand((1 << Map::kIsAccessCheckNeeded) |
                      (1 << Map::kHasNamedInterceptor)));
-  __ bf(miss);
+  __ b(ne, miss);
 
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ ldr(t1, FieldMemOperand(elements, HeapObject::kMapOffset));
@@ -119,7 +95,7 @@ static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm, // SAMEAS:
 // result.
 // The generated code assumes that the receiver has slow properties,
 // is not a global object and does not have interceptors.
-static void GenerateDictionaryLoad(MacroAssembler* masm,
+static void GenerateDictionaryLoad(MacroAssembler* masm, // REVIEWEDBY: CG
                                    Label* miss,
                                    Register elements,
                                    Register name,
@@ -168,7 +144,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 // result.
 // The generated code assumes that the receiver has slow properties,
 // is not a global object and does not have interceptors.
-static void GenerateDictionaryStore(MacroAssembler* masm,
+static void GenerateDictionaryStore(MacroAssembler* masm, // REVIEWEDBY: CG
                                     Label* miss,
                                     Register elements,
                                     Register name,
@@ -201,7 +177,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
        PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
   __ ldr(scratch1, FieldMemOperand(scratch2, kDetailsOffset));
   __ tst(scratch1, Operand(kTypeAndReadOnlyMask));
-  __ bf(miss);
+  __ b(ne, miss);
 
   // Store the value at the masked, scaled index and return.
   const int kValueOffset = kElementsStartOffset + kPointerSize;
@@ -217,7 +193,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
 // Checks the receiver for special cases (value type, slow case bits).
 // Falls through for regular JS object.
-static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
+static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm, // REVIEWEDBY: CG
                                            Register receiver,
                                            Register map,
                                            Register scratch,
@@ -238,14 +214,14 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   // objects work as intended.
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ cmpge(scratch, Operand(JS_OBJECT_TYPE));
-  __ bf(slow);
+  __ cmpge(scratch, Operand(JS_OBJECT_TYPE)); // DIFF: codegen
+  __ bf(slow); // DIFF: codegen
 }
 
 
 // Loads an indexed element from a fast case array.
 // If not_fast_array is NULL, doesn't perform the elements map check.
-static void GenerateFastArrayLoad(MacroAssembler* masm,
+static void GenerateFastArrayLoad(MacroAssembler* masm, // REVIEWEDBY: CG
                                   Register receiver,
                                   Register key,
                                   Register elements,
@@ -288,8 +264,8 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   }
   // Check that the key (index) is within bounds.
   __ ldr(scratch1, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ cmphs(key, scratch1);
-  __ bt(out_of_range);
+  __ cmphs(key, scratch1); // DIFF: codegen
+  __ bt(out_of_range); // DIFF: codegen
   // Fast case: Do the load.
   __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ GetPointerOffsetFromSmiKey(scratch2, key); // DIFF: codegen
@@ -305,7 +281,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
 
 // Checks whether a key is an array index string or a unique name.
 // Falls through if a key is a unique name.
-static void GenerateKeyNameCheck(MacroAssembler* masm, // SAMEAS: arm
+static void GenerateKeyNameCheck(MacroAssembler* masm, // REVIEWEDBY: CG
                                  Register key,
                                  Register map,
                                  Register hash,
@@ -355,7 +331,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateNormal(MacroAssembler* masm) { // SAMEAS: arm
+void LoadIC::GenerateNormal(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -375,7 +351,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void LoadIC::GenerateMiss(MacroAssembler* masm) { // SAMEAS: arm
+void LoadIC::GenerateMiss(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -395,7 +371,7 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) { // SAMEAS: arm
+void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -409,7 +385,7 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) { // SAMEAS: arm
 }
 
 
-static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm, // SAMEAS: arm
+static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm, // REVIEWEDBY: CG
                                                 Register object,
                                                 Register key,
                                                 Register scratch1,
@@ -467,7 +443,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm, // SAMEAS:
 }
 
 
-static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
+static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm, // REVIEWEDBY: CG
                                                   Register key,
                                                   Register parameter_map,
                                                   Register scratch,
@@ -483,8 +459,8 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   __ CheckMap(backing_store, scratch, fixed_array_map, slow_case,
               DONT_DO_SMI_CHECK);
   __ ldr(scratch, FieldMemOperand(backing_store, FixedArray::kLengthOffset));
-  __ cmphs(key, scratch);
-  __ b(t, slow_case);
+  __ cmphs(key, scratch); // DIFF: codegen
+  __ b(t, slow_case); // DIFF: codegen
   __ mov(scratch, Operand(kPointerSize >> 1));
   __ mul(scratch, key, scratch);
   __ add(scratch,
@@ -494,7 +470,7 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
 }
 
 
-void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
@@ -520,7 +496,7 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -549,7 +525,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
@@ -569,7 +545,7 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
@@ -582,7 +558,7 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
@@ -622,8 +598,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // r3: elements map
   // r4: elements
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
-  __ cmpeq(r3, ip);
-  __ bf(&slow);
+  __ cmp(r3, ip);
+  __ b(ne, &slow);
   __ SmiUntag(r2, r0);
   __ LoadFromNumberDictionary(&slow, r4, r0, r0, r2, r3, r5);
   __ Ret();
@@ -646,17 +622,17 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(r3, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
   __ cmp(r4, ip);
-  __ bt(&probe_dictionary);
+  __ b(eq, &probe_dictionary);
 
   // Load the map of the receiver, compute the keyed lookup cache hash
   // based on 32 bits of the map pointer and the name hash.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ asr(r3, r2, Operand(KeyedLookupCache::kMapHashShift));
+  __ asr(r3, r2, Operand(KeyedLookupCache::kMapHashShift)); // DIFF: codegen
   __ ldr(r4, FieldMemOperand(r0, Name::kHashFieldOffset));
-  __ asr(r4, r4, Operand(Name::kHashShift));
-  __ eor(r3, r3, r4);
+  __ asr(r4, r4, Operand(Name::kHashShift)); // DIFF: codegen
+  __ eor(r3, r3, r4); // DIFF: codegen
   int mask = KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask;
-  __ land(r3, r3, Operand(mask));
+  __ land(r3, r3, Operand(mask)); // DIFF: codegen
 
   // Load the key (consisting of map and unique name) from the cache and
   // check for match.
@@ -667,18 +643,18 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
       ExternalReference::keyed_lookup_cache_keys(isolate);
 
   __ mov(r4, Operand(cache_keys));
-  __ lsl(r5, r3, Operand(kPointerSizeLog2 + 1));
-  __ add(r4, r4, r5);
+  __ lsl(r5, r3, Operand(kPointerSizeLog2 + 1)); // DIFF: codegen
+  __ add(r4, r4, r5); // DIFF: codegen
 
   for (int i = 0; i < kEntriesPerBucket - 1; i++) {
     Label try_next_entry;
     // Load map and move r4 to next entry.
     __ ldr(r5, MemOperand(r4, kPointerSize * 2, PostIndex));
     __ cmpeq(r2, r5);
-    __ bf_near(&try_next_entry);
+    __ bf_near(&try_next_entry); // DIFF: codegen
     __ ldr(r5, MemOperand(r4, -kPointerSize));  // Load name
-    __ cmpeq(r0, r5);
-    __ bt(&hit_on_nth_entry[i]);
+    __ cmp(r0, r5);
+    __ b(eq, &hit_on_nth_entry[i]);
     __ bind(&try_next_entry);
   }
 
@@ -687,8 +663,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r2, r5);
   __ b(ne, &slow);
   __ ldr(r5, MemOperand(r4));
-  __ cmpeq(r0, r5);
-  __ bf(&slow);
+  __ cmp(r0, r5);
+  __ b(ne, &slow);
 
   // Get field offset.
   // r0     : key
@@ -705,12 +681,12 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
     if (i != 0) {
       __ add(r3, r3, Operand(i));
     }
-    __ lsl(r5, r3, Operand(kPointerSizeLog2));
-    __ ldr(r5, MemOperand(r4, r5));
+    __ lsl(r5, r3, Operand(kPointerSizeLog2)); // DIFF: codegen
+    __ ldr(r5, MemOperand(r4, r5)); // DIFF: codegen
     __ ldrb(r6, FieldMemOperand(r2, Map::kInObjectPropertiesOffset));
-    __ cmpge(r5, r6);  // fro branch below
+    __ cmpge(r5, r6);  // for branch below  // DIFF: codegen
     __ sub(r5, r5, r6);
-    __ bt(&property_array_property);
+    __ bt(&property_array_property); // DIFF: codegen
     if (i != 0) {
       __ jmp(&load_in_object_property);
     }
@@ -721,8 +697,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldrb(r6, FieldMemOperand(r2, Map::kInstanceSizeOffset));
   __ add(r6, r6, r5);  // Index from start of object.
   __ sub(r1, r1, Operand(kHeapObjectTag));  // Remove the heap tag.
-  __ lsl(r0, r6, Operand(kPointerSizeLog2));
-  __ ldr(r0, MemOperand(r1, r0));
+  __ lsl(r0, r6, Operand(kPointerSizeLog2)); // DIFF: codegen
+  __ ldr(r0, MemOperand(r1, r0)); // DIFF: codegen
   __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(),
                       1, r2, r3);
   __ Ret();
@@ -731,8 +707,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&property_array_property);
   __ ldr(r1, FieldMemOperand(r1, JSObject::kPropertiesOffset));
   __ add(r1, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ lsl(r0, r5, Operand(kPointerSizeLog2));
-  __ ldr(r0, MemOperand(r1, r0));
+  __ lsl(r0, r5, Operand(kPointerSizeLog2)); // DIFF: codegen
+  __ ldr(r0, MemOperand(r1, r0)); // DIFF: codegen
   __ IncrementCounter(isolate->counters()->keyed_load_generic_lookup_cache(),
                       1, r2, r3);
   __ Ret();
@@ -759,7 +735,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateString(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key (index)
@@ -791,7 +767,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
+void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
@@ -804,7 +780,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 
   // Check that the key is an array index, that is Uint32.
   __ NonNegativeSmiTst(r0);
-  __ bf_near(&slow);
+  __ bf_near(&slow); // DIFF: codegen
 
   // Get the map of the receiver.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -812,9 +788,9 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Check that it has indexed interceptor and access checks
   // are not enabled for this object.
   __ ldrb(r3, FieldMemOperand(r2, Map::kBitFieldOffset));
-  __ land(r3, r3, Operand(kSlowCaseBitFieldMask));
-  __ cmpeq(r3, Operand(1 << Map::kHasIndexedInterceptor));
-  __ bf_near(&slow);
+  __ and_(r3, r3, Operand(kSlowCaseBitFieldMask));
+  __ cmp(r3, Operand(1 << Map::kHasIndexedInterceptor));
+  __ bf_near(&slow); // DIFF: codegen
 
   // Everything is fine, call runtime.
   __ Push(r1, r0);  // Receiver, key.
@@ -831,7 +807,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -848,7 +824,7 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateSlow(MacroAssembler* masm) {
+void StoreIC::GenerateSlow(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r2     : key
@@ -867,7 +843,7 @@ void StoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -886,7 +862,7 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm, // REVIEWEDBY: CG
                                               StrictMode strict_mode) {
   // ---------- S t a t e --------------
   //  -- r0     : value
@@ -906,7 +882,7 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 }
 
 
-static void KeyedStoreGenerateGenericHelper( // SAMEAS: arm
+static void KeyedStoreGenerateGenericHelper( // REVIEWEDBY: CG
     MacroAssembler* masm,
     Label* fast_object,
     Label* fast_double,
@@ -929,9 +905,9 @@ static void KeyedStoreGenerateGenericHelper( // SAMEAS: arm
   Register address = r5;
   if (check_map == kCheckMap) {
     __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
-    __ cmpeq(elements_map,
+    __ cmp(elements_map,
            Operand(masm->isolate()->factory()->fixed_array_map()));
-    __ bf(fast_double);
+    __ b(ne, fast_double);
   }
 
   // HOLECHECK: guards "A[i] = V"
@@ -939,11 +915,10 @@ static void KeyedStoreGenerateGenericHelper( // SAMEAS: arm
   // there may be a callback on the element
   Label holecheck_passed1;
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // DFE: SH4: TO CHECK
   __ GetPointerOffsetFromSmiKey(scratch_value, key); // DIFF: codegen
-  __ add(scratch_value, address, scratch_value); // DIFF: codegen
+  __ add(address, address, scratch_value); // DIFF: codegen
   __ ldr(scratch_value,
-         MemOperand(scratch_value));
+         MemOperand(address)); // DIFF: codegen
   __ cmp(scratch_value, Operand(masm->isolate()->factory()->the_hole_value()));
   __ b(ne, &holecheck_passed1);
   __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
@@ -1009,10 +984,10 @@ static void KeyedStoreGenerateGenericHelper( // SAMEAS: arm
   __ add(address, elements,
          Operand((FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32))
                  - kHeapObjectTag));
-  // DFE: SH4: TO CHECK
-  __ lsl(scratch_value, key, Operand(kPointerSizeLog2));
+  __ lsl(scratch_value, key, Operand(kPointerSizeLog2)); // DIFF: codegen
+  __ add(address, address, scratch_value); // DIFF: codegen
   __ ldr(scratch_value,
-         MemOperand(address, scratch_value));
+         MemOperand(address)); // DIFF: codegen
   __ cmp(scratch_value, Operand(kHoleNanUpper32));
   __ b(ne, &fast_double_without_map_check);
   __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
@@ -1079,7 +1054,7 @@ static void KeyedStoreGenerateGenericHelper( // SAMEAS: arm
 }
 
 
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
+void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm, // REVIEWEDBY: CG
                                    StrictMode strict_mode) {
   // ---------- S t a t e --------------
   //  -- r0     : value
@@ -1113,18 +1088,18 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bf_near(&slow);
   // Check if the object is a JS array or not.
   __ ldrb(r4, FieldMemOperand(receiver_map, Map::kInstanceTypeOffset));
-  __ cmpeq(r4, Operand(JS_ARRAY_TYPE));
-  __ bt(&array);
+  __ cmp(r4, Operand(JS_ARRAY_TYPE));
+  __ b(eq, &array);
   // Check that the object is some kind of JSObject.
-  __ cmpge(r4, Operand(FIRST_JS_OBJECT_TYPE));
-  __ bf_near(&slow);
+  __ cmpge(r4, Operand(FIRST_JS_OBJECT_TYPE)); // DIFF: codegen
+  __ bf_near(&slow); // DIFF: codegen
 
   // Object case: Check key against length in the elements array.
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // Check array bounds. Both the key and the length of FixedArray are smis.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ cmphs(key, ip);
-  __ bf(&fast_object);
+  __ cmphs(key, ip); // DIFF: codegen
+  __ bf(&fast_object); // DIFF: codegen
 
   // Slow case, handle jump to runtime.
   __ bind(&slow);
@@ -1139,15 +1114,15 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // element to the array by writing to array[array.length].
   __ bind(&extra);
   // Condition code from comparing key and array length is still available.
-  // not on sh4 !
-  __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ cmpeq(key, ip);
+  // SH4: reload length and redo the comparison
+  __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset)); // DIFF: codegen
+  __ cmpeq(key, ip); // DIFF: codegen
   __ bf(&slow);  // Only support writing to writing to array[array.length].
   // Check for room in the elements backing store.
   // Both the key and the length of FixedArray are smis.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ cmphs(key, ip);
-  __ bt(&slow);
+  __ cmphs(key, ip); // DIFF: codegen
+  __ bt(&slow); // DIFF: codegen
   __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
   __ cmp(elements_map,
          Operand(masm->isolate()->factory()->fixed_array_map()));
@@ -1168,8 +1143,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
   // Check the key against the length in the array.
   __ ldr(ip, FieldMemOperand(receiver, JSArray::kLengthOffset));
-  __ cmphs(key, ip);
-  __ bt(&extra);
+  __ cmphs(key, ip); // DIFF: codegen
+  __ bt(&extra); // DIFF: codegen
 
   KeyedStoreGenerateGenericHelper(masm, &fast_object, &fast_double,
                                   &slow, kCheckMap, kDontIncrementLength,
@@ -1182,7 +1157,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 }
 
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+void StoreIC::GenerateMegamorphic(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -1201,7 +1176,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateMiss(MacroAssembler* masm) {
+void StoreIC::GenerateMiss(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -1218,7 +1193,7 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateNormal(MacroAssembler* masm) {
+void StoreIC::GenerateNormal(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -1241,7 +1216,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm, // REVIEWEDBY: CG
                                          StrictMode strict_mode) {
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -1264,7 +1239,7 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 #undef __
 
 
-Condition CompareIC::ComputeCondition(Token::Value op) {
+Condition CompareIC::ComputeCondition(Token::Value op) { // REVIEWEDBY: CG
   switch (op) {
     case Token::EQ_STRICT:
     case Token::EQ:
@@ -1284,7 +1259,7 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
 }
 
 
-bool CompareIC::HasInlinedSmiCode(Address address) {
+bool CompareIC::HasInlinedSmiCode(Address address) { // REVIEWEDBY: CG
   // The address of the instruction following the call.
   Address cmp_instruction_address =
       Assembler::return_address_from_call_start(address);

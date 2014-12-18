@@ -15,7 +15,7 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-#include "map-sh4.h"    // Define register map
+#include "map-sh4.h"  // SH4: define arm->sh4 register map
 
 static void ProbeTable(Isolate* isolate,
                        MacroAssembler* masm,
