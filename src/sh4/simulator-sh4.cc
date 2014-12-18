@@ -715,10 +715,15 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
     isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize(isolate);
+
+  // Allocate and setup the simulator stack.
+  stack_size_ = (FLAG_sim_stack_size * KB) + (2 * stack_protection_size_);
+  stack_ = new byte[stack_size_];
+  stack_limit_ = stack_ + stack_protection_size_;
+  byte* tos = stack_ + stack_size_ - stack_protection_size_;
+
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
-  size_t stack_size = 1 * 1024*1024;  // allocate 1MB for stack
-  stack_ = reinterpret_cast<char*>(malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
 
@@ -749,7 +754,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
   // some buffer below.
-  registers_[sp] = reinterpret_cast<int32_t>(stack_) + stack_size - 64;
+  registers_[sp] = reinterpret_cast<int32_t>(tos);
   // The pr and pc are initialized to a known bad value that will cause an
   // access violation if the simulator ever tries to execute it.
   pc_ = bad_pr;
@@ -1027,156 +1032,189 @@ int32_t Simulator::get_sregister(int num) {
 
 
 int Simulator::ReadW(int32_t addr, Instruction* instr) {
-  if (addr == 0 || (addr & 3) != 0) {
-    // Print the current processor state
-    PrintF(" PC: 0x%08x\n SP: 0x%08x\n PR: 0x%08x\n", get_pc(), get_register(sp), get_sregister(pr));
-    for (int i = 0; i < num_registers; i++)
-      PrintF(" R%01d: 0x%08x %10d\n", i, get_register(i), get_register(i));
-    fflush(stdout);
-  }
-
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
   if ((addr & 3) == 0) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     return *ptr;
+  } else if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
+    return 0;
   } else {
     PrintF("Unaligned read at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
            addr,
            reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
+    FATAL("UNALIGNED ACCESS");
     return 0;
   }
 }
 
 
 void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
-  if (addr == 0 || (addr & 3) != 0) {
-    // Print the current processor state
-    PrintF(" PC: 0x%08x\n SP: 0x%08x\n PR: 0x%08x\n", get_pc(), get_register(sp), get_sregister(pr));
-    for (int i = 0; i < num_registers; i++)
-      PrintF(" R%01d: 0x%08x %10d\n", i, get_register(i), get_register(i));
-    fflush(stdout);
-  }
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
   if ((addr & 3) == 0) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     *ptr = value;
+  } else if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
   } else {
     PrintF("Unaligned write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
            addr,
            reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
+    FATAL("UNALIGNED ACCESS");
   }
 }
 
 
 uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
   if ((addr & 1) == 0) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     return *ptr;
+  } else if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
+    return 0;
   } else {
     PrintF("Unaligned unsigned halfword read at 0x%08x, pc=0x%08"
            V8PRIxPTR "\n",
            addr,
            reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
+    FATAL("UNALIGNED ACCESS");
     return 0;
   }
 }
 
 
 int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
   if ((addr & 1) == 0) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     return *ptr;
+  } else if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
+    return 0;
   } else {
-    PrintF("Unaligned signed halfword read at 0x%08x\n", addr);
-    UNIMPLEMENTED();
+    PrintF("Unaligned signed halfword read at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("UNALIGNED ACCESS");
     return 0;
   }
 }
 
 
 void Simulator::WriteHU(int32_t addr, uint16_t value, Instruction* instr) {
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
   if ((addr & 1) == 0) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     *ptr = value;
+  } else if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
   } else {
     PrintF("Unaligned unsigned halfword write at 0x%08x, pc=0x%08"
            V8PRIxPTR "\n",
            addr,
            reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
+    FATAL("UNALIGNED ACCESS");
   }
 }
 
 
 void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
   if ((addr & 1) == 0) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     *ptr = value;
+  } else if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
   } else {
     PrintF("Unaligned halfword write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
            addr,
            reinterpret_cast<intptr_t>(instr));
-    UNIMPLEMENTED();
+    FATAL("UNALIGNED ACCESS");
   }
 }
 
 
-uint8_t Simulator::ReadBU(int32_t addr) {
-  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
-  return *ptr;
-}
-
-
-int8_t Simulator::ReadB(int32_t addr) {
-  int8_t* ptr = reinterpret_cast<int8_t*>(addr);
-  return *ptr;
-}
-
-
-void Simulator::WriteBU(int32_t addr, uint8_t value) {
-  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
-  *ptr = value;
-}
-
-
-void Simulator::WriteB(int32_t addr, int8_t value) {
-  int8_t* ptr = reinterpret_cast<int8_t*>(addr);
-  *ptr = value;
-}
-
-
-int32_t* Simulator::ReadDW(int32_t addr) {
-  if ((addr & 3) == 0) {
-    int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-    return ptr;
-  } else {
-    PrintF("Unaligned read at 0x%08x\n", addr);
-    UNIMPLEMENTED();
+uint8_t Simulator::ReadBU(int32_t addr, Instruction* instr) {
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
+  if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
     return 0;
   }
+  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
+  return *ptr;
 }
 
 
-void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
-  if ((addr & 3) == 0) {
-    int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-    *ptr++ = value1;
-    *ptr = value2;
-  } else {
-    PrintF("Unaligned write at 0x%08x\n", addr);
-    UNIMPLEMENTED();
+int8_t Simulator::ReadB(int32_t addr, Instruction* instr) {
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
+  if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
+    return 0;
   }
+  int8_t* ptr = reinterpret_cast<int8_t*>(addr);
+  return *ptr;
+}
+
+
+void Simulator::WriteBU(int32_t addr, uint8_t value, Instruction* instr) {
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
+  if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
+  }
+  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
+  *ptr = value;
+}
+
+
+void Simulator::WriteB(int32_t addr, int8_t value, Instruction* instr) {
+  bool invalid_stack = IsInvalidStackAccess(addr, get_register(sp));
+  if (invalid_stack) {
+    PrintF("Invalid stack access at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    FATAL("ACCESS BELOW STACK POINTER");
+  }
+  int8_t* ptr = reinterpret_cast<int8_t*>(addr);
+  *ptr = value;
 }
 
 
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
-  // pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + 1024;
+  return reinterpret_cast<uintptr_t>(stack_limit_);
 }
 
+bool Simulator::IsInvalidStackAccess(uintptr_t address, uintptr_t stack) {
+  return address >= reinterpret_cast<uintptr_t>(stack_limit_) && address < stack;
+}
 
 // Calls into the V8 runtime are based on this very simple interface.
 // Note: To be able to return two values from some calls the code in runtime.cc
@@ -1432,12 +1470,12 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
 // R/W in memory
 #define WLAT(addr, value)   WriteW(addr, value, instr)
 #define WWAT(addr, value)   WriteH(addr, value, instr)
-#define WBAT(addr, value)   WriteB(addr, value)
+#define WBAT(addr, value)   WriteB(addr, value, instr)
 #define RLAT(addr)          ReadW(addr, instr)
 #define RSLAT(addr)         ReadW(addr, instr)
 #define RSWAT(addr)         ReadH(addr, instr)
-#define RBAT(addr)          ReadBU(addr)
-#define RSBAT(addr)         ReadB(addr)
+#define RBAT(addr)          ReadBU(addr, instr)
+#define RSBAT(addr)         ReadB(addr, instr)
 
 // Get/Set status flags
 #define SET_SR_T(value)     set_t_flag(value)

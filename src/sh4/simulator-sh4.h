@@ -258,10 +258,10 @@ enum Register {
   void SoftwareInterrupt(Instruction* instr, int signal);
 
   // Read and write memory.
-  inline uint8_t ReadBU(int32_t addr);
-  inline int8_t ReadB(int32_t addr);
-  inline void WriteBU(int32_t addr, uint8_t value);
-  inline void WriteB(int32_t addr, int8_t value);
+  inline uint8_t ReadBU(int32_t addr, Instruction* instr);
+  inline int8_t ReadB(int32_t addr, Instruction* instr);
+  inline void WriteBU(int32_t addr, uint8_t value, Instruction* instr);
+  inline void WriteB(int32_t addr, int8_t value, Instruction* instr);
 
   inline uint16_t ReadHU(int32_t addr, Instruction* instr);
   inline int16_t ReadH(int32_t addr, Instruction* instr);
@@ -272,8 +272,7 @@ enum Register {
   inline int ReadW(int32_t addr, Instruction* instr);
   inline void WriteW(int32_t addr, int value, Instruction* instr);
 
-  int32_t* ReadDW(int32_t addr);
-  void WriteDW(int32_t addr, int32_t value1, int32_t value2);
+  bool IsInvalidStackAccess(uintptr_t addr, uintptr_t stack);
 
   // Executes one instruction.
   void InstructionDecode(Instruction* instr);
@@ -309,8 +308,13 @@ enum Register {
   bool q_flag_;
   bool m_flag_;
 
+  // Stack
+  byte* stack_;
+  static const intptr_t stack_protection_size_ = KB;
+  intptr_t stack_size_;
+  byte* stack_limit_;
+
   // Simulator support.
-  char* stack_;
   bool pc_modified_;
   int icount_;
 
