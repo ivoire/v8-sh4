@@ -1,29 +1,8 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// FILE: SAMEAS: arm, REVIEWEDBY: CG
 
 #include "v8.h"
 
@@ -32,10 +11,10 @@
 #include "sh4/lithium-codegen-sh4.h"
 #include "hydrogen-osr.h"
 
-#include "sh4/map-sh4.h"
-
 namespace v8 {
 namespace internal {
+
+#include "map-sh4.h"  // SH4: define arm->sh4 register map
 
 #define DEFINE_COMPILE(type)                            \
   void L##type::CompileToNative(LCodeGen* generator) {  \
@@ -688,7 +667,7 @@ LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoShift(Token::Value op,
+LInstruction* LChunkBuilder::DoShift(Token::Value op, // REVIEWEDBY: CG
                                      HBitwiseBinaryOperation* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
@@ -1295,7 +1274,7 @@ LInstruction* LChunkBuilder::DoDivByConstI(HDiv* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDivI(HDiv* instr) {
+LInstruction* LChunkBuilder::DoDivI(HDiv* instr) { // REVIEWEDBY: CG
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
   ASSERT(instr->right()->representation().Equals(instr->representation()));
@@ -1368,7 +1347,7 @@ LInstruction* LChunkBuilder::DoFlooringDivByConstI(HMathFloorOfDiv* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoFlooringDivI(HMathFloorOfDiv* instr) {
+LInstruction* LChunkBuilder::DoFlooringDivI(HMathFloorOfDiv* instr) { // REVIEWEDBY: CG
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
   ASSERT(instr->right()->representation().Equals(instr->representation()));
@@ -1422,12 +1401,13 @@ LInstruction* LChunkBuilder::DoModByConstI(HMod* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoModI(HMod* instr) {
+LInstruction* LChunkBuilder::DoModI(HMod* instr) { // REVIEWEDBY: CG
   ASSERT(instr->representation().IsSmiOrInteger32());
   ASSERT(instr->left()->representation().Equals(instr->representation()));
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
+  ASSERT(!CpuFeatures::IsSupported(SUDIV)); // SH4: no SUBDIV // DIFF: codegen
   LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d6); // d10 for ARM // DIFF: codegen
   LOperand* temp2 = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d7); // d11 for ARM // DIFF: codegen
   LInstruction* result = DefineAsRegister(new(zone()) LModI(
@@ -1878,7 +1858,7 @@ LInstruction* LChunkBuilder::DoForceRepresentation(HForceRepresentation* bad) {
 }
 
 
-LInstruction* LChunkBuilder::DoChange(HChange* instr) {
+LInstruction* LChunkBuilder::DoChange(HChange* instr) { // REVIEWEDBY: CG
   Representation from = instr->from();
   Representation to = instr->to();
   HValue* val = instr->value();
@@ -2015,7 +1995,7 @@ LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
+LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) { // REVIEWEDBY: CG
   HValue* value = instr->value();
   Representation input_rep = value->representation();
   LOperand* reg = UseRegister(value);
