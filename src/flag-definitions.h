@@ -593,8 +593,13 @@ DEFINE_int(sim_stack_alignment, 16,
 DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
 #endif
+#ifdef V8_TARGET_ARCH_SH4
+DEFINE_int(sim_stack_size, 512,
+           "Stack size of the SH4 simulator in kBytes (default is 512 KB)")
+#else
 DEFINE_int(sim_stack_size, 2 * MB / KB,
            "Stack size of the ARM64 simulator in kBytes (default is 2 MB)")
+#endif
 DEFINE_bool(log_regs_modified, true,
             "When logging register values, only print modified registers.")
 DEFINE_bool(log_colour, true,

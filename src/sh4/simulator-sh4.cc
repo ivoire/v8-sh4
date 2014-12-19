@@ -717,6 +717,9 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   Initialize(isolate);
 
   // Allocate and setup the simulator stack.
+  // SH4: Note that for sh4 a number of test pass with a 512 Kb stack
+  // but not a 1MB or 2MB (the default for sim_stack_size).
+  // Thus in flags-definition.h on SH4 the stack size is set to 512 Kb.
   stack_size_ = (FLAG_sim_stack_size * KB) + (2 * stack_protection_size_);
   stack_ = new byte[stack_size_];
   stack_limit_ = stack_ + stack_protection_size_;
