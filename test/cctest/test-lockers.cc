@@ -207,7 +207,7 @@ static void StartJoinAndDeleteThreads(const i::List<JoinableThread*>& threads) {
 
 // Run many threads all locking on the same isolate
 TEST(IsolateLockingStress) {
-#if V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_SH4
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -284,7 +284,7 @@ class IsolateNestedLockingThread : public JoinableThread {
 
 // Run  many threads with nested locks
 TEST(IsolateNestedLocking) {
-#if V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_SH4
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -580,7 +580,7 @@ class LockUnlockLockThread : public JoinableThread {
 
 // Locker inside an Unlocker inside a Locker.
 TEST(LockUnlockLockMultithreaded) {
-#if V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_SH4
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -638,7 +638,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
 
 // Locker inside an Unlocker inside a Locker for default isolate.
 TEST(LockUnlockLockDefaultIsolateMultithreaded) {
-#if V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_SH4
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
