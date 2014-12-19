@@ -94,7 +94,7 @@ class JumpPatchSite BASE_EMBEDDED {
       info_emitted_ = true;
 #endif
     } else {
-      // SH4: not necessary: __ nop();  // Signals no inlined code.
+      __ nop();  // Signals no inlined code.  // SH4: ref to PatchInlinedSmiCode()
     }
   }
 
