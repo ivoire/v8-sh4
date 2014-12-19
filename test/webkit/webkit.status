@@ -51,4 +51,9 @@
 ['arch == arm64 and simulator_run == True', {
   'dfg-int-overflow-in-loop': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
+
+['arch == sh4', {
+  # SH4: tests that are too slow with no-ic.
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'arch == sh4'
 ]
