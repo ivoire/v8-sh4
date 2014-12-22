@@ -183,7 +183,7 @@ class LCodeGen: public LCodeGenBase {
     RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
   };
 
-  int CallCodeSize(Handle<Code> code, RelocInfo::Mode mode);
+  int CallCodeSize(Handle<Code> code, int call_offset, RelocInfo::Mode mode);
 
   void CallCode(
       Handle<Code> code,

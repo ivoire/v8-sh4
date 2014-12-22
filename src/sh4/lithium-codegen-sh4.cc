@@ -687,8 +687,8 @@ void LCodeGen::AddToTranslation(LEnvironment* environment, // SAMEAS: arm
 }
 
 
-int LCodeGen::CallCodeSize(Handle<Code> code, RelocInfo::Mode mode) {
-  int size = masm()->CallSize(code, mode);
+int LCodeGen::CallCodeSize(Handle<Code> code, int call_offset, RelocInfo::Mode mode) {
+  int size = masm()->CallSize(code, call_offset, mode);
   if (code->kind() == Code::BINARY_OP_IC ||
       code->kind() == Code::COMPARE_IC) {
     size += Assembler::kInstrSize;  // extra nop() added in CallCodeGeneric.

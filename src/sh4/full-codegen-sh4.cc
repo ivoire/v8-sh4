@@ -128,7 +128,7 @@ static void EmitStackCheck(MacroAssembler* masm_, // REVIEWEDBY: CG
   __ bt_near(&ok); // DIFF: codegen
   Handle<Code> stack_check = isolate->builtins()->StackCheck();
   PredictableCodeSizeScope predictable(masm_,
-      masm_->CallSize(stack_check, RelocInfo::CODE_TARGET));
+     masm_->CallSize(stack_check, masm_->pc_offset(), RelocInfo::CODE_TARGET));
   __ Call(stack_check, RelocInfo::CODE_TARGET);
   __ bind(&ok);
 }

@@ -1,29 +1,6 @@
-// Copyright 2011-2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2012 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_SH4_MACRO_ASSEMBLER_SH4_H_
 #define V8_SH4_MACRO_ASSEMBLER_SH4_H_
@@ -104,7 +81,7 @@ class MacroAssembler: public Assembler {
                                             Condition cond = al);
   void Call(Address target, RelocInfo::Mode rmode,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
-  int CallSize(Handle<Code> code,
+  int CallSize(Handle<Code> code, int call_offset,
                RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
                TypeFeedbackId ast_id = TypeFeedbackId::None());
   void Call(Handle<Code> code,
@@ -1343,15 +1320,15 @@ class MacroAssembler: public Assembler {
   void TestJSArrayForAllocationMemento(Register receiver_reg,
                                        Register scratch_reg,
                                        Label* no_memento_found,
-                                       Condition cond);
+                                       Condition cond = eq);
 
   void JumpIfJSArrayHasAllocationMemento(Register receiver_reg, // SAMEAS: arm
                                          Register scratch_reg,
                                          Label* memento_found) {
     Label no_memento_found;
     TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
-                                    &no_memento_found, eq); // DIFF: codegen
-    b(t, memento_found); // DIFF: codegen
+                                    &no_memento_found);
+    b(eq, memento_found);
     bind(&no_memento_found);
   }
 

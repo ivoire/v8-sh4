@@ -184,6 +184,21 @@ Operand::Operand(Handle<Object> handle) {
   }
 }
 
+// We have to use the temporary register for things that can be relocated even
+// if they can be encoded in the ARM's 12 bits of immediate-offset instruction
+// space.  There is no guarantee that the relocated location can be similarly
+// encoded.
+bool Operand::must_output_reloc_info(Isolate* isolate,
+                                     const Assembler* assembler) const {
+  if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
+    if (assembler != NULL && assembler->predictable_code_size()) return true;
+    return Serializer::enabled(isolate);
+  } else if (RelocInfo::IsNone(rmode_)) {
+    return false;
+  }
+  return true;
+}
+
 
 void Assembler::memcpy(Register dst, Register src, Register count, Register scratch1, Register scratch2,
                        Register scratch3, Register scratch4) {

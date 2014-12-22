@@ -541,8 +541,11 @@ class Operand BASE_EMBEDDED {
   // the instruction this operand is used for is a MOV or MVN instruction the
   // actual instruction to use is required for this calculation. For other
   // instructions instr is ignored.
-  //bool is_single_instruction(const Assembler* assembler, Instr instr = 0) const;
-  //bool must_output_reloc_info(const Assembler* assembler) const;
+  //bool is_single_instruction(Isolate* isolate,
+  //                           const Assembler* assembler,
+  //                           Instr instr = 0) const;
+  bool must_output_reloc_info(Isolate* isolate,
+                              const Assembler* assembler) const;
 
   inline int32_t immediate() const {
     ASSERT(!rm_.is_valid());
