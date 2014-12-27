@@ -821,6 +821,12 @@ class Redirection {
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
+  static void* ReverseRedirection(int32_t reg) {
+    Redirection* redirection = FromSwiInstruction(
+        reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
+    return redirection->external_function();
+  }
+
  private:
   void* external_function_;
   uint32_t swi_instruction_;
@@ -1231,18 +1237,22 @@ typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
                                         int32_t arg3,
                                         int32_t arg4,
                                         int32_t arg5);
-typedef double (*SimulatorRuntimeCompareCall)(double arg0, double arg1);
-typedef double (*SimulatorRuntimeFPCall)(double arg0);
-typedef double (*SimulatorRuntimeFPFPCall)(double arg0, double arg1);
-typedef double (*SimulatorRuntimeFPIntCall)(double arg0, int32_t arg1);
+
+// These prototypes handle the four types of FP calls.
+typedef int64_t (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
+typedef double (*SimulatorRuntimeFPFPCall)(double darg0, double darg1);
+typedef double (*SimulatorRuntimeFPCall)(double darg0);
+typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
+typedef void (*SimulatorRuntimeDirectApiCall)(int32_t arg0);
+typedef void (*SimulatorRuntimeProfilingApiCall)(int32_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
-typedef v8::Handle<v8::Value> (*SimulatorRuntimeDirectGetterCall)(int32_t arg0,
-                               int32_t arg1);
+typedef void (*SimulatorRuntimeDirectGetterCall)(int32_t arg0, int32_t arg1);
+typedef void (*SimulatorRuntimeProfilingGetterCall)(
+    int32_t arg0, int32_t arg1, void* arg2);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
@@ -1273,23 +1283,29 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
       intptr_t external =
           reinterpret_cast<intptr_t>(redirection->external_function());
       if (fp_call) {
-        // Trace the execution
+        double dval0, dval1;  // one or two double parameters
+        int32_t ival;         // zero or one integer parameters
+        int64_t iresult = 0;  // integer return value
+        double dresult = 0;   // double return value
+        dval0 = get_dregister(dr4);
+        dval1 = get_dregister(dr6);
+        ival = get_register(r4);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
-          SimulatorRuntimeFPCall target =
-              reinterpret_cast<SimulatorRuntimeFPCall>(external);
+          SimulatorRuntimeCall generic_target =
+            reinterpret_cast<SimulatorRuntimeCall>(external);
           switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
-            PrintF("Call to host function (builtin fp-fp) at %p with args %f, %f",
-                FUNCTION_ADDR(target), get_dregister(dr4), get_dregister(dr6));
+            PrintF("Call to host function at %p with args %f, %f",
+                   FUNCTION_ADDR(generic_target), dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
-            PrintF("Call to host function (builtin fp) at %p with arg %f",
-                FUNCTION_ADDR(target), get_dregister(dr4));
+            PrintF("Call to host function at %p with arg %f",
+                FUNCTION_ADDR(generic_target), dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
-            PrintF("Call to host function at (builtin fp-int) %p with args %f, %d",
-                FUNCTION_ADDR(target), get_dregister(dr4), get_register(r4));
+            PrintF("Call to host function at %p with args %f, %d",
+                   FUNCTION_ADDR(generic_target), dval0, ival);
             break;
           default:
             UNREACHABLE();
@@ -1301,80 +1317,111 @@ void Simulator::SoftwareInterrupt(Instruction* instr, int signal) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        if (redirection->type() != ExternalReference::BUILTIN_COMPARE_CALL) {
-          double result = -1;
-          switch(redirection->type()) {
-          case ExternalReference::BUILTIN_FP_FP_CALL: {
-            SimulatorRuntimeFPFPCall target =
-                reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
-            result = target(get_dregister(dr4), get_dregister(dr6));
-            }
+        switch (redirection->type()) {
+        case ExternalReference::BUILTIN_COMPARE_CALL: {
+          SimulatorRuntimeCompareCall target =
+            reinterpret_cast<SimulatorRuntimeCompareCall>(external);
+          iresult = target(dval0, dval1);
+          set_register(r0, static_cast<int32_t>(iresult));
+          set_register(r1, static_cast<int32_t>(iresult >> 32));
+          break;
+        }
+        case ExternalReference::BUILTIN_FP_FP_CALL: {
+          SimulatorRuntimeFPFPCall target =
+            reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
+          dresult = target(dval0, dval1);
+          set_dregister(dr0, dresult);
+          break;
+        }
+        case ExternalReference::BUILTIN_FP_CALL: {
+          SimulatorRuntimeFPCall target =
+            reinterpret_cast<SimulatorRuntimeFPCall>(external);
+          dresult = target(dval0);
+          set_dregister(dr0, dresult);
+          break;
+        }
+        case ExternalReference::BUILTIN_FP_INT_CALL: {
+          SimulatorRuntimeFPIntCall target =
+            reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
+          dresult = target(dval0, ival);
+          set_dregister(dr0, dresult);
+          break;
+        }
+        default:
+          UNREACHABLE();
+          break;
+        }
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          switch (redirection->type()) {
+          case ExternalReference::BUILTIN_COMPARE_CALL:
+            PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
             break;
-          case ExternalReference::BUILTIN_FP_CALL: {
-            SimulatorRuntimeFPCall target =
-                reinterpret_cast<SimulatorRuntimeFPCall>(external);
-            result = target(get_dregister(dr4));
-            }
-            break;
-          case ExternalReference::BUILTIN_FP_INT_CALL: {
-            SimulatorRuntimeFPIntCall target =
-                reinterpret_cast<SimulatorRuntimeFPIntCall>(external);
-            result = target(get_dregister(dr4), get_register(r4));
-            }
+          case ExternalReference::BUILTIN_FP_FP_CALL:
+          case ExternalReference::BUILTIN_FP_CALL:
+          case ExternalReference::BUILTIN_FP_INT_CALL:
+            PrintF("Returned %f\n", dresult);
             break;
           default:
+            UNREACHABLE();
             break;
           }
-          if (::v8::internal::FLAG_trace_sim) {
-            PrintF("Returned %f\n", result);
-          }
-          set_dregister(dr0, result);
-        } else {
-          SimulatorRuntimeFPFPCall target =
-              reinterpret_cast<SimulatorRuntimeFPFPCall>(external);
-          int64_t result = target(get_dregister(dr4), get_dregister(dr6));
-          int32_t lo_res = static_cast<int32_t>(result);
-          int32_t hi_res = static_cast<int32_t>(result >> 32);
-          if (::v8::internal::FLAG_trace_sim) {
-            PrintF("Returned %08x\n", lo_res);
-          }
-          set_register(r0, lo_res);
-          set_register(r1, hi_res);
         }
       } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          PrintF("Call to host function at %p args %08x",
+              reinterpret_cast<void*>(external), arg0);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
         SimulatorRuntimeDirectApiCall target =
             reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
+        target(arg0);
+      } else if (
+          redirection->type() == ExternalReference::PROFILING_API_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
-          PrintF("Call to host function (direct api) at %p args %08x",
-              FUNCTION_ADDR(target), arg0);
+          PrintF("Call to host function at %p args %08x %08x",
+              reinterpret_cast<void*>(external), arg0, arg1);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        v8::Handle<v8::Value> result = target(arg0);
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
+        SimulatorRuntimeProfilingApiCall target =
+            reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
+        target(arg0, Redirection::ReverseRedirection(arg1));
+      } else if (
+          redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          PrintF("Call to host function at %p args %08x %08x",
+              reinterpret_cast<void*>(external), arg0, arg1);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
         }
-        set_register(r0, (int32_t) *result);
-      } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
+        CHECK(stack_aligned);
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
+        target(arg0, arg1);
+      } else if (
+          redirection->type() == ExternalReference::PROFILING_GETTER_CALL) {
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
-          PrintF("Call to host function (getter) at %p args %08x %08x",
-              FUNCTION_ADDR(target), arg0, arg1);
+          PrintF("Call to host function at %p args %08x %08x %08x",
+              reinterpret_cast<void*>(external), arg0, arg1, arg2);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08x\n", get_register(sp));
           }
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        v8::Handle<v8::Value> result = target(arg0, arg1);
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
-        }
-        set_register(r0, (int32_t) *result);
+        SimulatorRuntimeProfilingGetterCall target =
+            reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(
+                external);
+        target(arg0, arg1, Redirection::ReverseRedirection(arg2));
       } else {
         // builtin call.
         ASSERT(redirection->type() == ExternalReference::BUILTIN_CALL);

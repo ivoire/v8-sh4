@@ -252,8 +252,7 @@ void Assembler::memcmp(Register left, Register right, Register length,
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      positions_recorder_(this),
-      constant_pool_pool_(FLAG_pool) {
+      positions_recorder_(this) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   num_pending_reloc_info_ = 0;
   next_buffer_check_ = 0;
@@ -857,14 +856,6 @@ void Assembler::call(Label* L) {
   jsr(L);
 }
 
-void Assembler::AssertDataEmit(const char *str) {
-  if (constant_pool_pool_ && num_pending_reloc_info_ > 0) {
-    i::OS::PrintError("data emit while constants pending (%s)\n", str);
-    i::OS::Abort();
-  }
-}
-
-
 void Assembler::emitPatchableNearBranch(uint16_t data) {
   // must not emit the constant pool here. caller has to BlockConstPoolFor()
   ASSERT(pc_offset() < next_buffer_check_);
@@ -976,8 +967,7 @@ void Assembler::branch_local(Label* L, Register rtmp, branch_type type,
   // when bound both near and far labels are represented the same way
   if (L->is_bound()) {
     ASSERT(L->pos() != kEndOfChain);
-    // Block the constant pool giving the right hint (max of every possible blocks)
-    BlockConstPoolScope scope(this, 5);
+    BlockConstPoolScope scope(this);
     branch_local(L->pos() - pc_offset(), rtmp, type, distance, false);
   } else {
     // The only difference between Near and far label is in the
@@ -1265,13 +1255,10 @@ void Assembler::mov(Register Rd, const Operand& src, bool force) {
     mov(Rd, src.rm());
     return;
   }
+  ASSERT(!Rd.is(pr));
   ASSERT(!src.is_reg());
   // FIXME(STM): Internal ref not handled
   ASSERT(src.rmode_ != RelocInfo::INTERNAL_REFERENCE);
-
-  // Delayed constant pool emitting (experimental)
-  if (constant_pool_pool_)
-    return Assembler::mov_pool(Rd, src, force);
 
   // Move based on immediates can only be 8 bits long
   if (force == false && (src.is_int8() && src.rmode_ == RelocInfo::NONE32)) {
@@ -1303,17 +1290,6 @@ void Assembler::mov(Register Rd, const Operand& src, bool force) {
     }
 #endif
     dd(src.imm32_);
-  }
-}
-
-void Assembler::mov_pool(Register Rd, const Operand& imm, bool force) {
-  ASSERT(!imm.is_reg());
-  // Move based on immediates can only be 8 bits long
-  if (force == false && (imm.is_int8() && imm.rmode_ == RelocInfo::NONE32)) {
-    mov_imm_(imm.imm32_, Rd);
-  } else {
-    RecordRelocInfo_pool(imm.rmode_, imm.imm32_);
-    movl_dispPC_(0, Rd);
   }
 }
 
@@ -1387,6 +1363,7 @@ void Assembler::mov(Register Rd, const Operand& src, Condition cond) {
 
 void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
+  ASSERT(!Rd.is(pr));
   if (src.roffset_.is_valid()) {
     ASSERT(rtmp.is_valid());
     add(rtmp, src.rn_, src.roffset_);
@@ -1407,6 +1384,7 @@ void Assembler::mov(Register Rd, const MemOperand& src, Register rtmp) {
 
 void Assembler::movsb(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
+  ASSERT(!Rd.is(pr));
   if (src.roffset_.is_valid()) {
     add(rtmp, src.rn_, src.roffset_);
     movb_indRs_(rtmp, Rd);
@@ -1423,6 +1401,7 @@ void Assembler::movsb(Register Rd, const MemOperand& src, Register rtmp) {
 
 void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
+  ASSERT(!Rd.is(pr));
   movsb(Rd, src, rtmp);
   extub_(Rd, Rd);       // zero extension
 }
@@ -1430,6 +1409,7 @@ void Assembler::movb(Register Rd, const MemOperand& src, Register rtmp) {
 
 void Assembler::movsw(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
+  ASSERT(!Rd.is(pr));
   if (src.roffset_.is_valid()) {
     add(rtmp, src.rn_, src.roffset_);
     movw_indRs_(rtmp, Rd);
@@ -1445,6 +1425,7 @@ void Assembler::movsw(Register Rd, const MemOperand& src, Register rtmp) {
 
 void Assembler::movw(Register Rd, const MemOperand& src, Register rtmp) {
   ASSERT(src.mode_ == Offset);
+  ASSERT(!Rd.is(pr));
   movsw(Rd, src, rtmp);
   extuw_(Rd, Rd);       // zero extension
 }
@@ -1590,6 +1571,7 @@ void Assembler::idouble(Register Rd, DwVfpRegister Ds, Register fpscr)
 
 void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
+  ASSERT(!Rd.is(pr));
   if (dst.roffset_.is_valid()) {
     add(rtmp, dst.rn_, dst.roffset_);
     movl_indRd_(Rd, rtmp);
@@ -1611,6 +1593,7 @@ void Assembler::mov(const MemOperand& dst, Register Rd, Register rtmp) {
 
 void Assembler::movb(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
+  ASSERT(!Rd.is(pr));
   if (dst.roffset_.is_valid()) {
     add(rtmp, dst.rn_, dst.roffset_);
     movb_indRd_(Rd, rtmp);
@@ -1628,6 +1611,7 @@ void Assembler::movb(const MemOperand& dst, Register Rd, Register rtmp) {
 
 void Assembler::movw(const MemOperand& dst, Register Rd, Register rtmp) {
   ASSERT(dst.mode_ == Offset);
+  ASSERT(!Rd.is(pr));
   if (dst.roffset_.is_valid()) {
     add(rtmp, dst.rn_, dst.roffset_);
     movw_indRd_(Rd, rtmp);
@@ -1878,7 +1862,6 @@ void Assembler::db(uint8_t data) {
   // to write pure data with no pointers and the constant pool should
   // be emitted before using db.
   ASSERT(num_pending_reloc_info_ == 0);
-  AssertDataEmit("db");
   CheckBuffer();
   *reinterpret_cast<uint8_t*>(pc_) = data;
   pc_ += sizeof(uint8_t);
@@ -1890,7 +1873,6 @@ void Assembler::dw(uint16_t data) {
   // to write pure data with no pointers and the constant pool should
   // be emitted before using dd.
   ASSERT(num_pending_reloc_info_ == 0);
-  AssertDataEmit("dw");
   CheckBuffer();
   *reinterpret_cast<uint16_t*>(pc_) = data;
   pc_ += sizeof(uint16_t);
@@ -1901,7 +1883,6 @@ void Assembler::dd(uint32_t data) {
   // to write pure data with no pointers and the constant pool should
   // be emitted before using dd.
   ASSERT(num_pending_reloc_info_ == 0);
-  AssertDataEmit("dd");
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
@@ -1930,202 +1911,13 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 
-void Assembler::RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data) {
-  // Contrary to RecordRelocInfo, we also handle constant pool entries here
-  // that have no reloc info.
-
-  // We do not try to reuse pool constants.
-  RelocInfo rinfo(pc_, rmode, data, NULL);
-  if (((rmode >= RelocInfo::JS_RETURN &&
-       (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
-      rmode == RelocInfo::CONST_POOL)) {
-    // Adjust code for new modes.
-    ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsJSReturn(rmode)
-           || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsPosition(rmode)
-           || RelocInfo::IsConstPool(rmode));
-    // These modes do not need an entry in the constant pool.
-  } else {
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we must record relocation info.
-    BlockConstPoolFor(1);
-
-    // we do not try to reuse pool constants
-    ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
-    if (num_pending_reloc_info_ == 0) {
-      first_const_pool_use_ = pc_offset();
-    }
-    last_const_pool_use_ = pc_offset();
-    pending_reloc_info_[num_pending_reloc_info_++] = rinfo;
-  }
-
-  // Constant pool handling complete
-  if (!RelocInfo::IsNone(rinfo.rmode())) {
-    // Don't record external references unless the heap will be serialized.
-    if (rinfo.rmode() == RelocInfo::EXTERNAL_REFERENCE) {
-      if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
-        return;
-      }
-    }
-    ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
-    if (rinfo.rmode() == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(rinfo.pc(),
-                                       rinfo.rmode(),
-                                       RecordedAstId().ToInt(),
-                                       NULL);
-      ClearRecordedAstId();
-      reloc_info_writer.Write(&reloc_info_with_ast_id);
-    } else {
-      reloc_info_writer.Write(&rinfo);
-    }
-  }
-}
-
-
 void Assembler::BlockConstPoolFor(unsigned instructions) {
-  // If the constant pool as to be emited, emit it right now and not after as
-  // it won't be possible anymore.
-  CheckConstPool(false, true, false, instructions);
-
-  int pc_limit = pc_offset() + instructions * kInstrSize;
-  if (no_const_pool_before_ < pc_limit) {
-    // If there are some pending entries, the constant pool cannot be blocked
-    // further than first_const_pool_use_ + kMaxDistToPool
-    ASSERT((num_pending_reloc_info_ == 0) ||
-           (pc_limit < (first_const_pool_use_ + kMaxDistToPool)));
-    no_const_pool_before_ = pc_limit;
-  }
-
-  if (next_buffer_check_ < no_const_pool_before_) {
-    next_buffer_check_ = no_const_pool_before_;
-  }
+  // no-op without constant pool
 }
 
 
-void Assembler::CheckConstPool(bool force_emit, bool require_jump, bool recursive, int hint) {
-  // Check that a recursive call only happen inside a first call to
-  // StartBlockConstPool
-  ASSERT(!recursive || (recursive &&
-                        const_pool_blocked_nesting_ == 1));
-
-  // Some short sequence of instruction mustn't be broken up by constant pool
-  // emission, such sequences are protected by calls to BlockConstPoolFor and
-  // BlockConstPoolScope.
-  if (is_const_pool_blocked() && !recursive) {
-    // Something is wrong if emission is forced and blocked at the same time.
-    ASSERT(!force_emit);
-    return;
-  }
-
-  // There is nothing to do if there are no pending constant pool entries.
-  if (num_pending_reloc_info_ == 0)  {
-    // Calculate the offset of the next check.
-    next_buffer_check_ = pc_offset() + kCheckPoolInterval;
-    return;
-  }
-
-  ASSERT(constant_pool_pool_);
-
-  // We emit a constant pool when:
-  //  * requested to do so by parameter force_emit (e.g. after each function).
-  //  * the distance to the first instruction accessing the constant pool is
-  //    kAvgDistToPool or more.
-  //  * no jump is required and the distance to the first instruction accessing
-  //    the constant pool is at least kMaxDistToPool / 2
-  //  * the number of constants is higher enough.
-  //  * the distance to the last constant is higher enough
-  ASSERT(GetFirstConstPoolUse() >= 0);
-  int dist_first = pc_offset() + hint * kInstrSize - GetFirstConstPoolUse();
-  int dist_last = pc_offset() + hint * kInstrSize - last_const_pool_use_;
-  if (!force_emit && dist_first < kAvgDistToPool &&
-      (require_jump || (dist_first < (kMaxDistToPool / 2))) &&
-      num_pending_reloc_info_ < kMaxNumPendingRelocInfo &&
-      kMaxDistToPool - num_pending_reloc_info_ * 4 >= dist_last) {
-    return;
-  }
-
-  // Set the emiting flag. This block more calls to CheckConstPool
-  emiting_const_pool_ = true;
-
-  // Check that the code buffer is large enough before emitting the constant
-  // pool (include the jump over the pool and the constant pool marker and
-  // the gap to the relocation information).
-  int jump_instr = require_jump ? kInstrSize : 0;
-  int needed_space = jump_instr + kInstrSize +
-                     num_pending_reloc_info_ * kInstrSize + kGap;
-  while (buffer_space() <= needed_space)
-    GrowBuffer();
-
-  {
-    // Block recursive calls to CheckConstPool.
-    if (!recursive)
-      StartBlockConstPool();
-
-    // Emit jump over constant pool if necessary.
-    if (require_jump) {
-      // TODO(stm): pool emission might be triggered by a nop_() that should fill a branch
-      // delay slot. to avoid ILLSLOT, we lead the pool with a nop. (unless the pool
-      // was forced, then we assume someone knows what is going on.)
-      // there are smarter ways to handle this
-      if (!force_emit)
-        nop_();
-
-      // align constant pool start
-      align();
-
-      // Jump over the constant pool
-      bra_((num_pending_reloc_info_ * 2 + 2) * kInstrSize);
-      nop_();
-    } else {
-      // align constant pool start
-      align();
-    }
-
-    for (int i = 0; i < num_pending_reloc_info_; i++) {
-      RelocInfo& rinfo = pending_reloc_info_[i];
-      ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
-             rinfo.rmode() != RelocInfo::POSITION &&
-             rinfo.rmode() != RelocInfo::STATEMENT_POSITION);
-
-      ASSERT(rinfo.pc() >= buffer_);
-      ASSERT(rinfo.pc() < pc_);
-      Instr instr = instr_at(rinfo.pc());
-
-      // Instruction to patch must be 'MOV.L @(disp, PC), Rn' with disp == 0.
-      ASSERT((instr & ((0xf << 12) | kOff8Mask)) == 0xd000);
-
-      int delta = pc_ - rinfo.pc() - 2;
-      // 0 is the smallest delta, 2 instrs added to PC offset on SH4:
-      //   ldr rd, [pc, #0]
-      //   constant pool marker
-      //   data
-
-      int imm = delta >> 2;
-      ASSERT(is_uint8(imm));
-
-      Instr cpload = (instr & ~kOff8Mask) | imm;
-      instr_at_put(rinfo.pc(), cpload);
-
-      emitConstPool(rinfo.data());
-    }
-    num_pending_reloc_info_ = 0;
-    first_const_pool_use_ = -1;
-    last_const_pool_use_ = -1;
-
-    emitConstPool(0x001b001b); // sleep; sleep (privileged)
-    // Jump destination
-
-    if (!recursive)
-      EndBlockConstPool();
-  }
-
-  // Reset the flag, to allows constant pool checks
-  emiting_const_pool_ = false;
-
-  // Since a constant pool was just emitted, move the check offset forward by
-  // the standard interval.
-  next_buffer_check_ = pc_offset() + kCheckPoolInterval;
+void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
+  // no-op without constant pool
 }
 
 int Assembler::ResolveCallTargetAddressOffset(byte *pc) {
@@ -2285,7 +2077,7 @@ void Assembler::vcvt_s32_f64(Register dst,
                              VFPConversionMode mode,
                              Condition cond)
 {
-  // SH4: The unique conversion mode to interger is truncation (i.e. round to zero)
+  // SH4: The unique conversion mode to integer is truncation (i.e. round to zero)
   ASSERT(mode == kDefaultRoundToZero);
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;

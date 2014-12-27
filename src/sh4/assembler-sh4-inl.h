@@ -486,22 +486,13 @@ Address Assembler::target_address_from_return_address(Address pc) { // REVIEWEDB
   Instr possible_mov;
   Address candidate;
 
-  if (0 /*constant_pool_pool_*/) { // TODO: SH4: constant pools
-    candidate = pc - kNewStyleCallTargetAddressOffset;
-    possible_mov = instr_at(candidate);
-
-    if (IsMovlPcRelative(possible_mov)) {
-      // Delayed constant pool
-      return candidate;
-    }
-  }
-
   // As we go backward from the return address we do not need
   // to account for the alignment at the start of a sequence.
   // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment
   // value.
   candidate = pc - kOldStyleCallTargetAddressOffsetWithoutAlignment;
   possible_mov = instr_at(candidate);
+  USE(possible_mov);
   ASSERT(IsMovlPcRelative(possible_mov));
   return candidate;
 }
@@ -514,6 +505,7 @@ Address Assembler::return_address_from_call_start(Address pc) { // REVIEWEDBY: C
   // There are two cases:
   // - delayed constant pool: movl, jsr, nop
   // - immediate constant pool: movl, nop, bra, ....
+  // SH4: actuallyremoved the case of delayed constant pool, unimplemented.
   // Ref to assembler-sh4.h
   // We assert that we are actually pointing to a PC relative
   // mov instruction which always starts an immediate call sequence.
@@ -524,12 +516,6 @@ Address Assembler::return_address_from_call_start(Address pc) { // REVIEWEDBY: C
   // while GetCallTargetAddressOffset() must add an instruction
   // word in the misaligned case.
   ASSERT(IsMovlPcRelative(instr_at(pc)));
-  Instr possible_jsr = instr_at(pc + kInstrSize);
-
-  // Delayed constant pool
-  if (0 /*constant_pool_pool_*/) // TODO: SH4: constant pools
-    if (IsJsr(possible_jsr))
-      return pc + kNewStyleCallTargetAddressOffset;
 
   // Do not need to account for the alignment at the start of a sequence.
   // Hence use the kOldStyleCallTargetAddressOffsetWithoutAlignment

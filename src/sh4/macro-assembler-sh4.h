@@ -577,6 +577,13 @@ class MacroAssembler: public Assembler {
   void GetRelocatedValueLocation(Register ldr_location,
                                  Register result);
 
+  void ClampUint8(Register output_reg, Register input_reg);
+
+  void ClampDoubleToUint8(Register result_reg,
+                          DwVfpRegister input_reg,
+                          DwVfpRegister double_scratch);
+
+
   void LoadInstanceDescriptors(Register map, Register descriptors);
 
 

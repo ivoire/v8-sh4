@@ -538,11 +538,7 @@ DEFINE_bool(heap_profiler_trace_objects, false,
 DEFINE_bool(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
 // ic.cc
-#if defined(V8_TARGET_ARCH_SH4)
-DEFINE_bool(use_ic, false, "use inline caching")
-#else
 DEFINE_bool(use_ic, true, "use inline caching")
-#endif
 
 // macro-assembler-ia32.cc
 DEFINE_bool(native_code_counters, false,
@@ -901,8 +897,6 @@ DEFINE_implication(print_all_code, trace_codegen)
 DEFINE_bool(enable_ool_constant_pool, V8_OOL_CONSTANT_POOL,
             "enable use of out-of-line constant pools (ARM only)")
 
-// assembler-sh4.h
-DEFINE_bool(pool, false, "use constant pools") // SH4: TODO: disabled for now
 
 // Cleanup...
 #undef FLAG_FULL

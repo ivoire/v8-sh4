@@ -547,7 +547,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG
   __ Ret();
 
   __ bind(&not_special);
-  __ CountLeadingZeros(zeros_, source_, mantissa); // TODO: SH4: check // DIFF: codegen
+  __ CountLeadingZeros(zeros_, source_, mantissa); // DIFF: codegen
   // Compute exponent and or it into the exponent register.
   // We use mantissa as a scratch register here.  Use a fudge factor to
   // divide the constant 31 + HeapNumber::kExponentBias, 0x41d, into two parts
@@ -999,7 +999,7 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm, // RE
   __ ldr(r3, FieldMemOperand(rhs, HeapObject::kMapOffset));
   __ ldrb(r2, FieldMemOperand(r2, Map::kBitFieldOffset));
   __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
-  __ and_(r0, r2, r3); // TODO: SH4: check if can be changed into Operand(r3)
+  __ and_(r0, r2, Operand(r3));
   __ and_(r0, r0, Operand(1 << Map::kIsUndetectable));
   __ eor(r0, r0, Operand(1 << Map::kIsUndetectable));
   __ Ret();
@@ -1537,6 +1537,7 @@ void CEntryStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG
   // SH4: sp contains: sp[0] == lr; sp[1] == argc; sp[2] == builtin; sp[3] = argv
   // __ mov(sh4_r8, r0);
   // __ mov(sh4_r9, r1);
+  // __ mov(sh4_r10, r3);
   __ str(r0, MemOperand(sp, (1+0)*kPointerSize)); // skip lr location at sp[1]
   __ str(r1, MemOperand(sp, (1+1)*kPointerSize));
   __ str(r3, MemOperand(sp, (1+2)*kPointerSize));
@@ -2458,7 +2459,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) { // REVIEWEDB
 }
 
 
-void RegExpExecStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG (need TOTO fixes) // TODO: must activate regexp JIT
+void RegExpExecStub::Generate(MacroAssembler* masm) { // TODO: SH4: must activate regexp JIT
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
@@ -4275,17 +4276,27 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) { // REVIEWEDBY: CG
 void DirectCEntryStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG
   // Place the return address on the stack, making the call
   // GC safe. The RegExp backend also relies on this.
-  __ str(lr, MemOperand(sp, 0));
-  __ jsr(ip);  // Call the C++ function. // DIFF: codegen
-  __ VFPEnsureFPSCRState(r2);
-  __ ldr(lr, MemOperand(sp, 0)); // DIFF: codegen
+  // SH4: must use only r2 as scratch (not ip, nor rtmp which are callee-saved)
+  // SH4: the target is passed through r1 (from GenerateCall)
+  __ mov(sh4_r2, lr); // DIFF: codegen
+  __ str(sh4_r2, MemOperand(sp, 0));
+  __ jsr(sh4_r1);  // Call the C++ function. // DIFF: codegen
+  __ VFPEnsureFPSCRState(sh4_r2);
+  __ ldr(sh4_r2, MemOperand(sp, 0)); // DIFF: codegen
+  __ mov(lr, sh4_r2); // DIFF: codegen
   __ rts();  // DIFF: codegen
 }
 
 
-void DirectCEntryStub::GenerateCall(MacroAssembler* masm, // TODO: SH4
+void DirectCEntryStub::GenerateCall(MacroAssembler* masm, // REVIEWEDBY: CG
                                     Register target) {
-  __ UNIMPLEMENTED_BREAK(); // SH4: TODO(stm): may preserve ARM callee-saved registers
+  // SH4: the target is passed through r1 (not ip which must be preserved)
+  // SH4: must use only r2 as scratch (not ip nor rtmp)
+  intptr_t code =
+      reinterpret_cast<intptr_t>(GetCode().location());
+  __ Move(sh4_r1, target);
+  __ mov(sh4_r2, Operand(code, RelocInfo::CODE_TARGET)); // DIFF: codegen
+  __ jsr(sh4_r2);  // Call the stub. // DIFF: codegen
 }
 
 
@@ -4856,7 +4867,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: 
   __ Ret();
 }
 
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) { // DIFF: codegen
+void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) { // REVIEWEDBY: CG
   if (masm->isolate()->function_entry_hook() != NULL) {
     // Needs a predicatable code size for computing the start of the sequence
     // from the return address in the called stub. Ref to ::Generate().
@@ -5350,7 +5361,6 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
 
-  __ UNIMPLEMENTED_BREAK(); // SH4: TODO(stm): Verify parameters convention
   __ CallApiFunctionAndReturn(api_function_address,
                               thunk_ref,
                               kStackUnwindSpace,
@@ -5359,7 +5369,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG
 }
 
 
-void CallApiGetterStub::Generate(MacroAssembler* masm) {
+void CallApiGetterStub::Generate(MacroAssembler* masm) { // REVIEWEDBY: CG
   // ----------- S t a t e -------------
   //  -- sp[0]                  : name
   //  -- sp[4 - kArgsLength*4]  : PropertyCallbackArguments object
@@ -5385,7 +5395,6 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
-  __ UNIMPLEMENTED_BREAK(); // SH4: TODO(stm): Verify parameters convention
   __ CallApiFunctionAndReturn(api_function_address,
                               thunk_ref,
                               kStackUnwindSpace,

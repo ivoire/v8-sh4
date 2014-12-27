@@ -956,6 +956,116 @@ TEST(sh4_ma_7) {
   CHECK_EQ(0, res);
 }
 
+// Test ClampDoubleToUint8()
+TEST(sh4_ma_7b) {
+  BEGIN();
+
+  Label error;
+  PROLOGUE();
+
+  uint32_t low, high;
+
+  CMT("Check ClampDoubleToUint8(0.0) -> 0");
+  DoubleAsTwoUInt32(0.0, &low, &high);
+  __ mov(r0, Operand(0));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  CMT("Check ClampDoubleToUint8(255.0) -> 255");
+  DoubleAsTwoUInt32(255.0, &low, &high);
+  __ mov(r0, Operand(255));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  CMT("Check ClampDoubleToUint8(0.6) -> 1");
+  DoubleAsTwoUInt32(0.6, &low, &high);
+  __ mov(r0, Operand(1));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  CMT("Check ClampDoubleToUint8(0.5) -> 1");
+  DoubleAsTwoUInt32(0.5, &low, &high);
+  __ mov(r0, Operand(1));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  CMT("Check ClampDoubleToUint8(0.4) -> 0");
+  DoubleAsTwoUInt32(0.4, &low, &high);
+  __ mov(r0, Operand(0));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  CMT("Check ClampDoubleToUint8(-1.0) -> 0");
+  DoubleAsTwoUInt32(-1.0, &low, &high);
+  __ mov(r0, Operand(0));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  CMT("Check ClampDoubleToUint8(256.0) -> 255");
+  DoubleAsTwoUInt32(256.0, &low, &high);
+  __ mov(r0, Operand(255));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  CMT("Check ClampDoubleToUint8(+inf) -> 255");
+  DoubleAsTwoUInt32(V8_INFINITY, &low, &high);
+  __ mov(r0, Operand(255));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  // All ok.
+  __ mov(r0, Operand(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  code->Print();
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  int res = CAST(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(0, res);
+}
+
 // Test CountLeadingZeros
 TEST(sh4_ma_8) {
   BEGIN();

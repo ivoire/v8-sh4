@@ -728,15 +728,10 @@ class Assembler : public AssemblerBase {
   static const int kNewStyleCallTargetAddressOffset = 3 * kInstrSize;
 
   // SH4: we need the start address of the Call sequence
-  // as with inlined constant pools the alignment matters
-  // constant_pool_pool_ is not meant to be switched mid-flight
+  // as with inlined constant pools the alignment matters.
   int GetCallTargetAddressOffset(int call_offset) const {
-    if (constant_pool_pool_)
-      return kNewStyleCallTargetAddressOffset;
-    else {
-      int misaligned = call_offset % 4;
-      return kOldStyleCallTargetAddressOffsetWithoutAlignment + misaligned;
-    }
+    int misaligned = call_offset % 4;
+    return kOldStyleCallTargetAddressOffsetWithoutAlignment + misaligned;
   }
 
   static int ResolveCallTargetAddressOffset(byte *address);
@@ -1264,8 +1259,8 @@ class Assembler : public AssemblerBase {
   // Class for scoping postponing the constant pool generation.
   class BlockConstPoolScope {
    public:
-    explicit BlockConstPoolScope(Assembler* assem, int hint = 256) : assem_(assem) {
-      assem_->StartBlockConstPool(hint);
+    explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
+      assem_->StartBlockConstPool();
     }
     ~BlockConstPoolScope() {
       assem_->EndBlockConstPool();
@@ -1371,19 +1366,8 @@ class Assembler : public AssemblerBase {
   // instructions.
   void BlockConstPoolFor(unsigned instructions);
 
-  /**
-   * Check if is time to emit a constant pool.
-   * @param force_emit: dump the constant pool right now
-   * @param require_jump: true if a jump over the constant pool as to be
-   *                      emited
-   * @param recursive: true if the function is called while constant pools
-   *                   are blocked (this can only happen on the first call to
-   *                   StartBlockConstPool
-  */
-  void CheckConstPool(bool force_emit, bool require_jump, bool recursive = false, int hint = 0);
-  int GetFirstConstPoolUse() const { return first_const_pool_use_; }
-  void AssertDataEmit(const char *str);
-  void SwitchConstantPoolMode(bool enabled) { constant_pool_pool_ = enabled; }
+  // Check if is time to emit a constant pool.
+  void CheckConstPool(bool force_emit, bool require_jump);
 
   // Allocate a constant pool of the correct size for the generated code.
   Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
@@ -1402,13 +1386,8 @@ class Assembler : public AssemblerBase {
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
   // number of call to EndBlockConstpool.
-  void StartBlockConstPool(int hint = 256) {
+  void StartBlockConstPool() {
     if (const_pool_blocked_nesting_++ == 0) {
-      // Check that the constant pool has to be emited before
-      // By default we block for 256 instructions (a near jump)
-      if (!emiting_const_pool_) {
-        CheckConstPool(false, true, true, hint);
-      }
       // Prevent constant pool checks happening by setting the next check to
       // the biggest possible offset.
       next_buffer_check_ = kMaxInt;
@@ -1505,9 +1484,6 @@ class Assembler : public AssemblerBase {
   int last_const_pool_use_;
 
   PositionsRecorder positions_recorder_;
-
-  // Transient impl helper
-  bool constant_pool_pool_;
 
   friend class PositionsRecorder;
   friend class MacroAssembler;

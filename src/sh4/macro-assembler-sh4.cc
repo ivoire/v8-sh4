@@ -6,7 +6,7 @@
 
 #include "v8.h"
 
-#if V8_TARGET_ARCH_SH4 // FILE, SAMEAS: arm, REVIEWEDBY: CF, CG
+#if V8_TARGET_ARCH_SH4 // FILE, SAMEAS: arm, REVIEWEDBY: RD, CG
 
 #include "bootstrapper.h"
 #include "codegen.h"
@@ -1308,6 +1308,40 @@ void MacroAssembler::JumpToHandlerEntry() { // REVIEWEDBY: CG
 }
 
 
+void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) { // REVIEWEDBY: CG
+  Usat(output_reg, 8, input_reg);
+}
+
+
+void MacroAssembler::ClampDoubleToUint8(Register result_reg, // REVIEWEDBY: CG
+                                        DwVfpRegister input_reg,
+                                        DwVfpRegister double_scratch) {
+  Label done;
+
+  // SH4: clamp first if > 255 or <= 0, else convert (truncation on SH4)
+
+  // Handle inputs > 255.0 (including +infinity).
+  Vmov(double_scratch, 255.0, result_reg);
+  mov(result_reg, Operand(255));
+  dcmpgt(input_reg, double_scratch); // DIFF: codegen
+  bt_near(&done); // DIFF: codegen
+
+  // Handle inputs <= 0.0 (including -infinity).
+  Vmov(double_scratch, 0.0, result_reg);
+  mov(result_reg, Operand(0));
+  dcmpgt(input_reg, double_scratch); // DIFF: codegen
+  bf_near(&done); // DIFF: codegen
+
+  // For inputs > 0.0 and <= 255.0, round to nearest int.
+  // Add 0.5 and truncate.
+  Vmov(double_scratch, 0.5, result_reg);
+  vadd(double_scratch, double_scratch, input_reg);
+  vcvt_s32_f64(result_reg, double_scratch);
+
+  bind(&done);
+}
+
+
 void MacroAssembler::Throw(Register value) { // REVIEWEDBY: CG
   ASSERT(!value.is(sh4_ip));
   ASSERT(!value.is(sh4_rtmp));
@@ -2299,9 +2333,9 @@ void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) { // REVIEWEDB
 }
 
 
-// static int AddressOffset(ExternalReference ref0, ExternalReference ref1) { // SH4: TODO
-//   return ref0.address() - ref1.address();
-// }
+static int AddressOffset(ExternalReference ref0, ExternalReference ref1) { // SH4: TODO
+  return ref0.address() - ref1.address();
+}
 
 
 void MacroAssembler::CallApiFunctionAndReturn( // SH4: TODO
@@ -2310,7 +2344,158 @@ void MacroAssembler::CallApiFunctionAndReturn( // SH4: TODO
     int stack_space,
     MemOperand return_value_operand,
     MemOperand* context_restore_operand) {
-  UNIMPLEMENTED();
+  ExternalReference next_address =
+      ExternalReference::handle_scope_next_address(isolate());
+  const int kNextOffset = 0;
+  const int kLimitOffset = AddressOffset(
+      ExternalReference::handle_scope_limit_address(isolate()),
+      next_address);
+  const int kLevelOffset = AddressOffset(
+      ExternalReference::handle_scope_level_address(isolate()),
+      next_address);
+
+  // ARM code does:
+  // - Pass arguments registers in r0,r1,r2 (no more than 3)
+  // - Compute and call function address through r3
+  // - Preserve some registers through: r4,r5,r6,r9
+  // - get result register r0
+  // SH4 code does:
+  // - Pass arguments registers in r4,r5,r6 (moved from r0,r1,r2)
+  // - Compute and call function address through r3
+  // - Preserve some registers through stack (will store r4,r5,r6,r9)
+  // - get result register r0
+
+  ASSERT(function_address.is(r1) || function_address.is(r2));
+
+  Label profiler_disabled;
+  Label end_profiler_check;
+  mov(r9, Operand(ExternalReference::is_profiling_address(isolate())));
+  ldrb(r9, MemOperand(r9, 0));
+  cmp(r9, Operand(0));
+  b(eq, &profiler_disabled);
+
+  // Additional parameter is the address of the actual callback.
+  mov(r3, Operand(thunk_ref));
+  jmp(&end_profiler_check);
+
+  bind(&profiler_disabled);
+  Move(r3, function_address);
+  bind(&end_profiler_check);
+
+  // Allocate HandleScope in callee-save registers.
+  mov(r9, Operand(next_address));
+  ldr(r4, MemOperand(r9, kNextOffset));
+  ldr(r5, MemOperand(r9, kLimitOffset));
+  ldr(r6, MemOperand(r9, kLevelOffset));
+  add(r6, r6, Operand(1));
+  str(r6, MemOperand(r9, kLevelOffset));
+
+  if (FLAG_log_timer_events) {
+    FrameScope frame(this, StackFrame::MANUAL);
+    PushSafepointRegisters();
+    PrepareCallCFunction(1, r0);
+    mov(sh4_r4/*r0*/, Operand(ExternalReference::isolate_address(isolate())));
+    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 1);
+    PopSafepointRegisters();
+  }
+
+  // SH4: Adapt calling convention ARM -> SH4 (entry)
+  //  Move ARM callee-saved prepared above into SH4 callee saved
+  //  ARM: r4, r5, r6, r9 -> SH4: r8, r10, r11, r9
+  // Note: r10 (ip) and r11 (rtmp) must not be cloberred from now on
+  // up to the return of DirectCEntryStub.GenerateCall() below.
+  mov(sh4_r8, r4);
+  mov(sh4_r10, r5);
+  mov(sh4_r11, r6);
+  mov(sh4_r9, r9);
+
+  //  Move ARM arguments to SH4 arguments (3 first only)
+  mov(sh4_r4, r0);
+  mov(sh4_r5, r1);
+  mov(sh4_r6, r2);
+
+  // Native call returns to the DirectCEntry stub which redirects to the
+  // return address pushed on stack (could have moved after GC).
+  // DirectCEntry stub itself is generated early and never moves.
+  DirectCEntryStub stub(isolate());
+  stub.GenerateCall(this, r3);
+
+  // SH4: Adapt calling convention SH4 -> ARM (exit)
+  //  Move back SH4 callee-saved into ARM calle saved
+  mov(r4, sh4_r8);
+  mov(r5, sh4_r10);
+  mov(r6, sh4_r11);
+  mov(r9, sh4_r9);
+
+  if (FLAG_log_timer_events) {
+    FrameScope frame(this, StackFrame::MANUAL);
+    PushSafepointRegisters();
+    PrepareCallCFunction(1, r0);
+    mov(sh4_r4/*r0*/, Operand(ExternalReference::isolate_address(isolate())));
+    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 1);
+    PopSafepointRegisters();
+  }
+
+  Label promote_scheduled_exception;
+  Label exception_handled;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
+  Label return_value_loaded;
+
+  // load value from ReturnValue
+  ldr(r0, return_value_operand);
+  bind(&return_value_loaded);
+  // No more valid handles (the result handle was the last one). Restore
+  // previous handle scope.
+  str(r4, MemOperand(r9, kNextOffset));
+  if (emit_debug_code()) {
+    ldr(r1, MemOperand(r9, kLevelOffset));
+    cmp(r1, r6);
+    Check(eq, kUnexpectedLevelAfterReturnFromApiCall);
+  }
+  sub(r6, r6, Operand(1));
+  str(r6, MemOperand(r9, kLevelOffset));
+  ldr(ip, MemOperand(r9, kLimitOffset));
+  cmp(r5, ip);
+  b(ne, &delete_allocated_handles);
+
+  // Check if the function scheduled an exception.
+  bind(&leave_exit_frame);
+  LoadRoot(r4, Heap::kTheHoleValueRootIndex);
+  mov(ip, Operand(ExternalReference::scheduled_exception_address(isolate())));
+  ldr(r5, MemOperand(ip));
+  cmp(r4, r5);
+  b(ne, &promote_scheduled_exception);
+  bind(&exception_handled);
+
+  bool restore_context = context_restore_operand != NULL;
+  if (restore_context) {
+    ldr(cp, *context_restore_operand);
+  }
+  // LeaveExitFrame expects unwind space to be in a register.
+  mov(r4, Operand(stack_space));
+  LeaveExitFrame(false, r4, !restore_context);
+  rts(); // DIFF: codegen
+
+  bind(&promote_scheduled_exception);
+  {
+    FrameScope frame(this, StackFrame::INTERNAL);
+    CallExternalReference(
+        ExternalReference(Runtime::kHiddenPromoteScheduledException, isolate()),
+        0);
+  }
+  jmp(&exception_handled);
+
+  // HandleScope limit has changed. Delete allocated extensions.
+  bind(&delete_allocated_handles);
+  str(r5, MemOperand(r9, kLimitOffset));
+  mov(sh4_r8/*r4*/, r0); // SH4: preserve return value in callee-saved r8
+  PrepareCallCFunction(1, r5);
+  mov(sh4_r4/*r0*/, Operand(ExternalReference::isolate_address(isolate())));
+  CallCFunction(
+      ExternalReference::delete_handle_scope_extensions(isolate()), 1);
+  mov(r0, sh4_r8/*r4*/); // SH4: restore return value
+  jmp(&leave_exit_frame);
 }
 
 
