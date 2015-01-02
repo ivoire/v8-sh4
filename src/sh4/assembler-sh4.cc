@@ -2077,13 +2077,35 @@ void Assembler::vcvt_s32_f64(Register dst,
                              VFPConversionMode mode,
                              Condition cond)
 {
-  // SH4: The unique conversion mode to integer is truncation (i.e. round to zero)
-  ASSERT(mode == kDefaultRoundToZero);
+  // SH4: support truncation (hardware) or round to nearest (emulated)
+  ASSERT(mode == kDefaultRoundToZero || mode == kFPSCRRounding);
   ASSERT(cond == al || cond == ne || cond ==  eq);
+  ASSERT(!src.is(kDoubleRegZero));
+
   Label skip;
   if (cond != al)
     b(cond == ne ? eq: ne, &skip, Label::kNear);
-  idouble(dst, src);
+  if (mode == kDefaultRoundToZero) {
+    idouble(dst, src);
+  } else if (mode == kFPSCRRounding) {
+    /* Round to nearest integer not implemented in hardware,
+       simulate it with trunc((x+2^52)-2^52) (for positives)
+       or trunc((x-2^52)+2^52) (for negatives). */
+    dcmpgt(kDoubleRegZero, src);
+    DwVfpRegister dscratch1 = kDoubleRegZero;
+    DwVfpRegister dscratch2 = src.is(sh4_dr0) ? sh4_dr2: sh4_dr0;
+    push(dscratch1);
+    push(dscratch2);
+    vmov(dscratch1, 4.50359962737049600000e+15/*2^52*/);
+    vneg(dscratch1, dscratch1, t); /* if 0.0 > src */
+    vadd(dscratch2, dscratch1, src);
+    vsub(dscratch2, dscratch2, dscratch1);
+    idouble(dst, dscratch2);
+    pop(dscratch2);
+    pop(dscratch1);
+  } else {
+    UNREACHABLE();
+  }
   if (cond != al)
     bind(&skip);
 }

@@ -1320,23 +1320,23 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg, // REVIEWEDBY: CG
 
   // SH4: clamp first if > 255 or <= 0, else convert (truncation on SH4)
 
-  // Handle inputs > 255.0 (including +infinity).
-  Vmov(double_scratch, 255.0, result_reg);
-  mov(result_reg, Operand(255));
-  dcmpgt(input_reg, double_scratch); // DIFF: codegen
-  bt_near(&done); // DIFF: codegen
-
   // Handle inputs <= 0.0 (including -infinity).
+  // Handle also NaN that will be converted to 0 as compare will always fail
+  // if input is NaN.
   Vmov(double_scratch, 0.0, result_reg);
   mov(result_reg, Operand(0));
   dcmpgt(input_reg, double_scratch); // DIFF: codegen
   bf_near(&done); // DIFF: codegen
 
-  // For inputs > 0.0 and <= 255.0, round to nearest int.
+  // Handle inputs >= 255.0 (including +infinity).
+  Vmov(double_scratch, 255.0, result_reg);
+  mov(result_reg, Operand(255));
+  dcmpgt(double_scratch, input_reg); // DIFF: codegen
+  bf_near(&done); // DIFF: codegen
+
+  // For inputs > 0.0 and < 255.0, round to nearest int.
   // Add 0.5 and truncate.
-  Vmov(double_scratch, 0.5, result_reg);
-  vadd(double_scratch, double_scratch, input_reg);
-  vcvt_s32_f64(result_reg, double_scratch);
+  vcvt_s32_f64(result_reg, input_reg, kFPSCRRounding);
 
   bind(&done);
 }

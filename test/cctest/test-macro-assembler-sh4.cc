@@ -995,9 +995,9 @@ TEST(sh4_ma_7b) {
   __ cmp(r1, r0);
   B_LINE(ne, &error);
 
-  CMT("Check ClampDoubleToUint8(0.5) -> 1");
+  CMT("Check ClampDoubleToUint8(0.5) -> 0");
   DoubleAsTwoUInt32(0.5, &low, &high);
-  __ mov(r0, Operand(1));
+  __ mov(r0, Operand(0));
   __ mov(r1, Operand(low));
   __ mov(r2, Operand(high));
   __ movd(sh4_dr0, r1, r2);
@@ -1008,6 +1008,16 @@ TEST(sh4_ma_7b) {
   CMT("Check ClampDoubleToUint8(0.4) -> 0");
   DoubleAsTwoUInt32(0.4, &low, &high);
   __ mov(r0, Operand(0));
+  __ mov(r1, Operand(low));
+  __ mov(r2, Operand(high));
+  __ movd(sh4_dr0, r1, r2);
+  __ ClampDoubleToUint8(r1, sh4_dr0, sh4_dr2/*scratch*/);
+  __ cmp(r1, r0);
+  B_LINE(ne, &error);
+
+  CMT("Check ClampDoubleToUint8(1.5) -> 2");
+  DoubleAsTwoUInt32(1.5, &low, &high);
+  __ mov(r0, Operand(2));
   __ mov(r1, Operand(low));
   __ mov(r2, Operand(high));
   __ movd(sh4_dr0, r1, r2);
