@@ -1859,13 +1859,7 @@
     {
       int n = (iword >> 8) & 0xf;
       {
-          union
-          {
-            int i;
-            float f;
-          } u;
-          u.f = get_fregister(n);
-          set_sregister(fpul, u.i);
+          set_sregister(fpul, get_fregister(n));
       }
       break;
     }
@@ -2016,13 +2010,7 @@
     {
       int n = (iword >> 8) & 0xf;
       {
-          union
-          {
-            int i;
-            float f;
-          } u;
-          u.i = get_sregister(fpul);
-          set_fregister(n, u.f);
+          set_fregister(n, get_sregister(fpul));
       }
       break;
     }

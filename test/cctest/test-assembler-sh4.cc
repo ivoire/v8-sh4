@@ -2090,6 +2090,44 @@ TEST(33) {
 }
 
 
+TEST(34) {
+  BEGIN();
+
+  Label error;
+  PROLOGUE();
+
+  // Check double -> float conversions
+  // Check (double)(float)(double)123.0 == (double)123.0
+  __ fcnvds(fr0, sh4_dr4);
+  __ fcnvsd(sh4_dr2, fr0);
+  __ dcmpeq(sh4_dr2, sh4_dr4);
+  B_LINE(f, &error);
+
+  // All ok
+  __ mov(r0, Operand(0));
+  EPILOGUE();
+  __ rts();
+
+  __ bind(&error);
+  __ mov(r0, r10);
+  EPILOGUE();
+  __ rts();
+
+  JIT();
+#ifdef DEBUG
+  code->Print();
+#endif
+
+  F5 f = FUNCTION_CAST<F5>(code->entry());
+#if defined(USE_SIMULATOR)
+  int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 123.0, 0.0));
+#else
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123.0, 0.0));
+#endif
+  CHECK_EQ(0, res);
+}
+
+
 // These test case are taken from the arm ones
 TEST(from_arm_2) {
   BEGIN();
