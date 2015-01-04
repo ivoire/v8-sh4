@@ -758,6 +758,8 @@ void MacroAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst, // REVIEWEDBY: 
   RECORD_LINE();
   Label not_a_nan;
   dcmpeq(src, src);
+  if (src.code() != dst.code())
+    vmov(dst, src);
   bt_near(&not_a_nan);
   // We have a NaN, replace by the canonical NaN value
   vmov(dst, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
