@@ -106,7 +106,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble( // REVIEWEDBY: CG
   __ CompareRoot(r4, Heap::kEmptyFixedArrayRootIndex);
   __ b(eq, &only_change_map);
 
-  __ push(r7/*lr*/); // SH4: use r7 instead of lr. // DIFF: codegen
+  // SH4: use r7 instead of lr.
+  // Push also lr as it is expected in RecordWriteField() below.
+  __ Push(lr, r7); // DIFF: codegen
   __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
   // r5: number of elements (smi-tagged)
 
@@ -175,7 +177,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble( // REVIEWEDBY: CG
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ pop(r7/*lr*/); // DIFF: codegen
+  __ Pop(lr, r7); // DIFF: codegen
   __ b(fail);
 
   // Convert and copy elements.
@@ -206,7 +208,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble( // REVIEWEDBY: CG
   __ cmpge(r9, r6); // DIFF: codegen
   __ b(f, &loop); // DIFF: codegen
 
-  __ pop(r7/*lr*/); // DIFF: codegen
+  __ Pop(lr, r7); // DIFF: codegen
   __ bind(&done);
 }
 
@@ -233,7 +235,9 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // REVIEWEDBY: CG
   __ CompareRoot(r4, Heap::kEmptyFixedArrayRootIndex);
   __ b(eq, &only_change_map);
 
-  __ push(r7/*lr*/); // SH4: use r7 instead of lr. // DIFF: codegen
+  // SH4: use r7 instead of lr.
+  // Push also lr as it is expected in RecordWriteField() below.
+  __ Push(lr, r7); // DIFF: codegen
   __ Push(r3, r2, r1, r0);
   __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
   // r4: source FixedDoubleArray
@@ -254,7 +258,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // REVIEWEDBY: CG
   __ add(r4, r4, Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
   __ add(r3, r6, Operand(FixedArray::kHeaderSize));
   __ add(r6, r6, Operand(kHeapObjectTag));
-  __ lsl(r5, r5, Operand(1)); // r5 available as scratch // DIFF: codegen
+  __ lsl(r5, r5, Operand(1)); // DIFF: codegen
   __ add(r5, r3, r5); // DIFF: codegen
   __ LoadRoot(r9, Heap::kHeapNumberMapRootIndex);
   // Using offsetted addresses in r4 to fully take advantage of post-indexing.
@@ -268,7 +272,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // REVIEWEDBY: CG
   // Call into runtime if GC is required.
   __ bind(&gc_required);
   __ Pop(r3, r2, r1, r0);
-  __ pop(r7/*lr*/); // DIFF: codegen
+  __ Pop(lr, r7); // DIFF: codegen
   __ b(fail);
 
   __ bind(&loop);
@@ -314,7 +318,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject( // REVIEWEDBY: CG
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  __ pop(r7/*lr*/); // DIFF: codegen
+  __ Pop(lr, r7); // DIFF: codegen
 
   __ bind(&only_change_map);
   // Update receiver's map.

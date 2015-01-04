@@ -1108,14 +1108,15 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm, // REVIEWEDBY: CG
   // r1: key.
   // r2: receiver.
   GenerateRuntimeSetProperty(masm, strict_mode);
+  // Never returns here
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
   // element to the array by writing to array[array.length].
   __ bind(&extra);
   // Condition code from comparing key and array length is still available.
-  // SH4: reload length and redo the comparison
-  __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset)); // DIFF: codegen
+  // SH4: reload length and redo the comparison (see below)
+  __ ldr(ip, FieldMemOperand(receiver, JSArray::kLengthOffset)); // DIFF: codegen
   __ cmpeq(key, ip); // DIFF: codegen
   __ bf(&slow);  // Only support writing to writing to array[array.length].
   // Check for room in the elements backing store.
@@ -1271,7 +1272,7 @@ bool CompareIC::HasInlinedSmiCode(Address address) { // REVIEWEDBY: CG
 }
 
 
-void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
+void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) { // REVIEWEDBY: CG
   Address cmp_instruction_address =
       Assembler::return_address_from_call_start(address);
 
