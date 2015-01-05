@@ -55,5 +55,8 @@
 ['arch == sh4', {
   # SH4: tests that are too slow with no-ic.
   'dfg-int-overflow-in-loop': [SKIP],
+
+  # SH4: tests that do not pass with interpreted regexps
+  'fast/js/regexp-stack-overflow': [SKIP],
 }],  # 'arch == sh4'
 ]
