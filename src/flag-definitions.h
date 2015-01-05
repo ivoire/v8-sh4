@@ -610,9 +610,17 @@ DEFINE_bool(stack_trace_on_illegal, false,
             "print stack trace when an illegal exception is thrown")
 DEFINE_bool(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
+#ifdef V8_TARGET_ARCH_SH4
+// SH4: there is an undetermined issue with hash randomization, disabled.
+// Observed in release+snapshot mode in: mjsunit/array-functions-prototype-misc
+DEFINE_bool(randomize_hashes, false,
+            "randomize hashes to avoid predictable hash collisions "
+            "(with snapshots this option cannot override the baked-in seed)")
+#else
 DEFINE_bool(randomize_hashes, true,
             "randomize hashes to avoid predictable hash collisions "
             "(with snapshots this option cannot override the baked-in seed)")
+#endif
 DEFINE_int(hash_seed, 0,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
