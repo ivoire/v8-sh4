@@ -30,11 +30,4 @@
 [ALWAYS, {
   'octane/mandreel': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
-
-['arch == sh4', {
-  # SH4: tests that are too slow with no-ic.
-  'kraken/imaging-gaussian-blur': [SKIP],
-  'octane/mandreel': [SKIP],
-  'octane/zlib': [SKIP],
-}],  # 'arch == sh4'
 ]
