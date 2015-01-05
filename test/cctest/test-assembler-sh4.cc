@@ -2122,7 +2122,7 @@ TEST(34) {
 #if defined(USE_SIMULATOR)
   int res = reinterpret_cast<int>(CALL_GENERATED_FPU_CODE(f, 123.0, 0.0));
 #else
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123.0, 0.0));
+  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 123.0, 0.0, 0, 0, 0));
 #endif
   CHECK_EQ(0, res);
 }
