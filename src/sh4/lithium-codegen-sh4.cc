@@ -1197,6 +1197,9 @@ void LCodeGen::DoModI(LModI* instr) { // REVIEWEDBY: CG
     DwVfpRegister quotient = double_scratch0();
     ASSERT(!quotient.is(dividend));
     ASSERT(!quotient.is(divisor));
+    // SH4: enforce that right_reg/left_reg do not alias result_reg
+    ASSERT(!result_reg.is(right_reg));
+    ASSERT(!result_reg.is(left_reg));
 
     Label done;
     // Check for x % 0, we have to deopt in this case because we can't return a
@@ -1205,6 +1208,7 @@ void LCodeGen::DoModI(LModI* instr) { // REVIEWEDBY: CG
       __ cmp(right_reg, Operand::Zero());
       DeoptimizeIf(eq, instr->environment());
     }
+
 
     __ Move(result_reg, left_reg);
     // Load the arguments in VFP registers. The divisor value is preloaded
@@ -1321,6 +1325,10 @@ void LCodeGen::DoDivI(LDivI* instr) { // REVIEWEDBY: CG
   Register dividend = ToRegister(instr->dividend());
   Register divisor = ToRegister(instr->divisor());
   Register result = ToRegister(instr->result());
+
+  // SH4: enforce that dividend/divisor do not alias result
+  ASSERT(!result.is(dividend));
+  ASSERT(!result.is(divisor));
 
   // Check for x / 0.
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
@@ -1456,14 +1464,16 @@ void LCodeGen::DoMulI(LMulI* instr) { // REVIEWEDBY: CG
           if (constant < 0)  __ rsb(result, result, Operand::Zero());
         } else if (IsPowerOf2(constant_abs - 1)) {
           int32_t shift = WhichPowerOf2(constant_abs - 1);
-          __ lsl(result, left, Operand(shift)); // DIFF: codegen
-          __ add(result, left, result); // DIFF: codegen
+          // SH4: warning left and result may alias, use ip as temporary
+          __ lsl(ip, left, Operand(shift)); // DIFF: codegen
+          __ add(result, left, ip); // DIFF: codegen
           // Correct the sign of the result is the constant is negative.
           if (constant < 0)  __ rsb(result, result, Operand::Zero());
         } else if (IsPowerOf2(constant_abs + 1)) {
           int32_t shift = WhichPowerOf2(constant_abs + 1);
-          __ lsl(result, left, Operand(shift)); // DIFF: codegen
-          __ rsb(result, left, result); // DIFF: codegen
+          // SH4: warning left and result may alias, use ip as temporary
+          __ lsl(ip, left, Operand(shift)); // DIFF: codegen
+          __ rsb(result, left, ip); // DIFF: codegen
           // Correct the sign of the result is the constant is negative.
           if (constant < 0)  __ rsb(result, result, Operand::Zero());
         } else {
@@ -1557,7 +1567,8 @@ void LCodeGen::DoShiftI(LShiftI* instr) { // REVIEWEDBY: CG
   Register left = ToRegister(instr->left());
   Register result = ToRegister(instr->result());
   Register scratch = scratch0();
-  Register scratch2 = ToRegister(instr->temp1()); // DIFF: codegen
+  // SH4: warning left, right and result may alias, use ip as scratch2
+  Register scratch2 = ip;
   Label skip;
 
   if (right_op->IsRegister()) {
@@ -1567,6 +1578,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) { // REVIEWEDBY: CG
       case Token::ROR:
         // SH4: ROR not available, use lsr/lsl and an additional scratch
         // SH4: if 0, skip to avoid the undefined: left << (32-0) case
+        // SH4: warning left and result may alias
         __ mov(result, left); // DIFF: codegen
         __ cmp(scratch, Operand(0)); // DIFF: codegen
         __ bt_near(&skip);
@@ -1603,6 +1615,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) { // REVIEWEDBY: CG
       case Token::ROR:
         if (shift_count != 0) {
           // SH4: ROR not available, use lsr/lsl
+          // SH4: warning left and result may alias
           __ lsr(scratch, left, Operand(shift_count)); // DIFF: codegen
           __ lsl(result, left, Operand(32 - shift_count)); // DIFF: codegen
           __ lor(result, result, scratch); // Diff: codegen

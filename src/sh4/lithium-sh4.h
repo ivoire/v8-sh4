@@ -1274,20 +1274,17 @@ class LBitI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LShiftI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
+class LShiftI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LShiftI(Token::Value op, LOperand* left, LOperand* right,
-          LOperand *temp1, bool can_deopt) // DIFF: codegen
+  LShiftI(Token::Value op, LOperand* left, LOperand* right, bool can_deopt)
       : op_(op), can_deopt_(can_deopt) {
     inputs_[0] = left;
     inputs_[1] = right;
-    temps_[0] = temp1;
   }
 
   Token::Value op() const { return op_; }
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
-  LOperand* temp1() { return temps_[0]; }
   bool can_deopt() const { return can_deopt_; }
 
   DECLARE_CONCRETE_INSTRUCTION(ShiftI, "shift-i")

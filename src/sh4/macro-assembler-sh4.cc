@@ -2070,7 +2070,7 @@ void MacroAssembler::CompareObjectType(Register object, // REVIEWEDBY: CG
 }
 
 
-  void MacroAssembler::CompareInstanceType(Register map, // REVIEWEDBY: CG
+void MacroAssembler::CompareInstanceType(Register map, // REVIEWEDBY: CG
                                          Register type_reg,
                                          InstanceType type,
                                          Condition cond) {
