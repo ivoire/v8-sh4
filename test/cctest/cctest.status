@@ -217,14 +217,6 @@
   'test-heap/TestSizeOfObjects': [SKIP],
 
   # SH4 currently built with use_ic == false in flag-definitions, skip
-  # tests that rely on use_ic
-  'test-api/PrimaryStubCache': [SKIP],
-  'test-api/SecondaryStubCache': [SKIP],
-  'test-heap/IncrementalMarkingPreservesMonomorphicIC': [SKIP],
-  'test-heap/IncrementalMarkingClearsMonomorphicIC': [SKIP],
-  'test-heap/IncrementalMarkingClearsPolymorphicIC': [SKIP],
-
-  # SH4 currently built with use_ic == false in flag-definitions, skip
   # tests that may timeout due to unsufficiently optimized code.
   # Actually these tests just run other tests, hence there is no
   # strong reason to always run them
@@ -233,7 +225,6 @@
   'test-api/Threading2': [SKIP],
   'test-api/Threading3': [SKIP],
   'test-api/Threading4': [SKIP],
-  'test-debug/DebugBreakLoop': [SKIP],
 
 }],  # 'arch == sh4'
 
