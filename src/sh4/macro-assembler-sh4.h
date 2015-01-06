@@ -384,15 +384,12 @@ class MacroAssembler: public Assembler {
   // In VFP2 it will be either the Canonical NaN or the negative version
   // of the Canonical NaN. It doesn't matter if we have two values. The aim
   // is to be sure to never generate the hole NaN.
-  // TODO(stm): SH4. Check the behavior of SH4 there: No-op for now
   void VFPEnsureFPSCRState(Register scratch);
 
   // If the value is a NaN, canonicalize the value else, do nothing.
-  // TODO(stm): SH4. Check the behavior of SH4 there: No-op for now
   void VFPCanonicalizeNaN(const DwVfpRegister dst,
                           const DwVfpRegister src,
                           const Condition cond = al);
-  // TODO(stm): SH4. Check the behavior of SH4 there: No-op for now
   void VFPCanonicalizeNaN(const DwVfpRegister value,
                           const Condition cond = al) {
     VFPCanonicalizeNaN(value, value, cond);
@@ -1311,7 +1308,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Activation support.
-  void EnterFrame(StackFrame::Type type);
+  void EnterFrame(StackFrame::Type type, bool load_constant_pool = false);
   int LeaveFrame(StackFrame::Type type);
 
   // Expects object in r0 and returns map with validated enum cache
@@ -1388,6 +1385,9 @@ class MacroAssembler: public Assembler {
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
 
+  // Loads the constant pool pointer (pp) register.
+  void LoadConstantPoolPointerRegister();
+
   bool generating_stub_;
   bool allow_stub_calls_;
   bool has_frame_;
@@ -1435,6 +1435,71 @@ class CodePatcher {
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
   FlushICache flush_cache_;  // Whether to flush the I cache after patching.
+};
+
+
+class FrameAndConstantPoolScope {
+ public:
+  FrameAndConstantPoolScope(MacroAssembler* masm, StackFrame::Type type)
+      : masm_(masm),
+        type_(type),
+        old_has_frame_(masm->has_frame()),
+        old_constant_pool_available_(masm->is_constant_pool_available())  {
+    // We only want to enable constant pool access for non-manual frame scopes
+    // to ensure the constant pool pointer is valid throughout the scope.
+    ASSERT(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
+    masm->set_has_frame(true);
+    masm->set_constant_pool_available(true);
+    masm->EnterFrame(type, !old_constant_pool_available_);
+  }
+
+  ~FrameAndConstantPoolScope() {
+    masm_->LeaveFrame(type_);
+    masm_->set_has_frame(old_has_frame_);
+    masm_->set_constant_pool_available(old_constant_pool_available_);
+  }
+
+  // Normally we generate the leave-frame code when this object goes
+  // out of scope.  Sometimes we may need to generate the code somewhere else
+  // in addition.  Calling this will achieve that, but the object stays in
+  // scope, the MacroAssembler is still marked as being in a frame scope, and
+  // the code will be generated again when it goes out of scope.
+  void GenerateLeaveFrame() {
+    ASSERT(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
+    masm_->LeaveFrame(type_);
+  }
+
+ private:
+  MacroAssembler* masm_;
+  StackFrame::Type type_;
+  bool old_has_frame_;
+  bool old_constant_pool_available_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FrameAndConstantPoolScope);
+};
+
+
+// Class for scoping the unavailability of constant pool access.
+class ConstantPoolUnavailableScope {
+ public:
+  explicit ConstantPoolUnavailableScope(MacroAssembler* masm)
+     : masm_(masm),
+       old_constant_pool_available_(masm->is_constant_pool_available()) {
+    if (FLAG_enable_ool_constant_pool) {
+      masm_->set_constant_pool_available(false);
+    }
+  }
+  ~ConstantPoolUnavailableScope() {
+    if (FLAG_enable_ool_constant_pool) {
+     masm_->set_constant_pool_available(old_constant_pool_available_);
+    }
+  }
+
+ private:
+  MacroAssembler* masm_;
+  int old_constant_pool_available_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantPoolUnavailableScope);
 };
 
 

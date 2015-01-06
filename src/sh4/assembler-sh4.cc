@@ -616,7 +616,6 @@ void Assembler::asr(Register Rd, Register Rs, const Operand& imm,
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
   // Note that we do not want to modify the T bit, hence shar is prohibited for >> 1
-  // TODO(stm): may add a specific interface for >>1 that sets the T bit
   ASSERT(!Rs.is(rtmp) && !Rd.is(rtmp));
   mov_imm_(-imm.imm32_, rtmp);
   shad_(rtmp, Rd);
@@ -677,7 +676,6 @@ void Assembler::lsr(Register Rd, Register Rs, const Operand& imm,
   if (Rs.code() != Rd.code())
     mov_(Rs, Rd);
   // Note that we do not want to modify the T bit, hence shlr is prohibited for >> 1
-  // TODO(stm): may add a specific interface for >>1 that sets the T bit
   if (imm.imm32_ == 2) {
     shlr2_(Rd);
   } else {
@@ -1022,8 +1020,6 @@ void Assembler::jsr(Register Rd, Condition cond) {
 void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   positions_recorder()->WriteRecordedPositions(); // Record position of a jmp to code
-  // TODO(stm): make a faster sequence where the constant pool is
-  // after the branch
   mov(rtmp, Operand(reinterpret_cast<intptr_t>(code.location()), rmode));
   jmp_indRd_(rtmp);
   nop_();
@@ -2116,8 +2112,7 @@ void Assembler::vcvt_f64_f32(DwVfpRegister dst,
                              VFPConversionMode mode,
                              Condition cond)
 {
-  // SH4: Conversion to double is with no loss of precision.
-  ASSERT(mode == kDefaultRoundToZero);
+  // SH4: the conversion from 32 bits float is always exact, ignore the conversion mode
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;
   if (cond != al)
@@ -2133,9 +2128,10 @@ void Assembler::vcvt_f32_f64(SwVfpRegister dst,
                              VFPConversionMode mode,
                              Condition cond)
 {
-  // SH4: TODO(stm) Default conversion is round to nearest even
-  // though the default in this implementation is round to zero.
+  // SH4: TODO: sh4 default conversion is round to nearest even
+  // though the default in this interface is round to zero.
   // May have to change the FPSCR flags setting.
+  // Keep mode check as ARM code always use round to zero.
   ASSERT(mode == kDefaultRoundToZero);
   ASSERT(cond == al || cond == ne || cond ==  eq);
   Label skip;

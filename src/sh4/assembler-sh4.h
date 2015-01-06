@@ -285,10 +285,17 @@ struct SwVfpRegister {
 // Double word VFP register.
 struct DwVfpRegister {
   static const int kMaxNumRegisters = 8; // SH4: 8 doubles only (we use only FPU bank 0)
-  static const int kMaxNumAllocatableRegisters = 14;  // TODO(ivoire): see src/lithium-allocator.cc:1788 !
-
+  // A few double registers are reserved: one as a scratch register and one to
+  // hold 0.0, that does not fit in the immediate field of vmov instructions.
+  //  sh4_dr12: 0.0
+  //  sh4_dr14: scratch register.
   static const int kNumReservedRegisters = 2;
+  // SH4: have to fake this value as it must be >= than normal register max allocatables
+  // (see src/lithium-allocator.cc:1776 !), assume 16 (instead of 8) - kNumReservedRegisters
+  static const int kMaxNumAllocatableRegisters = 16 -
+    kNumReservedRegisters;
   static const int kSizeInBytes = 8;
+
   // Note: the number of registers can be different at snapshot and run-time.
   // Any code included in the snapshot must be able to run both with 16 or 32
   // registers.
@@ -1415,6 +1422,14 @@ class Assembler : public AssemblerBase {
            (pc_offset() < no_const_pool_before_);
   }
 
+  bool is_constant_pool_available() const {
+    return constant_pool_available_;
+  }
+
+  void set_constant_pool_available(bool available) {
+    constant_pool_available_ = available;
+  }
+
  private:
   // code generation wrappers
   void branch_local(Label* L, Register rtmp, branch_type type, Label::Distance distance = Label::kFar);
@@ -1425,6 +1440,13 @@ class Assembler : public AssemblerBase {
 
   void writeBranchTag(int nop_count, branch_type type);
   void patchBranchOffset(int fixup_pos, uint16_t *p_pos, int is_near_linked);
+
+  // Indicates whether the constant pool can be accessed, which is only possible
+  // if the pp register points to the current code object's constant pool.
+  bool constant_pool_available_;
+  // Indicates whether the constant pool is too full to accept new entries due
+  // to the ldr instruction's limitted immediate offset range.
+  bool constant_pool_full_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
@@ -1439,10 +1461,6 @@ class Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   void RecordRelocInfo_pool(RelocInfo::Mode rmode, intptr_t data = 0);
 
-  friend class CodePatcher;
-  friend class EnsureSpace;
-  friend class BlockConstPoolScope;
-
   int next_buffer_check_;  // pc offset of next buffer check
 
   // code generation
@@ -1455,7 +1473,7 @@ class Assembler : public AssemblerBase {
   RelocInfoWriter reloc_info_writer;
 
   // These were taken verbatim from ARM
-  // TODO: find the right interval
+  // TODO: SH4: constant pool: find the right interval
   static const int kCheckPoolIntervalInst = 32;
   static const int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
 
@@ -1483,13 +1501,17 @@ class Assembler : public AssemblerBase {
   int first_const_pool_use_;
   int last_const_pool_use_;
 
+  friend class RelocInfo;
+  friend class CodePatcher;
+  friend class BlockConstPoolScope;
+  friend class FrameAndConstantPoolScope;
+  friend class ConstantPoolUnavailableScope;
+
   PositionsRecorder positions_recorder_;
-
   friend class PositionsRecorder;
-  friend class MacroAssembler;
+  friend class EnsureSpace;
 
-  // ---------------------------------------------------------------------------
-  // low level code generation (opcodes)
+  // SH4: low level code generation (opcodes)
   #include "opcodes-sh4.h"
 };
 

@@ -298,7 +298,7 @@ void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
   Generate_DebugBreakCallHelper(masm, 0, 0);
 }
 
-  void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) { // REVIEWEDBY: CG
+void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) { // REVIEWEDBY: CG
     masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnSh4); // DIFF: codegen
 }
 

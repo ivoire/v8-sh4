@@ -4,7 +4,7 @@
 
 #include "v8.h"
 
-#if V8_TARGET_ARCH_SH4
+#if V8_TARGET_ARCH_SH4 // SH4: TODO: review/implement JIT regexp
 
 #include "cpu-profiler.h"
 #include "unicode.h"

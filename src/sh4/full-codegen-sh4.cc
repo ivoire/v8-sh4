@@ -434,7 +434,7 @@ void FullCodeGenerator::EmitReturnSequence() { // REVIEWEDBY: CG
                    Max(1, distance / kCodeSizeMultiplier));
     }
     EmitProfilingCounterDecrement(weight);
-    Label ok; // TODO: SH4: check Emit ProfilingCounterDecrement
+    Label ok;
     __ bt(&ok); // Branch if >= 0 // DIFF: codegen, ref EmitProfilingCounterDecrement()
     __ push(r0);
     __ Call(isolate()->builtins()->InterruptCheck(),

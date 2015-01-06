@@ -1129,7 +1129,7 @@ void LoadStubCompiler::GenerateLoadInterceptor( // REVIEWEDBY: CG
     // Save necessary data before invoking an interceptor.
     // Requires a frame to make GC aware of pushed pointers.
     {
-      FrameScope frame_scope(masm(), StackFrame::INTERNAL);
+      FrameAndConstantPoolScope frame_scope(masm(), StackFrame::INTERNAL);
       if (must_preserve_receiver_reg) {
         __ Push(receiver(), holder_reg, this->name());
       } else {
@@ -1216,7 +1216,7 @@ void StoreStubCompiler::GenerateStoreViaSetter( // REVIEWEDBY: CG
   //  -- lr    : return address
   // -----------------------------------
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
     // Save value register, so we can restore it later.
     __ push(value());
@@ -1331,7 +1331,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm, // REVIEWEDBY
   //  -- lr    : return address
   // -----------------------------------
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
     if (!getter.is_null()) {
       // Call the JavaScript getter with the receiver on the stack.

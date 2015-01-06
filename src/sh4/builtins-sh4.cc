@@ -239,7 +239,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) { // REVIEWEDB
   __ push(function);  // Preserve the function.
   __ IncrementCounter(counters->string_ctor_conversions(), 1, r3, r4);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     __ push(r0);
     __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
   }
@@ -259,7 +259,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) { // REVIEWEDB
   __ bind(&gc_required);
   __ IncrementCounter(counters->string_ctor_gc_required(), 1, r3, r4);
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     __ push(argument);
     __ CallRuntime(Runtime::kNewStringWrapper, 1);
   }
@@ -269,7 +269,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) { // REVIEWEDB
 
 static void CallRuntimePassFunction( // REVIEWEDBY: CG
     MacroAssembler* masm, Runtime::FunctionId function_id) {
-  FrameScope scope(masm, StackFrame::INTERNAL);
+  FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
   __ push(r1);
   // Push function as parameter to the runtime call.
@@ -339,7 +339,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm, // REVIEWEDBY: 
 
   // Enter a construct frame.
   {
-    FrameScope scope(masm, StackFrame::CONSTRUCT);
+    FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
 
     if (create_memento) {
       __ AssertUndefinedOrAllocationSite(r2, r3);
@@ -829,7 +829,7 @@ void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
 
 
 static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) { // REVIEWEDBY: CG
-  FrameScope scope(masm, StackFrame::INTERNAL);
+  FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
   __ push(r1);
   // Push function as parameter to the runtime call.
@@ -954,7 +954,7 @@ void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
 static void Generate_NotifyStubFailureHelper(MacroAssembler* masm, // REVIEWEDBY: CG
                                              SaveFPRegsMode save_doubles) {
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
     // Preserve registers across notification, this is important for compiled
     // stubs that tail call the runtime on deopts passing their parameters in
@@ -983,7 +983,7 @@ void Builtins::Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm) {
 static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm, // REVIEWEDBY: CG
                                              Deoptimizer::BailoutType type) {
   {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     // Pass the function and deoptimization type to the runtime system.
     __ mov(r0, Operand(Smi::FromInt(static_cast<int>(type))));
     __ push(r0);
@@ -1103,7 +1103,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) { // REVIEWEDBY: CG
 
     {
       // Enter an internal frame in order to preserve argument count.
-      FrameScope scope(masm, StackFrame::INTERNAL); // SH4: TODO: FrameAndConstantPoolScope
+      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
       __ SmiTag(r0);
       __ push(r0);
 
@@ -1234,7 +1234,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) { // REVIEWEDBY: CG
   const int kFunctionOffset = 4 * kPointerSize;
 
   {
-    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    FrameAndConstantPoolScope frame_scope(masm, StackFrame::INTERNAL);
 
     __ ldr(r0, MemOperand(fp, kFunctionOffset));  // get the function
     __ push(r0);
