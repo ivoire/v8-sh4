@@ -229,6 +229,20 @@
 }],  # 'arch == sh4'
 
 ['arch == sh4 and simulator_run == False', {
+  # Skip locking test that make the crashes the board
+  'test-lockers/KangarooIsolates': [SKIP],
+  'test-lockers/IsolateLockingStress': [SKIP],
+  'test-lockers/MultithreadedParallelIsolates': [SKIP],
+  'test-lockers/IsolateNestedLocking': [SKIP],
+  'test-lockers/SeparateIsolatesLocksNonexclusive': [SKIP],
+  'test-lockers/LockerUnlocker': [SKIP],
+  'test-lockers/LockTwiceAndUnlock': [SKIP],
+  'test-lockers/LockAndUnlockDifferentIsolates': [SKIP],
+  'test-lockers/LockUnlockLockMultithreaded': [SKIP],
+  'test-lockers/LockUnlockLockDefaultIsolateMultithreaded': [SKIP],
+  'test-lockers/Regress1433': [SKIP],
+  'test-lockers/ExtensionsRegistration': [SKIP],
+
   # Skip test that uses to much RAM for the board
   'test-strings/StringOOMNewStringFromAscii': [SKIP],
   'test-strings/StringOOMNewStringFromUtf8': [SKIP],
