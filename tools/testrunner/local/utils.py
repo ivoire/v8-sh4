@@ -92,6 +92,8 @@ def DefaultArch():
   machine = machine.lower()  # Windows 7 capitalizes 'AMD64'.
   if machine.startswith('arm'):
     return 'arm'
+  elif machine.startswith('sh4'):
+    return 'sh4'
   elif (not machine) or (not re.match('(x|i[3-6])86$', machine) is None):
     return 'ia32'
   elif machine == 'i86pc':
