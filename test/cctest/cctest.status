@@ -243,6 +243,11 @@
   'test-lockers/Regress1433': [SKIP],
   'test-lockers/ExtensionsRegistration': [SKIP],
 
+  # Skip this test that try to allocate too much memory. In release memory is
+  # left untouch so the kernel does not need to copy it. In debug mode, the
+  # memory is filled with garbbage, leading to a physical allocation.
+  'test-spaces/LargeObjectSpace': [PASS, ['mode == debug', SKIP]],
+
   # Skip test that uses to much RAM for the board
   'test-strings/StringOOMNewStringFromAscii': [SKIP],
   'test-strings/StringOOMNewStringFromUtf8': [SKIP],
