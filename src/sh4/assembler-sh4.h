@@ -741,8 +741,6 @@ class Assembler : public AssemblerBase {
     return kOldStyleCallTargetAddressOffsetWithoutAlignment + misaligned;
   }
 
-  static int ResolveCallTargetAddressOffset(byte *address);
-
   // Distance between the instruction referring to the address of the call
   // target and the return address.
   // SH4: obsolete with constant pools, use GetCallTargetAddressOffset().
@@ -1335,6 +1333,11 @@ class Assembler : public AssemblerBase {
 
   // Link and jump at the aligned adress just following this instruction.
   void jsr_at_following_address(Register rtmp = sh4_rtmp);
+
+  // Generate special sequence for breakpoint function calls.
+  // The sequence must be of fixed size and may depend on the
+  // alignment of the patched location.
+  void jsr_at_breakpoint(uint32_t patch_location, uint32_t call_target, Register rtmp = sh4_rtmp);
 
   // Return in Rd the value of pc_after + offset.
   // Where pc_after is the pc after this operation.

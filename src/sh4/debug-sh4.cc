@@ -29,23 +29,24 @@ void BreakLocationIterator::SetDebugBreakAtReturn() { // REVIEWEDBY: CG
   //   nop
   //   ...
   //   nop (padding nops)
-  // to a call to the debug break at return code through a standard call sequence:
+  // to a call to the breakpoint function through a slightly modified call sequence
   // mov(ip, address)
+  // ...
   // jsr(ip)
+  // of fixed length whatever the initial alignment.
   //
   // Note that actually this sequence is the same than the ::SetDebugBreakAtSlot()
-  // and the FullGenerator::CallIC() such that the offsets from the return address
-  // is the same for the three case.
+  // such that the offsets from the return address is the same for the two cases.
+  //
+  uint32_t call_target = reinterpret_cast<uint32_t>(debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry());
+  uint32_t patch_location = reinterpret_cast<uint32_t>(rinfo()->pc());
   CodePatcher patcher(rinfo()->pc(), Assembler::kJSReturnSequenceInstructions);
-  ASSERT((uintptr_t)rinfo()->pc() % 4 == 0); // Must be aligned: ref RecordJSReturn()
-  patcher.masm()->mov(ip,
-                      Operand(reinterpret_cast<int32_t>(debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry()))); // Pass as int32_t to avoid emittion of relocation
-  patcher.masm()->jsr(ip);
-  ASSERT(patcher.masm()->pc_offset() - Assembler::kPatchDebugBreakSlotReturnOffset == 0);
-  ASSERT(Assembler::kJSReturnSequenceInstructions * Assembler::kInstrSize ==
-         patcher.masm()->pc_offset());
-  ASSERT(Assembler::target_address_at(reinterpret_cast<byte*>(rinfo()->pc() + Assembler::kPatchReturnSequenceAddressOffset), (ConstantPoolArray* )NULL) == debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry());
-  ASSERT(patcher.masm()->CallSize(debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry(), 0, RelocInfo::NONE32) == patcher.masm()->pc_offset());
+  patcher.masm()->jsr_at_breakpoint(patch_location, call_target);
+
+  ASSERT_EQ(patcher.masm()->pc_offset(), Assembler::kPatchDebugBreakSlotReturnOffset);
+  ASSERT_EQ(patcher.masm()->pc_offset(), Assembler::kJSReturnSequenceInstructions * Assembler::kInstrSize);
+  ASSERT_EQ(Assembler::target_address_at(reinterpret_cast<byte*>(rinfo()->pc() + Assembler::kPatchReturnSequenceAddressOffset), (ConstantPoolArray* )NULL), debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry());
+  ASSERT_EQ(patcher.masm()->CallSize(debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry(), 0, RelocInfo::NONE32), patcher.masm()->pc_offset());
 }
 
 
@@ -74,25 +75,26 @@ bool BreakLocationIterator::IsDebugBreakAtSlot() {
 void BreakLocationIterator::SetDebugBreakAtSlot() { // REVIEWEDBY: CG
   ASSERT(IsDebugBreakSlot());
   // Patch the code changing the debug break slot code from
-  //   mov r2, r2
+  //   mov r1, r1 (DEBUG_BREAK_NOP)
   //   .... Assembler::kDebugBreakSlotInstructions times
-  // to a call to the debug break slot code through a standard call sequence:
+  // to a call to the breakpoint function through a slightly modified call sequence
   // mov(ip, address)
+  // ...
   // jsr(ip)
+  // of fixed length whatever the initial alignment.
   //
   // Note that actually this sequence is the same than the ::SetDebugBreakAtReturn()
-  // and the FullGenerator::CallIC() such that the offsets from the return address
-  // is the same for the three case.
+  // such that the offsets from the return address is the same for the two cases.
+  //
+  uint32_t call_target = reinterpret_cast<uint32_t>(debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry());
+  uint32_t patch_location = reinterpret_cast<uint32_t>(rinfo()->pc());
   CodePatcher patcher(rinfo()->pc(), Assembler::kDebugBreakSlotInstructions);
-  ASSERT((uintptr_t)rinfo()->pc() % 4 == 0); // Must be aligned: ref RecordJSReturn()
-  patcher.masm()->mov(ip,
-                      Operand(reinterpret_cast<int32_t>(debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry()))); // Pass as int32_t to avoid emittion of relocation
-  patcher.masm()->jsr(ip);
-  ASSERT(patcher.masm()->pc_offset() - Assembler::kPatchDebugBreakSlotReturnOffset == 0);
-  ASSERT(Assembler::kDebugBreakSlotInstructions * Assembler::kInstrSize ==
-         patcher.masm()->pc_offset());
-  ASSERT(Assembler::target_address_at(reinterpret_cast<byte*>(rinfo()->pc() + Assembler::kPatchDebugBreakSlotAddressOffset), (ConstantPoolArray*)NULL) == debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry());
-  ASSERT(patcher.masm()->CallSize(debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry(), 0, RelocInfo::NONE32) == patcher.masm()->pc_offset());
+  patcher.masm()->jsr_at_breakpoint(patch_location, call_target);
+
+  ASSERT_EQ(patcher.masm()->pc_offset(), Assembler::kPatchDebugBreakSlotReturnOffset);
+  ASSERT_EQ(patcher.masm()->pc_offset(), Assembler::kDebugBreakSlotInstructions * Assembler::kInstrSize);
+  ASSERT_EQ(Assembler::target_address_at(reinterpret_cast<byte*>(rinfo()->pc() + Assembler::kPatchDebugBreakSlotAddressOffset), (ConstantPoolArray* )NULL), debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry());
+  ASSERT_EQ(patcher.masm()->CallSize(debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry(), 0, RelocInfo::NONE32), patcher.masm()->pc_offset());
 }
 
 
@@ -281,14 +283,22 @@ void Debug::GenerateSlot(MacroAssembler* masm) { // REVIEWEDBY: CG
   // the constant pool in the debug break slot code.
   Assembler::BlockConstPoolScope block_const_pool(masm);
   Label check_codesize;
-  __ align(); // DIFF: codegen // Force alignment for SH4, required before RecordDebugBreakSlot()
   __ bind(&check_codesize);
   __ RecordDebugBreakSlot();
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
     __ nop(MacroAssembler::DEBUG_BREAK_NOP);
   }
+  // The whole sequence length generated here must be a fixed value
+  // Assembler::kDebugBreakSlotInstructions used to determine
+  // code offsets from debug break slot relocations (ref to src/debug.cc)
   ASSERT_EQ(Assembler::kDebugBreakSlotInstructions,
             masm->InstructionsGeneratedSince(&check_codesize));
+  // SH4: for SH4 the sequence generated here must also not change the alignment
+  // at the start of the sequence (the address of RecordDebugBreakSlot may be
+  // aligned or not). Otherwise the code generated after the debug slot may be
+  // different than the code generated without the debug slot.
+  // Hence we check that the number of generated instructions is a multiple of 2.
+  ASSERT(Assembler::kDebugBreakSlotInstructions % 2 == 0);
 }
 
 

@@ -94,7 +94,13 @@ Address RelocInfo::target_address_address() { // REVIEWEDBY: CG
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address>(Assembler::target_pointer_address_at(pc_));
+  if (FLAG_enable_ool_constant_pool) {
+    // We return the PC for ool constant pool since this function is used by the
+    // serializerer and expects the address to reside within the code object.
+    return reinterpret_cast<Address>(pc_);
+  } else {
+    return Assembler::target_pointer_address_at(pc_);
+  }
 }
 
 
@@ -235,12 +241,8 @@ Address RelocInfo::call_address() { // REVIEWEDBY: CG
   // SH4: both sequences are identical, thus can be treated the same way
   ASSERT(Assembler::kJSReturnSequenceInstructions ==
          Assembler::kDebugBreakSlotInstructions);
-  // SH4: the actual position of the object address is
-  // four instructions after the start of the sequence.
-  // Ref to ::call_object_address() for instance.
-  byte *address_pointer = pc_ + Assembler::kInstrSize * 4;
-  ASSERT((uintptr_t)address_pointer % 4 == 0);
-   return Memory::Address_at(address_pointer);
+  // SH4: Standard call sequence with inline address, use Assembler functions
+  return Assembler::target_address_at(pc_, (ConstantPoolArray*)NULL);
 }
 
 
@@ -250,42 +252,13 @@ void RelocInfo::set_call_address(Address target) { // REVIEWEDBY: CG
   // SH4: both sequences are identical, thus can be treated the same way
   ASSERT(Assembler::kJSReturnSequenceInstructions ==
          Assembler::kDebugBreakSlotInstructions);
-  // SH4: the actual position of the object address is
-  // four instructions after the start of the sequence.
-  // Ref to ::call_object_address() for instance.
-  byte *address_pointer = pc_ + Assembler::kInstrSize * 4;
-  ASSERT((uintptr_t)address_pointer % 4 == 0);
-  Memory::Address_at(address_pointer) = target;
+  // SH4: Standard call sequence with inline address, use Assembler functions
+  Assembler::set_target_address_at(pc_, (ConstantPoolArray*)NULL, target);
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target_code));
   }
-}
-
-
-Object* RelocInfo::call_object() { // REVIEWEDBY: CG
-  return *call_object_address();
-}
-
-
-void RelocInfo::set_call_object(Object* target) { // REVIEWEDBY: CG
-  *call_object_address() = target;
-}
-
-
-Object** RelocInfo::call_object_address() { // REVIEWEDBY: CG
-  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
-         (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
-  // SH4: both sequences are identical, thus can be treated the same way
-  ASSERT(Assembler::kJSReturnSequenceInstructions ==
-         Assembler::kDebugBreakSlotInstructions);
-  // SH4: the actual position of the object address is
-  // four instructions after the start of the sequence.
-  // Ref to ::IsPatchedReturnSequence() for instance.
-  byte *address_pointer = pc_ + Assembler::kInstrSize * 4;
-  ASSERT((uintptr_t)address_pointer % 4 == 0);
-  return reinterpret_cast<Object**>(address_pointer);
 }
 
 
@@ -300,18 +273,14 @@ void RelocInfo::WipeOut() { // REVIEWEDBY: CG
 
 bool RelocInfo::IsPatchedReturnSequence() { // REVIEWEDBY: CG
   Instr current_instr = Assembler::instr_at(pc_);
-  Instr next_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize);
-  Instr jsr_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize * 4 + 4);
   // A patched return sequence is a call to the debug stub (ref SetDebugBreakAtSlot()):
   //  mov.l ip, @(pc+...)
-  //  nop
-  //  bra
-  //  nop
+  //  ...
   //  address (4 bytes)
+  //  ...
   //  jsr
-  //  nop
-  return Assembler::IsMovlPcRelative(current_instr) && Assembler::IsNop(next_instr) &&
-    Assembler::IsJsr(jsr_instr);
+  //  ...
+  return Assembler::IsMovlPcRelative(current_instr);
 }
 
 
@@ -442,27 +411,16 @@ Address Assembler::target_pointer_address_at(Address pc) { // REVIEWEDBY: CG
   // Compute the actual address in the code where the address of the
   // jump/call/mov instruction is stored given the instruction pc.
   // Ref to functions that call Assembler::RecordRelocInfo()
-  // such as Assembler::mov(), Assembler::jmp(), such as Assembler::jsr().
+  // such as Assembler::mov(), Assembler::jmp(), Assembler::jsr().
 
-  // With inline constant pools, all sequences for jmp/jsr/mov uses the same
+  // With inline addresses, all sequences for jmp/jsr/mov uses the same
   // sequence as mov(), i.e.:
   // align 4;
   // @ pc argument is there
-  // movl pc+4 => R; nop; bra pc+4; nop; pool[0..32]
+  // movl pc+x => R; [nop;] bra pc+4; nop; pool[0..32]
   //
-  // New style (delayed) constant pool uses look like this:
-  // (aligned or unaligned)
-  // @ pc argument is there
-  // movl pc+disp => R;
-  // (disp + 1 instructions later, aligned)
-  // pool entry [0..32]
-  //
-  // Note1: It should be sufficient to identify an unpatched constant pool load
-  // by its disp == 0. That is, unless we would employ an undelayed branch for
-  // jumping over the pool, which we currently do not do.
   Instr instr = instr_at(pc);
   ASSERT(IsMovlPcRelative(instr)); // check if 'movl disp, pc'
-  ASSERT((instr & kOff8Mask) != 0x0); // check if load was patched (see note1)
   Address pool_address = Address(reinterpret_cast<uint32_t>(pc + 4) & ~0x3);
   pool_address += (instr & kOff8Mask) << 2;
   ASSERT(reinterpret_cast<uint32_t>(pool_address) % 4 == 0); // pool is aligned
@@ -470,10 +428,22 @@ Address Assembler::target_pointer_address_at(Address pc) { // REVIEWEDBY: CG
 }
 
 
+Address Assembler::target_constant_pool_address_at(
+    Address pc, ConstantPoolArray* constant_pool) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
 Address Assembler::target_address_at(Address pc, // REVIEWEDBY: CG
                                      ConstantPoolArray* constant_pool) {
-  ASSERT(IsMovlPcRelative(instr_at(pc)));
-  return Memory::Address_at(target_pointer_address_at(pc));
+  if (FLAG_enable_ool_constant_pool) {
+    return Memory::Address_at(
+        target_constant_pool_address_at(pc, constant_pool));
+  } else {
+   ASSERT(IsMovlPcRelative(instr_at(pc)));
+   return Memory::Address_at(target_pointer_address_at(pc));
+  }
 }
 
 
@@ -481,8 +451,6 @@ Address Assembler::target_address_from_return_address(Address pc) { // REVIEWEDB
   // This is used only in the case of a call with immediate
   // target (ref ARM port).
   // No need to account for a direct register based call.
-  // This is equivalent to calling ResolveCallTargetAddressOffset()
-  // that returns the length of the sequence.
   Instr possible_mov;
   Address candidate;
 
@@ -526,23 +494,31 @@ Address Assembler::return_address_from_call_start(Address pc) { // REVIEWEDBY: C
 
 void Assembler::deserialization_set_special_target_at( // REVIEWEDBY: CG
     Address constant_pool_entry, Code* code, Address target) {
-  Memory::Address_at(constant_pool_entry) = target;
+  if (FLAG_enable_ool_constant_pool) {
+    set_target_address_at(constant_pool_entry, code, target);
+  } else {
+    Memory::Address_at(constant_pool_entry) = target;
+  }
 }
 
 
 void Assembler::set_target_address_at(Address pc, // REVIEWEDBY: CG
                                       ConstantPoolArray* constant_pool,
                                       Address target) {
-  ASSERT(IsMovlPcRelative(Assembler::instr_at(pc)));
-  Memory::Address_at(target_pointer_address_at(pc)) = target;
-  // Intuitively, we would think it is necessary to flush the instruction cache
-  // after patching a target address in the code as follows:
-  //   CPU::FlushICache(pc, sizeof(target));
-  // However, on SH4, no instruction was actually patched by the assignment
-  // above; the target address is not part of an instruction, it is patched in
-  // the constant pool and is read via a data access; the instruction accessing
-  // this address in the constant pool remains unchanged.
-
+  if (FLAG_enable_ool_constant_pool) {
+    Memory::Address_at(
+      target_constant_pool_address_at(pc, constant_pool)) = target;
+  } else {
+    ASSERT(IsMovlPcRelative(Assembler::instr_at(pc)));
+    Memory::Address_at(target_pointer_address_at(pc)) = target;
+    // Intuitively, we would think it is necessary to flush the instruction cache
+    // after patching a target address in the code as follows:
+    //   CPU::FlushICache(pc, sizeof(target));
+    // However, on SH4, no instruction was actually patched by the assignment
+    // above; the target address is not part of an instruction, it is patched in
+    // the constant pool and is read via a data access; the instruction accessing
+    // this address in the constant pool remains unchanged.
+  }
 }
 
 

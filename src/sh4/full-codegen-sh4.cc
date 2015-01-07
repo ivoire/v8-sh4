@@ -459,7 +459,6 @@ void FullCodeGenerator::EmitReturnSequence() { // REVIEWEDBY: CG
       // The size does not need to be predictable, but we add some padding
       // at the end.
       // Not required: PredictableCodeSizeScope predictable(masm_, -1);
-      __ align(); // ALignment required on SH4 before each RecordJSReturn()
       __ RecordJSReturn();
       int start = masm_->pc_offset();
       int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT);

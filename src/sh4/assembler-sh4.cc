@@ -1061,6 +1061,41 @@ void Assembler::jsr_at_following_address(Register rtmp) {
 }
 
 
+void Assembler::jsr_at_breakpoint(uint32_t patch_location, uint32_t call_target, Register rtmp)
+{
+  // Used by BreakLocationIterator::SetDebugBreakAtReturn/Slot() functions.
+  // This special sequence enforces:
+  // - a constant length whatever the alignment, actually 8 instructions
+  // - no change in the initial alignment, i.e. multiple of 4 bytes in length
+  // - a standard mov target sequence at start such that target_address_at() works
+  // - a standrd jsr sequence at end such that the return address is the address
+  //   just after the sequence.
+  // The sequence may be generated through a CodePatcher, hence we can't rely
+  // on the pc_offset() for the alignment, thus we use the patch_location
+  // value given instead.
+  // The sequence must not generate additionl relocations, hence we use a raw
+  // integer value for the call_target.
+  bool aligned = (patch_location % 4 == 0);
+  int start_offset = pc_offset();
+
+  movl_dispPC_(4, rtmp);
+  if (aligned) nop_();
+  bra_(aligned? 4: 6);
+  nop_();
+  dd(call_target);
+  if (!aligned) nop_();
+  jsr_indRd_(rtmp);
+  nop_();
+
+  // Must change kDebugBreakSlotInstructions, kJSReturnSequenceInstructions and
+  // kPatchDebugBreakSlotReturnOffset if the length changes.
+  USE(start_offset);
+  ASSERT(pc_offset() - start_offset == 8 * kInstrSize);
+  ASSERT((pc_offset() - start_offset) % 4 == 0);
+
+}
+
+
 void Assembler::jsr(Handle<Code> code, RelocInfo::Mode rmode, Register rtmp) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   positions_recorder()->WriteRecordedPositions(); // Record position of a jsr to code
@@ -1779,7 +1814,6 @@ void Assembler::stop(const char* msg, Condition cond) {
 
 // Debugging.
 void Assembler::RecordJSReturn() {
-  ASSERT((uintptr_t)pc_ % 4 == 0); // Must be aligned on SH4
   positions_recorder()->WriteRecordedPositions();
   CheckBuffer();
   RecordRelocInfo(RelocInfo::JS_RETURN);
@@ -1787,7 +1821,6 @@ void Assembler::RecordJSReturn() {
 
 
 void Assembler::RecordDebugBreakSlot() {
-  ASSERT((uintptr_t)pc_ % 4 == 0); // Must be aligned on SH4
   positions_recorder()->WriteRecordedPositions();
   CheckBuffer();
   RecordRelocInfo(RelocInfo::DEBUG_BREAK_SLOT);
@@ -1916,28 +1949,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // no-op without constant pool
 }
 
-int Assembler::ResolveCallTargetAddressOffset(byte *pc) {
-  Instr instr = instr_at(pc - 2);
-  ASSERT(IsNop(instr));
-  instr = instr_at(pc - 4);
-  ASSERT(IsJsr(instr));
-  instr = instr_at(pc - 6);
-  // if it's the constant pool load here, then we found what we were looking for
-  if (IsMovlPcRelative(instr)) {
-    return kNewStyleCallTargetAddressOffset;
-  } else {
-    instr = instr_at(pc - 10);
-    ASSERT(IsNop(instr));
-    instr = instr_at(pc - 12);
-    ASSERT(IsBra(instr));
-    instr = instr_at(pc - 14);
-    ASSERT(IsNop(instr));
-    instr = instr_at(pc - 16);
-    ASSERT(IsMovlPcRelative(instr));
-    ASSERT(16 == kOldStyleCallTargetAddressOffsetWithoutAlignment);
-    return kOldStyleCallTargetAddressOffsetWithoutAlignment;
-  }
-}
 
 // FPU ARM interface emulation (ref to src/arm/assembler-arm.h)
 void Assembler::vldr(DwVfpRegister dst, Register base, int offset,

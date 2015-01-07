@@ -403,18 +403,6 @@
   'regress/regress-2185-2': [PASS, TIMEOUT],
   'whitespaces': [PASS, TIMEOUT, SLOW],
 
-  # SH4: debug not implemented for SH4, these tests require debug support
-  'debug-breakpoints': [SKIP],
-  'debug-liveedit-breakpoints': [SKIP],
-  'debug-script-breakpoints': [SKIP],
-  'debug-stepin-positions': [SKIP],
-  'harmony/debug-evaluate-blockscopes': [SKIP],
-  'harmony/generators-relocation': [SKIP],
-  'regress/regress-1586': [SKIP],
-  'regress/regress-2318': [SKIP],
-  'regress/regress-debug-code-recompilation': [SKIP],
-  'regress/regress-prepare-break-while-recompile': [SKIP],
-
   # SH4: osr is not activated for SH4; skip related tests.
   'compiler/osr-warm': [SKIP],
   'compiler/osr-one': [SKIP],
